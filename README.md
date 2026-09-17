@@ -100,30 +100,36 @@ HDL Source Text (.v / .sv)
 
 Install the standalone Axiom EDA binary in seconds (<50 MB) without monolithic 100+ GB installers:
 
+#### Linux & macOS
 ```bash
-# Linux & macOS
 curl -fsSL https://axiom.aerovex.net/install.sh | bash
+```
 
-# Windows (PowerShell)
+#### Windows (PowerShell)
+```powershell
 irm https://axiom.aerovex.net/install.ps1 | iex
 ```
 
 ### Build from Source Driver
 
 ```bash
-# Automated build driver (compiles in-RAM Cranelift JIT engine & CLI)
 ./scripts/build_from_source.sh
 ```
 
 ### Headless CLI Usage
 
-# 1. Compile Verilog module in RAM with microsecond timing:
+Compile a Verilog module in RAM with microsecond timing:
+```bash
 cargo run -p betterado-cli -- compile tests/fixtures/alu.v -t alu
+```
 
-# 2. Run batch simulation with VCD & SAIF export:
+Run batch simulation with VCD & SAIF export:
+```bash
 cargo run -p betterado-cli -- run tests/fixtures/counter.v -t counter --ticks 100 --vcd wave.vcd --saif power.saif
+```
 
-# 3. Benchmark simulation throughput:
+Benchmark simulation throughput:
+```bash
 cargo run -p betterado-cli -- benchmark tests/fixtures/fifo.v -t fifo_4deep --cycles 5000
 ```
 

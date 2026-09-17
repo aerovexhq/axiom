@@ -11,12 +11,10 @@ Axiom provides lightweight, self-contained standalone binaries (<50 MB) with zer
 ::: code-group
 
 ```bash [Linux & macOS]
-# Universal single-line installation (auto-detects OS & Arch)
 curl -fsSL https://axiom.aerovex.net/install.sh | bash
 ```
 
 ```powershell [Windows (PowerShell)]
-# Universal single-line installation for Windows
 irm https://axiom.aerovex.net/install.ps1 | iex
 ```
 
@@ -34,19 +32,19 @@ You can specify a custom release version or override the destination path.
 
 ::: code-group
 
-```bash [Linux & macOS]
-# Pass version via environment variable
+```bash [Linux & macOS (Env Var)]
 AXIOM_VERSION=v0.1.0 curl -fsSL https://axiom.aerovex.net/install.sh | bash
+```
 
-# Or pass flag directly
+```bash [Linux & macOS (Flag)]
 curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --version v0.1.0
 ```
 
-```powershell [Windows (PowerShell)]
-# Pass version via environment variable
+```powershell [Windows (Env Var)]
 $env:AXIOM_VERSION="v0.1.0"; irm https://axiom.aerovex.net/install.ps1 | iex
+```
 
-# Or pass parameter directly
+```powershell [Windows (Parameter)]
 & ([scriptblock]::Create((irm https://axiom.aerovex.net/install.ps1))) -Version v0.1.0
 ```
 
@@ -55,7 +53,6 @@ $env:AXIOM_VERSION="v0.1.0"; irm https://axiom.aerovex.net/install.ps1 | iex
 ### Custom Installation Directory
 
 ```bash
-# Install to custom directory
 curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --dir /opt/axiom
 ```
 
@@ -67,22 +64,28 @@ If you prefer compiling from source or modifying the engine, Axiom includes an a
 
 ### Linux & macOS (`scripts/build_from_source.sh`)
 
+Clone the repository and run the automated driver:
+
 ```bash
-# Clone the repository
 git clone https://github.com/larvance/axiom.git
 cd axiom
-
-# Run the automated build-from-source driver
 ./scripts/build_from_source.sh
 ```
 
 **Build Script Options:**
-```bash
-./scripts/build_from_source.sh --cli-only       # Skip Node/UI and only build headless CLI
-./scripts/build_from_source.sh --prefix /usr/local # Install to system-wide directory
-./scripts/build_from_source.sh --debug         # Fast unoptimized debug build
-./scripts/build_from_source.sh --no-tests      # Skip test validation
-```
+
+- `--cli-only`: Skip Node/UI and build only the headless Rust CLI:
+  ```bash
+  ./scripts/build_from_source.sh --cli-only
+  ```
+- `--prefix <DIR>`: Install to a custom system or user directory:
+  ```bash
+  ./scripts/build_from_source.sh --prefix /usr/local
+  ```
+- `--debug`: Fast unoptimized debug compilation:
+  ```bash
+  ./scripts/build_from_source.sh --debug
+  ```
 
 ### Windows (`scripts/build_from_source.ps1`)
 
@@ -98,17 +101,19 @@ In PowerShell:
 You can also invoke Cargo directly:
 
 ```bash
-# Build the headless CLI binary with Cranelift JIT
 cargo build --release -p betterado-cli --bin axiom
-
-# Output binary located at:
-# target/release/axiom
 ```
+
+The output binary will be located at `target/release/axiom`.
 
 Verify your installation:
 ```bash
 axiom --version
-# axiom 0.1.0 (in-ram cranelift jit engine)
+```
+
+Output:
+```text
+axiom 0.1.0 (in-ram cranelift jit engine)
 ```
 
 ---

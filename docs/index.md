@@ -57,12 +57,13 @@ irm https://axiom.aerovex.net/install.ps1 | iex
 :::
 
 ::: tip Version Selection & Build from Source
-To install a specific release version or build directly from source:
+To install a specific release version:
 ```bash
-# Target specific release version
 AXIOM_VERSION=v0.1.0 curl -fsSL https://axiom.aerovex.net/install.sh | bash
+```
 
-# Force build from source via cargo
+Or build directly from source using cargo:
+```bash
 curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --build
 ```
 :::
