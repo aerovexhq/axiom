@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Activity, Cpu, LayoutGrid } from "lucide-react";
+import { Activity, Cpu, LayoutGrid, Sliders } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
 import { WaveformViewer } from "./components/WaveformViewer";
 import { SchematicViewer } from "./components/SchematicViewer";
+import { VirtualLabRack } from "./components/VirtualLabRack";
 import { TelemetryViewer } from "./components/TelemetryViewer";
 import { BottomConsole } from "./components/BottomConsole";
 import { engineBridge, SimulationState } from "./engine/engineBridge";
@@ -14,7 +15,7 @@ export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [activeDesign, setActiveDesign] = useState<SampleDesign>(SAMPLE_DESIGNS[0]);
   const [editorCode, setEditorCode] = useState<string>(SAMPLE_DESIGNS[0].code);
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "split">("split");
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "split">("split");
 
   // Cross-Probing State: Signal ID and Code Highlight Span
   const [activeCrossProbeSignal, setActiveCrossProbeSignal] = useState<string | null>(null);
@@ -165,6 +166,25 @@ export const App: React.FC = () => {
               </button>
 
               <button
+                onClick={() => setCenterView("virtuallab")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 9px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: centerView === "virtuallab" ? "var(--bg-tertiary)" : "transparent",
+                  color: centerView === "virtuallab" ? "var(--accent-amber)" : "var(--text-muted)",
+                  border: centerView === "virtuallab" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                }}
+              >
+                <Sliders size={12} />
+                <span>Virtual Lab</span>
+              </button>
+
+              <button
                 onClick={() => setCenterView("split")}
                 style={{
                   display: "flex",
@@ -200,7 +220,7 @@ export const App: React.FC = () => {
           {centerView === "split" && (
             <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
               {/* Left: HDL Editor */}
-              <div style={{ width: "35%", display: "flex", minWidth: 320 }}>
+              <div style={{ width: "32%", display: "flex", minWidth: 300 }}>
                 <HdlEditor
                   code={editorCode}
                   topModule={activeDesign.topModule}
@@ -211,20 +231,43 @@ export const App: React.FC = () => {
                 />
               </div>
 
-              {/* Right: Stacked Waveform (50%) & Schematic DAG (50%) */}
+              {/* Right: Stacked Waveform (46%) & Split Schematic + Virtual Lab (54%) */}
               <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 400, overflow: "hidden" }}>
-                <div style={{ flex: 1, display: "flex", minHeight: 220, borderBottom: "1px solid var(--border-subtle)" }}>
+                <div style={{ height: "46%", display: "flex", minHeight: 180, borderBottom: "1px solid var(--border-subtle)" }}>
                   <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
                 </div>
-                <div style={{ flex: 1, display: "flex", minHeight: 220 }}>
-                  <SchematicViewer
-                    state={state}
-                    activeDesignId={activeDesign.id}
-                    selectedSignalId={activeCrossProbeSignal}
-                    onSelectSignal={handleSchematicSelectSignal}
-                    onJumpToCode={handleJumpToCode}
-                  />
+                <div style={{ flex: 1, display: "flex", minHeight: 200, overflow: "hidden" }}>
+                  <div style={{ flex: 1.15, display: "flex", borderRight: "1px solid var(--border-subtle)", overflow: "hidden" }}>
+                    <SchematicViewer
+                      state={state}
+                      activeDesignId={activeDesign.id}
+                      selectedSignalId={activeCrossProbeSignal}
+                      onSelectSignal={handleSchematicSelectSignal}
+                      onJumpToCode={handleJumpToCode}
+                    />
+                  </div>
+                  <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                    <VirtualLabRack state={state} activeDesignId={activeDesign.id} />
+                  </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {centerView === "virtuallab" && (
+            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+              <div style={{ width: "32%", display: "flex", minWidth: 320 }}>
+                <HdlEditor
+                  code={editorCode}
+                  topModule={activeDesign.topModule}
+                  onChangeCode={setEditorCode}
+                  onCompile={handleCompile}
+                  compiled={state.compiled}
+                  highlightLineSpan={highlightLineSpan}
+                />
+              </div>
+              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+                <VirtualLabRack state={state} activeDesignId={activeDesign.id} />
               </div>
             </div>
           )}
