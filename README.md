@@ -12,7 +12,7 @@
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?style=flat-square&logo=tauri)](https://v2.tauri.app)
 [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?style=flat-square&logo=react)](https://react.dev)
 
-*Built natively in Rust by [Aerovex](https://aerovex.com).*
+*Built natively in Rust by [Aerovex](https://aerovex.net).*
 
 </div>
 
@@ -96,13 +96,26 @@ HDL Source Text (.v / .sv)
 
 ---
 
-## ⚡ Quickstart
+## ⚡ Instant Install
 
-### Headless CLI Driver
+Install the standalone Axiom EDA binary in seconds (<50 MB) without monolithic 100+ GB installers:
 
 ```bash
-# Build CLI
-cargo build --release -p betterado-cli
+# Linux & macOS
+curl -fsSL https://axiom.aerovex.net/install.sh | bash
+
+# Windows (PowerShell)
+irm https://axiom.aerovex.net/install.ps1 | iex
+```
+
+### Build from Source Driver
+
+```bash
+# Automated build driver (compiles in-RAM Cranelift JIT engine & CLI)
+./scripts/build_from_source.sh
+```
+
+### Headless CLI Usage
 
 # 1. Compile Verilog module in RAM with microsecond timing:
 cargo run -p betterado-cli -- compile tests/fixtures/alu.v -t alu
@@ -143,18 +156,18 @@ Comprehensive guides, architectural specifications, and Vivado migration manuals
 
 ## 🗺️ Vivado Feature Roadmap
 
-Axiom is actively implementing core high-value capabilities from AMD Vivado:
+Axiom delivers next-generation alternatives to AMD Vivado's monolithic toolchain:
 - [x] In-RAM HDL Compilation & Cranelift JIT Simulation Kernel
 - [x] IEEE 1800 Stratified Event Queue & Granular Delta-Cycle Inspection
 - [x] Physics-Informed Power Telemetry & PDN Inductive Voltage Droop
 - [x] IEEE 1364 VCD & SAIF 2.0 Exporters
 - [x] Modern Dark Desktop (Tauri v2) & Web (WASM) Application
-- [ ] **[P1] Interactive RTL Schematic & Netlist DAG Graph Viewer** (WebGL with waveform cross-probing)
-- [ ] **[P1] Static Timing Analysis (STA) & SDC/XDC Constraint Engine** (Setup/Hold slack, WNS, TNS, critical path tracing)
-- [ ] **[P2] Logic Synthesis & FPGA Technology Mapping** (Mapping to LUT6, FDRE, and CARRY4 primitives)
-- [ ] **[P2] Interactive Scriptable Tcl Shell & Embedded REPL**
-- [ ] **[P2] Virtual I/O (VIO) & Software Integrated Logic Analyzer (ILA)**
-- [ ] **[P2] VHDL-2008 Mixed-Language Parser & Elaborator**
+- [x] Interactive RTL Schematic & Netlist DAG Graph Viewer (60+ FPS Canvas 2D with 3-way cross-probing & logic cone slicer)
+- [x] Static Timing Analysis (STA) & SDC/XDC Constraint Engine (Setup/Hold slack waterfall, WNS, TNS, CDC matrix)
+- [x] Virtual Lab & Instrument Rack (8-bit DIP switches, tactile buttons, hex dial, 7-seg displays, testbench painter)
+- [x] Unified Omnibar (Ctrl+K) & In-UI Scripting REPL Console
+- [ ] **[P2] WebAssembly Multithreaded Worker Isolation** (SharedArrayBuffer)
+- [ ] **[P2] Xilinx 7-Series & UltraScale+ Primitive Library Emulation** (LUT6, DSP48E2, RAMB36E2)
 
 ---
 
@@ -162,4 +175,4 @@ Axiom is actively implementing core high-value capabilities from AMD Vivado:
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
-Copyright © 2026 [Aerovex](https://aerovex.com).
+Copyright © 2026 [Aerovex](https://aerovex.net).

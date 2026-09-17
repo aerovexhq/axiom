@@ -39,7 +39,7 @@ export default defineConfig({
         text: "v0.1.0",
         items: [
           { text: "Changelog", link: "https://github.com/larvance/axiom/releases" },
-          { text: "Aerovex Platform", link: "https://aerovex.com" }
+          { text: "Aerovex Platform", link: "https://aerovex.net" }
         ]
       }
     ],
