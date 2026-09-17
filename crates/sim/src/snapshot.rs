@@ -1,5 +1,5 @@
-use betterado_core::SimTime;
-use betterado_jit::SimStateArena;
+use axiom_core::SimTime;
+use axiom_jit::SimStateArena;
 use crate::event::StratifiedEventQueue;
 use crate::glitch::GlitchDetector;
 

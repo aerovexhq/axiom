@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Betterado — Count Lines of Code (CLOC) Script
+# Axiom — Count Lines of Code (CLOC) Script
 # Counts only handwritten project code while strictly excluding
 # build artifacts, vendor directories, node_modules, and lockfiles.
 
@@ -21,7 +21,7 @@ fi
 
 print_help() {
   cat <<EOF
-Betterado CLOC Driver — Counts only handwritten code in the project.
+Axiom CLOC Driver — Counts only handwritten code in the project.
 
 USAGE:
     ./scripts/cloc.sh [OPTIONS] [-- <EXTRA_CLOC_ARGS>]

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use betterado_core::FileId;
-    use betterado_syntax::parse_hdl;
+    use axiom_core::FileId;
+    use axiom_syntax::parse_hdl;
 
     #[test]
     fn test_elaborate_alu() {

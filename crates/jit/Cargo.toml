@@ -1,5 +1,5 @@
 [package]
-name = "betterado-jit"
+name = "axiom-jit"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -15,9 +15,9 @@ native-jit = [
 ]
 
 [dependencies]
-betterado-core.workspace = true
-betterado-syntax.workspace = true
-betterado-ir.workspace = true
+axiom-core.workspace = true
+axiom-syntax.workspace = true
+axiom-ir.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 hashbrown.workspace = true
@@ -28,4 +28,4 @@ cranelift-jit = { workspace = true, optional = true }
 cranelift-module = { workspace = true, optional = true }
 
 [dev-dependencies]
-betterado-syntax.workspace = true
+axiom-syntax.workspace = true

@@ -111,12 +111,12 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="betterado-app">
+    <div className="axiom-app">
       {/* Simulation Execution & Status Header */}
       <Header state={state} onCompile={handleCompile} />
 
       {/* Main Workspace Body */}
-      <div className="betterado-body">
+      <div className="axiom-body">
         {/* Left Sidebar: Hierarchy Explorer & Fixture Chooser */}
         <Sidebar
           state={state}
@@ -127,7 +127,7 @@ export const App: React.FC = () => {
         />
 
         {/* Center Simulation Workspace */}
-        <div className="betterado-center">
+        <div className="axiom-center">
           {/* Studio View Switcher Tab Bar */}
           <div
             style={{
@@ -286,7 +286,7 @@ export const App: React.FC = () => {
 
           {/* Upper Workspace: View Depending on centerView Mode */}
           {centerView === "split" && (
-            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
               {/* Left: HDL Editor */}
               <div style={{ width: "32%", display: "flex", minWidth: 300 }}>
                 <HdlEditor
@@ -323,7 +323,7 @@ export const App: React.FC = () => {
           )}
 
           {centerView === "timing" && (
-            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
               <div style={{ width: "32%", display: "flex", minWidth: 320 }}>
                 <HdlEditor
                   code={editorCode}
@@ -341,7 +341,7 @@ export const App: React.FC = () => {
           )}
 
           {centerView === "virtuallab" && (
-            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
               <div style={{ width: "32%", display: "flex", minWidth: 320 }}>
                 <HdlEditor
                   code={editorCode}
@@ -359,7 +359,7 @@ export const App: React.FC = () => {
           )}
 
           {centerView === "waveform" && (
-            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
               <div style={{ width: "38%", display: "flex", minWidth: 320 }}>
                 <HdlEditor
                   code={editorCode}
@@ -377,7 +377,7 @@ export const App: React.FC = () => {
           )}
 
           {centerView === "schematic" && (
-            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
               <div style={{ width: "35%", display: "flex", minWidth: 320 }}>
                 <HdlEditor
                   code={editorCode}

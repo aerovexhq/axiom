@@ -10,7 +10,7 @@ pub use parser::Parser;
 pub use preprocessor::Preprocessor;
 pub use token::{Token, TokenKind};
 
-use betterado_core::{Diagnostic, FileId};
+use axiom_core::{Diagnostic, FileId};
 
 /// Parses a Verilog / SystemVerilog source string into an AST with collected diagnostics.
 pub fn parse_hdl(file_id: FileId, source: &str) -> (SourceFile, Vec<Diagnostic>) {

@@ -12,7 +12,7 @@ export const SAMPLE_DESIGNS: SampleDesign[] = [
     name: "8-bit Arithmetic Logic Unit (ALU)",
     description: "Multi-function ALU with ADD, SUB, AND, OR, XOR, SHL, SHR operations, zero/carry flags, and power-aware switching.",
     topModule: "alu_8bit",
-    code: `// Betterado Sample: 8-Bit Arithmetic Logic Unit
+    code: `// Axiom Sample: 8-Bit Arithmetic Logic Unit
 // IEEE 1800-2017 compliant Verilog
 \`timescale 1ns / 1ps
 
@@ -66,7 +66,7 @@ endmodule
     name: "Synchronous 8-Bit Counter with Glitch Hazards",
     description: "Counter with clear, enable, up/down, and continuous combinational decode exhibiting delta-cycle hazard tracking.",
     topModule: "counter_glitch_demo",
-    code: `// Betterado Sample: Synchronous Counter with Delta Glitch Demo
+    code: `// Axiom Sample: Synchronous Counter with Delta Glitch Demo
 \`timescale 1ns / 1ps
 
 module counter_glitch_demo (
@@ -106,7 +106,7 @@ endmodule
     name: "Hierarchical Core with Clock Divider & PDN",
     description: "Hierarchical SoC subsystem featuring a frequency divider, accumulator, and power telemetry rail modeling.",
     topModule: "soc_subsystem_top",
-    code: `// Betterado Sample: Hierarchical SoC Subsystem
+    code: `// Axiom Sample: Hierarchical SoC Subsystem
 \`timescale 1ns / 1ps
 
 module clk_divider (

@@ -1,8 +1,8 @@
-use betterado_core::{FileId, LogicVector, SimTime};
-use betterado_ir::elaborate;
-use betterado_sim::{BetteradoSimulator, DeltaSummary, TickSummary};
-use betterado_syntax::parse_hdl;
-use betterado_telemetry::{SaifWriter, TelemetryCollector, TelemetryFrame, VcdWriter};
+use axiom_core::{FileId, LogicVector, SimTime};
+use axiom_ir::elaborate;
+use axiom_sim::{AxiomSimulator, DeltaSummary, TickSummary};
+use axiom_syntax::parse_hdl;
+use axiom_telemetry::{SaifWriter, TelemetryCollector, TelemetryFrame, VcdWriter};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
@@ -34,10 +34,10 @@ pub struct StepResponse {
 
 struct SharedTelemetryListener(Arc<Mutex<TelemetryCollector>>);
 
-impl betterado_sim::SimEventListener for SharedTelemetryListener {
+impl axiom_sim::SimEventListener for SharedTelemetryListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -51,10 +51,10 @@ impl betterado_sim::SimEventListener for SharedTelemetryListener {
 
 struct SharedVcdListener(Arc<Mutex<VcdWriter>>);
 
-impl betterado_sim::SimEventListener for SharedVcdListener {
+impl axiom_sim::SimEventListener for SharedVcdListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -69,7 +69,7 @@ impl betterado_sim::SimEventListener for SharedVcdListener {
 /// WebAssembly simulation kernel executing 100% in-browser.
 #[wasm_bindgen]
 pub struct WasmEngine {
-    sim: Option<BetteradoSimulator>,
+    sim: Option<AxiomSimulator>,
     collector: Option<Arc<Mutex<TelemetryCollector>>>,
     vcd: Option<Arc<Mutex<VcdWriter>>>,
 }
@@ -131,7 +131,7 @@ impl WasmEngine {
         let collector = Arc::new(Mutex::new(TelemetryCollector::new(&circuit)));
         let vcd = Arc::new(Mutex::new(VcdWriter::new(&circuit, "1 ps")));
 
-        let mut sim = match BetteradoSimulator::new(circuit) {
+        let mut sim = match AxiomSimulator::new(circuit) {
             Ok(s) => s,
             Err(e) => {
                 let resp = CompileResponse {

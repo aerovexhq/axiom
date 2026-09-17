@@ -1,5 +1,5 @@
 use crate::token::{Token, TokenKind};
-use betterado_core::{FileId, Logic4, LogicVector, Span};
+use axiom_core::{FileId, Logic4, LogicVector, Span};
 
 pub struct Lexer<'a> {
     source: &'a str,

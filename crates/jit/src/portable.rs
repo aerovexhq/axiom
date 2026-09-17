@@ -1,7 +1,7 @@
 use crate::arena::SimStateArena;
-use betterado_core::{Logic4, LogicVector};
-use betterado_ir::{BirCircuit, BirContinuousAssign, BirExpr, BirProcess, BirStatement, NetId};
-use betterado_syntax::{BinaryOp, UnaryOp};
+use axiom_core::{Logic4, LogicVector};
+use axiom_ir::{BirCircuit, BirContinuousAssign, BirExpr, BirProcess, BirStatement, NetId};
+use axiom_syntax::{BinaryOp, UnaryOp};
 
 /// Portable in-memory evaluator for BIR circuits (WebAssembly and reference execution).
 pub struct PortableEvaluator;

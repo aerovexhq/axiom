@@ -2,8 +2,8 @@ use crate::arena::SimStateArena;
 #[cfg(feature = "native-jit")]
 use crate::compiler::{CraneliftJit, NativeBlockFn};
 use crate::portable::{PortableEvaluator, ProcessEvalOutput};
-use betterado_core::LogicVector;
-use betterado_ir::{BirCircuit, ProcessId};
+use axiom_core::LogicVector;
+use axiom_ir::{BirCircuit, ProcessId};
 
 /// Fully compiled, executable hardware circuit in RAM.
 pub struct CompiledCircuit {

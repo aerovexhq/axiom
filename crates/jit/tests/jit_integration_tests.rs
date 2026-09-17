@@ -1,7 +1,7 @@
-use betterado_core::{FileId, Logic4, LogicVector};
-use betterado_ir::elaborate;
-use betterado_jit::JitEngine;
-use betterado_syntax::parse_hdl;
+use axiom_core::{FileId, Logic4, LogicVector};
+use axiom_ir::elaborate;
+use axiom_jit::JitEngine;
+use axiom_syntax::parse_hdl;
 
 #[test]
 fn test_jit_alu_execution() {
@@ -27,7 +27,7 @@ fn test_jit_alu_execution() {
     // 1. Test ADD (20 + 5 = 25)
     compiled.set_signal("alu.opcode", &op_add);
     for p in 0..compiled.circuit.processes.len() {
-        let _ = compiled.eval_process(betterado_ir::ProcessId(p as u32));
+        let _ = compiled.eval_process(axiom_ir::ProcessId(p as u32));
     }
     for a in 0..compiled.circuit.continuous_assigns.len() {
         compiled.eval_continuous_assign(a);
@@ -41,7 +41,7 @@ fn test_jit_alu_execution() {
     // 2. Test SUB (20 - 5 = 15)
     compiled.set_signal("alu.opcode", &op_sub);
     for p in 0..compiled.circuit.processes.len() {
-        let _ = compiled.eval_process(betterado_ir::ProcessId(p as u32));
+        let _ = compiled.eval_process(axiom_ir::ProcessId(p as u32));
     }
     for a in 0..compiled.circuit.continuous_assigns.len() {
         compiled.eval_continuous_assign(a);
@@ -53,7 +53,7 @@ fn test_jit_alu_execution() {
     // 3. Test SUB to zero (20 - 20 = 0 -> zero == 1)
     compiled.set_signal("alu.b", &a_val);
     for p in 0..compiled.circuit.processes.len() {
-        let _ = compiled.eval_process(betterado_ir::ProcessId(p as u32));
+        let _ = compiled.eval_process(axiom_ir::ProcessId(p as u32));
     }
     for a in 0..compiled.circuit.continuous_assigns.len() {
         compiled.eval_continuous_assign(a);
@@ -71,7 +71,7 @@ fn test_jit_alu_execution() {
     compiled.set_signal("alu.b", &b_hex);
     compiled.set_signal("alu.opcode", &op_and);
     for p in 0..compiled.circuit.processes.len() {
-        let _ = compiled.eval_process(betterado_ir::ProcessId(p as u32));
+        let _ = compiled.eval_process(axiom_ir::ProcessId(p as u32));
     }
     let res_and = compiled.get_signal("alu.result").unwrap();
     assert_eq!(res_and.to_u64(), Some(0xA0));
@@ -81,7 +81,7 @@ fn test_jit_alu_execution() {
     compiled.set_signal("alu.b", &b_or);
     compiled.set_signal("alu.opcode", &op_or);
     for p in 0..compiled.circuit.processes.len() {
-        let _ = compiled.eval_process(betterado_ir::ProcessId(p as u32));
+        let _ = compiled.eval_process(axiom_ir::ProcessId(p as u32));
     }
     let res_or = compiled.get_signal("alu.result").unwrap();
     assert_eq!(res_or.to_u64(), Some(0xFA));
@@ -93,7 +93,7 @@ fn test_jit_alu_execution() {
     compiled.set_signal("alu.b", &b_xor);
     compiled.set_signal("alu.opcode", &op_xor);
     for p in 0..compiled.circuit.processes.len() {
-        let _ = compiled.eval_process(betterado_ir::ProcessId(p as u32));
+        let _ = compiled.eval_process(axiom_ir::ProcessId(p as u32));
     }
     let res_xor = compiled.get_signal("alu.result").unwrap();
     assert_eq!(res_xor.to_u64(), Some(0xF0));
@@ -117,7 +117,7 @@ fn test_jit_counter_execution() {
     compiled.set_signal("counter.up_down", &logic_one);
 
     // Clock edge: eval process
-    let nbas = compiled.eval_process(betterado_ir::ProcessId(0));
+    let nbas = compiled.eval_process(axiom_ir::ProcessId(0));
     for (target, val) in nbas {
         let target_net = compiled.circuit.get_net(target).unwrap().clone();
         compiled.arena.write_net(&target_net, &val);
@@ -130,7 +130,7 @@ fn test_jit_counter_execution() {
     compiled.set_signal("counter.rst_n", &logic_one);
 
     // Clock cycle 1 (up_down = 1 -> count increments to 1)
-    let nbas = compiled.eval_process(betterado_ir::ProcessId(0));
+    let nbas = compiled.eval_process(axiom_ir::ProcessId(0));
     for (target, val) in nbas {
         let target_net = compiled.circuit.get_net(target).unwrap().clone();
         compiled.arena.write_net(&target_net, &val);
@@ -139,7 +139,7 @@ fn test_jit_counter_execution() {
     assert_eq!(count_val.to_u64(), Some(1));
 
     // Clock cycle 2 (count increments to 2)
-    let nbas = compiled.eval_process(betterado_ir::ProcessId(0));
+    let nbas = compiled.eval_process(axiom_ir::ProcessId(0));
     for (target, val) in nbas {
         let target_net = compiled.circuit.get_net(target).unwrap().clone();
         compiled.arena.write_net(&target_net, &val);
@@ -149,7 +149,7 @@ fn test_jit_counter_execution() {
 
     // Clock cycle 3 (up_down = 0 -> count decrements to 1)
     compiled.set_signal("counter.up_down", &logic_zero);
-    let nbas = compiled.eval_process(betterado_ir::ProcessId(0));
+    let nbas = compiled.eval_process(axiom_ir::ProcessId(0));
     for (target, val) in nbas {
         let target_net = compiled.circuit.get_net(target).unwrap().clone();
         compiled.arena.write_net(&target_net, &val);

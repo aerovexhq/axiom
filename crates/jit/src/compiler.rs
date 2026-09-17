@@ -7,8 +7,8 @@ use cranelift_jit::{JITBuilder, JITModule};
 #[cfg(feature = "native-jit")]
 use cranelift_module::{Linkage, Module};
 
-use betterado_ir::{BirCircuit, BirContinuousAssign, BirExpr};
-use betterado_syntax::{BinaryOp, UnaryOp};
+use axiom_ir::{BirCircuit, BirContinuousAssign, BirExpr};
+use axiom_syntax::{BinaryOp, UnaryOp};
 
 /// Function pointer to a JIT-compiled native logic block in RAM.
 /// Parameters:

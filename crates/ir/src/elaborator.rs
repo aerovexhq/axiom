@@ -1,6 +1,6 @@
 use crate::bir::*;
-use betterado_core::{Logic4, LogicVector};
-use betterado_syntax::*;
+use axiom_core::{Logic4, LogicVector};
+use axiom_syntax::*;
 use hashbrown::HashMap;
 use thiserror::Error;
 

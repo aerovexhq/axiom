@@ -90,7 +90,7 @@ input:focus, textarea:focus, select:focus {
   border-color: var(--border-focus);
 }
 
-.betterado-app {
+.axiom-app, .betterado-app {
   display: flex;
   flex-direction: column;
   width: 100vw;
@@ -98,21 +98,21 @@ input:focus, textarea:focus, select:focus {
   overflow: hidden;
 }
 
-.betterado-body {
+.axiom-body, .betterado-body {
   display: flex;
   flex: 1;
   overflow: hidden;
   position: relative;
 }
 
-.betterado-center {
+.axiom-center, .betterado-center {
   display: flex;
   flex-direction: column;
   flex: 1;
   overflow: hidden;
 }
 
-.betterado-split-horizontal {
+.axiom-split-horizontal, .betterado-split-horizontal {
   display: flex;
   flex: 1;
   overflow: hidden;

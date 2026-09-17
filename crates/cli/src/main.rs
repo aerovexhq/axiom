@@ -4,21 +4,21 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use betterado_core::{FileId, LogicVector, SimTime};
-use betterado_ir::elaborate;
-use betterado_jit::JitEngine;
-use betterado_sim::BetteradoSimulator;
-use betterado_syntax::parse_hdl;
-use betterado_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
+use axiom_core::{FileId, LogicVector, SimTime};
+use axiom_ir::elaborate;
+use axiom_jit::JitEngine;
+use axiom_sim::AxiomSimulator;
+use axiom_syntax::parse_hdl;
+use axiom_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
 
 mod gui_server;
 
 struct SharedTelemetryListener(Arc<Mutex<TelemetryCollector>>);
 
-impl betterado_sim::SimEventListener for SharedTelemetryListener {
+impl axiom_sim::SimEventListener for SharedTelemetryListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -32,10 +32,10 @@ impl betterado_sim::SimEventListener for SharedTelemetryListener {
 
 struct SharedVcdListener(Arc<Mutex<VcdWriter>>);
 
-impl betterado_sim::SimEventListener for SharedVcdListener {
+impl axiom_sim::SimEventListener for SharedVcdListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -153,12 +153,12 @@ fn main() {
         }
         "compile" => {
             if args.len() < 3 {
-                eprintln!("Error: 'compile' requires a file path. Usage: betterado compile <FILE> -t <TOP>");
+                eprintln!("Error: 'compile' requires a file path. Usage: axiom compile <FILE> -t <TOP>");
                 std::process::exit(1);
             }
             let file_path = &args[2];
             let top_module = parse_top_arg(&args).unwrap_or_else(|| {
-                eprintln!("Error: missing -t or --top argument. Usage: betterado compile <FILE> -t <TOP>");
+                eprintln!("Error: missing -t or --top argument. Usage: axiom compile <FILE> -t <TOP>");
                 std::process::exit(1);
             });
             if let Err(e) = execute_compile(file_path, &top_module) {
@@ -168,12 +168,12 @@ fn main() {
         }
         "run" => {
             if args.len() < 3 {
-                eprintln!("Error: 'run' requires a file path. Usage: betterado run <FILE> -t <TOP> [OPTIONS]");
+                eprintln!("Error: 'run' requires a file path. Usage: axiom run <FILE> -t <TOP> [OPTIONS]");
                 std::process::exit(1);
             }
             let file_path = args[2].clone();
             let top_module = parse_top_arg(&args).unwrap_or_else(|| {
-                eprintln!("Error: missing -t or --top argument. Usage: betterado run <FILE> -t <TOP> [OPTIONS]");
+                eprintln!("Error: missing -t or --top argument. Usage: axiom run <FILE> -t <TOP> [OPTIONS]");
                 std::process::exit(1);
             });
 
@@ -196,12 +196,12 @@ fn main() {
         }
         "benchmark" => {
             if args.len() < 3 {
-                eprintln!("Error: 'benchmark' requires a file path. Usage: betterado benchmark <FILE> -t <TOP> [OPTIONS]");
+                eprintln!("Error: 'benchmark' requires a file path. Usage: axiom benchmark <FILE> -t <TOP> [OPTIONS]");
                 std::process::exit(1);
             }
             let file_path = args[2].clone();
             let top_module = parse_top_arg(&args).unwrap_or_else(|| {
-                eprintln!("Error: missing -t or --top argument. Usage: betterado benchmark <FILE> -t <TOP> [OPTIONS]");
+                eprintln!("Error: missing -t or --top argument. Usage: axiom benchmark <FILE> -t <TOP> [OPTIONS]");
                 std::process::exit(1);
             });
             let cycles = parse_u64_arg(&args, "--cycles").unwrap_or(5000);
@@ -218,7 +218,7 @@ fn main() {
             }
         }
         other => {
-            eprintln!("Unknown subcommand '{}'. Use 'betterado help' for usage.", other);
+            eprintln!("Unknown subcommand '{}'. Use 'axiom help' for usage.", other);
             std::process::exit(1);
         }
     }
@@ -274,7 +274,7 @@ pub fn execute_compile(file_path: &str, top_module: &str) -> Result<(), String> 
     let source = fs::read_to_string(&resolved).map_err(|e| format!("Failed to read {}: {}", resolved, e))?;
 
     println!("============================================================");
-    println!(" Betterado HDL In-RAM Compiler: {}", resolved);
+    println!(" Axiom HDL In-RAM Compiler: {}", resolved);
     println!(" Top-Level Target: {}", top_module);
     println!("============================================================");
 
@@ -321,7 +321,7 @@ pub fn execute_run(cfg: &RunConfig) -> Result<(), String> {
     let source = fs::read_to_string(&resolved).map_err(|e| format!("Failed to read {}: {}", resolved, e))?;
 
     println!("============================================================");
-    println!(" Betterado In-RAM Batch Simulator: {}", resolved);
+    println!(" Axiom In-RAM Batch Simulator: {}", resolved);
     println!(" Target: {} | Steps: {} ticks", cfg.top_module, cfg.ticks);
     println!("============================================================");
 
@@ -335,7 +335,7 @@ pub fn execute_run(cfg: &RunConfig) -> Result<(), String> {
     let collector = Arc::new(Mutex::new(TelemetryCollector::new(&circuit)));
     let vcd = Arc::new(Mutex::new(VcdWriter::new(&circuit, "1 ps")));
 
-    let mut sim = BetteradoSimulator::new(circuit).map_err(|e| format!("Simulator init error: {e}"))?;
+    let mut sim = AxiomSimulator::new(circuit).map_err(|e| format!("Simulator init error: {e}"))?;
     sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
     sim.add_listener(Box::new(SharedVcdListener(Arc::clone(&vcd))));
 
@@ -402,7 +402,7 @@ pub fn execute_benchmark(cfg: &BenchmarkConfig) -> Result<(), String> {
     let source = fs::read_to_string(&resolved).map_err(|e| format!("Failed to read {}: {}", resolved, e))?;
 
     println!("============================================================");
-    println!(" Betterado High-Resolution In-RAM Benchmark Suite");
+    println!(" Axiom High-Resolution In-RAM Benchmark Suite");
     println!(" Fixture: {} | Top: {} | Cycles: {}", cfg.file_path, cfg.top_module, cfg.cycles);
     println!("============================================================");
 
@@ -425,7 +425,7 @@ pub fn execute_benchmark(cfg: &BenchmarkConfig) -> Result<(), String> {
     // 2. Simulation throughput benchmark
     let (ast, _) = parse_hdl(FileId(1), &source);
     let circuit = elaborate(&ast, &cfg.top_module).map_err(|e| e.to_string())?;
-    let mut sim = BetteradoSimulator::new(circuit).map_err(|e| e.to_string())?;
+    let mut sim = AxiomSimulator::new(circuit).map_err(|e| e.to_string())?;
 
     let clk_net_name = sim
         .compiled

@@ -1,6 +1,6 @@
-use betterado_core::{Logic4, LogicVector, SimTime};
-use betterado_ir::{BirCircuit, BirExpr, EdgeKind, NetId};
-use betterado_jit::{CompiledCircuit, JitEngine};
+use axiom_core::{Logic4, LogicVector, SimTime};
+use axiom_ir::{BirCircuit, BirExpr, EdgeKind, NetId};
+use axiom_jit::{CompiledCircuit, JitEngine};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -47,7 +47,7 @@ pub struct DeltaSummary {
 }
 
 /// High-performance, IEEE 1800-compliant simulation kernel with manual delta stepping.
-pub struct BetteradoSimulator {
+pub struct AxiomSimulator {
     pub compiled: CompiledCircuit,
     pub current_time: SimTime,
     pub current_delta: u32,
@@ -65,7 +65,7 @@ pub struct BetteradoSimulator {
     next_checkpoint_id: u64,
 }
 
-impl BetteradoSimulator {
+impl AxiomSimulator {
     /// Creates and initializes a simulator from an elaborated `BirCircuit`.
     pub fn new(circuit: BirCircuit) -> Result<Self, SimError> {
         let compiled = JitEngine::compile(circuit).map_err(SimError::CompileError)?;

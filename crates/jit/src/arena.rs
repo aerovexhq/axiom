@@ -1,5 +1,5 @@
-use betterado_core::{Logic4, LogicVector};
-use betterado_ir::{BirCircuit, BirNet};
+use axiom_core::{Logic4, LogicVector};
+use axiom_ir::{BirCircuit, BirNet};
 use serde::{Deserialize, Serialize};
 
 /// Contiguous cache-optimized memory arena for all digital signals in the circuit.

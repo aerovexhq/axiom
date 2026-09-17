@@ -1,5 +1,5 @@
 [package]
-name = "betterado-wasm"
+name = "axiom-wasm"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,12 +9,12 @@ license.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-betterado-core = { workspace = true }
-betterado-syntax = { workspace = true }
-betterado-ir = { workspace = true }
-betterado-jit = { workspace = true }
-betterado-sim = { workspace = true }
-betterado-telemetry = { workspace = true }
+axiom-core = { workspace = true }
+axiom-syntax = { workspace = true }
+axiom-ir = { workspace = true }
+axiom-jit = { workspace = true }
+axiom-sim = { workspace = true }
+axiom-telemetry = { workspace = true }
 wasm-bindgen = "0.2"
 serde = { workspace = true }
 serde-wasm-bindgen = "0.6"

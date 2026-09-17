@@ -1,5 +1,5 @@
-use betterado_core::{LogicVector};
-use betterado_syntax::{BinaryOp, EdgeKind, UnaryOp};
+use axiom_core::{LogicVector};
+use axiom_syntax::{BinaryOp, EdgeKind, UnaryOp};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 

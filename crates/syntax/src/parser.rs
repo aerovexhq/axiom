@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::token::{Token, TokenKind};
-use betterado_core::{Diagnostic, FileId, Span};
+use axiom_core::{Diagnostic, FileId, Span};
 
 pub struct Parser<'a> {
     file_id: FileId,

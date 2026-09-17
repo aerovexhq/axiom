@@ -1,13 +1,13 @@
 [package]
-name = "betterado-ir"
+name = "axiom-ir"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [dependencies]
-betterado-core.workspace = true
-betterado-syntax.workspace = true
+axiom-core.workspace = true
+axiom-syntax.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 lasso.workspace = true

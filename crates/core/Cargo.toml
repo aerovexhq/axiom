@@ -1,5 +1,5 @@
 [package]
-name = "betterado-core"
+name = "axiom-core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

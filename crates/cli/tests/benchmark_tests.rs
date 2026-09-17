@@ -3,11 +3,11 @@ use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-use betterado_core::{FileId, LogicVector, SimTime};
-use betterado_ir::elaborate;
-use betterado_jit::JitEngine;
-use betterado_sim::BetteradoSimulator;
-use betterado_syntax::parse_hdl;
+use axiom_core::{FileId, LogicVector, SimTime};
+use axiom_ir::elaborate;
+use axiom_jit::JitEngine;
+use axiom_sim::AxiomSimulator;
+use axiom_syntax::parse_hdl;
 
 fn resolve_fixture_path(name: &str) -> String {
     let direct = format!("tests/fixtures/{}", name);
@@ -70,7 +70,7 @@ fn test_benchmark_simulation_event_throughput() {
 
     let (ast, _) = parse_hdl(FileId(1), &src);
     let circuit = elaborate(&ast, "counter").unwrap();
-    let mut sim = BetteradoSimulator::new(circuit).unwrap();
+    let mut sim = AxiomSimulator::new(circuit).unwrap();
 
     // Enable counter
     sim.force_signal_and_settle("rst_n", &LogicVector::from_u64(1, 1)).unwrap();

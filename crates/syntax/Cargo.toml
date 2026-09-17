@@ -1,12 +1,12 @@
 [package]
-name = "betterado-syntax"
+name = "axiom-syntax"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [dependencies]
-betterado-core.workspace = true
+axiom-core.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 lasso.workspace = true

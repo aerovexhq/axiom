@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use betterado_core::{LogicVector, SimTime};
-use betterado_ir::{NetId, ProcessId};
+use axiom_core::{LogicVector, SimTime};
+use axiom_ir::{NetId, ProcessId};
 use serde::{Deserialize, Serialize};
 
 /// IEEE 1800 Stratified Event Queue regions ordered by execution precedence within a delta cycle.

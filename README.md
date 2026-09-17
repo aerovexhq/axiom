@@ -61,7 +61,7 @@ HDL Source Text (.v / .sv)
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 2. Hierarchical Elaborator (Betterado IR / BIR)             │
+│ 2. Hierarchical Elaborator (Axiom IR / BIR)             │
 │    - Top-level scope instantiation & parameter propagation  │
 │    - Netlist resolution & signal width inference            │
 │    - Sensitivity map derivation: NetId -> [ProcessId]       │

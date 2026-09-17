@@ -1,17 +1,17 @@
-use betterado_core::{FileId, LogicVector, SimTime};
-use betterado_ir::elaborate;
-use betterado_sim::BetteradoSimulator;
-use betterado_syntax::parse_hdl;
-use betterado_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
+use axiom_core::{FileId, LogicVector, SimTime};
+use axiom_ir::elaborate;
+use axiom_sim::AxiomSimulator;
+use axiom_syntax::parse_hdl;
+use axiom_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
 use std::sync::{Arc, Mutex};
 
 /// Helper wrapper allowing a shared TelemetryCollector to be used as a SimEventListener.
 struct SharedTelemetryListener(Arc<Mutex<TelemetryCollector>>);
 
-impl betterado_sim::SimEventListener for SharedTelemetryListener {
+impl axiom_sim::SimEventListener for SharedTelemetryListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -26,10 +26,10 @@ impl betterado_sim::SimEventListener for SharedTelemetryListener {
 /// Helper wrapper allowing a shared VcdWriter to be used as a SimEventListener.
 struct SharedVcdListener(Arc<Mutex<VcdWriter>>);
 
-impl betterado_sim::SimEventListener for SharedVcdListener {
+impl axiom_sim::SimEventListener for SharedVcdListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -50,7 +50,7 @@ fn test_dynamic_power_and_energy_accumulation() {
     let circuit = elaborate(&ast, "counter").expect("Elaboration failed");
     let collector = Arc::new(Mutex::new(TelemetryCollector::new(&circuit)));
 
-    let mut sim = BetteradoSimulator::new(circuit).expect("Simulator creation failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Simulator creation failed");
     sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
 
     // Set initial values
@@ -85,7 +85,7 @@ fn test_voltage_sag_under_heavy_switching() {
     let circuit = elaborate(&ast, "alu").expect("Elaboration failed");
     let collector = Arc::new(Mutex::new(TelemetryCollector::new(&circuit)));
 
-    let mut sim = BetteradoSimulator::new(circuit).expect("Simulator creation failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Simulator creation failed");
     sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
 
     let zeros = LogicVector::from_u64(0, 32);
@@ -125,7 +125,7 @@ fn test_vcd_export_generation() {
     let circuit = elaborate(&ast, "counter").expect("Elaboration failed");
     let vcd_writer = Arc::new(Mutex::new(VcdWriter::new(&circuit, "1 ps")));
 
-    let mut sim = BetteradoSimulator::new(circuit).expect("Simulator creation failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Simulator creation failed");
     sim.add_listener(Box::new(SharedVcdListener(Arc::clone(&vcd_writer))));
 
     sim.force_signal_and_settle("counter.rst_n", &LogicVector::from_u64(1, 1)).unwrap();
@@ -158,7 +158,7 @@ fn test_saif_export_generation() {
     let circuit = elaborate(&ast, "counter").expect("Elaboration failed");
     let collector = Arc::new(Mutex::new(TelemetryCollector::new(&circuit)));
 
-    let mut sim = BetteradoSimulator::new(circuit.clone()).expect("Simulator creation failed");
+    let mut sim = AxiomSimulator::new(circuit.clone()).expect("Simulator creation failed");
     sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
 
     sim.force_signal_and_settle("counter.rst_n", &LogicVector::from_u64(1, 1)).unwrap();

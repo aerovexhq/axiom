@@ -1,4 +1,4 @@
-use betterado_ir::{BirNet, NetId};
+use axiom_ir::{BirNet, NetId};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 

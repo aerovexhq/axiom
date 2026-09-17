@@ -69,7 +69,7 @@ if (-not $SkipTests) {
 $BuildProfile = if ($Debug) { "debug" } else { "release" }
 Write-Host "==> Compiling Axiom CLI binary ($BuildProfile)..." -ForegroundColor Yellow
 
-$cargoArgs = @("build", "-p", "betterado-cli", "--bin", "axiom")
+$cargoArgs = @("build", "-p", "axiom-cli", "--bin", "axiom")
 if (-not $Debug) {
     $cargoArgs += "--release"
 }
@@ -104,8 +104,8 @@ if (-not (Test-Path $BinDir)) {
 }
 
 Copy-Item -Path $TargetBin -Destination (Join-Path $BinDir "axiom.exe") -Force
-# Copy alias betterado.exe as well
-Copy-Item -Path $TargetBin -Destination (Join-Path $BinDir "betterado.exe") -Force
+# Copy alias axiom.exe as well
+Copy-Item -Path $TargetBin -Destination (Join-Path $BinDir "axiom.exe") -Force
 
 Write-Host "================================================================================" -ForegroundColor Green
 Write-Host " Axiom EDA build & installation completed successfully!" -ForegroundColor Green

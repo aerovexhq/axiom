@@ -1,6 +1,6 @@
-// Betterado Engine Bridge — Universal IPC & In-RAM Simulation Engine
-import initWasm, { WasmEngine } from "../wasm/betterado_wasm.js";
-import wasmUrl from "../wasm/betterado_wasm_bg.wasm?url";
+// Axiom Engine Bridge — Universal IPC & In-RAM Simulation Engine
+import initWasm, { WasmEngine } from "../wasm/axiom_wasm.js";
+import wasmUrl from "../wasm/axiom_wasm_bg.wasm?url";
 
 export type LogicValue = "0" | "1" | "x" | "z";
 
@@ -78,7 +78,7 @@ export interface SimulationState {
 export type StateListener = (state: SimulationState) => void;
 export type LogListener = (msg: string, level: "info" | "warn" | "error" | "event") => void;
 
-export class BetteradoEngineBridge {
+export class AxiomEngineBridge {
   private state: SimulationState;
   private stateListeners: Set<StateListener> = new Set();
   private logListeners: Set<LogListener> = new Set();
@@ -1164,4 +1164,5 @@ endmodule
 }
 
 // Singleton global bridge instance
-export const engineBridge = new BetteradoEngineBridge();
+export const engineBridge = new AxiomEngineBridge();
+export type BetteradoEngineBridge = AxiomEngineBridge;

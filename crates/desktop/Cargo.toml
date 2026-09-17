@@ -1,12 +1,12 @@
 [package]
-name = "betterado-desktop"
+name = "axiom-desktop"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [lib]
-name = "betterado_desktop"
+name = "axiom_desktop"
 path = "src/lib.rs"
 
 [[bin]]
@@ -14,12 +14,12 @@ name = "axiom-desktop"
 path = "src/main.rs"
 
 [dependencies]
-betterado-core = { workspace = true }
-betterado-syntax = { workspace = true }
-betterado-ir = { workspace = true }
-betterado-jit = { workspace = true, features = ["native-jit"] }
-betterado-sim = { workspace = true }
-betterado-telemetry = { workspace = true }
+axiom-core = { workspace = true }
+axiom-syntax = { workspace = true }
+axiom-ir = { workspace = true }
+axiom-jit = { workspace = true, features = ["native-jit"] }
+axiom-sim = { workspace = true }
+axiom-telemetry = { workspace = true }
 serde = { workspace = true }
 serde_json = "1.0"
 thiserror = { workspace = true }

@@ -1,4 +1,4 @@
-/* @ts-self-types="./betterado_wasm.d.ts" */
+/* @ts-self-types="./axiom_wasm.d.ts" */
 
 /**
  * WebAssembly simulation kernel executing 100% in-browser.
@@ -213,7 +213,7 @@ function __wbg_get_imports() {
     };
     return {
         __proto__: null,
-        "./betterado_wasm_bg.js": import0,
+        "./axiom_wasm_bg.js": import0,
     };
 }
 
@@ -396,7 +396,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        module_or_path = new URL('betterado_wasm_bg.wasm', import.meta.url);
+        module_or_path = new URL('axiom_wasm_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

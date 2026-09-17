@@ -1,5 +1,5 @@
-use betterado_core::SimTime;
-use betterado_ir::BirCircuit;
+use axiom_core::SimTime;
+use axiom_ir::BirCircuit;
 use crate::collector::TelemetryCollector;
 
 /// Switching Activity Interchange Format (SAIF) writer for AMD Vivado interoperability.
@@ -19,9 +19,9 @@ impl SaifWriter {
         saif.push_str("  (SAIFVERSION \"2.0\")\n");
         saif.push_str("  (DIRECTION \"backward\")\n");
         saif.push_str(&format!("  (DESIGN \"{}\")\n", circuit.top_name));
-        saif.push_str("  (DATE \"Betterado HDL Engine\")\n");
-        saif.push_str("  (VENDOR \"Betterado\")\n");
-        saif.push_str("  (PROGRAM_NAME \"Betterado Simulator\")\n");
+        saif.push_str("  (DATE \"Axiom HDL Engine\")\n");
+        saif.push_str("  (VENDOR \"Axiom\")\n");
+        saif.push_str("  (PROGRAM_NAME \"Axiom Simulator\")\n");
         saif.push_str("  (PROGRAM_VERSION \"0.1.0\")\n");
         saif.push_str("  (DIVIDER /)\n");
         saif.push_str("  (TIMESCALE 1 ps)\n");

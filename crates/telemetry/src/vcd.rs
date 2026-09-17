@@ -1,6 +1,6 @@
-use betterado_core::{Logic4, LogicVector, SimTime};
-use betterado_ir::{BirCircuit, NetId};
-use betterado_sim::SimEventListener;
+use axiom_core::{Logic4, LogicVector, SimTime};
+use axiom_ir::{BirCircuit, NetId};
+use axiom_sim::SimEventListener;
 use hashbrown::HashMap;
 
 /// IEEE 1364 Value Change Dump (VCD) writer and exporter.
@@ -32,8 +32,8 @@ impl VcdWriter {
         let mut net_id_to_ident = HashMap::new();
 
         // 1. Header
-        buffer.push_str("$date\n   Betterado HDL Engine\n$end\n");
-        buffer.push_str("$version\n   Betterado 0.1.0 - High-Performance Rust Simulator\n$end\n");
+        buffer.push_str("$date\n   Axiom HDL Engine\n$end\n");
+        buffer.push_str("$version\n   Axiom 0.1.0 - High-Performance Rust Simulator\n$end\n");
         buffer.push_str(&format!("$timescale\n   {timescale_str}\n$end\n"));
 
         // 2. Scope definition

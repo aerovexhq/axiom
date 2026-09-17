@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use betterado_core::{LogicVector, SimTime};
-    use betterado_ir::NetId;
+    use axiom_core::{LogicVector, SimTime};
+    use axiom_ir::NetId;
 
     #[test]
     fn test_stratified_queue_ordering() {

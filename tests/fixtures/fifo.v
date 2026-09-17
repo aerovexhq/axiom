@@ -1,4 +1,4 @@
-// Betterado Conformance Benchmark: 4-Deep Synchronous FIFO
+// Axiom Conformance Benchmark: 4-Deep Synchronous FIFO
 // IEEE 1800-2017 compliant Verilog
 `timescale 1ns / 1ps
 

@@ -30,14 +30,14 @@ cranelift-codegen = "0.136.0-rc.1"
 cranelift-frontend = "0.136.0-rc.1"
 cranelift-jit = "0.136.0-rc.1"
 cranelift-module = "0.136.0-rc.1"
-betterado-core = { path = "crates/core" }
-betterado-syntax = { path = "crates/syntax" }
-betterado-ir = { path = "crates/ir" }
-betterado-jit = { path = "crates/jit", default-features = false }
-betterado-sim = { path = "crates/sim" }
-betterado-telemetry = { path = "crates/telemetry" }
-betterado-desktop = { path = "crates/desktop" }
-betterado-wasm = { path = "crates/wasm" }
+axiom-core = { path = "crates/core" }
+axiom-syntax = { path = "crates/syntax" }
+axiom-ir = { path = "crates/ir" }
+axiom-jit = { path = "crates/jit", default-features = false }
+axiom-sim = { path = "crates/sim" }
+axiom-telemetry = { path = "crates/telemetry" }
+axiom-desktop = { path = "crates/desktop" }
+axiom-wasm = { path = "crates/wasm" }
 zstd = "0.13"
 tiny_http = "0.12"
 serde_json = "1.0"

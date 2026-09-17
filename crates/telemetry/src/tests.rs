@@ -2,8 +2,8 @@
 mod tests {
     use crate::capacitance::NetCapacitanceModel;
     use crate::rail::{PdnModel, PowerRail};
-    use betterado_core::LogicVector;
-    use betterado_ir::{BirNet, NetId};
+    use axiom_core::LogicVector;
+    use axiom_ir::{BirNet, NetId};
 
     #[test]
     fn test_pdn_voltage_droop() {

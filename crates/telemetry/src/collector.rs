@@ -1,6 +1,6 @@
-use betterado_core::{Logic4, LogicVector, SimTime};
-use betterado_ir::{BirCircuit, NetId};
-use betterado_sim::SimEventListener;
+use axiom_core::{Logic4, LogicVector, SimTime};
+use axiom_ir::{BirCircuit, NetId};
+use axiom_sim::SimEventListener;
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -208,7 +208,7 @@ impl SimEventListener for TelemetryCollector {
             .unwrap_or(0.90);
 
         // Dummy BirNet for capacitance calculation
-        let dummy_net = betterado_ir::BirNet {
+        let dummy_net = axiom_ir::BirNet {
             id: net,
             name: net_name.to_string(),
             width: prev_val.width().max(1),

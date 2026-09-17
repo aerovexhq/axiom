@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use betterado_core::{FileId, Logic4};
+    use axiom_core::{FileId, Logic4};
 
     #[test]
     fn test_lexer_tokenization() {

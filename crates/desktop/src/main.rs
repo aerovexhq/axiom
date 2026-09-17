@@ -1,4 +1,4 @@
-use betterado_desktop::{CompileResponse, DesktopEngine, StepResponse};
+use axiom_desktop::{CompileResponse, DesktopEngine, StepResponse};
 use std::sync::{Arc, Mutex};
 use tauri::State;
 

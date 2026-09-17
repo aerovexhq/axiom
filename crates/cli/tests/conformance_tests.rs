@@ -3,17 +3,17 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use betterado_core::{FileId, LogicVector, SimTime};
-use betterado_ir::elaborate;
-use betterado_sim::BetteradoSimulator;
-use betterado_syntax::parse_hdl;
-use betterado_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
+use axiom_core::{FileId, LogicVector, SimTime};
+use axiom_ir::elaborate;
+use axiom_sim::AxiomSimulator;
+use axiom_syntax::parse_hdl;
+use axiom_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
 
 struct SharedTelemetryListener(Arc<Mutex<TelemetryCollector>>);
-impl betterado_sim::SimEventListener for SharedTelemetryListener {
+impl axiom_sim::SimEventListener for SharedTelemetryListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -26,10 +26,10 @@ impl betterado_sim::SimEventListener for SharedTelemetryListener {
 }
 
 struct SharedVcdListener(Arc<Mutex<VcdWriter>>);
-impl betterado_sim::SimEventListener for SharedVcdListener {
+impl axiom_sim::SimEventListener for SharedVcdListener {
     fn on_signal_change(
         &mut self,
-        net: betterado_ir::NetId,
+        net: axiom_ir::NetId,
         net_name: &str,
         val: &LogicVector,
         time: SimTime,
@@ -68,7 +68,7 @@ fn test_conformance_alu_32bit_reference_vectors() {
     assert!(diags.is_empty(), "ALU parsing emitted errors: {:?}", diags);
 
     let circuit = elaborate(&ast, "alu").expect("Elaboration failed");
-    let mut sim = BetteradoSimulator::new(circuit).expect("Simulator init failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Simulator init failed");
 
     // Force A = 0x1234_5678, B = 0x0000_0001, OP = ADD (3'b000)
     let a_val = LogicVector::from_u64(0x1234_5678, 32);
@@ -113,7 +113,7 @@ fn test_conformance_counter_multi_cycle_and_vcd() {
     let circuit = elaborate(&ast, "counter").expect("Elaboration failed");
     let vcd = Arc::new(Mutex::new(VcdWriter::new(&circuit, "1 ps")));
 
-    let mut sim = BetteradoSimulator::new(circuit).expect("Simulator init failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Simulator init failed");
     sim.add_listener(Box::new(SharedVcdListener(Arc::clone(&vcd))));
 
     // Reset cycle
@@ -166,7 +166,7 @@ fn test_conformance_fifo_flow_control_and_saif() {
     let circuit = elaborate(&ast, "fifo_4deep").expect("Elaboration failed");
     let collector = Arc::new(Mutex::new(TelemetryCollector::new(&circuit)));
 
-    let mut sim = BetteradoSimulator::new(circuit).expect("Simulator init failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Simulator init failed");
     sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
 
     // 1. Reset
@@ -202,7 +202,7 @@ fn test_conformance_fifo_flow_control_and_saif() {
 
     assert!(saif.contains("(SAIFILE"), "SAIF must contain header");
     assert!(saif.contains("(DESIGN \"fifo_4deep\")"), "SAIF must match top design");
-    assert!(saif.contains("(PROGRAM_NAME \"Betterado Simulator\")"));
+    assert!(saif.contains("(PROGRAM_NAME \"Axiom Simulator\")"));
     assert!(saif.contains("(NET"));
 }
 
@@ -215,7 +215,7 @@ fn test_conformance_hierarchical_submodule_interconnect() {
     assert!(diags.is_empty());
 
     let circuit = elaborate(&ast, "hierarchy_top").expect("Elaboration failed");
-    let sim = BetteradoSimulator::new(circuit).expect("Simulator init failed");
+    let sim = AxiomSimulator::new(circuit).expect("Simulator init failed");
 
     // Check hierarchical net naming
     assert!(

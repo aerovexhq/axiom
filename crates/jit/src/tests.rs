@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use betterado_core::{FileId, LogicVector};
-    use betterado_ir::{elaborate, BirCircuit};
-    use betterado_syntax::parse_hdl;
+    use axiom_core::{FileId, LogicVector};
+    use axiom_ir::{elaborate, BirCircuit};
+    use axiom_syntax::parse_hdl;
 
     #[test]
     fn test_sim_state_arena_rw() {

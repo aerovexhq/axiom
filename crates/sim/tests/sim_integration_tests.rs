@@ -1,7 +1,7 @@
-use betterado_core::{FileId, LogicVector, SimTime};
-use betterado_ir::elaborate;
-use betterado_sim::{BetteradoSimulator, SimTraceRecorder};
-use betterado_syntax::parse_hdl;
+use axiom_core::{FileId, LogicVector, SimTime};
+use axiom_ir::elaborate;
+use axiom_sim::{AxiomSimulator, SimTraceRecorder};
+use axiom_syntax::parse_hdl;
 
 #[test]
 fn test_manual_delta_stepping() {
@@ -10,7 +10,7 @@ fn test_manual_delta_stepping() {
     assert!(diags.is_empty(), "Parsing counter failed: {diags:?}");
 
     let circuit = elaborate(&ast, "counter").expect("Elaborating counter failed");
-    let mut sim = BetteradoSimulator::new(circuit).expect("Creating simulator failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Creating simulator failed");
 
     let val_one = LogicVector::from_u64(1, 1);
     let val_zero = LogicVector::from_u64(0, 1);
@@ -57,7 +57,7 @@ fn test_multicycle_clock_counting() {
     assert!(diags.is_empty(), "Parsing counter failed: {diags:?}");
 
     let circuit = elaborate(&ast, "counter").expect("Elaborating counter failed");
-    let mut sim = BetteradoSimulator::new(circuit).expect("Creating simulator failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Creating simulator failed");
 
     let val_one = LogicVector::from_u64(1, 1);
     let val_zero = LogicVector::from_u64(0, 1);
@@ -88,7 +88,7 @@ fn test_alu_simulation() {
     assert!(diags.is_empty(), "Parsing alu failed: {diags:?}");
 
     let circuit = elaborate(&ast, "alu").expect("Elaborating alu failed");
-    let mut sim = BetteradoSimulator::new(circuit).expect("Creating simulator failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Creating simulator failed");
 
     let a_val = LogicVector::from_u64(45, 32);
     let b_val = LogicVector::from_u64(15, 32);
@@ -124,7 +124,7 @@ fn test_checkpoint_and_rollback() {
     assert!(diags.is_empty());
 
     let circuit = elaborate(&ast, "counter").expect("Elaborating counter failed");
-    let mut sim = BetteradoSimulator::new(circuit).expect("Creating simulator failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Creating simulator failed");
 
     sim.force_signal("counter.rst_n", &LogicVector::from_u64(1, 1)).unwrap();
     sim.force_signal("counter.enable", &LogicVector::from_u64(1, 1)).unwrap();
@@ -163,7 +163,7 @@ fn test_trace_listener_capture() {
     assert!(diags.is_empty());
 
     let circuit = elaborate(&ast, "counter").expect("Elaborating counter failed");
-    let mut sim = BetteradoSimulator::new(circuit).expect("Creating simulator failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Creating simulator failed");
 
     let recorder = Box::new(SimTraceRecorder::new());
     sim.add_listener(recorder);

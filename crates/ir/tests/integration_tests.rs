@@ -1,6 +1,6 @@
-use betterado_core::FileId;
-use betterado_ir::elaborate;
-use betterado_syntax::parse_hdl;
+use axiom_core::FileId;
+use axiom_ir::elaborate;
+use axiom_syntax::parse_hdl;
 
 #[test]
 fn test_fixture_alu_elaboration() {

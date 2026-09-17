@@ -1,5 +1,5 @@
-use betterado_core::{LogicVector, SimTime};
-use betterado_ir::NetId;
+use axiom_core::{LogicVector, SimTime};
+use axiom_ir::NetId;
 use crate::glitch::GlitchEvent;
 
 /// Callback interface for observing discrete simulation events and state transitions.

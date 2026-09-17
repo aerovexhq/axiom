@@ -116,7 +116,7 @@ if [ "$BUILD_PROFILE" = "release" ]; then
     CARGO_FLAGS+=("--release")
 fi
 
-cargo build "${CARGO_FLAGS[@]}" -p betterado-cli --bin axiom
+cargo build "${CARGO_FLAGS[@]}" -p axiom-cli --bin axiom
 
 TARGET_BIN="${REPO_ROOT}/target/${BUILD_PROFILE}/axiom"
 if [ ! -f "${TARGET_BIN}" ]; then
@@ -142,8 +142,8 @@ mkdir -p "${BIN_DIR}"
 cp -f "${TARGET_BIN}" "${BIN_DIR}/axiom"
 chmod +x "${BIN_DIR}/axiom"
 
-# Also create backward-compatible symlink 'betterado'
-ln -sf "axiom" "${BIN_DIR}/betterado"
+# Also create backward-compatible symlink 'axiom'
+ln -sf "axiom" "${BIN_DIR}/axiom"
 
 # 6. Check PATH
 PATH_OK=false
