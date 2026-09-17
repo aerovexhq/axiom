@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Activity, Cpu, LayoutGrid, Sliders, Clock } from "lucide-react";
+import { Activity, Cpu, LayoutGrid, Sliders, Clock, Search } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -9,6 +9,7 @@ import { VirtualLabRack } from "./components/VirtualLabRack";
 import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { TelemetryViewer } from "./components/TelemetryViewer";
 import { BottomConsole } from "./components/BottomConsole";
+import { OmnibarModal } from "./components/OmnibarModal";
 import { engineBridge, SimulationState } from "./engine/engineBridge";
 import { SAMPLE_DESIGNS, SampleDesign } from "./engine/sampleDesigns";
 
@@ -17,6 +18,7 @@ export const App: React.FC = () => {
   const [activeDesign, setActiveDesign] = useState<SampleDesign>(SAMPLE_DESIGNS[0]);
   const [editorCode, setEditorCode] = useState<string>(SAMPLE_DESIGNS[0].code);
   const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "split">("split");
+  const [isOmnibarOpen, setIsOmnibarOpen] = useState<boolean>(false);
 
   // Cross-Probing State: Signal ID and Code Highlight Span
   const [activeCrossProbeSignal, setActiveCrossProbeSignal] = useState<string | null>(null);
@@ -50,6 +52,18 @@ export const App: React.FC = () => {
     // Initial compile on boot
     engineBridge.compile(editorCode, activeDesign.topModule);
     return unsub;
+  }, []);
+
+  // Global Omnibar Keyboard Shortcut (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsOmnibarOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const handleSelectDesign = (design: SampleDesign) => {
@@ -233,6 +247,40 @@ export const App: React.FC = () => {
                   </span>
                 </span>
               )}
+              <button
+                onClick={() => setIsOmnibarOpen(true)}
+                title="Omnibar & Command Palette (Ctrl+K or Cmd+K)"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "3px 8px",
+                  backgroundColor: "var(--bg-tertiary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <Search size={11} color="var(--accent-blue)" />
+                <span>Omnibar</span>
+                <kbd
+                  style={{
+                    fontSize: 9,
+                    padding: "1px 4px",
+                    backgroundColor: "var(--bg-secondary)",
+                    borderRadius: 3,
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--text-muted)",
+                    fontFamily: "var(--font-mono)"
+                  }}
+                >
+                  Ctrl+K
+                </kbd>
+              </button>
             </div>
           </div>
 
@@ -359,6 +407,17 @@ export const App: React.FC = () => {
           <BottomConsole state={state} />
         </div>
       </div>
+
+      {/* Omnibar & Global Command Palette Modal */}
+      <OmnibarModal
+        isOpen={isOmnibarOpen}
+        onClose={() => setIsOmnibarOpen(false)}
+        state={state}
+        onSelectView={setCenterView}
+        onSelectDesign={handleSelectDesign}
+        onSelectSignal={handleSchematicSelectSignal}
+        onCompile={handleCompile}
+      />
     </div>
   );
 };
