@@ -17,4 +17,3 @@ smallvec = { workspace = true }
 
 [dev-dependencies]
 betterado-syntax = { workspace = true }
-betterado-jit = { workspace = true }

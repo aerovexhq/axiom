@@ -10,11 +10,12 @@ hero:
     alt: Axiom EDA Logo
   actions:
     - theme: brand
-      text: Get Started
-      link: /guide/quickstart
+      text: ⚡ Launch Web Studio
+      link: /studio/
+      target: _blank
     - theme: alt
-      text: Core Architecture
-      link: /architecture/in-ram-jit
+      text: Quickstart & Install
+      link: /guide/quickstart
     - theme: alt
       text: View on GitHub
       link: https://github.com/larvance/axiom

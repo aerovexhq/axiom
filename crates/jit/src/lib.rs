@@ -1,4 +1,5 @@
 pub mod arena;
+#[cfg(feature = "native-jit")]
 pub mod compiler;
 pub mod jit_engine;
 pub mod portable;

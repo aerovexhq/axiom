@@ -1,4 +1,6 @@
 // Betterado Engine Bridge — Universal IPC & In-RAM Simulation Engine
+import initWasm, { WasmEngine } from "../wasm/betterado_wasm.js";
+import wasmUrl from "../wasm/betterado_wasm_bg.wasm?url";
 
 export type LogicValue = "0" | "1" | "x" | "z";
 
@@ -82,14 +84,42 @@ export class BetteradoEngineBridge {
   private logListeners: Set<LogListener> = new Set();
   private timerId: number | null = null;
   private isTauri: boolean;
+  private wasmEngine: WasmEngine | null = null;
+  private wasmPromise: Promise<WasmEngine | null> | null = null;
+  private activeSourceCode: string = "";
 
   constructor() {
     this.isTauri = typeof window !== "undefined" && !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     this.state = this.getInitialState("alu_8bit");
+    if (!this.isTauri) {
+      this.initWasm();
+    }
+  }
+
+  public async initWasm(): Promise<WasmEngine | null> {
+    if (this.wasmEngine) return this.wasmEngine;
+    if (!this.wasmPromise) {
+      this.wasmPromise = (async () => {
+        try {
+          await initWasm(wasmUrl);
+          this.wasmEngine = new WasmEngine();
+          this.log("WebAssembly simulation kernel loaded & ready (client-side in-browser).", "info");
+          return this.wasmEngine;
+        } catch (e: any) {
+          console.warn("WASM init fallback:", e);
+          return null;
+        }
+      })();
+    }
+    return this.wasmPromise;
   }
 
   public isTauriRuntime(): boolean {
     return this.isTauri;
+  }
+
+  public getActiveSourceCode(): string {
+    return this.activeSourceCode;
   }
 
   private getInitialState(topModule: string): SimulationState {
@@ -251,21 +281,131 @@ export class BetteradoEngineBridge {
     return { ...this.state };
   }
 
-  public compile(_code: string, topModule: string) {
-    this.log(`Compiling top module '${topModule}' with Cranelift JIT...`, "info");
-    const t0 = performance.now();
+  public compile(code: string, topModule: string) {
+    this.activeSourceCode = code;
+    if (this.isTauri) {
+      this.compileTauri(code, topModule);
+      return;
+    }
 
-    // Rebuild initial state for design
+    if (this.wasmEngine) {
+      this.compileWasm(code, topModule);
+      return;
+    }
+
+    this.initWasm().then((wasm) => {
+      if (wasm) {
+        this.compileWasm(code, topModule);
+      } else {
+        this.compileFallback(topModule);
+      }
+    });
+  }
+
+  private compileWasm(code: string, topModule: string) {
+    if (!this.wasmEngine) return;
+    this.log(`Compiling '${topModule}' with in-browser WebAssembly engine...`, "info");
+    const t0 = performance.now();
+    try {
+      const res = this.wasmEngine.compile(code, topModule);
+      if (res && res.success) {
+        this.updateCompiledNets(res.nets, topModule);
+        const elapsed = (performance.now() - t0).toFixed(2);
+        this.log(`[WASM] Elaboration & 4-State Arena compilation completed in ${elapsed} ms. Client-side execution active.`, "info");
+        this.log(`Stratified Event Queue initialized. 4-State Arena ready. PDN 1.2V rail attached.`, "info");
+        this.notify();
+      } else if (res && res.error) {
+        this.log(`[WASM Compilation Error]: ${res.error}`, "error");
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[WASM Exception]: ${msg}`, "error");
+      this.compileFallback(topModule);
+    }
+  }
+
+  private async compileTauri(code: string, topModule: string) {
+    this.log(`Compiling '${topModule}' with native Cranelift JIT via Tauri IPC...`, "info");
+    const t0 = performance.now();
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const res: any = await invoke("compile_design", { source: code, topModule });
+      if (res && res.success) {
+        this.updateCompiledNets(res.nets, topModule);
+        const elapsed = (performance.now() - t0).toFixed(2);
+        this.log(`[Tauri IPC] Native Cranelift JIT machine code compilation completed in ${elapsed} ms.`, "info");
+        this.log(`Stratified Event Queue initialized. 4-State Arena ready. PDN 1.2V rail attached.`, "info");
+        this.notify();
+      } else if (res && res.error) {
+        this.log(`[Tauri Compilation Error]: ${res.error}`, "error");
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[Tauri IPC Error]: ${msg}`, "error");
+      this.compileFallback(topModule);
+    }
+  }
+
+  private compileFallback(topModule: string) {
+    this.log(`Compiling top module '${topModule}' with simulated circuit model...`, "info");
+    const t0 = performance.now();
     this.state = this.getInitialState(topModule);
     this.state.compiled = true;
-
-    // Add initial startup pulses
     this.scheduleInitialStimulus();
-
     const elapsed = (performance.now() - t0).toFixed(2);
-    this.log(`Elaboration & in-RAM JIT machine code compilation completed in ${elapsed} ms.`, "info");
+    this.log(`Elaboration completed in ${elapsed} ms.`, "info");
     this.log(`Stratified Event Queue initialized. 4-State Arena ready. PDN 1.2V rail attached.`, "info");
     this.notify();
+  }
+
+  private updateCompiledNets(nets: Array<{ id: number; name: string; width: number }>, topModule: string) {
+    this.state.topModule = topModule;
+    this.state.compiled = true;
+    this.state.currentSimTimePs = 0;
+    this.state.currentDeltaCycle = 0;
+    this.state.glitches = [];
+    this.state.glitchCount = 0;
+    this.state.telemetry = [];
+    this.state.deltaEvents = [];
+    this.state.forcedSignalIds = [];
+
+    if (nets && nets.length > 0) {
+      this.state.signals = nets.map(n => {
+        const parts = n.name.split(".");
+        const shortName = parts[parts.length - 1];
+        const scope = parts.length > 1 ? parts.slice(0, -1).join(".") : topModule;
+        const isBus = n.width > 1;
+        return {
+          id: n.name,
+          name: isBus ? `${shortName}[${n.width - 1}:0]` : shortName,
+          scope,
+          fullName: n.name,
+          width: n.width,
+          isBus,
+          radix: isBus ? "hex" : "bin",
+          samples: [{ timePs: 0, delta: 0, value: isBus ? "0x0" : "0" }]
+        };
+      });
+
+      this.state.hierarchy = [{
+        id: topModule,
+        name: topModule,
+        kind: "module",
+        children: nets.map(n => {
+          const parts = n.name.split(".");
+          const shortName = parts[parts.length - 1];
+          return {
+            id: n.name,
+            name: n.width > 1 ? `${shortName}[${n.width - 1}:0]` : shortName,
+            kind: n.width > 1 ? "wire" : "net",
+            width: n.width
+          };
+        })
+      }];
+    }
+    this.recordTelemetry(0, 0, 1);
   }
 
   private scheduleInitialStimulus() {
@@ -289,6 +429,50 @@ export class BetteradoEngineBridge {
       return;
     }
 
+    if (this.isTauri) {
+      this.tickTauri(deltaPs);
+      return;
+    }
+
+    if (this.wasmEngine) {
+      this.tickWasm(deltaPs);
+      return;
+    }
+
+    this.tickFallback(deltaPs);
+  }
+
+  private tickWasm(deltaPs: number) {
+    if (!this.wasmEngine) return;
+    try {
+      const res = this.wasmEngine.step_time(deltaPs);
+      if (res) {
+        this.applyStepResponse(res);
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[WASM Simulation Error]: ${msg}`, "error");
+      this.tickFallback(deltaPs);
+    }
+  }
+
+  private async tickTauri(deltaPs: number) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const res: any = await invoke("step_time", { dtPs: deltaPs });
+      if (res) {
+        this.applyStepResponse(res);
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[Tauri Simulation Error]: ${msg}`, "error");
+      this.tickFallback(deltaPs);
+    }
+  }
+
+  private tickFallback(deltaPs: number) {
     const startPs = this.state.currentSimTimePs;
     const targetPs = startPs + deltaPs;
     const stepSizePs = 500; // 500 ps clock phase (1 GHz equivalent)
@@ -305,6 +489,52 @@ export class BetteradoEngineBridge {
   public stepDelta() {
     if (!this.state.compiled) return;
 
+    if (this.isTauri) {
+      this.stepDeltaTauri();
+      return;
+    }
+
+    if (this.wasmEngine) {
+      this.stepDeltaWasm();
+      return;
+    }
+
+    this.stepDeltaFallback();
+  }
+
+  private stepDeltaWasm() {
+    if (!this.wasmEngine) return;
+    try {
+      const res = this.wasmEngine.step_delta();
+      if (res) {
+        this.applyStepResponse(res);
+        this.log(`Stepped single delta-cycle (WASM): delta=${this.state.currentDeltaCycle} at t=${this.state.currentSimTimePs}ps`, "event");
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[WASM Delta Error]: ${msg}`, "error");
+      this.stepDeltaFallback();
+    }
+  }
+
+  private async stepDeltaTauri() {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const res: any = await invoke("step_delta");
+      if (res) {
+        this.applyStepResponse(res);
+        this.log(`Stepped single delta-cycle (Tauri IPC): delta=${this.state.currentDeltaCycle} at t=${this.state.currentSimTimePs}ps`, "event");
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[Tauri Delta Error]: ${msg}`, "error");
+      this.stepDeltaFallback();
+    }
+  }
+
+  private stepDeltaFallback() {
     this.state.currentDeltaCycle += 1;
     this.state.totalEventsExecuted += 1;
 
@@ -337,6 +567,70 @@ export class BetteradoEngineBridge {
     this.recordTelemetry(this.state.currentSimTimePs, this.state.currentDeltaCycle, 2);
     this.log(`Stepped single delta-cycle: delta=${this.state.currentDeltaCycle} at t=${this.state.currentSimTimePs}ps`, "event");
     this.notify();
+  }
+
+  private applyStepResponse(res: any) {
+    const timePs = typeof res.time_ps === "number" ? res.time_ps : (res.timePs ?? this.state.currentSimTimePs);
+    const delta = typeof res.delta === "number" ? res.delta : this.state.currentDeltaCycle;
+    this.state.currentSimTimePs = timePs;
+    this.state.currentDeltaCycle = delta;
+
+    if (res.tick_summary) {
+      this.state.totalEventsExecuted += res.tick_summary.events_evaluated ?? 0;
+      this.state.totalEventsScheduled += res.tick_summary.events_evaluated ?? 0;
+    }
+    if (res.delta_summary) {
+      this.state.totalEventsExecuted += res.delta_summary.events_evaluated ?? 1;
+      if (res.delta_summary.glitches_detected && Array.isArray(res.delta_summary.glitches_detected)) {
+        for (const g of res.delta_summary.glitches_detected) {
+          this.state.glitches.push({
+            timePs,
+            delta,
+            signalName: g.net_name ?? "net",
+            hazardType: g.hazard_type ?? "dynamic",
+            message: g.message ?? `Glitch detected on ${g.net_name}`
+          });
+          this.state.glitchCount += 1;
+          this.log(`[GLITCH DETECTED] ${g.message ?? g.net_name}`, "warn");
+        }
+      }
+    }
+
+    if (Array.isArray(res.signal_values)) {
+      for (const item of res.signal_values) {
+        const netName = Array.isArray(item) ? item[0] : item.name;
+        const valStr = Array.isArray(item) ? item[1] : item.value;
+        let sig = this.state.signals.find(s => s.fullName === netName || s.name === netName || s.id === netName);
+        if (sig) {
+          const prev = sig.samples[sig.samples.length - 1];
+          if (!prev || prev.timePs !== timePs || prev.delta !== delta || prev.value !== valStr) {
+            sig.samples.push({
+              timePs,
+              delta,
+              value: valStr
+            });
+          }
+        }
+      }
+    }
+
+    if (res.telemetry) {
+      const power = res.telemetry.instantaneous_power_mw ?? 0;
+      const current = res.telemetry.rail_currents_ma?.["VDD"] ?? (power > 0 ? power / 1.2 : 4.5);
+      const railV = res.telemetry.rail_voltages_v?.["VDD"] ?? 1.2;
+      const sag = Math.max(0, 1.2 - railV);
+      this.state.telemetry.push({
+        timePs,
+        delta,
+        powerMw: parseFloat(power.toFixed(3)),
+        currentMa: parseFloat(current.toFixed(2)),
+        voltageSagV: parseFloat(sag.toFixed(4)),
+        railVoltageV: parseFloat(railV.toFixed(3)),
+        eventCount: this.state.totalEventsExecuted
+      });
+      if (current > this.state.peakCurrentMa) this.state.peakCurrentMa = current;
+      if (sag * 1000 > this.state.maxSagMv) this.state.maxSagMv = sag * 1000;
+    }
   }
 
   private advanceToTime(newTimePs: number) {
@@ -471,6 +765,18 @@ export class BetteradoEngineBridge {
   }
 
   public exportVcd(): string {
+    if (this.wasmEngine) {
+      try {
+        const vcd = this.wasmEngine.export_vcd();
+        if (vcd && vcd.length > 0) return vcd;
+      } catch (err) {
+        console.warn("WASM VCD export fallback:", err);
+      }
+    }
+    return this.exportVcdFallback();
+  }
+
+  private exportVcdFallback(): string {
     let vcd = `$date\n  ${new Date().toISOString()}\n$end\n`;
     vcd += `$version\n  Axiom IEEE 1800 In-RAM Simulator\n$end\n`;
     vcd += `$timescale\n  1ps\n$end\n`;
@@ -511,6 +817,18 @@ export class BetteradoEngineBridge {
   }
 
   public exportSaif(): string {
+    if (this.wasmEngine) {
+      try {
+        const saif = this.wasmEngine.export_saif();
+        if (saif && saif.length > 0) return saif;
+      } catch (err) {
+        console.warn("WASM SAIF export fallback:", err);
+      }
+    }
+    return this.exportSaifFallback();
+  }
+
+  private exportSaifFallback(): string {
     let saif = `(SAIFILE\n  (SAIFVERSION "2.0")\n  (DIRECTION "backward")\n  (DESIGN "${this.state.topModule}")\n  (DATE "${new Date().toISOString()}")\n  (VENDOR "Aerovex")\n  (PROGRAM_NAME "Axiom In-RAM Telemetry Engine")\n  (VERSION "0.1.0")\n  (DIVIDER /)\n  (TIMESCALE 1 ps)\n  (DURATION ${this.state.currentSimTimePs})\n  (INSTANCE ${this.state.topModule}\n`;
     for (const sig of this.state.signals) {
       const toggles = sig.samples.length;
@@ -522,6 +840,24 @@ export class BetteradoEngineBridge {
   }
 
   public forceSignal(signalId: string, value: string) {
+    if (this.isTauri) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("force_signal", { netName: signalId, value }).catch((err) => {
+          this.log(`[Tauri Force Error]: ${err}`, "error");
+        });
+      });
+    } else if (this.wasmEngine) {
+      try {
+        this.wasmEngine.force_signal(signalId, value);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.log(`[WASM Force Error]: ${msg}`, "error");
+      }
+    }
+    this.forceSignalState(signalId, value);
+  }
+
+  private forceSignalState(signalId: string, value: string) {
     const sig = this.state.signals.find(s => s.id === signalId || s.fullName === signalId);
     if (!sig) {
       this.log(`Signal '${signalId}' not found for forcing.`, "error");

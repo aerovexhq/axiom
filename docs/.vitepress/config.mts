@@ -38,6 +38,7 @@ export default defineConfig({
       { text: "Architecture", link: "/architecture/in-ram-jit" },
       { text: "Vivado Migration", link: "/vivado/migration" },
       { text: "CLI Reference", link: "/reference/cli" },
+      { text: "⚡ Web Studio", link: "/studio/", target: "_blank" },
       {
         text: "v0.1.0",
         items: [
