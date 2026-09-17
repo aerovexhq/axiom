@@ -6,6 +6,10 @@ node_modules/
 **/node_modules/
 dist/
 **/dist/
+.vitepress/cache
+**/.vitepress/cache
+.vitepress/dist
+**/.vitepress/dist
 Cargo.lock
 *.vcd
 *.saif

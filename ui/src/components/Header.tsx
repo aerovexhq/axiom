@@ -48,10 +48,10 @@ export const Header: React.FC<HeaderProps> = ({ state, onCompile }) => {
               color: "#fff"
             }}
           >
-            B
+            A
           </div>
           <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}>
-            Betterado
+            Axiom EDA
           </span>
           <span
             style={{

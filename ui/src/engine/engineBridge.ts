@@ -460,7 +460,7 @@ export class BetteradoEngineBridge {
 
   public exportVcd(): string {
     let vcd = `$date\n  ${new Date().toISOString()}\n$end\n`;
-    vcd += `$version\n  Betterado IEEE 1800 In-RAM Simulator\n$end\n`;
+    vcd += `$version\n  Axiom IEEE 1800 In-RAM Simulator\n$end\n`;
     vcd += `$timescale\n  1ps\n$end\n`;
     vcd += `$scope module ${this.state.topModule} $end\n`;
     for (let i = 0; i < this.state.signals.length; i++) {
@@ -499,7 +499,7 @@ export class BetteradoEngineBridge {
   }
 
   public exportSaif(): string {
-    let saif = `(SAIFILE\n  (SAIFVERSION "2.0")\n  (DIRECTION "backward")\n  (DESIGN "${this.state.topModule}")\n  (DATE "${new Date().toISOString()}")\n  (VENDOR "Betterado")\n  (PROGRAM_NAME "Betterado In-RAM Telemetry Engine")\n  (VERSION "0.1.0")\n  (DIVIDER /)\n  (TIMESCALE 1 ps)\n  (DURATION ${this.state.currentSimTimePs})\n  (INSTANCE ${this.state.topModule}\n`;
+    let saif = `(SAIFILE\n  (SAIFVERSION "2.0")\n  (DIRECTION "backward")\n  (DESIGN "${this.state.topModule}")\n  (DATE "${new Date().toISOString()}")\n  (VENDOR "Aerovex")\n  (PROGRAM_NAME "Axiom In-RAM Telemetry Engine")\n  (VERSION "0.1.0")\n  (DIVIDER /)\n  (TIMESCALE 1 ps)\n  (DURATION ${this.state.currentSimTimePs})\n  (INSTANCE ${this.state.topModule}\n`;
     for (const sig of this.state.signals) {
       const toggles = sig.samples.length;
       const staticProb = 0.48;

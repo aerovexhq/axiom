@@ -84,24 +84,26 @@ TARGETS=(
 
 if [ "$INCLUDE_DOCS" = true ]; then
   TARGETS+=(
+    "README.md"
     "GEMINI.md"
     "todo.md"
+    "docs"
     "analysis"
     "vivadoanalysis"
   )
 fi
 
 echo "================================================================================"
-echo " Betterado Codebase Size (Handwritten Code Only)"
+echo " Axiom EDA Codebase Size (Handwritten Code Only)"
 if [ "$INCLUDE_DOCS" = true ]; then
-  echo " Mode: Code + Documentation & Architecture Specs"
+  echo " Mode: Code + Documentation & Architecture Specs (VitePress)"
 else
   echo " Mode: Pure Source Code (Rust + TypeScript/React + Verilog + Configs)"
 fi
 echo "================================================================================"
 
 cloc \
-  --exclude-dir=target,node_modules,dist,.git,.idea,.vscode \
+  --exclude-dir=target,node_modules,dist,.git,.idea,.vscode,cache \
   --exclude-ext=lock,jsonl \
   --not-match-f='(package-lock\.json|Cargo\.lock)' \
   "${EXTRA_ARGS[@]}" \

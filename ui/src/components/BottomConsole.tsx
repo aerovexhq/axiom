@@ -19,7 +19,7 @@ export const BottomConsole: React.FC<BottomConsoleProps> = ({ state }) => {
     {
       id: "1",
       time: new Date().toLocaleTimeString(),
-      msg: "Betterado In-RAM JIT HDL Engine initialized. Ready to compile.",
+      msg: "Axiom EDA In-RAM JIT Simulation Engine initialized. Ready to compile.",
       level: "info"
     }
   ]);
