@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Activity, Cpu, LayoutGrid, Sliders } from "lucide-react";
+import { Activity, Cpu, LayoutGrid, Sliders, Clock } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
 import { WaveformViewer } from "./components/WaveformViewer";
 import { SchematicViewer } from "./components/SchematicViewer";
 import { VirtualLabRack } from "./components/VirtualLabRack";
+import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { TelemetryViewer } from "./components/TelemetryViewer";
 import { BottomConsole } from "./components/BottomConsole";
 import { engineBridge, SimulationState } from "./engine/engineBridge";
@@ -15,7 +16,7 @@ export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [activeDesign, setActiveDesign] = useState<SampleDesign>(SAMPLE_DESIGNS[0]);
   const [editorCode, setEditorCode] = useState<string>(SAMPLE_DESIGNS[0].code);
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "split">("split");
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "split">("split");
 
   // Cross-Probing State: Signal ID and Code Highlight Span
   const [activeCrossProbeSignal, setActiveCrossProbeSignal] = useState<string | null>(null);
@@ -185,6 +186,25 @@ export const App: React.FC = () => {
               </button>
 
               <button
+                onClick={() => setCenterView("timing")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 9px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: centerView === "timing" ? "var(--bg-tertiary)" : "transparent",
+                  color: centerView === "timing" ? "var(--accent-purple)" : "var(--text-muted)",
+                  border: centerView === "timing" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                }}
+              >
+                <Clock size={12} />
+                <span>Timing & Energy</span>
+              </button>
+
+              <button
                 onClick={() => setCenterView("split")}
                 style={{
                   display: "flex",
@@ -250,6 +270,24 @@ export const App: React.FC = () => {
                     <VirtualLabRack state={state} activeDesignId={activeDesign.id} />
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {centerView === "timing" && (
+            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+              <div style={{ width: "32%", display: "flex", minWidth: 320 }}>
+                <HdlEditor
+                  code={editorCode}
+                  topModule={activeDesign.topModule}
+                  onChangeCode={setEditorCode}
+                  onCompile={handleCompile}
+                  compiled={state.compiled}
+                  highlightLineSpan={highlightLineSpan}
+                />
+              </div>
+              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+                <TimingRadarViewer state={state} activeDesignId={activeDesign.id} />
               </div>
             </div>
           )}
