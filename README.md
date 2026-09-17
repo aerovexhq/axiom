@@ -120,17 +120,17 @@ irm https://axiom.aerovex.net/install.ps1 | iex
 
 Compile a Verilog module in RAM with microsecond timing:
 ```bash
-cargo run -p betterado-cli -- compile tests/fixtures/alu.v -t alu
+axiom compile tests/fixtures/alu.v -t alu
 ```
 
 Run batch simulation with VCD & SAIF export:
 ```bash
-cargo run -p betterado-cli -- run tests/fixtures/counter.v -t counter --ticks 100 --vcd wave.vcd --saif power.saif
+axiom run tests/fixtures/counter.v -t counter --ticks 100 --vcd wave.vcd --saif power.saif
 ```
 
 Benchmark simulation throughput:
 ```bash
-cargo run -p betterado-cli -- benchmark tests/fixtures/fifo.v -t fifo_4deep --cycles 5000
+axiom benchmark tests/fixtures/fifo.v -t fifo_4deep --cycles 5000
 ```
 
 ### Launch Interactive GUI (Desktop / Web)

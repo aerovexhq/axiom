@@ -101,7 +101,7 @@ In PowerShell:
 You can also invoke Cargo directly:
 
 ```bash
-cargo build --release -p betterado-cli --bin axiom
+cargo build --release --bin axiom
 ```
 
 The output binary will be located at `target/release/axiom`.
