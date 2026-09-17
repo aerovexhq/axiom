@@ -1,10 +1,24 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import { ZoomIn, ZoomOut, Maximize2, Bug } from "lucide-react";
-import { SimulationState } from "../engine/engineBridge";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X } from "lucide-react";
+import { SimulationState, engineBridge } from "../engine/engineBridge";
+import { DisplayRadix, formatValueWithRadix, extractBitValue } from "../engine/radixUtils";
 
 interface WaveformViewerProps {
   state: SimulationState;
   selectedSignalIds: Set<string>;
+}
+
+interface DisplaySignalRow {
+  key: string;
+  isBitChild: boolean;
+  parentName?: string;
+  bitIndex?: number;
+  id: string;
+  name: string;
+  fullName: string;
+  width: number;
+  isBus: boolean;
+  samples: Array<{ timePs: number; delta: number; value: string; isGlitch?: boolean }>;
 }
 
 export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedSignalIds }) => {
@@ -14,17 +28,83 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   // Viewport time window (in picoseconds)
   const [timeOffsetPs, setTimeOffsetPs] = useState<number>(0);
   const [pixelsPerPs, setPixelsPerPs] = useState<number>(0.1); // 100 pixels per 1000 ps (1 ns)
-  const [cursorPs, setCursorPs] = useState<number | null>(null);
-  const [showDeltaGlitches, setShowDeltaGlitches] = useState<boolean>(true);
+  const [hoverTimePs, setHoverTimePs] = useState<number | null>(null);
 
-  // Active displayed signals
-  const activeSignals = state.signals.filter(
-    (s) => selectedSignalIds.has(s.fullName) || selectedSignalIds.has(s.id)
-  );
+  // Dual-Cursor Measurement System
+  const [cursorAPrivate, setCursorAPrivate] = useState<number | null>(null);
+  const [cursorBPrivate, setCursorBPrivate] = useState<number | null>(null);
+  const [activeCursorDrag, setActiveCursorDrag] = useState<"A" | "B" | null>(null);
+
+  // Multi-Radix Bus Exploder State
+  const [expandedBuses, setExpandedBuses] = useState<Record<string, boolean>>({});
+  const [busRadixMap, setBusRadixMap] = useState<Record<string, DisplayRadix>>({});
+  const [globalRadix, setGlobalRadix] = useState<DisplayRadix>("hex");
+
+  // Zero-Time Delta Accordion Viewer State
+  const [showDeltaGlitches, setShowDeltaGlitches] = useState<boolean>(true);
+  const [expandedDeltaTimePs, setExpandedDeltaTimePs] = useState<number | null>(null);
+
+  // Signal Forcing Modal State
+  const [forcingSignal, setForcingSignal] = useState<{ id: string; name: string; isBus: boolean; width: number } | null>(null);
+  const [forceInputVal, setForceInputVal] = useState<string>("1");
 
   const signalHeight = 28;
-  const headerHeight = 28;
-  const gutterWidth = 180;
+  const headerHeight = 32;
+  const gutterWidth = 230;
+
+  // Active base signals from parent selection
+  const baseSignals = useMemo(() => {
+    return state.signals.filter(
+      (s) => selectedSignalIds.has(s.fullName) || selectedSignalIds.has(s.id)
+    );
+  }, [state.signals, selectedSignalIds]);
+
+  // Flattened row list incorporating expanded multi-bit sub-lanes
+  const displayRows = useMemo<DisplaySignalRow[]>(() => {
+    const rows: DisplaySignalRow[] = [];
+
+    baseSignals.forEach((sig) => {
+      // Parent row
+      rows.push({
+        key: sig.id,
+        isBitChild: false,
+        id: sig.id,
+        name: sig.name,
+        fullName: sig.fullName,
+        width: sig.width,
+        isBus: sig.isBus,
+        samples: sig.samples
+      });
+
+      // If bus is expanded, generate bit sub-lanes
+      if (sig.isBus && expandedBuses[sig.id]) {
+        for (let b = sig.width - 1; b >= 0; b--) {
+          const bitName = `${sig.name}[${b}]`;
+          const bitSamples = sig.samples.map((s) => ({
+            timePs: s.timePs,
+            delta: s.delta,
+            value: extractBitValue(s.value, sig.width, b),
+            isGlitch: s.isGlitch
+          }));
+
+          rows.push({
+            key: `${sig.id}_bit_${b}`,
+            isBitChild: true,
+            parentName: sig.name,
+            bitIndex: b,
+            id: `${sig.id}_bit_${b}`,
+            name: bitName,
+            fullName: `${sig.fullName}[${b}]`,
+            width: 1,
+            isBus: false,
+            samples: bitSamples
+          });
+        }
+      }
+    });
+
+    return rows;
+  }, [baseSignals, expandedBuses]);
 
   // Auto-fit or adjust time window when simulation advances
   useEffect(() => {
@@ -52,6 +132,39 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     setTimeOffsetPs(0);
   };
 
+  // Toggle Bus Expansion
+  const toggleBusExpansion = (busId: string) => {
+    setExpandedBuses((prev) => ({
+      ...prev,
+      [busId]: !prev[busId]
+    }));
+  };
+
+  // Cycle Radix for Bus
+  const cycleBusRadix = (busId: string, current: DisplayRadix) => {
+    const radices: DisplayRadix[] = ["hex", "bin", "u_dec", "s_dec", "ascii"];
+    const nextIdx = (radices.indexOf(current) + 1) % radices.length;
+    setBusRadixMap((prev) => ({
+      ...prev,
+      [busId]: radices[nextIdx]
+    }));
+  };
+
+  // Delta timestamps with multi-delta activity
+  const deltaTimestamps = useMemo(() => {
+    const timeCounts = new Map<number, number>();
+    for (const sig of state.signals) {
+      for (const s of sig.samples) {
+        timeCounts.set(s.timePs, (timeCounts.get(s.timePs) ?? 0) + 1);
+      }
+    }
+    const result: number[] = [];
+    timeCounts.forEach((count, t) => {
+      if (count > 1) result.push(t);
+    });
+    return result;
+  }, [state.signals]);
+
   // Main Canvas Render
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -63,7 +176,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const height = canvas.height;
 
     // Clear background
-    ctx.fillStyle = "#0d0f12";
+    ctx.fillStyle = "#090c10";
     ctx.fillRect(0, 0, width, height);
 
     // Plot area bounds
@@ -75,7 +188,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const endTimePs = timeOffsetPs + plotW / pixelsPerPs;
     const timeSpanPs = endTimePs - startTimePs;
 
-    // Calculate grid step (100ps, 500ps, 1ns, 2ns, 5ns, 10ns, etc.)
+    // Grid step calculation
     const roughGridSteps = 10;
     const rawStepPs = timeSpanPs / roughGridSteps;
     const magnitude = Math.pow(10, Math.floor(Math.log10(rawStepPs)));
@@ -84,10 +197,10 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     else if (rawStepPs / magnitude > 2) gridStepPs = magnitude * 2;
     gridStepPs = Math.max(10, gridStepPs);
 
-    // Draw Timeline Header & Grid
-    ctx.fillStyle = "#13171d";
+    // Draw Timeline Header Background
+    ctx.fillStyle = "#11151c";
     ctx.fillRect(0, 0, width, headerHeight);
-    ctx.strokeStyle = "#242c38";
+    ctx.strokeStyle = "#1e293b";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, headerHeight);
@@ -105,14 +218,14 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       if (x < plotX || x > width) continue;
 
       // Header tick
-      ctx.strokeStyle = "#364253";
+      ctx.strokeStyle = "#334155";
       ctx.beginPath();
       ctx.moveTo(x, headerHeight - 6);
       ctx.lineTo(x, headerHeight);
       ctx.stroke();
 
       // Background grid vertical line
-      ctx.strokeStyle = "rgba(36, 44, 56, 0.4)";
+      ctx.strokeStyle = "rgba(30, 41, 59, 0.4)";
       ctx.beginPath();
       ctx.moveTo(x, headerHeight);
       ctx.lineTo(x, height);
@@ -120,13 +233,28 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
 
       // Label text
       const label = t >= 1_000_000 ? `${(t / 1_000_000).toFixed(1)}μs` : t >= 1000 ? `${(t / 1000).toFixed(1)}ns` : `${t}ps`;
-      ctx.fillText(label, x, headerHeight - 10);
+      ctx.fillText(label, x, headerHeight - 12);
     }
+
+    // Draw Delta Indicators [δ+] on timeline header
+    deltaTimestamps.forEach((dT) => {
+      const dX = plotX + (dT - startTimePs) * pixelsPerPs;
+      if (dX >= plotX && dX <= width) {
+        ctx.fillStyle = expandedDeltaTimePs === dT ? "#00f2fe" : "rgba(245, 158, 11, 0.9)";
+        ctx.beginPath();
+        ctx.arc(dX, headerHeight - 6, 3.5, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.font = "bold 8px JetBrains Mono, monospace";
+        ctx.fillStyle = expandedDeltaTimePs === dT ? "#00f2fe" : "#f59e0b";
+        ctx.fillText("δ+", dX, headerHeight - 14);
+      }
+    });
 
     // Draw Current SimTime Vertical Marker
     const simTimeX = plotX + (state.currentSimTimePs - startTimePs) * pixelsPerPs;
     if (simTimeX >= plotX && simTimeX <= width) {
-      ctx.strokeStyle = "#06b6d4";
+      ctx.strokeStyle = "#00f2fe";
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -136,48 +264,88 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       ctx.setLineDash([]);
     }
 
-    // Draw Cursor line if hovered
-    if (cursorPs !== null) {
-      const curX = plotX + (cursorPs - startTimePs) * pixelsPerPs;
-      if (curX >= plotX && curX <= width) {
-        ctx.strokeStyle = "#f59e0b";
-        ctx.lineWidth = 1;
+    // Draw Cursor A (Electric Cyan)
+    if (cursorAPrivate !== null) {
+      const curAX = plotX + (cursorAPrivate - startTimePs) * pixelsPerPs;
+      if (curAX >= plotX && curAX <= width) {
+        ctx.strokeStyle = "#00f2fe";
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(curX, 0);
-        ctx.lineTo(curX, height);
+        ctx.moveTo(curAX, 0);
+        ctx.lineTo(curAX, height);
         ctx.stroke();
 
-        // Time tag at header
-        ctx.fillStyle = "#f59e0b";
-        const curLabel = cursorPs >= 1000 ? `${(cursorPs / 1000).toFixed(3)}ns` : `${cursorPs}ps`;
-        ctx.fillText(curLabel, curX, headerHeight - 12);
+        // Cursor A Tag
+        ctx.fillStyle = "#00f2fe";
+        ctx.fillRect(curAX - 12, 2, 24, 14);
+        ctx.fillStyle = "#080b11";
+        ctx.font = "bold 9px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("A", curAX, 12);
       }
     }
 
-    // Render Signals
-    activeSignals.forEach((sig, index) => {
+    // Draw Cursor B (Neon Violet)
+    if (cursorBPrivate !== null) {
+      const curBX = plotX + (cursorBPrivate - startTimePs) * pixelsPerPs;
+      if (curBX >= plotX && curBX <= width) {
+        ctx.strokeStyle = "#a855f7";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(curBX, 0);
+        ctx.lineTo(curBX, height);
+        ctx.stroke();
+
+        // Cursor B Tag
+        ctx.fillStyle = "#a855f7";
+        ctx.fillRect(curBX - 12, 2, 24, 14);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 9px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("B", curBX, 12);
+      }
+    }
+
+    // Draw Hover Guide Line
+    if (hoverTimePs !== null && hoverTimePs !== cursorAPrivate && hoverTimePs !== cursorBPrivate) {
+      const hX = plotX + (hoverTimePs - startTimePs) * pixelsPerPs;
+      if (hX >= plotX && hX <= width) {
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hX, 0);
+        ctx.lineTo(hX, height);
+        ctx.stroke();
+      }
+    }
+
+    // Render Signal Waveforms
+    displayRows.forEach((row, index) => {
       const yTop = headerHeight + index * signalHeight;
       const yMid = yTop + signalHeight / 2;
       const yHigh = yTop + 6;
       const yLow = yTop + signalHeight - 6;
 
-      // Row alternate background
-      ctx.fillStyle = index % 2 === 0 ? "rgba(19, 23, 29, 0.5)" : "transparent";
+      // Row background
+      ctx.fillStyle = row.isBitChild
+        ? "rgba(15, 23, 42, 0.3)"
+        : index % 2 === 0
+        ? "rgba(17, 21, 28, 0.4)"
+        : "transparent";
       ctx.fillRect(plotX, yTop, plotW, signalHeight);
 
       // Row separator
-      ctx.strokeStyle = "#1a1f26";
+      ctx.strokeStyle = "#151b23";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, yTop + signalHeight);
       ctx.lineTo(width, yTop + signalHeight);
       ctx.stroke();
 
-      // Collect intervals for this signal
-      const samples = sig.samples;
+      const samples = row.samples;
       if (samples.length === 0) return;
 
-      if (!sig.isBus) {
+      if (!row.isBus) {
         // Single-bit binary signal (0, 1, X, Z)
         ctx.lineWidth = 1.5;
         let lastVal = samples[0].value;
@@ -193,10 +361,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           const isZ = s.value === "z" || s.value === "Z";
 
           ctx.strokeStyle = isHigh ? "#10b981" : isX ? "#f43f5e" : isZ ? "#f59e0b" : "#64748b";
-
           const currentY = isHigh ? yHigh : isZ ? yMid : isX ? yMid : yLow;
 
-          // Transition line from last state
+          // Transition vertical line
           if (i > 0) {
             const prevHigh = lastVal === "1";
             const prevY = prevHigh ? yHigh : yLow;
@@ -220,14 +387,20 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           if (showDeltaGlitches && s.isGlitch) {
             ctx.fillStyle = "#ec4899";
             ctx.beginPath();
-            ctx.arc(currX, currentY, 3.5, 0, 2 * Math.PI);
+            ctx.arc(currX, currentY, 4, 0, 2 * Math.PI);
             ctx.fill();
+
+            // Coral glitch hazard ribbon
+            ctx.fillStyle = "rgba(236, 72, 153, 0.18)";
+            ctx.fillRect(currX - 3, yTop, 6, signalHeight);
           }
 
           lastVal = s.value;
         }
       } else {
-        // Multi-bit Bus signal (Hex diamonds with text centered)
+        // Multi-bit Bus signal (Hex diamonds with formatted text)
+        const currentRadix = busRadixMap[row.id] ?? globalRadix;
+
         for (let i = 0; i < samples.length; i++) {
           const s = samples[i];
           const currX = plotX + (s.timePs - startTimePs) * pixelsPerPs;
@@ -258,21 +431,22 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           ctx.fill();
           ctx.stroke();
 
-          // Bus Value Text
+          // Bus Value Text with Multi-Radix Formatting
           if (segWidth > 24) {
-            ctx.font = "11px JetBrains Mono, monospace";
+            const formattedVal = formatValueWithRadix(s.value, row.width, currentRadix);
+            ctx.font = "10px JetBrains Mono, monospace";
             ctx.fillStyle = "#e2e8f0";
             ctx.textAlign = "center";
-            ctx.fillText(s.value, startX + segWidth / 2, yMid + 4);
+            ctx.fillText(formattedVal, startX + segWidth / 2, yMid + 3.5);
           }
         }
       }
     });
 
     // Draw Left Gutter (Signal Names & Values at Cursor)
-    ctx.fillStyle = "#13171d";
+    ctx.fillStyle = "#0c1017";
     ctx.fillRect(0, 0, gutterWidth, height);
-    ctx.strokeStyle = "#242c38";
+    ctx.strokeStyle = "#1e293b";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(gutterWidth, 0);
@@ -285,42 +459,79 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     ctx.textAlign = "left";
     ctx.fillText("Signals / Nets", 12, headerHeight - 10);
     ctx.textAlign = "right";
-    ctx.fillText("Value", gutterWidth - 12, headerHeight - 10);
+    ctx.fillText(cursorAPrivate !== null ? "Value (A)" : "Value", gutterWidth - 12, headerHeight - 10);
 
     // Gutter Signal Rows
-    activeSignals.forEach((sig, index) => {
+    displayRows.forEach((row, index) => {
       const yTop = headerHeight + index * signalHeight;
       const yMid = yTop + signalHeight / 2 + 4;
 
       // Row separator
-      ctx.strokeStyle = "#1a1f26";
+      ctx.strokeStyle = "#151b23";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, yTop + signalHeight);
       ctx.lineTo(gutterWidth, yTop + signalHeight);
       ctx.stroke();
 
-      // Signal Name
-      ctx.font = "11px JetBrains Mono, monospace";
-      ctx.fillStyle = sig.isBus ? "#38bdf8" : "#10b981";
+      const isForced = state.forcedSignalIds.includes(row.id);
+
+      // Expand/Collapse Chevron indicator for buses
+      if (row.isBus && !row.isBitChild) {
+        ctx.font = "9px Inter, sans-serif";
+        ctx.fillStyle = "#64748b";
+        ctx.textAlign = "left";
+        ctx.fillText(expandedBuses[row.id] ? "▼" : "▶", 8, yMid - 1);
+      }
+
+      // Signal Name & Indentation for bit child
+      ctx.font = row.isBitChild ? "10px JetBrains Mono, monospace" : "11px JetBrains Mono, monospace";
+      ctx.fillStyle = isForced
+        ? "#f59e0b"
+        : row.isBitChild
+        ? "#94a3b8"
+        : row.isBus
+        ? "#38bdf8"
+        : "#10b981";
       ctx.textAlign = "left";
 
-      const maxChars = 14;
-      const displayName = sig.name.length > maxChars ? sig.name.substring(0, maxChars - 2) + ".." : sig.name;
-      ctx.fillText(displayName, 12, yMid);
+      const xOffset = row.isBitChild ? 28 : row.isBus ? 20 : 12;
+      const maxChars = row.isBitChild ? 14 : 16;
+      const displayName = row.name.length > maxChars ? row.name.substring(0, maxChars - 2) + ".." : row.name;
 
-      // Value at Cursor or Current Time
-      const queryTime = cursorPs !== null ? cursorPs : state.currentSimTimePs;
-      const sample = [...sig.samples].reverse().find((s) => s.timePs <= queryTime) ?? sig.samples[0];
-      const valStr = sample?.value ?? "-";
+      ctx.fillText(displayName, xOffset, yMid);
 
-      ctx.fillStyle = "#f1f5f9";
+      // Value at Cursor A or Current Time
+      const queryTime = cursorAPrivate !== null ? cursorAPrivate : state.currentSimTimePs;
+      const sample = [...row.samples].reverse().find((s) => s.timePs <= queryTime) ?? row.samples[0];
+      const currentRadix = busRadixMap[row.id] ?? globalRadix;
+      const rawVal = sample?.value ?? "-";
+      const displayVal = row.isBus ? formatValueWithRadix(rawVal, row.width, currentRadix) : rawVal;
+
+      ctx.fillStyle = isForced ? "#f59e0b" : "#f1f5f9";
       ctx.textAlign = "right";
-      ctx.fillText(valStr, gutterWidth - 12, yMid);
+      ctx.fillText(displayVal, gutterWidth - 12, yMid);
     });
-  }, [state, activeSignals, timeOffsetPs, pixelsPerPs, cursorPs, showDeltaGlitches, gutterWidth, headerHeight, signalHeight]);
+  }, [
+    state,
+    displayRows,
+    timeOffsetPs,
+    pixelsPerPs,
+    cursorAPrivate,
+    cursorBPrivate,
+    hoverTimePs,
+    showDeltaGlitches,
+    expandedDeltaTimePs,
+    expandedBuses,
+    busRadixMap,
+    globalRadix,
+    deltaTimestamps,
+    gutterWidth,
+    headerHeight,
+    signalHeight
+  ]);
 
-  // Handle Resize and Canvas Animation
+  // Handle Resize and Animation
   useEffect(() => {
     const handleResize = () => {
       if (!canvasRef.current || !containerRef.current) return;
@@ -338,7 +549,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     renderCanvas();
   }, [renderCanvas]);
 
-  // Mouse Interactivity: Cursor Scrubbing & Panning
+  // Mouse Interactivity: Pan, Cursor Placement & Dragging
   const [isPanning, setIsPanning] = useState(false);
   const [panStartX, setPanStartX] = useState(0);
   const [panStartTimeOffset, setPanStartTimeOffset] = useState(0);
@@ -347,11 +558,65 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     if (x >= gutterWidth) {
-      setIsPanning(true);
-      setPanStartX(x);
-      setPanStartTimeOffset(timeOffsetPs);
+      const clickedPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
+
+      // Click on timeline header: Check if clicked a Delta indicator [δ+]
+      if (y <= headerHeight) {
+        const matchingDelta = deltaTimestamps.find((dT) => Math.abs(dT - clickedPs) * pixelsPerPs < 12);
+        if (matchingDelta !== undefined) {
+          setExpandedDeltaTimePs(expandedDeltaTimePs === matchingDelta ? null : matchingDelta);
+          return;
+        }
+      }
+
+      // Check if clicking close to existing Cursor A or B to drag
+      if (cursorAPrivate !== null && Math.abs(clickedPs - cursorAPrivate) * pixelsPerPs < 10) {
+        setActiveCursorDrag("A");
+        return;
+      }
+      if (cursorBPrivate !== null && Math.abs(clickedPs - cursorBPrivate) * pixelsPerPs < 10) {
+        setActiveCursorDrag("B");
+        return;
+      }
+
+      // Shift+Click: Place Cursor A
+      if (e.shiftKey) {
+        setCursorAPrivate(clickedPs);
+        return;
+      }
+
+      // Alt+Click or Secondary: Place Cursor B
+      if (e.altKey || e.button === 2) {
+        setCursorBPrivate(clickedPs);
+        return;
+      }
+
+      // Normal click: Place Cursor A or start Pan
+      if (cursorAPrivate === null) {
+        setCursorAPrivate(clickedPs);
+      } else if (cursorBPrivate === null && clickedPs !== cursorAPrivate) {
+        setCursorBPrivate(clickedPs);
+      } else {
+        setIsPanning(true);
+        setPanStartX(x);
+        setPanStartTimeOffset(timeOffsetPs);
+      }
+    } else {
+      // Clicked in gutter: Check for Bus expansion toggle or signal force modal
+      const rowIndex = Math.floor((y - headerHeight) / signalHeight);
+      if (rowIndex >= 0 && rowIndex < displayRows.length) {
+        const row = displayRows[rowIndex];
+        if (row.isBus && !row.isBitChild) {
+          if (x < 30) {
+            toggleBusExpansion(row.id);
+          } else if (x > gutterWidth - 60) {
+            cycleBusRadix(row.id, busRadixMap[row.id] ?? globalRadix);
+          }
+        }
+      }
     }
   };
 
@@ -362,21 +627,68 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
 
     if (x >= gutterWidth) {
       const calcPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
-      setCursorPs(calcPs);
+      setHoverTimePs(calcPs);
 
-      if (isPanning) {
+      if (activeCursorDrag === "A") {
+        setCursorAPrivate(calcPs);
+      } else if (activeCursorDrag === "B") {
+        setCursorBPrivate(calcPs);
+      } else if (isPanning) {
         const deltaX = x - panStartX;
         const deltaPs = deltaX / pixelsPerPs;
         setTimeOffsetPs(Math.max(0, panStartTimeOffset - deltaPs));
       }
     } else {
-      setCursorPs(null);
+      setHoverTimePs(null);
     }
   };
 
   const handleMouseUp = () => {
     setIsPanning(false);
+    setActiveCursorDrag(null);
   };
+
+  // Delta Time & Frequency Measurement Calculation
+  const measurementDelta = useMemo(() => {
+    if (cursorAPrivate === null || cursorBPrivate === null) return null;
+    const deltaPs = Math.abs(cursorBPrivate - cursorAPrivate);
+    const deltaNs = deltaPs / 1000;
+    const deltaUs = deltaNs / 1000;
+
+    const timeStr = deltaPs >= 1_000_000
+      ? `${deltaUs.toFixed(3)} μs`
+      : deltaPs >= 1000
+      ? `${deltaNs.toFixed(3)} ns`
+      : `${deltaPs} ps`;
+
+    let freqStr = "-";
+    if (deltaPs > 0) {
+      const freqHz = 1 / (deltaPs * 1e-12);
+      if (freqHz >= 1e9) {
+        freqStr = `${(freqHz / 1e9).toFixed(3)} GHz`;
+      } else if (freqHz >= 1e6) {
+        freqStr = `${(freqHz / 1e6).toFixed(2)} MHz`;
+      } else {
+        freqStr = `${(freqHz / 1e3).toFixed(1)} kHz`;
+      }
+    }
+
+    return { timeStr, freqStr, deltaPs };
+  }, [cursorAPrivate, cursorBPrivate]);
+
+  // Delta Accordion Events at expanded time
+  const activeDeltaEvents = useMemo(() => {
+    if (expandedDeltaTimePs === null) return [];
+    const events: Array<{ signalName: string; value: string; delta: number; isGlitch?: boolean }> = [];
+    for (const sig of state.signals) {
+      for (const s of sig.samples) {
+        if (s.timePs === expandedDeltaTimePs) {
+          events.push({ signalName: sig.name, value: s.value, delta: s.delta, isGlitch: s.isGlitch });
+        }
+      }
+    }
+    return events.sort((a, b) => a.delta - b.delta);
+  }, [expandedDeltaTimePs, state.signals]);
 
   return (
     <div
@@ -393,7 +705,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       {/* Waveform Controls Bar */}
       <div
         style={{
-          height: 32,
+          height: 36,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
@@ -405,9 +717,31 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Stratified Digital Waveforms ({activeSignals.length} nets)
+            Axiom Waveforms ({displayRows.length} traces)
           </span>
 
+          {/* Radix Switcher Pill */}
+          <div style={{ display: "flex", alignItems: "center", gap: 2, backgroundColor: "var(--bg-tertiary)", padding: "2px 4px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
+            <span style={{ fontSize: 10, color: "var(--text-muted)", marginRight: 4 }}>Radix:</span>
+            {(["hex", "bin", "u_dec", "s_dec", "ascii"] as DisplayRadix[]).map((r) => (
+              <button
+                key={r}
+                onClick={() => setGlobalRadix(r)}
+                style={{
+                  fontSize: 10,
+                  padding: "1px 5px",
+                  borderRadius: 2,
+                  backgroundColor: globalRadix === r ? "var(--accent-blue)" : "transparent",
+                  color: globalRadix === r ? "#ffffff" : "var(--text-muted)",
+                  textTransform: "uppercase"
+                }}
+              >
+                {r === "u_dec" ? "UDec" : r === "s_dec" ? "SDec" : r}
+              </button>
+            ))}
+          </div>
+
+          {/* Delta Glitches Filter */}
           <button
             onClick={() => setShowDeltaGlitches(!showDeltaGlitches)}
             style={{
@@ -424,47 +758,83 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
             title="Highlight zero-time delta cycle glitches"
           >
             <Bug size={12} />
-            <span>Delta Glitches</span>
+            <span>Glitch Radar</span>
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button
-            onClick={() => handleZoom(1.3)}
-            title="Zoom In"
-            style={{
-              padding: 4,
-              backgroundColor: "var(--bg-tertiary)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-secondary)"
-            }}
-          >
-            <ZoomIn size={14} />
-          </button>
-          <button
-            onClick={() => handleZoom(0.7)}
-            title="Zoom Out"
-            style={{
-              padding: 4,
-              backgroundColor: "var(--bg-tertiary)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-secondary)"
-            }}
-          >
-            <ZoomOut size={14} />
-          </button>
-          <button
-            onClick={handleZoomFit}
-            title="Fit to Simulation Extent"
-            style={{
-              padding: 4,
-              backgroundColor: "var(--bg-tertiary)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-secondary)"
-            }}
-          >
-            <Maximize2 size={14} />
-          </button>
+        {/* Measurement HUD & Zoom Controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Dual-Cursor Measurement HUD */}
+          {measurementDelta && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "rgba(15, 23, 42, 0.8)",
+                border: "1px solid #334155",
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 8px",
+                fontSize: 11,
+                fontFamily: "JetBrains Mono, monospace"
+              }}
+            >
+              <span style={{ color: "#00f2fe" }}>A:{cursorAPrivate}ps</span>
+              <span style={{ color: "#a855f7" }}>B:{cursorBPrivate}ps</span>
+              <span style={{ color: "#f1f5f9", fontWeight: 600 }}>Δt: {measurementDelta.timeStr}</span>
+              <span style={{ color: "#10b981", fontWeight: 600 }}>f: {measurementDelta.freqStr}</span>
+              <button
+                onClick={() => {
+                  setCursorAPrivate(null);
+                  setCursorBPrivate(null);
+                }}
+                style={{ fontSize: 10, color: "var(--text-muted)", padding: "0 2px" }}
+                title="Clear Cursors"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Zoom Buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button
+              onClick={() => handleZoom(1.3)}
+              title="Zoom In"
+              style={{
+                padding: 4,
+                backgroundColor: "var(--bg-tertiary)",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-secondary)"
+              }}
+            >
+              <ZoomIn size={14} />
+            </button>
+            <button
+              onClick={() => handleZoom(0.7)}
+              title="Zoom Out"
+              style={{
+                padding: 4,
+                backgroundColor: "var(--bg-tertiary)",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-secondary)"
+              }}
+            >
+              <ZoomOut size={14} />
+            </button>
+            <button
+              onClick={handleZoomFit}
+              title="Fit to Simulation Extent"
+              style={{
+                padding: 4,
+                backgroundColor: "var(--bg-tertiary)",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-secondary)"
+              }}
+            >
+              <Maximize2 size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -474,12 +844,209 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          const rect = canvasRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          const y = e.clientY - rect.top;
+          const rowIndex = Math.floor((y - headerHeight) / signalHeight);
+          if (rowIndex >= 0 && rowIndex < displayRows.length) {
+            const row = displayRows[rowIndex];
+            setForcingSignal({ id: row.id, name: row.name, isBus: row.isBus, width: row.width });
+          }
+        }}
         onMouseLeave={() => {
           setIsPanning(false);
-          setCursorPs(null);
+          setActiveCursorDrag(null);
+          setHoverTimePs(null);
         }}
         style={{ flex: 1, cursor: isPanning ? "grabbing" : "crosshair" }}
       />
+
+      {/* Zero-Time Delta Accordion Drawer (when expandedDeltaTimePs is set) */}
+      {expandedDeltaTimePs !== null && (
+        <div
+          style={{
+            height: 96,
+            backgroundColor: "var(--bg-secondary)",
+            borderTop: "1px solid #00f2fe",
+            padding: "6px 12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            overflowY: "auto",
+            zIndex: 30
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Layers size={14} color="#00f2fe" />
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#f1f5f9" }}>
+                Zero-Time Delta Accordion: t = {expandedDeltaTimePs} ps ({activeDeltaEvents.length} transition steps)
+              </span>
+            </div>
+            <button
+              onClick={() => setExpandedDeltaTimePs(null)}
+              style={{ color: "var(--text-muted)", fontSize: 11 }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+            {activeDeltaEvents.map((evt, idx) => (
+              <div
+                key={idx}
+                style={{
+                  backgroundColor: evt.isGlitch ? "rgba(236, 72, 153, 0.15)" : "var(--bg-tertiary)",
+                  border: `1px solid ${evt.isGlitch ? "#ec4899" : "var(--border-subtle)"}`,
+                  borderRadius: "var(--radius-sm)",
+                  padding: "4px 8px",
+                  fontSize: 10,
+                  fontFamily: "JetBrains Mono, monospace",
+                  minWidth: 140
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b" }}>
+                  <span>Step δ{evt.delta}</span>
+                  {evt.isGlitch && (
+                    <span style={{ color: "#ec4899", display: "flex", alignItems: "center", gap: 2 }}>
+                      <AlertTriangle size={10} /> Hazard
+                    </span>
+                  )}
+                </div>
+                <div style={{ color: "#f1f5f9", fontWeight: 600 }}>{evt.signalName}</div>
+                <div style={{ color: "#38bdf8" }}>value: {evt.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Signal Forcing Modal Dialog */}
+      {forcingSignal && (
+        <div
+          style={{
+            position: "absolute",
+            top: "20%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 320,
+            backgroundColor: "var(--bg-secondary)",
+            border: "1px solid var(--accent-blue)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
+            padding: 16,
+            zIndex: 50
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Sliders size={16} color="var(--accent-blue)" />
+              <span style={{ fontWeight: 600, fontSize: 13 }}>Force Net Stimulus</span>
+            </div>
+            <button
+              onClick={() => setForcingSignal(null)}
+              style={{ color: "var(--text-muted)", fontSize: 12 }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+            Target Net: <strong style={{ color: "#f1f5f9" }}>{forcingSignal.name}</strong> ({forcingSignal.width}-bit {forcingSignal.isBus ? "Bus" : "Wire"})
+          </div>
+
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            {!forcingSignal.isBus ? (
+              (["0", "1", "x", "z"] as const).map((val) => (
+                <button
+                  key={val}
+                  onClick={() => setForceInputVal(val)}
+                  style={{
+                    flex: 1,
+                    padding: "6px 0",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: forceInputVal === val ? "var(--accent-blue)" : "var(--bg-tertiary)",
+                    color: forceInputVal === val ? "#ffffff" : "var(--text-secondary)",
+                    fontWeight: 600,
+                    fontSize: 12,
+                    border: "1px solid var(--border-subtle)"
+                  }}
+                >
+                  {val.toUpperCase()}
+                </button>
+              ))
+            ) : (
+              <input
+                type="text"
+                value={forceInputVal}
+                onChange={(e) => setForceInputVal(e.target.value)}
+                placeholder="e.g. 0x55 or 01010101"
+                style={{
+                  width: "100%",
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  fontFamily: "JetBrains Mono, monospace",
+                  backgroundColor: "var(--bg-tertiary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "#f1f5f9"
+                }}
+              />
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => {
+                engineBridge.forceSignal(forcingSignal.id, forceInputVal);
+                setForcingSignal(null);
+              }}
+              style={{
+                flex: 1,
+                padding: "6px 10px",
+                backgroundColor: "var(--accent-blue)",
+                color: "#ffffff",
+                borderRadius: "var(--radius-sm)",
+                fontWeight: 600,
+                fontSize: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4
+              }}
+            >
+              <Lock size={12} />
+              <span>Apply Force</span>
+            </button>
+
+            {state.forcedSignalIds.includes(forcingSignal.id) && (
+              <button
+                onClick={() => {
+                  engineBridge.releaseForce(forcingSignal.id);
+                  setForcingSignal(null);
+                }}
+                style={{
+                  padding: "6px 10px",
+                  backgroundColor: "var(--bg-tertiary)",
+                  color: "#f59e0b",
+                  border: "1px solid #f59e0b",
+                  borderRadius: "var(--radius-sm)",
+                  fontWeight: 600,
+                  fontSize: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+              >
+                <Unlock size={12} />
+                <span>Release</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

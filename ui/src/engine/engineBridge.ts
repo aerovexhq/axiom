@@ -61,6 +61,16 @@ export interface SimulationState {
   telemetry: TelemetryPoint[];
   glitches: GlitchEvent[];
   hierarchy: HierarchyNode[];
+  forcedSignalIds: string[];
+  deltaEvents: Array<{
+    timePs: number;
+    delta: number;
+    phase: "active" | "inactive" | "nba";
+    netName: string;
+    oldVal: string;
+    newVal: string;
+    isGlitch: boolean;
+  }>;
 }
 
 export type StateListener = (state: SimulationState) => void;
@@ -208,7 +218,9 @@ export class BetteradoEngineBridge {
         eventCount: 0
       }],
       glitches: [],
-      hierarchy
+      hierarchy,
+      forcedSignalIds: [],
+      deltaEvents: []
     };
   }
 
@@ -507,6 +519,48 @@ export class BetteradoEngineBridge {
     }
     saif += `  )\n)\n`;
     return saif;
+  }
+
+  public forceSignal(signalId: string, value: string) {
+    const sig = this.state.signals.find(s => s.id === signalId || s.fullName === signalId);
+    if (!sig) {
+      this.log(`Signal '${signalId}' not found for forcing.`, "error");
+      return;
+    }
+
+    const prevSample = sig.samples[sig.samples.length - 1];
+    const oldVal = prevSample?.value ?? "0";
+
+    // Add forced sample
+    sig.samples.push({
+      timePs: this.state.currentSimTimePs,
+      delta: this.state.currentDeltaCycle,
+      value
+    });
+
+    if (!this.state.forcedSignalIds.includes(sig.id)) {
+      this.state.forcedSignalIds.push(sig.id);
+    }
+
+    this.state.deltaEvents.push({
+      timePs: this.state.currentSimTimePs,
+      delta: this.state.currentDeltaCycle,
+      phase: "active",
+      netName: sig.name,
+      oldVal,
+      newVal: value,
+      isGlitch: false
+    });
+
+    this.log(`[FORCE] Forced ${sig.fullName} <= ${value} at t=${this.state.currentSimTimePs}ps (delta ${this.state.currentDeltaCycle})`, "warn");
+    this.recordTelemetry(this.state.currentSimTimePs, this.state.currentDeltaCycle, 1);
+    this.notify();
+  }
+
+  public releaseForce(signalId: string) {
+    this.state.forcedSignalIds = this.state.forcedSignalIds.filter(id => id !== signalId);
+    this.log(`[RELEASE] Released force on signal '${signalId}'. Re-evaluating circuit...`, "info");
+    this.notify();
   }
 }
 
