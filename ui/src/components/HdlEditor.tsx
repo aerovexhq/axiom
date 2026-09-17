@@ -7,6 +7,7 @@ interface HdlEditorProps {
   onChangeCode: (code: string) => void;
   onCompile: () => void;
   compiled: boolean;
+  highlightLineSpan?: { lineStart: number; lineEnd: number } | null;
 }
 
 export const HdlEditor: React.FC<HdlEditorProps> = ({
@@ -14,9 +15,22 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   topModule,
   onChangeCode,
   onCompile,
-  compiled
+  compiled,
+  highlightLineSpan
 }) => {
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const gutterRef = React.useRef<HTMLDivElement | null>(null);
   const lines = code.split("\n");
+
+  React.useEffect(() => {
+    if (highlightLineSpan && textareaRef.current) {
+      const targetY = Math.max(0, (highlightLineSpan.lineStart - 3) * 20);
+      textareaRef.current.scrollTo({ top: targetY, behavior: "smooth" });
+      if (gutterRef.current) {
+        gutterRef.current.scrollTo({ top: targetY, behavior: "smooth" });
+      }
+    }
+  }, [highlightLineSpan]);
 
   return (
     <div
@@ -77,6 +91,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
         {/* Line Numbers Gutter */}
         <div
+          ref={gutterRef}
           style={{
             width: 44,
             backgroundColor: "var(--bg-secondary)",
@@ -90,15 +105,33 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             overflow: "hidden"
           }}
         >
-          {lines.map((_, idx) => (
-            <div key={idx} style={{ height: 20, lineHeight: "20px" }}>
-              {idx + 1}
-            </div>
-          ))}
+          {lines.map((_, idx) => {
+            const lineNum = idx + 1;
+            const isHighlighted =
+              highlightLineSpan &&
+              lineNum >= highlightLineSpan.lineStart &&
+              lineNum <= highlightLineSpan.lineEnd;
+            return (
+              <div
+                key={idx}
+                style={{
+                  height: 20,
+                  lineHeight: "20px",
+                  color: isHighlighted ? "var(--accent-cyan)" : "inherit",
+                  fontWeight: isHighlighted ? 700 : 400,
+                  backgroundColor: isHighlighted ? "rgba(56, 189, 248, 0.15)" : "transparent",
+                  borderRadius: 2
+                }}
+              >
+                {lineNum}
+              </div>
+            );
+          })}
         </div>
 
         {/* Text Area */}
         <textarea
+          ref={textareaRef}
           value={code}
           onChange={(e) => onChangeCode(e.target.value)}
           spellCheck={false}

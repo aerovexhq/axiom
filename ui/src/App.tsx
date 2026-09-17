@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { Activity, Cpu, LayoutGrid } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
 import { WaveformViewer } from "./components/WaveformViewer";
+import { SchematicViewer } from "./components/SchematicViewer";
 import { TelemetryViewer } from "./components/TelemetryViewer";
 import { BottomConsole } from "./components/BottomConsole";
 import { engineBridge, SimulationState } from "./engine/engineBridge";
@@ -12,6 +14,12 @@ export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [activeDesign, setActiveDesign] = useState<SampleDesign>(SAMPLE_DESIGNS[0]);
   const [editorCode, setEditorCode] = useState<string>(SAMPLE_DESIGNS[0].code);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "split">("split");
+
+  // Cross-Probing State: Signal ID and Code Highlight Span
+  const [activeCrossProbeSignal, setActiveCrossProbeSignal] = useState<string | null>(null);
+  const [highlightLineSpan, setHighlightLineSpan] = useState<{ lineStart: number; lineEnd: number } | null>(null);
+
   const [selectedSignalIds, setSelectedSignalIds] = useState<Set<string>>(
     new Set([
       "alu_8bit.clk",
@@ -45,6 +53,8 @@ export const App: React.FC = () => {
   const handleSelectDesign = (design: SampleDesign) => {
     setActiveDesign(design);
     setEditorCode(design.code);
+    setActiveCrossProbeSignal(null);
+    setHighlightLineSpan(null);
     engineBridge.compile(design.code, design.topModule);
 
     // Default select all signals in new design
@@ -68,6 +78,20 @@ export const App: React.FC = () => {
       next.add(id);
     }
     setSelectedSignalIds(next);
+    setActiveCrossProbeSignal(id);
+  };
+
+  const handleSchematicSelectSignal = (signalId: string) => {
+    setActiveCrossProbeSignal(signalId);
+    setSelectedSignalIds((prev) => {
+      const next = new Set(prev);
+      next.add(signalId);
+      return next;
+    });
+  };
+
+  const handleJumpToCode = (lineStart: number, lineEnd: number) => {
+    setHighlightLineSpan({ lineStart, lineEnd });
   };
 
   return (
@@ -88,21 +112,164 @@ export const App: React.FC = () => {
 
         {/* Center Simulation Workspace */}
         <div className="betterado-center">
-          {/* Upper Workspace: HDL Editor + Waveform Viewer Split */}
-          <div className="betterado-split-horizontal">
-            <div style={{ width: "38%", display: "flex", minWidth: 320 }}>
-              <HdlEditor
-                code={editorCode}
-                topModule={activeDesign.topModule}
-                onChangeCode={setEditorCode}
-                onCompile={handleCompile}
-                compiled={state.compiled}
-              />
+          {/* Studio View Switcher Tab Bar */}
+          <div
+            style={{
+              height: 32,
+              backgroundColor: "var(--bg-secondary)",
+              borderBottom: "1px solid var(--border-subtle)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0 10px",
+              zIndex: 5
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={() => setCenterView("waveform")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 9px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: centerView === "waveform" ? "var(--bg-tertiary)" : "transparent",
+                  color: centerView === "waveform" ? "var(--accent-blue)" : "var(--text-muted)",
+                  border: centerView === "waveform" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                }}
+              >
+                <Activity size={12} />
+                <span>Waveforms</span>
+              </button>
+
+              <button
+                onClick={() => setCenterView("schematic")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 9px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: centerView === "schematic" ? "var(--bg-tertiary)" : "transparent",
+                  color: centerView === "schematic" ? "var(--accent-cyan)" : "var(--text-muted)",
+                  border: centerView === "schematic" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                }}
+              >
+                <Cpu size={12} />
+                <span>Schematic DAG</span>
+              </button>
+
+              <button
+                onClick={() => setCenterView("split")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 9px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: centerView === "split" ? "var(--bg-tertiary)" : "transparent",
+                  color: centerView === "split" ? "var(--accent-emerald)" : "var(--text-muted)",
+                  border: centerView === "split" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                }}
+              >
+                <LayoutGrid size={12} />
+                <span>Split Studio</span>
+              </button>
             </div>
-            <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
-              <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-muted)" }}>
+              {activeCrossProbeSignal && (
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span>Probing:</span>
+                  <span style={{ color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
+                    {activeCrossProbeSignal}
+                  </span>
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Upper Workspace: View Depending on centerView Mode */}
+          {centerView === "split" && (
+            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+              {/* Left: HDL Editor */}
+              <div style={{ width: "35%", display: "flex", minWidth: 320 }}>
+                <HdlEditor
+                  code={editorCode}
+                  topModule={activeDesign.topModule}
+                  onChangeCode={setEditorCode}
+                  onCompile={handleCompile}
+                  compiled={state.compiled}
+                  highlightLineSpan={highlightLineSpan}
+                />
+              </div>
+
+              {/* Right: Stacked Waveform (50%) & Schematic DAG (50%) */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 400, overflow: "hidden" }}>
+                <div style={{ flex: 1, display: "flex", minHeight: 220, borderBottom: "1px solid var(--border-subtle)" }}>
+                  <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
+                </div>
+                <div style={{ flex: 1, display: "flex", minHeight: 220 }}>
+                  <SchematicViewer
+                    state={state}
+                    activeDesignId={activeDesign.id}
+                    selectedSignalId={activeCrossProbeSignal}
+                    onSelectSignal={handleSchematicSelectSignal}
+                    onJumpToCode={handleJumpToCode}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {centerView === "waveform" && (
+            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+              <div style={{ width: "38%", display: "flex", minWidth: 320 }}>
+                <HdlEditor
+                  code={editorCode}
+                  topModule={activeDesign.topModule}
+                  onChangeCode={setEditorCode}
+                  onCompile={handleCompile}
+                  compiled={state.compiled}
+                  highlightLineSpan={highlightLineSpan}
+                />
+              </div>
+              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+                <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
+              </div>
+            </div>
+          )}
+
+          {centerView === "schematic" && (
+            <div className="betterado-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+              <div style={{ width: "35%", display: "flex", minWidth: 320 }}>
+                <HdlEditor
+                  code={editorCode}
+                  topModule={activeDesign.topModule}
+                  onChangeCode={setEditorCode}
+                  onCompile={handleCompile}
+                  compiled={state.compiled}
+                  highlightLineSpan={highlightLineSpan}
+                />
+              </div>
+              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+                <SchematicViewer
+                  state={state}
+                  activeDesignId={activeDesign.id}
+                  selectedSignalId={activeCrossProbeSignal}
+                  onSelectSignal={handleSchematicSelectSignal}
+                  onJumpToCode={handleJumpToCode}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Lower Center: Analog Telemetry Viewer (Power, Current, Sag) */}
           <TelemetryViewer state={state} />
