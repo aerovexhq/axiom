@@ -35,3 +35,7 @@ betterado-ir = { path = "crates/ir" }
 betterado-jit = { path = "crates/jit" }
 betterado-sim = { path = "crates/sim" }
 betterado-telemetry = { path = "crates/telemetry" }
+betterado-desktop = { path = "crates/desktop" }
+zstd = "0.13"
+tiny_http = "0.12"
+serde_json = "1.0"

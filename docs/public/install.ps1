@@ -70,17 +70,30 @@ $Installed = $false
 # 3. Attempt Release Download
 if (-not $ForceBuild) {
     $ZipName = "axiom-$Version-$Target.zip"
+    $CdnUrl = "https://axiom.aerovex.net/dist/$ZipName"
     $ReleaseUrl = "https://github.com/$Repo/releases/download/$Version/$ZipName"
-    Write-Host "==> Attempting download of pre-built release: $ReleaseUrl" -ForegroundColor Yellow
+    Write-Host "==> Attempting download of pre-built release binary..." -ForegroundColor Cyan
+
+    $ZipPath = Join-Path $TempDir $ZipName
+    $Downloaded = $false
 
     try {
-        $ZipPath = Join-Path $TempDir $ZipName
-        Invoke-WebRequest -Uri $ReleaseUrl -OutFile $ZipPath -UseBasicParsing
-        Write-Host "  [OK] Download completed." -ForegroundColor Green
+        Invoke-WebRequest -Uri $CdnUrl -OutFile $ZipPath -UseBasicParsing
+        Write-Host "  [OK] Downloaded from Aerovex CDN." -ForegroundColor Green
+        $Downloaded = $true
+    } catch {
+        try {
+            Invoke-WebRequest -Uri $ReleaseUrl -OutFile $ZipPath -UseBasicParsing
+            Write-Host "  [OK] Downloaded from GitHub Releases." -ForegroundColor Green
+            $Downloaded = $true
+        } catch {
+            Write-Host "  [Note] Pre-built release not found on CDN or GitHub. Falling back to source build..." -ForegroundColor Yellow
+        }
+    }
+
+    if ($Downloaded) {
         Expand-Archive -Path $ZipPath -DestinationPath $BinDir -Force
         $Installed = $true
-    } catch {
-        Write-Host "  [Note] Pre-built release not found on GitHub. Falling back to source build..." -ForegroundColor Yellow
     }
 }
 
@@ -95,7 +108,7 @@ if (-not $Installed) {
     $SrcDir = Join-Path $TempDir "axiom-src"
     & git clone --depth 1 "https://github.com/$Repo.git" $SrcDir
     Set-Location $SrcDir
-    & cargo build --release -p betterado-cli --bin axiom
+    & cargo build --release --bin axiom
     
     $BuiltBin = Join-Path $SrcDir "target\release\axiom.exe"
     if (-not (Test-Path $BuiltBin)) {
@@ -119,6 +132,57 @@ if ($UserPath -notlike "*$BinDir*") {
     [Environment]::SetEnvironmentVariable("PATH", $NewPath, "User")
     $env:PATH = "$env:PATH;$BinDir"
     $PathAdded = $true
+}
+
+# 6. Icon & Desktop Application Shortcuts (Windows Start Menu & Desktop)
+Write-Host "==> Configuring desktop application integration..." -ForegroundColor Cyan
+$IconUrl = "https://axiom.aerovex.net/axiom.ico"
+$IconPath = Join-Path $InstallDir "axiom.ico"
+
+try {
+    Invoke-WebRequest -Uri $IconUrl -OutFile $IconPath -UseBasicParsing
+    Write-Host "  [OK] Downloaded official icon: $IconPath" -ForegroundColor Green
+} catch {
+    Write-Host "  [Note] Could not download icon file." -ForegroundColor Yellow
+}
+
+try {
+    $WshShell = New-Object -ComObject WScript.Shell
+
+    # Start Menu Shortcut (Indexed by Windows Search)
+    $StartMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
+    if (Test-Path $StartMenuDir) {
+        $StartShortcutPath = Join-Path $StartMenuDir "Axiom EDA.lnk"
+        $Shortcut = $WshShell.CreateShortcut($StartShortcutPath)
+        $Shortcut.TargetPath = (Join-Path $BinDir "axiom.exe")
+        $Shortcut.Arguments = "gui"
+        $Shortcut.WorkingDirectory = "$InstallDir"
+        $Shortcut.Description = "Axiom EDA — High-Performance HDL Simulator & Silicon Telemetry"
+        if (Test-Path $IconPath) {
+            $Shortcut.IconLocation = "$IconPath, 0"
+        }
+        $Shortcut.Save()
+        Write-Host "  [OK] Created Start Menu Shortcut: $StartShortcutPath" -ForegroundColor Green
+        Write-Host "       (Search 'Axiom' in Windows Start Menu to launch GUI studio)" -ForegroundColor DarkGray
+    }
+
+    # Desktop Shortcut
+    $DesktopDir = [Environment]::GetFolderPath("Desktop")
+    if (Test-Path $DesktopDir) {
+        $DesktopShortcutPath = Join-Path $DesktopDir "Axiom EDA.lnk"
+        $DesktopShortcut = $WshShell.CreateShortcut($DesktopShortcutPath)
+        $DesktopShortcut.TargetPath = (Join-Path $BinDir "axiom.exe")
+        $DesktopShortcut.Arguments = "gui"
+        $DesktopShortcut.WorkingDirectory = "$InstallDir"
+        $DesktopShortcut.Description = "Axiom EDA — High-Performance HDL Simulator & Silicon Telemetry"
+        if (Test-Path $IconPath) {
+            $DesktopShortcut.IconLocation = "$IconPath, 0"
+        }
+        $DesktopShortcut.Save()
+        Write-Host "  [OK] Created Desktop Shortcut: $DesktopShortcutPath" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "  [Note] Skipping desktop shortcut creation: $_" -ForegroundColor Yellow
 }
 
 Write-Host "================================================================================" -ForegroundColor Green

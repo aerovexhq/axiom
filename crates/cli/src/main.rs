@@ -11,6 +11,8 @@ use betterado_sim::BetteradoSimulator;
 use betterado_syntax::parse_hdl;
 use betterado_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
 
+mod gui_server;
+
 struct SharedTelemetryListener(Arc<Mutex<TelemetryCollector>>);
 
 impl betterado_sim::SimEventListener for SharedTelemetryListener {
@@ -58,11 +60,16 @@ USAGE:
     {} <SUBCOMMAND> [OPTIONS]
 
 SUBCOMMANDS:
+    gui [OPTIONS]                        Launch embedded in-RAM GUI studio in browser
     compile <FILE> -t <TOP>              In-RAM parse, elaboration, and Cranelift JIT compilation
     run <FILE> -t <TOP> [OPTIONS]        Headless batch simulation with VCD/SAIF export
     benchmark <FILE> -t <TOP> [OPTIONS]  Measure compile latency and simulation throughput
     help                                 Print this message or the help of the given subcommand(s)
     version                              Print version information
+
+GUI OPTIONS:
+    --port <PORT>            Local HTTP port to bind (default: 8080)
+    --no-browser             Do not automatically open default browser
 
 RUN OPTIONS:
     -t, --top <MODULE>       Name of top-level module (required)
@@ -96,12 +103,48 @@ pub struct BenchmarkConfig {
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        print_help();
-        std::process::exit(1);
+        // Default to launching the interactive GUI studio if launched with no arguments
+        let config = gui_server::GuiServerConfig {
+            port: 8080,
+            open_browser: true,
+        };
+        if let Err(e) = gui_server::start_gui_server(config) {
+            eprintln!("Error launching Axiom GUI: {e}");
+            std::process::exit(1);
+        }
+        return;
     }
 
     let subcommand = &args[1];
     match subcommand.as_str() {
+        "gui" | "studio" | "ui" => {
+            let mut port = 8080;
+            let mut open_browser = true;
+            let mut i = 2;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--port" => {
+                        if i + 1 < args.len() {
+                            port = args[i + 1].parse().unwrap_or(8080);
+                            i += 1;
+                        }
+                    }
+                    "--no-browser" => {
+                        open_browser = false;
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+            let config = gui_server::GuiServerConfig {
+                port,
+                open_browser,
+            };
+            if let Err(e) = gui_server::start_gui_server(config) {
+                eprintln!("Error launching Axiom GUI: {e}");
+                std::process::exit(1);
+            }
+        }
         "-h" | "--help" | "help" => {
             print_help();
         }

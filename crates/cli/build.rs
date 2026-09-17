@@ -1,0 +1,169 @@
+use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+fn get_mime_type(path: &str) -> &'static str {
+    if path.ends_with(".html") {
+        "text/html; charset=utf-8"
+    } else if path.ends_with(".js") || path.ends_with(".mjs") {
+        "application/javascript; charset=utf-8"
+    } else if path.ends_with(".css") {
+        "text/css; charset=utf-8"
+    } else if path.ends_with(".svg") {
+        "image/svg+xml"
+    } else if path.ends_with(".png") {
+        "image/png"
+    } else if path.ends_with(".ico") {
+        "image/x-icon"
+    } else if path.ends_with(".json") {
+        "application/json"
+    } else if path.ends_with(".wasm") {
+        "application/wasm"
+    } else {
+        "application/octet-stream"
+    }
+}
+
+fn collect_files(dir: &Path, base: &Path, files: &mut Vec<PathBuf>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_files(&path, base, files);
+            } else if path.is_file() {
+                files.push(path);
+            }
+        }
+    }
+}
+
+fn main() {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let root_dir = Path::new(&manifest_dir).parent().unwrap().parent().unwrap();
+    let ui_dist = root_dir.join("ui").join("dist");
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let dest_dir = Path::new(&out_dir).join("embedded_zstd");
+    fs::create_dir_all(&dest_dir).unwrap();
+
+    let mut asset_entries = Vec::new();
+
+    println!("cargo:rerun-if-changed={}", ui_dist.display());
+
+    let mut files = Vec::new();
+    if ui_dist.exists() {
+        collect_files(&ui_dist, &ui_dist, &mut files);
+    }
+
+    if files.is_empty() {
+        // Fallback minimal HTML page if ui/dist was not pre-built
+        let fallback_html = br#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Axiom EDA</title>
+    <style>
+        body { background: #080c14; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { text-align: center; border: 1px solid #1e293b; background: #0f172a; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,242,254,0.1); max-width: 520px; }
+        h1 { color: #00f2fe; margin-bottom: 0.5rem; font-size: 1.75rem; }
+        p { color: #94a3b8; line-height: 1.6; }
+        code { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Axiom EDA</h1>
+        <p>Embedded Engine Running. Build frontend assets with <code>cd ui && npm run build</code> to unlock full interactive RTL Schematic, Waveform, and Telemetry viewers.</p>
+    </div>
+</body>
+</html>"#;
+        let compressed = zstd::encode_all(&fallback_html[..], 19).unwrap();
+        let fallback_file = dest_dir.join("fallback_index.html.zstd");
+        fs::write(&fallback_file, &compressed).unwrap();
+
+        asset_entries.push(format!(
+            r#"    EmbeddedAsset {{
+        path: "/",
+        mime_type: "text/html; charset=utf-8",
+        compressed_bytes: include_bytes!(r"{}"),
+    }},
+    EmbeddedAsset {{
+        path: "/index.html",
+        mime_type: "text/html; charset=utf-8",
+        compressed_bytes: include_bytes!(r"{}"),
+    }},"#,
+            fallback_file.display(),
+            fallback_file.display()
+        ));
+    } else {
+        let mut idx = 0;
+        for file in files {
+            let rel_path = file.strip_prefix(&ui_dist).unwrap();
+            let mut web_path = format!("/{}", rel_path.to_slash_lossy());
+            if cfg!(windows) {
+                web_path = web_path.replace('\\', "/");
+            }
+
+            let mime_type = get_mime_type(&web_path);
+            let raw_bytes = fs::read(&file).unwrap();
+            let compressed = zstd::encode_all(&raw_bytes[..], 19).unwrap();
+
+            let zstd_filename = format!("asset_{idx}.zstd");
+            let zstd_path = dest_dir.join(&zstd_filename);
+            fs::write(&zstd_path, &compressed).unwrap();
+
+            asset_entries.push(format!(
+                r#"    EmbeddedAsset {{
+        path: "{}",
+        mime_type: "{}",
+        compressed_bytes: include_bytes!(r"{}"),
+    }},"#,
+                web_path,
+                mime_type,
+                zstd_path.display()
+            ));
+
+            if web_path == "/index.html" {
+                asset_entries.push(format!(
+                    r#"    EmbeddedAsset {{
+        path: "/",
+        mime_type: "{}",
+        compressed_bytes: include_bytes!(r"{}"),
+    }},"#,
+                    mime_type,
+                    zstd_path.display()
+                ));
+            }
+
+            idx += 1;
+        }
+    }
+
+    let generated_code = format!(
+        r#"// Auto-generated by crates/cli/build.rs with Zstandard level 19 compression.
+pub struct EmbeddedAsset {{
+    pub path: &'static str,
+    pub mime_type: &'static str,
+    pub compressed_bytes: &'static [u8],
+}}
+
+pub static EMBEDDED_ASSETS: &[EmbeddedAsset] = &[
+{}
+];
+"#,
+        asset_entries.join("\n")
+    );
+
+    let generated_rs = Path::new(&out_dir).join("embedded_assets.rs");
+    fs::write(generated_rs, generated_code).unwrap();
+}
+
+trait ToSlashLossy {
+    fn to_slash_lossy(&self) -> String;
+}
+
+impl ToSlashLossy for Path {
+    fn to_slash_lossy(&self) -> String {
+        self.to_string_lossy().replace('\\', "/")
+    }
+}

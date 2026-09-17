@@ -5,6 +5,14 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[lib]
+name = "betterado_desktop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "betterado-desktop"
+path = "src/main.rs"
+
 [dependencies]
 betterado-core = { workspace = true }
 betterado-syntax = { workspace = true }

@@ -142,19 +142,26 @@ INSTALLED=false
 
 if [ "${FORCE_BUILD}" = false ]; then
     TARBALL="axiom-${VERSION}-${TARGET}.tar.gz"
+    CDN_URL="https://axiom.aerovex.net/dist/${TARBALL}"
     RELEASE_URL="https://github.com/${REPO}/releases/download/${VERSION}/${TARBALL}"
-    echo -e "${CYAN}==> Attempting download of pre-built release...${RESET}"
-    echo -e "    ${RELEASE_URL}"
+    echo -e "${CYAN}==> Attempting download of pre-built release binary...${RESET}"
 
-    if curl -fsSL "${RELEASE_URL}" -o "${TMP_DIR}/${TARBALL}" 2>/dev/null; then
-        echo -e "  ✓ Download completed successfully."
+    if curl -fsSL "${CDN_URL}" -o "${TMP_DIR}/${TARBALL}" 2>/dev/null; then
+        echo -e "  ✓ Downloaded from Aerovex CDN (${CDN_URL})"
+        echo -e "${CYAN}==> Extracting binary to ${BIN_DIR}...${RESET}"
+        tar -xzf "${TMP_DIR}/${TARBALL}" -C "${BIN_DIR}"
+        chmod +x "${BIN_DIR}/axiom"
+        ln -sf "axiom" "${BIN_DIR}/betterado"
+        INSTALLED=true
+    elif curl -fsSL "${RELEASE_URL}" -o "${TMP_DIR}/${TARBALL}" 2>/dev/null; then
+        echo -e "  ✓ Downloaded from GitHub Releases (${RELEASE_URL})"
         echo -e "${CYAN}==> Extracting binary to ${BIN_DIR}...${RESET}"
         tar -xzf "${TMP_DIR}/${TARBALL}" -C "${BIN_DIR}"
         chmod +x "${BIN_DIR}/axiom"
         ln -sf "axiom" "${BIN_DIR}/betterado"
         INSTALLED=true
     else
-        echo -e "${AMBER}Note: Pre-built release archive for ${VERSION} (${TARGET}) not yet published on GitHub.${RESET}"
+        echo -e "${AMBER}Note: Pre-built release archive for ${VERSION} (${TARGET}) not yet published on GitHub or CDN.${RESET}"
         echo -e "${CYAN}==> Falling back to building directly from source...${RESET}"
     fi
 fi
@@ -169,12 +176,131 @@ if [ "${INSTALLED}" = false ]; then
     echo -e "${CYAN}==> Cloning repository and compiling from source...${RESET}"
     git clone --depth 1 "https://github.com/${REPO}.git" "${TMP_DIR}/axiom-src"
     cd "${TMP_DIR}/axiom-src"
-    cargo build --release -p betterado-cli --bin axiom
+    cargo build --release --bin axiom
     cp -f "${TMP_DIR}/axiom-src/target/release/axiom" "${BIN_DIR}/axiom"
     chmod +x "${BIN_DIR}/axiom"
     ln -sf "axiom" "${BIN_DIR}/betterado"
     INSTALLED=true
 fi
+
+# Convenience symlink to standard user path (~/.local/bin)
+LOCAL_BIN="${HOME}/.local/bin"
+if [ -d "${LOCAL_BIN}" ] || mkdir -p "${LOCAL_BIN}" 2>/dev/null; then
+    ln -sf "${BIN_DIR}/axiom" "${LOCAL_BIN}/axiom" 2>/dev/null || true
+    ln -sf "${BIN_DIR}/axiom" "${LOCAL_BIN}/betterado" 2>/dev/null || true
+    echo -e "  ✓ Linked to standard user path: ${BOLD}${LOCAL_BIN}/axiom${RESET}"
+fi
+
+# 4. Download Icon & Register Desktop Application (Searchable in OS)
+echo -e "${CYAN}==> Configuring desktop application integration...${RESET}"
+ICON_URL="https://axiom.aerovex.net/icon.png"
+GITHUB_ICON_URL="https://raw.githubusercontent.com/${REPO}/main/docs/public/icon.png"
+ICON_DIR="${INSTALL_DIR}/share"
+mkdir -p "${ICON_DIR}"
+if ! curl -fsSL "${ICON_URL}" -o "${ICON_DIR}/icon.png" 2>/dev/null; then
+    curl -fsSL "${GITHUB_ICON_URL}" -o "${ICON_DIR}/icon.png" 2>/dev/null || true
+fi
+if [ ! -f "${ICON_DIR}/icon.png" ] && [ -f "${TMP_DIR}/axiom-src/docs/public/icon.png" ]; then
+    cp -f "${TMP_DIR}/axiom-src/docs/public/icon.png" "${ICON_DIR}/icon.png" 2>/dev/null || true
+fi
+if [ -f "${ICON_DIR}/icon.png" ]; then
+    echo -e "  ✓ Downloaded high-resolution icon: ${BOLD}${ICON_DIR}/icon.png${RESET}"
+fi
+
+case "${OS_NAME}" in
+    linux)
+        # Install icon in Freedesktop hicolor theme
+        HICOLOR_DIR="${HOME}/.local/share/icons/hicolor/512x512/apps"
+        if mkdir -p "${HICOLOR_DIR}" 2>/dev/null; then
+            if [ -f "${ICON_DIR}/icon.png" ]; then
+                cp -f "${ICON_DIR}/icon.png" "${HICOLOR_DIR}/axiom.png"
+            fi
+        fi
+
+        # Generate .desktop entry
+        APP_DIR="${HOME}/.local/share/applications"
+        mkdir -p "${APP_DIR}"
+        DESKTOP_FILE="${APP_DIR}/axiom.desktop"
+        cat << EOF > "${DESKTOP_FILE}"
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Axiom EDA
+GenericName=HDL Simulator & Silicon Telemetry
+Comment=High-Performance In-RAM Verilog/SystemVerilog Engine & Cranelift JIT Simulator
+Exec=${BIN_DIR}/axiom gui %U
+Icon=axiom
+Terminal=false
+Categories=Development;Engineering;Electronics;Science;
+Keywords=verilog;systemverilog;hdl;fpga;eda;simulation;vivado;telemetry;schematic;waveform;
+StartupWMClass=axiom
+StartupNotify=true
+MimeType=text/x-verilog;text/x-systemverilog;
+EOF
+        chmod +x "${DESKTOP_FILE}" 2>/dev/null || true
+        if command -v update-desktop-database &>/dev/null; then
+            update-desktop-database "${APP_DIR}" 2>/dev/null || true
+        fi
+        if command -v gtk-update-icon-cache &>/dev/null; then
+            gtk-update-icon-cache -f -t "${HOME}/.local/share/icons/hicolor" 2>/dev/null || true
+        fi
+        echo -e "  ✓ Created Desktop Launcher: ${BOLD}${DESKTOP_FILE}${RESET}"
+        echo -e "    \x1b[90m(Search 'Axiom' in system application launcher or GNOME/KDE menu)\x1b[0m"
+        ;;
+    darwin)
+        # Create macOS Application Bundle in ~/Applications/Axiom.app
+        APP_BUNDLE="${HOME}/Applications/Axiom.app"
+        CONTENTS_DIR="${APP_BUNDLE}/Contents"
+        MACOS_DIR="${CONTENTS_DIR}/MacOS"
+        RESOURCES_DIR="${CONTENTS_DIR}/Resources"
+        mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}"
+
+        if [ -f "${ICON_DIR}/icon.png" ]; then
+            cp -f "${ICON_DIR}/icon.png" "${RESOURCES_DIR}/axiom.png"
+        fi
+
+        cat << 'EOF' > "${MACOS_DIR}/axiom"
+#!/usr/bin/env bash
+exec "${HOME}/.axiom/bin/axiom" gui "$@"
+EOF
+        chmod +x "${MACOS_DIR}/axiom"
+
+        cat << EOF > "${CONTENTS_DIR}/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleName</key>
+    <string>Axiom</string>
+    <key>CFBundleDisplayName</key>
+    <string>Axiom EDA</string>
+    <key>CFBundleIdentifier</key>
+    <string>net.aerovex.axiom</string>
+    <key>CFBundleVersion</key>
+    <string>${VERSION#v}</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${VERSION#v}</string>
+    <key>CFBundleExecutable</key>
+    <string>axiom</string>
+    <key>CFBundleIconFile</key>
+    <string>axiom</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>
+EOF
+        touch "${APP_BUNDLE}"
+        if [ -x "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister" ]; then
+            /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "${APP_BUNDLE}" 2>/dev/null || true
+        fi
+        echo -e "  ✓ Created macOS Application Bundle: ${BOLD}${APP_BUNDLE}${RESET}"
+        echo -e "    \x1b[90m(Search 'Axiom' in Spotlight, Raycast, or Launchpad)\x1b[0m"
+        ;;
+esac
 
 # 4. PATH Configuration Check
 SHELL_NAME="$(basename "${SHELL:-bash}")"
