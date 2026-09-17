@@ -40,6 +40,33 @@ features:
     details: Exports IEEE 1364 Value Change Dump (.vcd) waveforms and Synopsys SAIF 2.0 switching activity files directly consumable by Vivado read_saif.
 ---
 
+## Single-Line Install
+
+Install the standalone Axiom EDA binary in seconds without 100+ GB installer bloat:
+
+::: code-group
+
+```bash [Linux & macOS]
+curl -fsSL https://axiom.aerovex.net/install.sh | bash
+```
+
+```powershell [Windows (PowerShell)]
+irm https://axiom.aerovex.net/install.ps1 | iex
+```
+
+:::
+
+::: tip Version Selection & Build from Source
+To install a specific release version or build directly from source:
+```bash
+# Target specific release version
+AXIOM_VERSION=v0.1.0 curl -fsSL https://axiom.aerovex.net/install.sh | bash
+
+# Force build from source via cargo
+curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --build
+```
+:::
+
 ## Benchmark Highlights: Axiom vs. AMD Vivado
 
 | Metric | Axiom EDA (Aerovex) | AMD Vivado Design Suite | Advantage |

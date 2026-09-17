@@ -14,3 +14,7 @@ betterado-sim = { workspace = true }
 betterado-telemetry = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+
+[[bin]]
+name = "axiom"
+path = "src/main.rs"

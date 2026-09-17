@@ -1,36 +1,124 @@
-# Quickstart (60-Second Setup)
+# Quickstart & Installation
 
-Get up and running with Axiom in less than a minute.
-
----
-
-## Prerequisites
-
-- **Rust toolchain** (1.80+): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Node.js** (v20+): For building the desktop GUI and WebAssembly frontend.
+Get up and running with **Axiom EDA** in less than 60 seconds.
 
 ---
 
-## 1. Clone & Build
+## 1. Single-Line Install
 
-Clone the repository and build the headless CLI binary:
+Axiom provides lightweight, self-contained standalone binaries (<50 MB) with zero external toolchain requirements.
 
-```bash
-git clone https://github.com/larvance/axiom.git
-cd axiom
-cargo build --release -p betterado-cli
+::: code-group
+
+```bash [Linux & macOS]
+# Universal single-line installation (auto-detects OS & Arch)
+curl -fsSL https://axiom.aerovex.net/install.sh | bash
 ```
 
-*(Note: The CLI binary is generated at `target/release/betterado-cli` or via cargo run).*
+```powershell [Windows (PowerShell)]
+# Universal single-line installation for Windows
+irm https://axiom.aerovex.net/install.ps1 | iex
+```
+
+:::
+
+The installer automatically detects your operating system and architecture (`x86_64` or `aarch64` / Apple Silicon), installs the `axiom` binary into `~/.axiom/bin` (or `%USERPROFILE%\.axiom\bin`), and configures your `$PATH`.
 
 ---
 
-## 2. Compile Your First HDL Design
+## 2. Release Versioning & Custom Flags
 
-Axiom includes standard test fixtures in `tests/fixtures/`. Compile a 32-bit ALU directly into machine code in RAM:
+You can specify a custom release version or override the destination path.
+
+### Target a Specific Version
+
+::: code-group
+
+```bash [Linux & macOS]
+# Pass version via environment variable
+AXIOM_VERSION=v0.1.0 curl -fsSL https://axiom.aerovex.net/install.sh | bash
+
+# Or pass flag directly
+curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --version v0.1.0
+```
+
+```powershell [Windows (PowerShell)]
+# Pass version via environment variable
+$env:AXIOM_VERSION="v0.1.0"; irm https://axiom.aerovex.net/install.ps1 | iex
+
+# Or pass parameter directly
+& ([scriptblock]::Create((irm https://axiom.aerovex.net/install.ps1))) -Version v0.1.0
+```
+
+:::
+
+### Custom Installation Directory
 
 ```bash
-cargo run -p betterado-cli -- compile tests/fixtures/alu.v -t alu
+# Install to custom directory
+curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --dir /opt/axiom
+```
+
+---
+
+## 3. Dedicated Build from Source Script
+
+If you prefer compiling from source or modifying the engine, Axiom includes an automated build driver in `scripts/`:
+
+### Linux & macOS (`scripts/build_from_source.sh`)
+
+```bash
+# Clone the repository
+git clone https://github.com/larvance/axiom.git
+cd axiom
+
+# Run the automated build-from-source driver
+./scripts/build_from_source.sh
+```
+
+**Build Script Options:**
+```bash
+./scripts/build_from_source.sh --cli-only       # Skip Node/UI and only build headless CLI
+./scripts/build_from_source.sh --prefix /usr/local # Install to system-wide directory
+./scripts/build_from_source.sh --debug         # Fast unoptimized debug build
+./scripts/build_from_source.sh --no-tests      # Skip test validation
+```
+
+### Windows (`scripts/build_from_source.ps1`)
+
+In PowerShell:
+```powershell
+.\scripts\build_from_source.ps1 -CliOnly
+```
+
+---
+
+## 4. Manual Cargo Compilation
+
+You can also invoke Cargo directly:
+
+```bash
+# Build the headless CLI binary with Cranelift JIT
+cargo build --release -p betterado-cli --bin axiom
+
+# Output binary located at:
+# target/release/axiom
+```
+
+Verify your installation:
+```bash
+axiom --version
+# axiom 0.1.0 (in-ram cranelift jit engine)
+```
+
+---
+
+## 5. Compile Your First HDL Design
+
+Axiom includes standard verified hardware fixtures in `tests/fixtures/`. Compile a 32-bit ALU directly into native machine code in RAM:
+
+```bash
+axiom compile tests/fixtures/alu.v -t alu
 ```
 
 Output:
@@ -50,12 +138,12 @@ Output:
 
 ---
 
-## 3. Run Batch Simulation with Waveform & SAIF Export
+## 6. Run Batch Simulation with Waveform & SAIF Export
 
 Execute 100 clock ticks, exporting standard IEEE 1364 VCD waveforms and Synopsys SAIF 2.0 switching activity files:
 
 ```bash
-cargo run -p betterado-cli -- run tests/fixtures/counter.v -t counter --ticks 100 --vcd waveforms.vcd --saif power.saif
+axiom run tests/fixtures/counter.v -t counter --ticks 100 --vcd waveforms.vcd --saif power.saif
 ```
 
 Output:
@@ -74,12 +162,12 @@ Output:
 
 ---
 
-## 4. Run High-Resolution Benchmarks
+## 7. Run High-Resolution Benchmarks
 
 Stress test the simulation kernel and measure event throughput:
 
 ```bash
-cargo run -p betterado-cli -- benchmark tests/fixtures/fifo.v -t fifo_4deep --cycles 5000
+axiom benchmark tests/fixtures/fifo.v -t fifo_4deep --cycles 5000
 ```
 
 ```text
@@ -92,7 +180,7 @@ cargo run -p betterado-cli -- benchmark tests/fixtures/fifo.v -t fifo_4deep --cy
 
 ---
 
-## 5. Launch Modern Desktop / Web UI
+## 8. Launch Modern Desktop / Web UI
 
 ```bash
 cd ui
@@ -100,4 +188,10 @@ npm install
 npm run dev
 ```
 
-Open your browser at `http://localhost:5173` to interactively step simulation time, inspect delta-cycle glitches, and view live physics power telemetry.
+Open your browser at `http://localhost:5173` to explore:
+- **Unified Omnibar (`Ctrl+K`)**: Instant fuzzy search across signals, netlist hierarchy, actions, and documentation.
+- **High-Density Waveform Viewer**: Multi-radix bus exploder, dual cursors ($\Delta t$), and zero-time $\delta$-cycle hazard drawer.
+- **GPU-Accelerated Schematic DAG**: 60+ FPS Canvas 2D engine with 1-click critical logic cone slicers (`F` / `O`).
+- **Virtual Instrument Rack**: 8-bit DIP switch bank, tactile buttons, rotary hex dial, 7-seg displays, and test pattern generator.
+- **Timing Radar & Silicon Energy Treemap**: STA critical path waterfall and dynamic power decomposition ($P = \frac{1}{2} C V^2 f \alpha$).
+- **Embedded Scripting Shell**: Direct in-RAM simulation REPL (`run`, `step delta`, `force`, `get`).

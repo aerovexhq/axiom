@@ -46,17 +46,23 @@ impl betterado_sim::SimEventListener for SharedVcdListener {
 }
 
 fn print_help() {
+    let binary_name = env::args().next().unwrap_or_else(|| "axiom".to_string());
+    let bin = Path::new(&binary_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("axiom");
     println!(
-        r#"Betterado — High-Performance Vivado HDL Engine & Simulator (v0.1.0)
+        r#"Axiom EDA — High-Performance HDL Engine & Silicon Telemetry (v{})
 
 USAGE:
-    betterado <SUBCOMMAND> [OPTIONS]
+    {} <SUBCOMMAND> [OPTIONS]
 
 SUBCOMMANDS:
     compile <FILE> -t <TOP>              In-RAM parse, elaboration, and Cranelift JIT compilation
     run <FILE> -t <TOP> [OPTIONS]        Headless batch simulation with VCD/SAIF export
     benchmark <FILE> -t <TOP> [OPTIONS]  Measure compile latency and simulation throughput
     help                                 Print this message or the help of the given subcommand(s)
+    version                              Print version information
 
 RUN OPTIONS:
     -t, --top <MODULE>       Name of top-level module (required)
@@ -67,7 +73,9 @@ RUN OPTIONS:
 BENCHMARK OPTIONS:
     -t, --top <MODULE>       Name of top-level module (required)
     --cycles <N>             Number of clock cycles for throughput measurement (default: 5000)
-"#
+"#,
+        env!("CARGO_PKG_VERSION"),
+        bin
     );
 }
 
@@ -97,8 +105,8 @@ fn main() {
         "-h" | "--help" | "help" => {
             print_help();
         }
-        "-v" | "--version" => {
-            println!("betterado 0.1.0 (in-ram cranelift jit engine)");
+        "-v" | "--version" | "version" => {
+            println!("axiom {} (in-ram cranelift jit engine)", env!("CARGO_PKG_VERSION"));
         }
         "compile" => {
             if args.len() < 3 {

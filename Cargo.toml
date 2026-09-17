@@ -1,22 +1,22 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/betterado-core",
-    "crates/betterado-syntax",
-    "crates/betterado-ir",
-    "crates/betterado-jit",
-    "crates/betterado-sim",
-    "crates/betterado-telemetry",
-    "crates/betterado-desktop",
-    "crates/betterado-cli",
+    "crates/core",
+    "crates/syntax",
+    "crates/ir",
+    "crates/jit",
+    "crates/sim",
+    "crates/telemetry",
+    "crates/desktop",
+    "crates/cli",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Betterado Contributors"]
+authors = ["Axiom EDA Contributors"]
 license = "MIT"
-repository = "https://github.com/larvance/betterado"
+repository = "https://github.com/larvance/axiom"
 
 [workspace.dependencies]
 thiserror = "2.0"
@@ -29,9 +29,9 @@ cranelift-codegen = "0.136.0-rc.1"
 cranelift-frontend = "0.136.0-rc.1"
 cranelift-jit = "0.136.0-rc.1"
 cranelift-module = "0.136.0-rc.1"
-betterado-core = { path = "crates/betterado-core" }
-betterado-syntax = { path = "crates/betterado-syntax" }
-betterado-ir = { path = "crates/betterado-ir" }
-betterado-jit = { path = "crates/betterado-jit" }
-betterado-sim = { path = "crates/betterado-sim" }
-betterado-telemetry = { path = "crates/betterado-telemetry" }
+betterado-core = { path = "crates/core" }
+betterado-syntax = { path = "crates/syntax" }
+betterado-ir = { path = "crates/ir" }
+betterado-jit = { path = "crates/jit" }
+betterado-sim = { path = "crates/sim" }
+betterado-telemetry = { path = "crates/telemetry" }
