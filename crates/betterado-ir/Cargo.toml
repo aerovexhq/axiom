@@ -1,0 +1,15 @@
+[package]
+name = "betterado-ir"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+betterado-core.workspace = true
+betterado-syntax.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+lasso.workspace = true
+smallvec.workspace = true
+hashbrown.workspace = true

@@ -1,0 +1,13 @@
+/.idea/
+/.vscode/
+/target
+target/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+Cargo.lock
+*.vcd
+*.saif
+.DS_Store
+

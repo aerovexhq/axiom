@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/betterado-core",
+    "crates/betterado-syntax",
+    "crates/betterado-ir",
+    "crates/betterado-jit",
+    "crates/betterado-sim",
+    "crates/betterado-telemetry",
+    "crates/betterado-desktop",
+    "crates/betterado-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Betterado Contributors"]
+license = "MIT"
+repository = "https://github.com/larvance/betterado"
+
+[workspace.dependencies]
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+lasso = { version = "0.7", features = ["serde"] }
+smallvec = { version = "1.13", features = ["serde"] }
+hashbrown = { version = "0.15", features = ["serde"] }
+bumpalo = "3.16"
+cranelift-codegen = "0.136.0-rc.1"
+cranelift-frontend = "0.136.0-rc.1"
+cranelift-jit = "0.136.0-rc.1"
+cranelift-module = "0.136.0-rc.1"
+betterado-core = { path = "crates/betterado-core" }
+betterado-syntax = { path = "crates/betterado-syntax" }
+betterado-ir = { path = "crates/betterado-ir" }
+betterado-jit = { path = "crates/betterado-jit" }
+betterado-sim = { path = "crates/betterado-sim" }
+betterado-telemetry = { path = "crates/betterado-telemetry" }

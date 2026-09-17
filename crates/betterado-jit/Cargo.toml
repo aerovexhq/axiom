@@ -1,0 +1,31 @@
+[package]
+name = "betterado-jit"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[features]
+default = ["native-jit"]
+native-jit = [
+    "dep:cranelift-codegen",
+    "dep:cranelift-frontend",
+    "dep:cranelift-jit",
+    "dep:cranelift-module",
+]
+
+[dependencies]
+betterado-core.workspace = true
+betterado-syntax.workspace = true
+betterado-ir.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+hashbrown.workspace = true
+
+cranelift-codegen = { workspace = true, optional = true }
+cranelift-frontend = { workspace = true, optional = true }
+cranelift-jit = { workspace = true, optional = true }
+cranelift-module = { workspace = true, optional = true }
+
+[dev-dependencies]
+betterado-syntax.workspace = true
