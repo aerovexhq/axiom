@@ -5,6 +5,9 @@ hero:
   name: "Axiom EDA"
   text: "High-Performance HDL Engine & Silicon Telemetry"
   tagline: "Ultra-fast in-RAM Cranelift JIT compilation, manual delta-cycle stepping, and physics-informed silicon telemetry. Built in Rust under Aerovex."
+  image:
+    src: /logo.svg
+    alt: Axiom EDA Logo
   actions:
     - theme: brand
       text: Get Started

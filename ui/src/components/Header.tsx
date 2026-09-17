@@ -34,22 +34,15 @@ export const Header: React.FC<HeaderProps> = ({ state, onCompile }) => {
       {/* Brand & Project Identity */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
+          <img
+            src="/logo.svg"
+            alt="Axiom Logo"
             style={{
               width: 24,
               height: 24,
-              borderRadius: "var(--radius-sm)",
-              backgroundColor: "var(--accent-blue)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 14,
-              color: "#fff"
+              borderRadius: "var(--radius-sm)"
             }}
-          >
-            A
-          </div>
+          />
           <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}>
             Axiom EDA
           </span>

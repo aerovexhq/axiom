@@ -25,7 +25,7 @@ export default defineConfig({
 
   themeConfig: {
     logo: {
-      text: "Axiom",
+      src: "/logo.svg",
       alt: "Axiom EDA Logo"
     },
     siteTitle: "Axiom EDA",

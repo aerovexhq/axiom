@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/public/logo.png" alt="Axiom EDA Logo" width="128" height="128" />
+
 # Axiom EDA
 
 **High-Performance In-RAM HDL Processor, Cranelift JIT Hardware Simulator & Silicon Telemetry Engine**
