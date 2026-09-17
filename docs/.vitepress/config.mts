@@ -8,6 +8,10 @@ export default defineConfig({
   lastUpdated: true,
   appearance: "dark",
 
+  markdown: {
+    math: true
+  },
+
   head: [
     ["link", { rel: "icon", href: "/favicon.ico" }],
     ["meta", { name: "theme-color", content: "#0d0f12" }],
