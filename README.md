@@ -4,7 +4,7 @@
 
 **High-Performance In-RAM HDL Processor, Cranelift JIT Hardware Simulator & Silicon Telemetry Engine**
 
-[![Documentation](https://img.shields.io/badge/docs-axiom.aerovex.com-blue?style=flat-square)](https://axiom.aerovex.com)
+[![Documentation](https://img.shields.io/badge/docs-axiom.aerovex.net-blue?style=flat-square)](https://axiom.aerovex.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.80%2B-orange?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?style=flat-square&logo=tauri)](https://v2.tauri.app)
@@ -128,14 +128,14 @@ Visit `http://localhost:5173` to explore waveforms, single-step delta cycles, an
 
 Comprehensive guides, architectural specifications, and Vivado migration manuals are available on the official documentation portal:
 
-👉 **[https://axiom.aerovex.com](https://axiom.aerovex.com)**
+👉 **[https://axiom.aerovex.net](https://axiom.aerovex.net)**
 
-- [Getting Started & Quickstart](https://axiom.aerovex.com/guide/quickstart)
-- [In-RAM Cranelift JIT Architecture](https://axiom.aerovex.com/architecture/in-ram-jit)
-- [Stratified Event Scheduler & Delta Stepping](https://axiom.aerovex.com/architecture/stratified-scheduler)
-- [Physics Power & PDN Telemetry](https://axiom.aerovex.com/architecture/power-pdn-telemetry)
-- [Vivado Migration Guide](https://axiom.aerovex.com/vivado/migration)
-- [CLI Reference Manual](https://axiom.aerovex.com/reference/cli)
+- [Getting Started & Quickstart](https://axiom.aerovex.net/guide/quickstart)
+- [In-RAM Cranelift JIT Architecture](https://axiom.aerovex.net/architecture/in-ram-jit)
+- [Stratified Event Scheduler & Delta Stepping](https://axiom.aerovex.net/architecture/stratified-scheduler)
+- [Physics Power & PDN Telemetry](https://axiom.aerovex.net/architecture/power-pdn-telemetry)
+- [Vivado Migration Guide](https://axiom.aerovex.net/vivado/migration)
+- [CLI Reference Manual](https://axiom.aerovex.net/reference/cli)
 
 ---
 

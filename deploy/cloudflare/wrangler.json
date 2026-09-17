@@ -1,0 +1,11 @@
+{
+  "name": "axiom-docs-proxy",
+  "main": "index.js",
+  "compatibility_date": "2024-01-01",
+  "routes": [
+    {
+      "pattern": "axiom.aerovex.net",
+      "custom_domain": true
+    }
+  ]
+}
