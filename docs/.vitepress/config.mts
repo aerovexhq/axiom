@@ -13,7 +13,10 @@ export default defineConfig({
   },
 
   head: [
-    ["link", { rel: "icon", href: "/favicon.ico" }],
+    ["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }],
+    ["link", { rel: "icon", type: "image/png", href: "/favicon.png" }],
+    ["link", { rel: "shortcut icon", href: "/favicon.ico" }],
+    ["link", { rel: "apple-touch-icon", href: "/logo.png" }],
     ["meta", { name: "theme-color", content: "#0d0f12" }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:title", content: "Axiom EDA — High-Performance HDL Simulator" }],
