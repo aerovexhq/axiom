@@ -86,11 +86,18 @@ export const Header: React.FC<HeaderProps> = ({
                 borderRadius: "var(--radius-sm)",
                 display: "flex",
                 alignItems: "center",
-                gap: 5
+                gap: 5,
+                maxWidth: 240,
+                overflow: "hidden"
               }}
+              title={project.name}
             >
-              <span>{project.name}</span>
-              <span style={{ color: "var(--text-muted)", fontSize: 11 }}>({project.targetDevice.split(" ")[0]})</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {project.name}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 11, flexShrink: 0 }}>
+                ({project.targetDevice.split(" ")[0]})
+              </span>
             </span>
 
             {/* Compile Button */}

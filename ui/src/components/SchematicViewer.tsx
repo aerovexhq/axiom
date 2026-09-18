@@ -31,6 +31,22 @@ interface SchematicViewerProps {
   onJumpToCode?: (lineStart: number, lineEnd: number) => void;
 }
 
+export type GateType =
+  | "and"
+  | "nand"
+  | "or"
+  | "nor"
+  | "xor"
+  | "xnor"
+  | "not"
+  | "buf"
+  | "mux"
+  | "register"
+  | "port_in"
+  | "port_out"
+  | "operator"
+  | "module";
+
 export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   state,
   activeDesignId,
@@ -121,9 +137,15 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
     // Find node or edge matching this signal
     const matchingNode = graph.nodes.find(
-      (n) => n.id === selectedSignalId || n.label.startsWith(selectedSignalId) || n.inputs.some((p) => p.name === selectedSignalId) || n.outputs.some((p) => p.name === selectedSignalId)
+      (n) =>
+        n.id === selectedSignalId ||
+        n.label.startsWith(selectedSignalId) ||
+        n.inputs.some((p) => p.name === selectedSignalId) ||
+        n.outputs.some((p) => p.name === selectedSignalId)
     );
-    const matchingEdge = graph.edges.find((e) => e.signalId === selectedSignalId || e.netName.startsWith(selectedSignalId));
+    const matchingEdge = graph.edges.find(
+      (e) => e.signalId === selectedSignalId || e.netName.startsWith(selectedSignalId)
+    );
 
     if (matchingNode) {
       setSelectedNodeId(matchingNode.id);
@@ -213,34 +235,37 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     const isConeActive = activeCone !== null;
 
     // ------------------------------------------------------------------------
-    // 1. Draw Edges / Nets (Manhattan Orthogonal Routing)
+    // 1. Draw Edges / Nets (Manhattan Orthogonal Routing & Hover Glow)
     // ------------------------------------------------------------------------
     for (const edge of graph.edges) {
       const inCone = isConeActive && activeCone.edgeIds.has(edge.id);
       const isDimmed = isConeActive && !inCone;
       const isSelected = selectedEdgeId === edge.id;
       const isHovered = hoveredEdgeId === edge.id;
+      const isConnectedToHoveredNode =
+        hoveredNodeId !== null &&
+        (edge.sourceNodeId === hoveredNodeId || edge.targetNodeId === hoveredNodeId);
 
       ctx.save();
       if (isDimmed) {
         ctx.globalAlpha = 0.12;
       }
 
-      // Edge Color
+      // Edge Color & Glow
       let strokeColor = edge.isBus ? "#38bdf8" : "#94a3b8";
-      if (isSelected || isHovered) {
+      if (isSelected || isHovered || isConnectedToHoveredNode) {
         strokeColor = "#00f0ff";
       } else if (inCone) {
         strokeColor = activeCone.isSlackViolated ? "#f43f5e" : "#10b981";
       }
 
       ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = isSelected ? 3 : edge.isBus ? 2 : 1.2;
+      ctx.lineWidth = isSelected || isConnectedToHoveredNode ? 3 : isHovered ? 2.5 : edge.isBus ? 2 : 1.3;
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
 
-      if (isSelected) {
-        ctx.shadowColor = "rgba(0, 240, 255, 0.8)";
+      if (isSelected || isHovered || isConnectedToHoveredNode) {
+        ctx.shadowColor = "rgba(0, 240, 255, 0.85)";
         ctx.shadowBlur = 10;
       }
 
@@ -281,15 +306,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         const calloutX = (p0.x + p1.x) / 2;
         const calloutY = (p0.y + p1.y) / 2;
 
-        const segX = edge.wirePoints.length > 2
-          ? (edge.wirePoints[1].x + edge.wirePoints[2].x) / 2
-          : calloutX;
-        const segY = edge.wirePoints.length > 2
-          ? (edge.wirePoints[1].y + edge.wirePoints[2].y) / 2
-          : calloutY;
+        const segX =
+          edge.wirePoints.length > 2
+            ? (edge.wirePoints[1].x + edge.wirePoints[2].x) / 2
+            : calloutX;
+        const segY =
+          edge.wirePoints.length > 2
+            ? (edge.wirePoints[1].y + edge.wirePoints[2].y) / 2
+            : calloutY;
 
-        ctx.fillStyle = "rgba(12, 16, 23, 0.85)";
-        ctx.strokeStyle = isSelected ? "#00f0ff" : "rgba(255, 255, 255, 0.1)";
+        ctx.fillStyle = "rgba(12, 16, 23, 0.9)";
+        ctx.strokeStyle =
+          isSelected || isConnectedToHoveredNode ? "#00f0ff" : "rgba(255, 255, 255, 0.15)";
         ctx.lineWidth = 1;
         const tagWidth = Math.max(34, liveVal.length * 6.5 + 8);
         ctx.beginPath();
@@ -297,8 +325,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         ctx.fill();
         ctx.stroke();
 
-        ctx.font = "9px JetBrains Mono, monospace";
-        ctx.fillStyle = liveVal === "1" ? "#10b981" : liveVal === "0" ? "#64748b" : "#38bdf8";
+        ctx.font = "bold 9px JetBrains Mono, monospace";
+        ctx.fillStyle = liveVal === "1" ? "#10b981" : liveVal === "0" ? "#94a3b8" : "#38bdf8";
         ctx.textAlign = "center";
         ctx.fillText(liveVal, segX, segY + 3);
       }
@@ -307,7 +335,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     }
 
     // ------------------------------------------------------------------------
-    // 2. Draw Nodes (Ports, Registers, Operators, MUXes, Macro Modules)
+    // 2. Draw Nodes (Vivado / IEEE Standard Gate Shapes)
     // ------------------------------------------------------------------------
     for (const node of graph.nodes) {
       const inCone = isConeActive && activeCone.nodeIds.has(node.id);
@@ -321,89 +349,29 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         ctx.globalAlpha = 0.12;
       }
 
-      // Determine Node Color Scheme by Kind
-      let bgColor = "#151b23";
-      let borderColor = "#30363d";
-      let accentColor = "#94a3b8";
+      // Visual Scheme & Gate Classification
+      const visuals = getGateVisuals(node, isSelected, isHovered, inCone, isCritical);
 
-      switch (node.kind) {
-        case "port_in":
-        case "port_out":
-          bgColor = "#0f172a";
-          borderColor = isSelected ? "#00f0ff" : "#1e293b";
-          accentColor = node.kind === "port_in" ? "#38bdf8" : "#10b981";
-          break;
-        case "register":
-          bgColor = "#1e1b4b";
-          borderColor = isSelected ? "#00f0ff" : "#4338ca";
-          accentColor = "#818cf8";
-          break;
-        case "operator":
-          bgColor = "#14251f";
-          borderColor = isSelected ? "#00f0ff" : "#166534";
-          accentColor = "#34d399";
-          break;
-        case "mux":
-          bgColor = "#261b2c";
-          borderColor = isSelected ? "#00f0ff" : "#701a75";
-          accentColor = "#c084fc";
-          break;
-        case "gate":
-          bgColor = "#251818";
-          borderColor = isSelected ? "#00f0ff" : "#831843";
-          accentColor = "#f472b6";
-          break;
-        case "module":
-          bgColor = "#1c2230";
-          borderColor = isSelected ? "#00f0ff" : "#3b82f6";
-          accentColor = "#60a5fa";
-          break;
-      }
-
-      if (isCritical) {
-        borderColor = "#f43f5e";
-        bgColor = "rgba(244, 63, 94, 0.15)";
-      } else if (inCone) {
-        borderColor = "#10b981";
-      }
-
-      // Selection Halo
+      // Selection / Hover Glow
       if (isSelected || isHovered) {
-        ctx.shadowColor = "rgba(0, 240, 255, 0.6)";
+        ctx.shadowColor = "rgba(0, 240, 255, 0.85)";
         ctx.shadowBlur = 14;
-        borderColor = "#00f0ff";
       }
 
-      // Draw Node Body
-      ctx.fillStyle = bgColor;
-      ctx.strokeStyle = borderColor;
+      ctx.fillStyle = visuals.bgColor;
+      ctx.strokeStyle = visuals.borderColor;
       ctx.lineWidth = isSelected ? 2.5 : 1.5;
 
-      if (node.kind === "mux") {
-        // Trapezoid shape for Multiplexers
-        ctx.beginPath();
-        ctx.moveTo(node.x, node.y);
-        ctx.lineTo(node.x + node.width, node.y + 16);
-        ctx.lineTo(node.x + node.width, node.y + node.height - 16);
-        ctx.lineTo(node.x, node.y + node.height);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      } else {
-        // Rounded Rectangle
-        ctx.beginPath();
-        ctx.roundRect(node.x, node.y, node.width, node.height, 6);
-        ctx.fill();
-        ctx.stroke();
-      }
+      // Draw the Authentic Vivado / IEEE Symbol Shape
+      drawNodeShape(ctx, node, visuals.gateType, node.x, node.y, node.width, node.height);
 
-      // Clock input triangle for registers
-      if (node.kind === "register") {
+      // Clock input notch for sequential registers
+      if (visuals.gateType === "register") {
         const clkPort = node.inputs.find((p) => p.isClock);
         if (clkPort && clkPort.offsetX !== undefined && clkPort.offsetY !== undefined) {
           const cx = node.x + clkPort.offsetX;
           const cy = node.y + clkPort.offsetY;
-          ctx.fillStyle = "#818cf8";
+          ctx.fillStyle = visuals.accentColor;
           ctx.beginPath();
           ctx.moveTo(cx - 5, cy);
           ctx.lineTo(cx, cy - 8);
@@ -413,45 +381,102 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         }
       }
 
-      // Node Header Title
-      ctx.font = "bold 11px JetBrains Mono, monospace";
-      ctx.fillStyle = isSelected ? "#00f0ff" : isCritical ? "#f43f5e" : "#f1f5f9";
-      ctx.textAlign = "center";
-      const titleY = node.sublabel ? node.y + 16 : node.y + node.height / 2 + 4;
-      ctx.fillText(node.label, node.x + node.width / 2, titleY);
+      // ----------------------------------------------------------------------
+      // Labels & Text Display (Vivado Standard)
+      // ----------------------------------------------------------------------
 
-      // Node Sublabel
-      if (node.sublabel && lodLevel !== "macro") {
-        ctx.font = "9px Inter, sans-serif";
-        ctx.fillStyle = accentColor;
+      // 1. Instance Name printed above the gate (Vivado style: inv1, and1, or1)
+      if (visuals.gateType !== "port_in" && visuals.gateType !== "port_out") {
+        ctx.font = "bold 10px JetBrains Mono, monospace";
+        ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
         ctx.textAlign = "center";
-        ctx.fillText(node.sublabel, node.x + node.width / 2, node.y + 30);
+        ctx.fillText(visuals.instanceName, node.x + node.width / 2, node.y - 6);
       }
 
-      // Gate / Primitive Level Details (LOD 3: Cranelift machine op & delay)
+      // 2. Interior Symbol / Port Name
+      if (visuals.gateType === "port_in" || visuals.gateType === "port_out") {
+        ctx.font = "bold 11px JetBrains Mono, monospace";
+        ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "#ffffff";
+        ctx.textAlign = "center";
+        ctx.fillText(node.label, node.x + (node.width - 4) / 2, node.y + node.height / 2 + 4);
+      } else if (visuals.ieeeSymbol) {
+        // Centered IEEE Symbol (&, ≥1, 1, =1, MUX, FDRE)
+        ctx.font =
+          visuals.gateType === "mux" || visuals.gateType === "register"
+            ? "bold 11px JetBrains Mono, monospace"
+            : "bold 13px JetBrains Mono, monospace";
+        ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : visuals.accentColor;
+        ctx.textAlign = "center";
+
+        let symbolX = node.x + node.width / 2;
+        if (visuals.gateType === "and" || visuals.gateType === "nand") {
+          symbolX = node.x + node.width * 0.42;
+        } else if (visuals.gateType === "or" || visuals.gateType === "nor") {
+          symbolX = node.x + node.width * 0.45;
+        } else if (visuals.gateType === "xor" || visuals.gateType === "xnor") {
+          symbolX = node.x + node.width * 0.48;
+        } else if (visuals.gateType === "not" || visuals.gateType === "buf") {
+          symbolX = node.x + (node.width - 8) * 0.35;
+        }
+
+        ctx.fillText(visuals.ieeeSymbol, symbolX, node.y + node.height / 2 + 4);
+
+        // MUX pin indices 0 / 1
+        if (visuals.gateType === "mux") {
+          ctx.font = "bold 8px JetBrains Mono, monospace";
+          ctx.fillStyle = "#94a3b8";
+          ctx.textAlign = "left";
+          ctx.fillText("0", node.x + 8, node.y + 14);
+          ctx.fillText("1", node.x + 8, node.y + node.height - 10);
+        } else if (visuals.gateType === "register") {
+          ctx.font = "bold 8px JetBrains Mono, monospace";
+          ctx.fillStyle = "#94a3b8";
+          ctx.textAlign = "left";
+          ctx.fillText("D", node.x + 7, node.y + 16);
+          ctx.textAlign = "right";
+          ctx.fillText("Q", node.x + node.width - 7, node.y + 16);
+        }
+      } else {
+        // General Operators / Modules
+        ctx.font = "bold 11px JetBrains Mono, monospace";
+        ctx.fillStyle = isSelected ? "#00f0ff" : isCritical ? "#f43f5e" : "#f1f5f9";
+        ctx.textAlign = "center";
+        const titleY = node.sublabel ? node.y + 16 : node.y + node.height / 2 + 4;
+        ctx.fillText(node.label, node.x + node.width / 2, titleY);
+      }
+
+      // 3. Sublabel / Boolean Expression below the gate
+      if (node.sublabel && lodLevel !== "macro" && visuals.gateType !== "port_in" && visuals.gateType !== "port_out") {
+        ctx.font = "9px JetBrains Mono, monospace";
+        ctx.fillStyle = isSelected || isHovered ? "rgba(0, 240, 255, 0.9)" : "rgba(148, 163, 184, 0.85)";
+        ctx.textAlign = "center";
+        ctx.fillText(node.sublabel, node.x + node.width / 2, node.y + node.height + 12);
+      }
+
+      // 4. Gate Level Details (LOD 3: Cranelift machine op & delay)
       if (lodLevel === "gate" && (node.craneliftOp || node.delayPs > 0)) {
         ctx.font = "8px JetBrains Mono, monospace";
         ctx.fillStyle = "#94a3b8";
         ctx.textAlign = "center";
         const infoText = node.craneliftOp ? `jit: ${node.craneliftOp}` : `${node.delayPs} ps`;
-        ctx.fillText(infoText, node.x + node.width / 2, node.y + node.height - 8);
+        ctx.fillText(infoText, node.x + node.width / 2, node.y + node.height + 22);
       }
 
-      // Draw Port Pins
+      // 5. Port Terminal Dots
       if (lodLevel !== "macro") {
-        ctx.fillStyle = accentColor;
+        ctx.fillStyle = visuals.accentColor;
         // Inputs (Left)
         for (const pin of node.inputs) {
           if (pin.offsetX === undefined || pin.offsetY === undefined) continue;
           ctx.beginPath();
-          ctx.arc(node.x + pin.offsetX, node.y + pin.offsetY, 3, 0, Math.PI * 2);
+          ctx.arc(node.x + pin.offsetX, node.y + pin.offsetY, 2.5, 0, Math.PI * 2);
           ctx.fill();
         }
         // Outputs (Right)
         for (const pin of node.outputs) {
           if (pin.offsetX === undefined || pin.offsetY === undefined) continue;
           ctx.beginPath();
-          ctx.arc(node.x + pin.offsetX, node.y + pin.offsetY, 3, 0, Math.PI * 2);
+          ctx.arc(node.x + pin.offsetX, node.y + pin.offsetY, 2.5, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -557,7 +582,6 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button === 0 || e.button === 1) {
-      // Left click or middle click
       const { x, y } = getCanvasCoords(e);
 
       // Hit-test nodes (reverse order for top-first)
@@ -644,7 +668,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           const p1 = edge.wirePoints[i];
           const p2 = edge.wirePoints[i + 1];
           const dist = distanceToSegment({ x, y }, p1, p2);
-          if (dist < 5) {
+          if (dist < 6) {
             hitEdge = edge;
             break;
           }
@@ -687,6 +711,28 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     if (!hoveredNodeId) return null;
     return graph.nodes.find((n) => n.id === hoveredNodeId) ?? null;
   }, [hoveredNodeId, graph.nodes]);
+
+  // Active hover edge metadata for tooltip
+  const activeHoverEdge = useMemo(() => {
+    if (!hoveredEdgeId || hoveredNodeId) return null;
+    return graph.edges.find((e) => e.id === hoveredEdgeId) ?? null;
+  }, [hoveredEdgeId, hoveredNodeId, graph.edges]);
+
+  // Detailed Gate Information for Vivado Inspector Card
+  const activeGateDetails = useMemo(() => {
+    if (!activeHoverNode) return null;
+    return getGateDetailedInfo(activeHoverNode, graph, liveValuesMap);
+  }, [activeHoverNode, graph, liveValuesMap]);
+
+  // Viewport bounds calculation for floating tooltip
+  const tooltipPos = useMemo(() => {
+    const maxX = typeof window !== "undefined" ? window.innerWidth - 380 : 800;
+    const maxY = typeof window !== "undefined" ? window.innerHeight - 360 : 600;
+    return {
+      x: mousePos.x > maxX ? mousePos.x - 360 : mousePos.x + 16,
+      y: mousePos.y > maxY ? Math.max(10, mousePos.y - 280) : mousePos.y + 16
+    };
+  }, [mousePos]);
 
   return (
     <div
@@ -734,7 +780,9 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             }}
           >
             <Layers size={10} />
-            <span>LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)</span>
+            <span>
+              LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)
+            </span>
           </div>
 
           {/* Live Values Toggle */}
@@ -789,13 +837,17 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               padding: "3px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeCone?.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
-              color: activeCone?.isFanin ? "#fff" : (!selectedNodeId && !selectedEdgeId) ? "var(--text-muted)" : "var(--text-primary)",
+              color: activeCone?.isFanin
+                ? "#fff"
+                : !selectedNodeId && !selectedEdgeId
+                ? "var(--text-muted)"
+                : "var(--text-primary)",
               border: "1px solid var(--border-subtle)",
               display: "flex",
               alignItems: "center",
               gap: 4,
-              opacity: (!selectedNodeId && !selectedEdgeId) ? 0.5 : 1,
-              cursor: (!selectedNodeId && !selectedEdgeId) ? "not-allowed" : "pointer"
+              opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
+              cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer"
             }}
           >
             <Filter size={11} />
@@ -813,13 +865,17 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               padding: "3px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeCone && !activeCone.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
-              color: activeCone && !activeCone.isFanin ? "#fff" : (!selectedNodeId && !selectedEdgeId) ? "var(--text-muted)" : "var(--text-primary)",
+              color: activeCone && !activeCone.isFanin
+                ? "#fff"
+                : !selectedNodeId && !selectedEdgeId
+                ? "var(--text-muted)"
+                : "var(--text-primary)",
               border: "1px solid var(--border-subtle)",
               display: "flex",
               alignItems: "center",
               gap: 4,
-              opacity: (!selectedNodeId && !selectedEdgeId) ? 0.5 : 1,
-              cursor: (!selectedNodeId && !selectedEdgeId) ? "not-allowed" : "pointer"
+              opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
+              cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer"
             }}
           >
             <Zap size={11} />
@@ -853,21 +909,39 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           {/* Zoom Buttons */}
           <button
             onClick={() => setScale((s) => Math.min(s * 1.2, 3.5))}
-            style={{ padding: 4, backgroundColor: "var(--bg-tertiary)", borderRadius: 3, border: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}
+            style={{
+              padding: 4,
+              backgroundColor: "var(--bg-tertiary)",
+              borderRadius: 3,
+              border: "1px solid var(--border-subtle)",
+              color: "var(--text-muted)"
+            }}
             title="Zoom In"
           >
             <ZoomIn size={13} />
           </button>
           <button
             onClick={() => setScale((s) => Math.max(s / 1.2, 0.2))}
-            style={{ padding: 4, backgroundColor: "var(--bg-tertiary)", borderRadius: 3, border: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}
+            style={{
+              padding: 4,
+              backgroundColor: "var(--bg-tertiary)",
+              borderRadius: 3,
+              border: "1px solid var(--border-subtle)",
+              color: "var(--text-muted)"
+            }}
             title="Zoom Out"
           >
             <ZoomOut size={13} />
           </button>
           <button
             onClick={fitToScreen}
-            style={{ padding: 4, backgroundColor: "var(--bg-tertiary)", borderRadius: 3, border: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}
+            style={{
+              padding: 4,
+              backgroundColor: "var(--bg-tertiary)",
+              borderRadius: 3,
+              border: "1px solid var(--border-subtle)",
+              color: "var(--text-muted)"
+            }}
             title="Fit to Screen"
           >
             <Maximize2 size={13} />
@@ -898,7 +972,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             position: "absolute",
             top: 48,
             left: 14,
-            backgroundColor: "rgba(15, 23, 42, 0.92)",
+            backgroundColor: "rgba(15, 23, 42, 0.94)",
             border: `1px solid ${activeCone.isSlackViolated ? "#f43f5e" : "#10b981"}`,
             borderRadius: 6,
             padding: "10px 14px",
@@ -979,41 +1053,281 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         </div>
       )}
 
-      {/* Rich Node Hover Tooltip */}
-      {activeHoverNode && (
+      {/* Rich Vivado-Grade Gate Inspector Tooltip */}
+      {activeHoverNode && activeGateDetails && (
         <div
           style={{
             position: "fixed",
-            left: mousePos.x + 14,
-            top: mousePos.y + 14,
-            backgroundColor: "rgba(15, 23, 42, 0.95)",
+            left: tooltipPos.x,
+            top: tooltipPos.y,
+            backgroundColor: "rgba(15, 23, 42, 0.96)",
             border: "1px solid var(--accent-cyan)",
             borderRadius: 6,
-            padding: "8px 12px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(6px)",
+            padding: "10px 14px",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(8px)",
             pointerEvents: "none",
             zIndex: 30,
+            width: 320,
             fontSize: 11
           }}
         >
-          <div style={{ fontWeight: 700, color: "#fff", fontFamily: "var(--font-mono)", marginBottom: 2 }}>
-            {activeHoverNode.label}
+          {/* Header: Primitive Badge + Instance Name */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 3,
+                  backgroundColor: activeGateDetails.badgeBg,
+                  color: activeGateDetails.badgeColor,
+                  border: `1px solid ${activeGateDetails.badgeColor}`
+                }}
+              >
+                {activeGateDetails.badge}
+              </span>
+              <span style={{ fontWeight: 700, color: "#fff", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                {activeGateDetails.instanceName}
+              </span>
+            </div>
+            <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+              {activeHoverNode.scope}.v:{activeHoverNode.sourceSpan?.lineStart || 1}
+            </span>
           </div>
-          {activeHoverNode.sublabel && (
-            <div style={{ color: "var(--accent-cyan)", fontSize: 10, marginBottom: 4 }}>
-              {activeHoverNode.sublabel}
+
+          {/* Sublabel / Boolean Expression & Live Evaluation */}
+          {activeGateDetails.expression && (
+            <div
+              style={{
+                backgroundColor: "rgba(0, 0, 0, 0.4)",
+                borderRadius: 4,
+                padding: "6px 8px",
+                marginBottom: 8,
+                border: "1px solid rgba(255,255,255,0.06)"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>
+                  Boolean Equation
+                </span>
+                <span style={{ fontSize: 10, color: "var(--accent-cyan)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                  {activeGateDetails.expression}
+                </span>
+              </div>
+              {/* Live Signal Evaluation */}
+              {activeGateDetails.liveEval && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#f1f5f9",
+                    fontFamily: "var(--font-mono)",
+                    marginTop: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <span style={{ color: "var(--text-muted)" }}>Live Eval:</span>
+                  <span style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>
+                    {activeGateDetails.liveEval}
+                  </span>
+                </div>
+              )}
             </div>
           )}
-          {activeHoverNode.expressionText && (
-            <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 10, marginBottom: 4 }}>
-              {activeHoverNode.expressionText}
+
+          {/* Pin Connectivity & Live State Table */}
+          <div style={{ marginBottom: 8 }}>
+            <div
+              style={{
+                fontSize: 9,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                fontWeight: 600,
+                marginBottom: 4
+              }}
+            >
+              Pin Connectivity & Live Logic
             </div>
-          )}
-          <div style={{ display: "flex", gap: 8, color: "var(--text-muted)", fontSize: 10 }}>
-            <span>Delay: {activeHoverNode.delayPs} ps</span>
-            <span>Power: {activeHoverNode.dynamicPowerMw} mW</span>
-            {activeHoverNode.craneliftOp && <span>JIT: {activeHoverNode.craneliftOp}</span>}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, fontFamily: "var(--font-mono)" }}>
+              <thead>
+                <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid rgba(255,255,255,0.08)", textAlign: "left" }}>
+                  <th style={{ padding: "2px 4px" }}>Pin</th>
+                  <th style={{ padding: "2px 4px" }}>Dir</th>
+                  <th style={{ padding: "2px 4px" }}>Net</th>
+                  <th style={{ padding: "2px 4px", textAlign: "right" }}>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeHoverNode.inputs.map((pin) => {
+                  const edge = graph.edges.find(
+                    (e) => e.targetNodeId === activeHoverNode.id && e.targetPortId === pin.id
+                  );
+                  const netName = edge ? edge.netName : pin.name;
+                  const liveVal =
+                    liveValuesMap.get(edge?.signalId ?? "") ??
+                    liveValuesMap.get(netName) ??
+                    liveValuesMap.get(`${activeHoverNode.scope}.${netName}`) ??
+                    "-";
+                  return (
+                    <tr key={`in_${pin.id}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                      <td style={{ padding: "2px 4px", color: "var(--accent-cyan)" }}>{pin.name}</td>
+                      <td style={{ padding: "2px 4px", color: "var(--text-muted)" }}>IN</td>
+                      <td style={{ padding: "2px 4px", color: "#e2e8f0" }}>{netName}</td>
+                      <td style={{ padding: "2px 4px", textAlign: "right" }}>
+                        <span
+                          style={{
+                            padding: "0 4px",
+                            borderRadius: 2,
+                            backgroundColor: liveVal === "1" ? "rgba(16, 185, 129, 0.2)" : "rgba(255,255,255,0.05)",
+                            color: liveVal === "1" ? "#10b981" : "#94a3b8",
+                            fontWeight: 700
+                          }}
+                        >
+                          {liveVal}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {activeHoverNode.outputs.map((pin) => {
+                  const edge = graph.edges.find(
+                    (e) => e.sourceNodeId === activeHoverNode.id && e.sourcePortId === pin.id
+                  );
+                  const netName = edge ? edge.netName : pin.name;
+                  const liveVal =
+                    liveValuesMap.get(edge?.signalId ?? "") ??
+                    liveValuesMap.get(netName) ??
+                    liveValuesMap.get(`${activeHoverNode.scope}.${netName}`) ??
+                    "-";
+                  return (
+                    <tr key={`out_${pin.id}`} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                      <td style={{ padding: "2px 4px", color: "var(--accent-emerald)" }}>{pin.name}</td>
+                      <td style={{ padding: "2px 4px", color: "var(--text-muted)" }}>OUT</td>
+                      <td style={{ padding: "2px 4px", color: "#e2e8f0" }}>{netName}</td>
+                      <td style={{ padding: "2px 4px", textAlign: "right" }}>
+                        <span
+                          style={{
+                            padding: "0 4px",
+                            borderRadius: 2,
+                            backgroundColor: liveVal === "1" ? "rgba(16, 185, 129, 0.2)" : "rgba(255,255,255,0.05)",
+                            color: liveVal === "1" ? "#10b981" : "#94a3b8",
+                            fontWeight: 700
+                          }}
+                        >
+                          {liveVal}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Physical Telemetry & Performance */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 6,
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+              padding: 6,
+              borderRadius: 4
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 9, color: "var(--text-muted)" }}>Delay (tpd)</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
+                {activeHoverNode.delayPs} ps
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 9, color: "var(--text-muted)" }}>Est. Power</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", fontFamily: "var(--font-mono)" }}>
+                {activeHoverNode.dynamicPowerMw} mW
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 9, color: "var(--text-muted)" }}>JIT Op</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-emerald)", fontFamily: "var(--font-mono)" }}>
+                {activeHoverNode.craneliftOp || "native_jit"}
+              </div>
+            </div>
+          </div>
+
+          {/* RTL Jump Hint */}
+          <div style={{ marginTop: 6, fontSize: 9, color: "var(--text-muted)", textAlign: "center", fontStyle: "italic" }}>
+            Click cell to cross-probe & jump to RTL line {activeHoverNode.sourceSpan?.lineStart || 1}
+          </div>
+        </div>
+      )}
+
+      {/* Wire / Edge Hover Tooltip */}
+      {activeHoverEdge && !activeHoverNode && (
+        <div
+          style={{
+            position: "fixed",
+            left: tooltipPos.x,
+            top: tooltipPos.y,
+            backgroundColor: "rgba(15, 23, 42, 0.96)",
+            border: "1px solid #00f0ff",
+            borderRadius: 6,
+            padding: "8px 12px",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(6px)",
+            pointerEvents: "none",
+            zIndex: 30,
+            width: 240,
+            fontSize: 11
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span
+              style={{
+                fontSize: 9,
+                padding: "1px 5px",
+                borderRadius: 3,
+                backgroundColor: "rgba(56, 189, 248, 0.2)",
+                color: "#38bdf8",
+                fontWeight: 700
+              }}
+            >
+              NET / WIRE
+            </span>
+            <span style={{ fontWeight: 700, color: "#fff", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+              {activeHoverEdge.netName}
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: 3 }}>
+            <div>
+              Driver: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{activeHoverEdge.sourceNodeId}</span>
+            </div>
+            <div>
+              Load: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{activeHoverEdge.targetNodeId}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              <span>Width: {activeHoverEdge.isBus ? `[${activeHoverEdge.width - 1}:0]` : "1-bit"}</span>
+              <span>Delay: {activeHoverEdge.delayPs} ps</span>
+              <span>
+                Value:{" "}
+                <strong
+                  style={{
+                    color:
+                      (liveValuesMap.get(activeHoverEdge.signalId) ??
+                        liveValuesMap.get(activeHoverEdge.netName)) === "1"
+                        ? "#10b981"
+                        : "#94a3b8"
+                  }}
+                >
+                  {liveValuesMap.get(activeHoverEdge.signalId) ??
+                    liveValuesMap.get(activeHoverEdge.netName) ??
+                    "-"}
+                </strong>
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -1021,7 +1335,562 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   );
 };
 
-// Helper: Calculate distance from point P to line segment AB
+// ----------------------------------------------------------------------------
+// Geometry & Canvas Shape Drawing Functions (Vivado / IEEE Logic Gates)
+// ----------------------------------------------------------------------------
+
+function getGateVisuals(
+  node: SchematicNode,
+  isSelected: boolean,
+  isHovered: boolean,
+  inCone: boolean,
+  isCritical: boolean
+) {
+  const kind = node.kind;
+  const labelUpper = node.label.toUpperCase();
+  const op = node.craneliftOp?.toLowerCase() ?? "";
+
+  let gateType: GateType = "operator";
+  let badge = "PRIMITIVE";
+  let ieeeSymbol = "";
+  let bgColor = "#151b23";
+  let borderColor = "#30363d";
+  let accentColor = "#94a3b8";
+
+  if (kind === "port_in") {
+    gateType = "port_in";
+    badge = "INPUT PORT (IBUF)";
+    bgColor = "#0f1d2e";
+    borderColor = "#0284c7";
+    accentColor = "#38bdf8";
+  } else if (kind === "port_out") {
+    gateType = "port_out";
+    badge = "OUTPUT PORT (OBUF)";
+    bgColor = "#0d241c";
+    borderColor = "#059669";
+    accentColor = "#10b981";
+  } else if (kind === "register") {
+    gateType = "register";
+    badge = "FLIP-FLOP (FDRE)";
+    ieeeSymbol = "FDRE";
+    bgColor = "#1b1938";
+    borderColor = "#4f46e5";
+    accentColor = "#818cf8";
+  } else if (kind === "mux" || labelUpper.includes("MUX")) {
+    gateType = "mux";
+    badge = "MULTIPLEXER (MUX)";
+    ieeeSymbol = "MUX";
+    bgColor = "#25182e";
+    borderColor = "#9333ea";
+    accentColor = "#c084fc";
+  } else if (labelUpper.startsWith("NAND") || op === "bnand") {
+    gateType = "nand";
+    badge = "NAND2 GATE";
+    ieeeSymbol = "&";
+    bgColor = "#10241b";
+    borderColor = "#059669";
+    accentColor = "#34d399";
+  } else if (labelUpper.startsWith("AND") || op === "band" || labelUpper.includes("&")) {
+    gateType = "and";
+    badge = "AND2 GATE";
+    ieeeSymbol = "&";
+    bgColor = "#10241b";
+    borderColor = "#059669";
+    accentColor = "#34d399";
+  } else if (labelUpper.startsWith("XNOR") || op === "bxnor") {
+    gateType = "xnor";
+    badge = "XNOR2 GATE";
+    ieeeSymbol = "=1";
+    bgColor = "#1d1830";
+    borderColor = "#7c3aed";
+    accentColor = "#a78bfa";
+  } else if (labelUpper.startsWith("XOR") || op === "bxor" || labelUpper.includes("^")) {
+    gateType = "xor";
+    badge = "XOR2 GATE";
+    ieeeSymbol = "=1";
+    bgColor = "#1d1830";
+    borderColor = "#7c3aed";
+    accentColor = "#a78bfa";
+  } else if (labelUpper.startsWith("NOR") || op === "bnor") {
+    gateType = "nor";
+    badge = "NOR2 GATE";
+    ieeeSymbol = "≥1";
+    bgColor = "#23172e";
+    borderColor = "#9333ea";
+    accentColor = "#c084fc";
+  } else if (labelUpper.startsWith("OR") || op === "bor" || labelUpper.includes("|")) {
+    gateType = "or";
+    badge = "OR2 GATE";
+    ieeeSymbol = "≥1";
+    bgColor = "#23172e";
+    borderColor = "#9333ea";
+    accentColor = "#c084fc";
+  } else if (
+    labelUpper.startsWith("NOT") ||
+    labelUpper.startsWith("INV") ||
+    op === "bnot" ||
+    labelUpper.includes("~")
+  ) {
+    gateType = "not";
+    badge = "INVERTER (INV)";
+    ieeeSymbol = "1";
+    bgColor = "#24161f";
+    borderColor = "#db2777";
+    accentColor = "#f472b6";
+  } else if (labelUpper.startsWith("BUF")) {
+    gateType = "buf";
+    badge = "BUFFER (BUF)";
+    ieeeSymbol = "1";
+    bgColor = "#0f1d2e";
+    borderColor = "#0284c7";
+    accentColor = "#38bdf8";
+  } else if (kind === "module") {
+    gateType = "module";
+    badge = "HIERARCHICAL MODULE";
+    bgColor = "#1c2230";
+    borderColor = "#2563eb";
+    accentColor = "#60a5fa";
+  } else {
+    gateType = "operator";
+    badge = `${node.label} OPERATOR`;
+    ieeeSymbol = node.label;
+    bgColor = "#14251f";
+    borderColor = "#166534";
+    accentColor = "#34d399";
+  }
+
+  if (isCritical) {
+    borderColor = "#f43f5e";
+    bgColor = "rgba(244, 63, 94, 0.2)";
+  } else if (inCone) {
+    borderColor = "#10b981";
+  }
+
+  if (isSelected || isHovered) {
+    borderColor = "#00f0ff";
+  }
+
+  const instanceName = node.id.startsWith("gate_")
+    ? node.id.replace("gate_", "")
+    : node.id.startsWith("in_") || node.id.startsWith("out_")
+    ? node.label
+    : node.id;
+
+  return {
+    gateType,
+    badge,
+    ieeeSymbol,
+    instanceName,
+    bgColor,
+    borderColor,
+    accentColor
+  };
+}
+
+function drawNodeShape(
+  ctx: CanvasRenderingContext2D,
+  node: SchematicNode,
+  gateType: GateType,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  switch (gateType) {
+    case "and":
+      drawAndShape(ctx, x, y, w, h);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case "nand":
+      drawNandShape(ctx, x, y, w, h);
+      break;
+    case "or":
+      drawOrShape(ctx, x, y, w, h);
+      ctx.fill();
+      ctx.stroke();
+      drawOrInputLeads(ctx, node, x, y, w, h);
+      break;
+    case "nor":
+      drawNorShape(ctx, x, y, w, h);
+      drawOrInputLeads(ctx, node, x, y, w - 8, h);
+      break;
+    case "xor":
+      drawXorShape(ctx, x, y, w, h);
+      ctx.fill();
+      ctx.stroke();
+      drawOrInputLeads(ctx, node, x, y, w - 6, h);
+      break;
+    case "xnor":
+      drawXnorShape(ctx, x, y, w, h);
+      drawOrInputLeads(ctx, node, x, y, w - 14, h);
+      break;
+    case "not":
+      drawNotShape(ctx, x, y, w, h);
+      break;
+    case "buf":
+      drawBufShape(ctx, x, y, w, h);
+      break;
+    case "mux":
+      drawMuxShape(ctx, x, y, w, h);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case "port_in":
+      drawPortInShape(ctx, x, y, w, h);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case "port_out":
+      drawPortOutShape(ctx, x, y, w, h);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case "register":
+    case "operator":
+    case "module":
+    default:
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 5);
+      ctx.fill();
+      ctx.stroke();
+      break;
+  }
+}
+
+function drawAndShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w * 0.48, y);
+  ctx.bezierCurveTo(x + w * 0.82, y, x + w, y + h * 0.22, x + w, y + h / 2);
+  ctx.bezierCurveTo(x + w, y + h * 0.78, x + w * 0.82, y + h, x + w * 0.48, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+}
+
+function drawNandShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const bodyW = w - 8;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + bodyW * 0.48, y);
+  ctx.bezierCurveTo(x + bodyW * 0.82, y, x + bodyW, y + h * 0.22, x + bodyW, y + h / 2);
+  ctx.bezierCurveTo(x + bodyW, y + h * 0.78, x + bodyW * 0.82, y + h, x + bodyW * 0.48, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Inversion bubble
+  ctx.beginPath();
+  ctx.arc(x + w - 4, y + h / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawOrShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.bezierCurveTo(x + w * 0.22, y + h * 0.28, x + w * 0.22, y + h * 0.72, x, y + h);
+  ctx.bezierCurveTo(x + w * 0.45, y + h, x + w * 0.82, y + h * 0.76, x + w, y + h / 2);
+  ctx.bezierCurveTo(x + w * 0.82, y + h * 0.24, x + w * 0.45, y, x, y);
+  ctx.closePath();
+}
+
+function drawNorShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const bodyW = w - 8;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.bezierCurveTo(x + bodyW * 0.22, y + h * 0.28, x + bodyW * 0.22, y + h * 0.72, x, y + h);
+  ctx.bezierCurveTo(x + bodyW * 0.45, y + h, x + bodyW * 0.82, y + h * 0.76, x + bodyW, y + h / 2);
+  ctx.bezierCurveTo(x + bodyW * 0.82, y + h * 0.24, x + bodyW * 0.45, y, x, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(x + w - 4, y + h / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawXorShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const offset = 6;
+  const bodyX = x + offset;
+  const bodyW = w - offset;
+
+  // Outer back curve
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.bezierCurveTo(x + bodyW * 0.22, y + h * 0.28, x + bodyW * 0.22, y + h * 0.72, x, y + h);
+  ctx.stroke();
+
+  // Inner OR body
+  ctx.beginPath();
+  ctx.moveTo(bodyX, y);
+  ctx.bezierCurveTo(bodyX + bodyW * 0.22, y + h * 0.28, bodyX + bodyW * 0.22, y + h * 0.72, bodyX, y + h);
+  ctx.bezierCurveTo(bodyX + bodyW * 0.45, y + h, bodyX + bodyW * 0.82, y + h * 0.76, x + w, y + h / 2);
+  ctx.bezierCurveTo(bodyX + bodyW * 0.82, y + h * 0.24, bodyX + bodyW * 0.45, y, bodyX, y);
+  ctx.closePath();
+}
+
+function drawXnorShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const offset = 6;
+  const bodyX = x + offset;
+  const bodyW = w - offset - 8;
+
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.bezierCurveTo(x + bodyW * 0.22, y + h * 0.28, x + bodyW * 0.22, y + h * 0.72, x, y + h);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(bodyX, y);
+  ctx.bezierCurveTo(bodyX + bodyW * 0.22, y + h * 0.28, bodyX + bodyW * 0.22, y + h * 0.72, bodyX, y + h);
+  ctx.bezierCurveTo(bodyX + bodyW * 0.45, y + h, bodyX + bodyW * 0.82, y + h * 0.76, bodyX + bodyW, y + h / 2);
+  ctx.bezierCurveTo(bodyX + bodyW * 0.82, y + h * 0.24, bodyX + bodyW * 0.45, y, bodyX, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(x + w - 4, y + h / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawNotShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const bodyW = w - 8;
+  ctx.beginPath();
+  ctx.moveTo(x, y + 2);
+  ctx.lineTo(x + bodyW, y + h / 2);
+  ctx.lineTo(x, y + h - 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(x + w - 4, y + h / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawBufShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + 2);
+  ctx.lineTo(x + w, y + h / 2);
+  ctx.lineTo(x, y + h - 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawMuxShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const slant = Math.min(14, h * 0.28);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w, y + slant);
+  ctx.lineTo(x + w, y + h - slant);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+}
+
+function drawPortInShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const tipW = 10;
+  ctx.beginPath();
+  ctx.moveTo(x, y + 2);
+  ctx.lineTo(x + w - tipW, y + 2);
+  ctx.lineTo(x + w, y + h / 2);
+  ctx.lineTo(x + w - tipW, y + h - 2);
+  ctx.lineTo(x, y + h - 2);
+  ctx.closePath();
+}
+
+function drawPortOutShape(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const tipW = 10;
+  ctx.beginPath();
+  ctx.moveTo(x + tipW, y + 2);
+  ctx.lineTo(x + w, y + 2);
+  ctx.lineTo(x + w, y + h - 2);
+  ctx.lineTo(x + tipW, y + h - 2);
+  ctx.lineTo(x, y + h / 2);
+  ctx.closePath();
+}
+
+function drawOrInputLeads(
+  ctx: CanvasRenderingContext2D,
+  node: SchematicNode,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  for (const pin of node.inputs) {
+    if (pin.offsetY === undefined) continue;
+    const t = Math.max(0, Math.min(1, pin.offsetY / h));
+    const indent = w * 0.22 * (4 * t * (1 - t));
+    if (indent > 1) {
+      ctx.beginPath();
+      ctx.moveTo(x, y + pin.offsetY);
+      ctx.lineTo(x + indent, y + pin.offsetY);
+      ctx.stroke();
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Detailed Metadata Inspector Generator for Tooltips
+// ----------------------------------------------------------------------------
+
+function getGateDetailedInfo(
+  node: SchematicNode,
+  _graph: SchematicGraph,
+  liveValuesMap: Map<string, string>
+) {
+  const kind = node.kind;
+  const labelUpper = node.label.toUpperCase();
+  const op = node.craneliftOp?.toLowerCase() ?? "";
+
+  let badge = "PRIMITIVE";
+  let badgeColor = "#38bdf8";
+  let badgeBg = "rgba(56, 189, 248, 0.15)";
+  let gateType: GateType = "operator";
+
+  if (kind === "port_in") {
+    gateType = "port_in";
+    badge = "INPUT PORT (IBUF)";
+    badgeColor = "#38bdf8";
+    badgeBg = "rgba(56, 189, 248, 0.18)";
+  } else if (kind === "port_out") {
+    gateType = "port_out";
+    badge = "OUTPUT PORT (OBUF)";
+    badgeColor = "#10b981";
+    badgeBg = "rgba(16, 185, 129, 0.18)";
+  } else if (kind === "register") {
+    gateType = "register";
+    badge = "FLIP-FLOP (FDRE)";
+    badgeColor = "#818cf8";
+    badgeBg = "rgba(99, 102, 241, 0.18)";
+  } else if (kind === "mux" || labelUpper.includes("MUX")) {
+    gateType = "mux";
+    badge = "MULTIPLEXER (MUX)";
+    badgeColor = "#c084fc";
+    badgeBg = "rgba(168, 85, 247, 0.18)";
+  } else if (labelUpper.startsWith("NAND") || op === "bnand") {
+    gateType = "nand";
+    badge = "NAND2 GATE";
+    badgeColor = "#34d399";
+    badgeBg = "rgba(16, 185, 129, 0.18)";
+  } else if (labelUpper.startsWith("AND") || op === "band" || labelUpper.includes("&")) {
+    gateType = "and";
+    badge = "AND2 GATE";
+    badgeColor = "#34d399";
+    badgeBg = "rgba(16, 185, 129, 0.18)";
+  } else if (labelUpper.startsWith("XNOR") || op === "bxnor") {
+    gateType = "xnor";
+    badge = "XNOR2 GATE";
+    badgeColor = "#a78bfa";
+    badgeBg = "rgba(139, 92, 246, 0.18)";
+  } else if (labelUpper.startsWith("XOR") || op === "bxor" || labelUpper.includes("^")) {
+    gateType = "xor";
+    badge = "XOR2 GATE";
+    badgeColor = "#a78bfa";
+    badgeBg = "rgba(139, 92, 246, 0.18)";
+  } else if (labelUpper.startsWith("NOR") || op === "bnor") {
+    gateType = "nor";
+    badge = "NOR2 GATE";
+    badgeColor = "#c084fc";
+    badgeBg = "rgba(168, 85, 247, 0.18)";
+  } else if (labelUpper.startsWith("OR") || op === "bor" || labelUpper.includes("|")) {
+    gateType = "or";
+    badge = "OR2 GATE";
+    badgeColor = "#c084fc";
+    badgeBg = "rgba(168, 85, 247, 0.18)";
+  } else if (
+    labelUpper.startsWith("NOT") ||
+    labelUpper.startsWith("INV") ||
+    op === "bnot" ||
+    labelUpper.includes("~")
+  ) {
+    gateType = "not";
+    badge = "INVERTER (INV)";
+    badgeColor = "#f472b6";
+    badgeBg = "rgba(236, 72, 153, 0.18)";
+  } else if (kind === "module") {
+    gateType = "module";
+    badge = "HIERARCHICAL MODULE";
+    badgeColor = "#60a5fa";
+    badgeBg = "rgba(59, 130, 246, 0.18)";
+  } else {
+    badge = `${node.label} OPERATOR`;
+    badgeColor = "#34d399";
+    badgeBg = "rgba(16, 185, 129, 0.18)";
+  }
+
+  const instanceName = node.id.startsWith("gate_")
+    ? node.id.replace("gate_", "")
+    : node.id.startsWith("in_") || node.id.startsWith("out_")
+    ? node.label
+    : node.id;
+
+  // Derive live evaluation string:
+  let liveEval: string | null = null;
+  if (gateType === "not" && node.inputs.length > 0) {
+    const inVal =
+      liveValuesMap.get(node.inputs[0].name) ??
+      liveValuesMap.get(`${node.scope}.${node.inputs[0].name}`) ??
+      "0";
+    const outVal = inVal === "1" ? "0" : inVal === "0" ? "1" : "X";
+    liveEval = `~${node.inputs[0].name}[${inVal}] ➔ ${outVal}`;
+  } else if (gateType === "and" && node.inputs.length >= 2) {
+    const in1Val =
+      liveValuesMap.get(node.inputs[0].name) ??
+      liveValuesMap.get(`${node.scope}.${node.inputs[0].name}`) ??
+      "0";
+    const in2Val =
+      liveValuesMap.get(node.inputs[1].name) ??
+      liveValuesMap.get(`${node.scope}.${node.inputs[1].name}`) ??
+      "0";
+    const outVal =
+      in1Val === "1" && in2Val === "1" ? "1" : in1Val === "0" || in2Val === "0" ? "0" : "X";
+    liveEval = `${node.inputs[0].name}[${in1Val}] & ${node.inputs[1].name}[${in2Val}] ➔ ${outVal}`;
+  } else if (gateType === "or" && node.inputs.length >= 2) {
+    const in1Val =
+      liveValuesMap.get(node.inputs[0].name) ??
+      liveValuesMap.get(`${node.scope}.${node.inputs[0].name}`) ??
+      "0";
+    const in2Val =
+      liveValuesMap.get(node.inputs[1].name) ??
+      liveValuesMap.get(`${node.scope}.${node.inputs[1].name}`) ??
+      "0";
+    const outVal =
+      in1Val === "1" || in2Val === "1" ? "1" : in1Val === "0" && in2Val === "0" ? "0" : "X";
+    liveEval = `${node.inputs[0].name}[${in1Val}] | ${node.inputs[1].name}[${in2Val}] ➔ ${outVal}`;
+  } else if (gateType === "xor" && node.inputs.length >= 2) {
+    const in1Val =
+      liveValuesMap.get(node.inputs[0].name) ??
+      liveValuesMap.get(`${node.scope}.${node.inputs[0].name}`) ??
+      "0";
+    const in2Val =
+      liveValuesMap.get(node.inputs[1].name) ??
+      liveValuesMap.get(`${node.scope}.${node.inputs[1].name}`) ??
+      "0";
+    const outVal =
+      in1Val !== in2Val && in1Val !== "X" && in2Val !== "X" ? "1" : in1Val === in2Val && in1Val !== "X" ? "0" : "X";
+    liveEval = `${node.inputs[0].name}[${in1Val}] ^ ${node.inputs[1].name}[${in2Val}] ➔ ${outVal}`;
+  }
+
+  return {
+    gateType,
+    badge,
+    badgeColor,
+    badgeBg,
+    instanceName,
+    expression: node.sublabel || node.expressionText,
+    liveEval
+  };
+}
+
+// Calculate distance from point P to line segment AB
 function distanceToSegment(
   p: { x: number; y: number },
   a: { x: number; y: number },

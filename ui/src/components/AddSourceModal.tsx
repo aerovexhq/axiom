@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { X, FilePlus } from "lucide-react";
+import { FilePlus, Check } from "lucide-react";
 import { FileSetType, FileFormat, ProjectFile } from "../engine/projectModel";
+import { Modal, Input, Select, Button, Card } from "./ui";
 
 interface AddSourceModalProps {
   isOpen: boolean;
@@ -33,15 +34,16 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     }
   };
 
-  const handleFileSetChange = (val: FileSetType) => {
-    setFileSet(val);
-    if (val === "constrs_1") {
+  const handleFileSetChange = (val: string) => {
+    const fset = val as FileSetType;
+    setFileSet(fset);
+    if (fset === "constrs_1") {
       setFileType("xdc");
       setTemplateKind("xdc");
       if (!fileName.endsWith(".xdc")) {
         setFileName(fileName.replace(/\.(v|sv)$/, "") + ".xdc");
       }
-    } else if (val === "sim_1") {
+    } else if (fset === "sim_1") {
       setTemplateKind("testbench");
       if (fileName.endsWith(".xdc")) {
         setFileName(fileName.replace(/\.xdc$/, "_tb.v"));
@@ -131,198 +133,100 @@ endmodule
     onClose();
   };
 
+  const fileSetOptions = [
+    { value: "sources_1", label: "Design Sources (sources_1)", sublabel: "Verilog / SystemVerilog RTL modules" },
+    { value: "sim_1", label: "Simulation Sources (sim_1)", sublabel: "Testbenches with stimulus" },
+    { value: "constrs_1", label: "Constraints (constrs_1)", sublabel: "Timing & pin constraints (XDC)" }
+  ];
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-        padding: 20
-      }}
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add or Create Vivado Source File"
+      subtitle="Add design RTL, simulation testbench, or timing constraints to project file sets"
+      icon={<FilePlus size={18} />}
+      width={600}
+      footer={
+        <>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSubmit}>
+            Add Source
+          </Button>
+        </>
+      }
     >
-      <div
-        style={{
-          width: 480,
-          backgroundColor: "var(--bg-secondary)",
-          border: "1px solid var(--border-strong)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden"
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div
-          style={{
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--border-subtle)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: "var(--bg-primary)"
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <FilePlus size={16} color="var(--accent-blue)" />
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
-              Add Source to Vivado Project
-            </span>
-          </div>
-          <button
-            onClick={onClose}
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Target File Set */}
+        <Select
+          label="Target File Set"
+          value={fileSet}
+          onChange={handleFileSetChange}
+          options={fileSetOptions}
+        />
+
+        {/* File Name */}
+        <Input
+          label="File Name"
+          value={fileName}
+          onChange={(e) => handleFileNameChange(e.target.value)}
+          placeholder="e.g. alu_submodule.v"
+          helperText="Supported extensions: .v (Verilog), .sv (SystemVerilog), .xdc (Constraints)"
+        />
+
+        {/* Template Kind */}
+        <div>
+          <label
             style={{
-              background: "none",
-              border: "none",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              padding: 4
+              display: "block",
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              marginBottom: 8,
+              textTransform: "uppercase",
+              letterSpacing: "0.03em"
             }}
           >
-            <X size={15} />
-          </button>
+            Initial File Content Template
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[
+              { id: "module", title: "RTL Module Skeleton", desc: "Clocked module template with clk, rst_n, and IO registers" },
+              { id: "testbench", title: "Simulation Testbench", desc: "Clock generator, reset pulse, and timescale header" },
+              { id: "xdc", title: "Timing Constraints (XDC)", desc: "create_clock, IO standard, and package pin directives" },
+              { id: "empty", title: "Empty File", desc: "Blank file ready for custom code" }
+            ].map((tmpl) => {
+              const isSelected = templateKind === tmpl.id;
+              return (
+                <Card
+                  key={tmpl.id}
+                  clickable
+                  selected={isSelected}
+                  onClick={() => setTemplateKind(tmpl.id as any)}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    padding: "10px 12px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: isSelected ? "var(--accent-blue)" : "var(--text-primary)" }}>
+                      {tmpl.title}
+                    </span>
+                    {isSelected && <Check size={14} color="var(--accent-blue)" />}
+                  </div>
+                  <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0, lineHeight: 1.35 }}>
+                    {tmpl.desc}
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
         </div>
-
-        {/* Modal Form */}
-        <form onSubmit={handleSubmit} style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* File Name */}
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
-              SOURCE FILE NAME
-            </label>
-            <input
-              type="text"
-              value={fileName}
-              onChange={(e) => handleFileNameChange(e.target.value)}
-              placeholder="e.g. uart_rx.v or constraints.xdc"
-              autoFocus
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                fontSize: 12,
-                fontFamily: "var(--font-mono)",
-                backgroundColor: "var(--bg-tertiary)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                outline: "none"
-              }}
-            />
-          </div>
-
-          {/* Target File Set */}
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
-              TARGET FILE SET
-            </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-              {[
-                { id: "sources_1", label: "Design Sources", sub: "RTL Logic" },
-                { id: "sim_1", label: "Sim Sources", sub: "Testbenches" },
-                { id: "constrs_1", label: "Constraints", sub: "Timing XDC" }
-              ].map((fs) => {
-                const isSelected = fileSet === fs.id;
-                return (
-                  <button
-                    type="button"
-                    key={fs.id}
-                    onClick={() => handleFileSetChange(fs.id as FileSetType)}
-                    style={{
-                      padding: "8px 6px",
-                      borderRadius: "var(--radius-sm)",
-                      border: `1px solid ${isSelected ? "var(--accent-blue)" : "var(--border-subtle)"}`,
-                      backgroundColor: isSelected ? "var(--bg-elevated)" : "var(--bg-tertiary)",
-                      cursor: "pointer",
-                      textAlign: "center"
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 600, color: isSelected ? "var(--accent-blue)" : "var(--text-primary)" }}>
-                      {fs.label}
-                    </div>
-                    <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 2 }}>
-                      {fs.sub}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Starter Template */}
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
-              STARTER TEMPLATE
-            </label>
-            <select
-              value={templateKind}
-              onChange={(e) => setTemplateKind(e.target.value as any)}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                fontSize: 12,
-                backgroundColor: "var(--bg-tertiary)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                outline: "none"
-              }}
-            >
-              <option value="module">Synchronous RTL Module with Clock & Reset</option>
-              <option value="testbench">Verilog Testbench Skeleton</option>
-              <option value="xdc">XDC Clock & Timing Constraints</option>
-              <option value="empty">Empty File</option>
-            </select>
-          </div>
-
-          {/* Actions */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              marginTop: 6,
-              paddingTop: 12,
-              borderTop: "1px solid var(--border-subtle)"
-            }}
-          >
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: "6px 12px",
-                fontSize: 11,
-                color: "var(--text-secondary)",
-                backgroundColor: "transparent",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)"
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              style={{
-                padding: "6px 14px",
-                fontSize: 11,
-                fontWeight: 600,
-                backgroundColor: "var(--accent-blue)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "var(--radius-sm)"
-              }}
-            >
-              Add Source File
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };

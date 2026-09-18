@@ -136,8 +136,8 @@ function routeOrthogonalEdge(
 
 function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   // Layer spacing constants
-  const layerSpacingX = 180;
-  const nodeSpacingY = 28;
+  const layerSpacingX = 145;
+  const nodeSpacingY = 32;
   const startX = 40;
   const startY = 40;
 
@@ -303,7 +303,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
     // Layer 1: Inverters (NOT gates)
     {
       id: "gate_inv1",
-      label: "NOT (~A)",
+      label: "INV",
       sublabel: "w1 = ~A",
       kind: "gate",
       scope: "logic_circuit",
@@ -311,12 +311,12 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w1", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~A",
-      x: 0, y: 0, width: 110, height: 40, layer: 1, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 25, lineEnd: 25 }
     },
     {
       id: "gate_inv2",
-      label: "NOT (~B)",
+      label: "INV",
       sublabel: "w4 = ~B",
       kind: "gate",
       scope: "logic_circuit",
@@ -324,14 +324,14 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w4", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~B",
-      x: 0, y: 0, width: 110, height: 40, layer: 1, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 28, lineEnd: 28 }
     },
 
     // Layer 2: First AND gate (w1 & B)
     {
       id: "gate_and1",
-      label: "AND (w1 & B)",
+      label: "AND2",
       sublabel: "w2 = w1 & B",
       kind: "gate",
       scope: "logic_circuit",
@@ -342,14 +342,14 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w2", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w1 & B",
-      x: 0, y: 0, width: 120, height: 48, layer: 2, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 2, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 26, lineEnd: 26 }
     },
 
     // Layer 3: Second AND gate (w2 & C)
     {
       id: "gate_and2",
-      label: "AND (w2 & C)",
+      label: "AND2",
       sublabel: "w3 = w2 & C",
       kind: "gate",
       scope: "logic_circuit",
@@ -360,14 +360,14 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w3", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w2 & C",
-      x: 0, y: 0, width: 120, height: 48, layer: 3, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 3, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 27, lineEnd: 27 }
     },
 
     // Layer 4: OR gate (w3 | w4)
     {
       id: "gate_or1",
-      label: "OR (w3 | w4)",
+      label: "OR2",
       sublabel: "F = w3 | w4",
       kind: "gate",
       scope: "logic_circuit",
@@ -378,7 +378,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "F", width: 1, direction: "out" }],
       craneliftOp: "bor",
       expressionText: "w3 | w4",
-      x: 0, y: 0, width: 120, height: 48, layer: 4, delayPs: 65, dynamicPowerMw: 0.20,
+      x: 0, y: 0, width: 78, height: 48, layer: 4, delayPs: 65, dynamicPowerMw: 0.20,
       sourceSpan: { lineStart: 29, lineEnd: 29 }
     },
 
@@ -390,7 +390,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [{ id: "in", name: "F", width: 1, direction: "in" }],
       outputs: [],
-      x: 0, y: 0, width: 80, height: 28, layer: 5, delayPs: 10, dynamicPowerMw: 0.05,
+      x: 0, y: 0, width: 76, height: 28, layer: 5, delayPs: 10, dynamicPowerMw: 0.05,
       sourceSpan: { lineStart: 15, lineEnd: 15 }
     }
   ];

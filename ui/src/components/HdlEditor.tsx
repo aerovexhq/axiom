@@ -11,7 +11,6 @@ import {
   Minimize2,
   FileCode,
   FileText,
-  ChevronRight,
   AlertTriangle,
   AlertCircle,
   CheckCircle
@@ -19,6 +18,7 @@ import {
 import { AxiomProject } from "../engine/projectModel";
 import { engineBridge, LspDiagnostic } from "../engine/engineBridge";
 import { registerVerilogLanguage } from "../engine/monacoVerilog";
+import { Breadcrumbs, BreadcrumbItem, Button, Badge } from "./ui";
 
 // Configure monaco-editor loader to use bundled package
 loader.config({ monaco: monacoPkg });
@@ -142,6 +142,21 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   const errorCount = localDiags.filter((d) => d.severity === 1).length;
   const warningCount = localDiags.filter((d) => d.severity === 2).length;
 
+  // Build clean de-cramped breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: project?.name ?? "project", highlight: false },
+    { label: activeFile?.fileSet ?? "sources_1", highlight: false },
+    { label: activeFile?.name ?? `${topModule}.v`, highlight: true }
+  ];
+
+  if (activeFile?.isTop) {
+    breadcrumbItems.push({
+      label: `module ${topModule}`,
+      color: "var(--accent-amber)",
+      highlight: false
+    });
+  }
+
   return (
     <div
       style={{
@@ -153,7 +168,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         overflow: "hidden",
         position: isMaximized ? "absolute" : "relative",
         inset: isMaximized ? 0 : undefined,
-        zIndex: isMaximized ? 90 : 1
+        zIndex: isMaximized ? 90 : 1,
+        fontFamily: "var(--font-sans)"
       }}
     >
       {/* Editor Multi-Tab Strip */}
@@ -170,7 +186,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         }}
       >
         {/* Left: Open File Tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, overflowX: "auto", flex: 1, minWidth: 0 }}>
           {openFiles.length > 0 ? (
             openFiles.map((file) => {
               const isActive = file.id === project?.activeFileId;
@@ -195,7 +211,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                     fontSize: 12.5,
                     color: isActive ? "#fff" : "var(--text-secondary)",
                     fontWeight: isActive ? 600 : 400,
-                    maxWidth: 220
+                    maxWidth: 180
                   }}
                 >
                   {file.fileType === "xdc" ? (
@@ -209,22 +225,14 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   </span>
 
                   {isTop && (
-                    <span
-                      style={{
-                        fontSize: 9.5,
-                        fontWeight: 700,
-                        color: "var(--accent-cyan)",
-                        backgroundColor: "rgba(6, 182, 212, 0.15)",
-                        padding: "1px 5px",
-                        borderRadius: 3
-                      }}
-                    >
+                    <Badge color="cyan" size="sm">
                       TOP
-                    </span>
+                    </Badge>
                   )}
 
                   {openFiles.length > 1 && (
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onCloseTab?.(file.id);
@@ -251,7 +259,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 8px" }}>
               <Code2 size={13} color="var(--accent-cyan)" />
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
                 {topModule}.v
               </span>
             </div>
@@ -259,35 +267,41 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
 
           {onAddFileClick && (
             <button
+              type="button"
               onClick={onAddFileClick}
               title="Add New Source File"
               style={{
-                padding: "3px 5px",
+                padding: "4px 6px",
                 color: "var(--text-muted)",
                 cursor: "pointer",
                 borderRadius: "var(--radius-sm)",
                 backgroundColor: "transparent",
-                border: "none"
+                border: "none",
+                display: "flex",
+                alignItems: "center"
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              <Plus size={13} />
+              <Plus size={14} />
             </button>
           )}
         </div>
 
-        {/* Right: Actions (Linter Status Badge, Compiled status, Elaborate, Maximize) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+        {/* Right: Actions Strip (Linter status, JIT Ready, Elaborate button, Maximize) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
           {/* Linter Diagnostic Pill */}
           <button
+            type="button"
             onClick={onOpenProblems}
-            title="Axiom Verilog Linter & Static Analysis Status"
+            title="Axiom Verilog Linter Status"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 4,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
-              padding: "2px 7px",
+              padding: "3px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor:
                 errorCount > 0
@@ -330,88 +344,58 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           </button>
 
           {compiled && (
-            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: "var(--accent-emerald)", marginRight: 4 }}>
-              <CheckCircle2 size={12} />
-              <span>JIT Ready</span>
-            </span>
+            <Badge color="emerald" size="sm" icon={<CheckCircle2 size={11} />}>
+              JIT Ready
+            </Badge>
           )}
 
-          <button
+          {/* Elaborate Button (Componentized) */}
+          <Button
+            variant="primary"
+            size="xs"
             onClick={onCompile}
+            icon={<Play size={11} fill="#fff" />}
             title="Elaborate & JIT Compile Active HDL Project"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 10,
-              fontWeight: 600,
-              padding: "3px 8px",
-              backgroundColor: "var(--accent-blue)",
-              color: "#fff",
-              borderRadius: "var(--radius-sm)",
-              border: "none",
-              cursor: "pointer"
-            }}
+            style={{ padding: "4px 10px", fontSize: 11.5 }}
           >
-            <Play size={10} fill="#fff" />
-            <span>Elaborate</span>
-          </button>
+            Elaborate
+          </Button>
 
           {onToggleMaximize && (
             <button
+              type="button"
               onClick={onToggleMaximize}
               title={isMaximized ? "Restore Split View" : "Maximize Code Editor (100%)"}
               style={{
-                padding: "3px 5px",
+                padding: "4px 6px",
                 color: "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 cursor: "pointer",
                 backgroundColor: "transparent",
-                border: "none"
+                border: "none",
+                display: "flex",
+                alignItems: "center"
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
           )}
         </div>
       </div>
 
-      {/* Breadcrumb Bar */}
-      <div
-        style={{
-          height: 26,
-          backgroundColor: "var(--bg-tertiary)",
-          borderBottom: "1px solid var(--border-subtle)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "0 12px",
-          fontSize: 11.5,
-          color: "var(--text-muted)",
-          fontFamily: "var(--font-mono)"
-        }}
-      >
-        <span>{project?.name ?? "project"}</span>
-        <ChevronRight size={12} />
-        <span>{activeFile?.fileSet ?? "sources_1"}</span>
-        <ChevronRight size={12} />
-        <span style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
-          {activeFile?.name ?? `${topModule}.v`}
-        </span>
-        {activeFile?.isTop && (
+      {/* De-Cramped Breadcrumbs Bar */}
+      <Breadcrumbs
+        items={breadcrumbItems}
+        rightContent={
           <>
-            <ChevronRight size={12} />
-            <span style={{ color: "var(--accent-amber)" }}>module {topModule}</span>
+            <Badge color="cyan" size="sm">Rust JIT</Badge>
+            <Badge color="slate" size="sm">UTF-8</Badge>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Verilog-2005</span>
           </>
-        )}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "var(--text-muted)" }}>
-          <span>LSP: In-RAM Rust JIT</span>
-          <span>•</span>
-          <span>UTF-8</span>
-          <span>•</span>
-          <span>Verilog-2005 / SystemVerilog</span>
-        </div>
-      </div>
+        }
+      />
 
       {/* Monaco Code Editor */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
@@ -450,7 +434,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               comments: false,
               strings: false,
             },
-            padding: { top: 6, bottom: 6 },
+            padding: { top: 8, bottom: 8 },
           }}
         />
       </div>
