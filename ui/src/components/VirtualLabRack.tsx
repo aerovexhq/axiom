@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   RotateCcw,
   Sparkles,
@@ -41,6 +41,17 @@ const SEVEN_SEG_HEX: Record<string, boolean[]> = {
 
 export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDesignId }) => {
   const [isPainterOpen, setIsPainterOpen] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Active target port driven by DIP switches
   const defaultTarget = useMemo(() => {
@@ -391,8 +402,8 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
             <span>Truth Table (8 States)</span>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", fontSize: 11, fontFamily: "var(--font-mono)" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "20px 20px 20px 1fr 20px", gap: 4, padding: "2px 4px", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)", fontWeight: 700 }}>
+          <div style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "24px 24px 24px 1fr 24px", gap: 4, padding: "2px 4px", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)", fontWeight: 700 }}>
               <span>A</span>
               <span>B</span>
               <span>C</span>
@@ -406,7 +417,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
                   key={idx}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "20px 20px 20px 1fr 20px",
+                    gridTemplateColumns: "24px 24px 24px 1fr 24px",
                     gap: 4,
                     padding: "3px 4px",
                     margin: "1px 0",
@@ -942,33 +953,56 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 14px",
-          zIndex: 5
+          padding: "0 10px",
+          zIndex: 5,
+          flexShrink: 0
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-cyan)", textTransform: "uppercase" }}>
-            Virtual Lab Stimulus Rack
-          </span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-            DUT: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{state.topModule}</span>
-          </span>
-          <div
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }}>
+          <span
             style={{
-              fontSize: 10,
-              padding: "1px 6px",
-              borderRadius: 3,
-              backgroundColor: "rgba(16, 185, 129, 0.12)",
-              color: "var(--accent-emerald)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--accent-amber)",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              letterSpacing: "0.03em"
             }}
           >
-            <Zap size={10} />
-            <span>Zero-JTAG In-RAM Stimulus Active</span>
-          </div>
+            {isMobile ? "Virtual Lab" : "Virtual Lab Stimulus Rack"}
+          </span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>•</span>
+          <span
+            style={{
+              fontSize: 11,
+              fontFamily: "var(--font-mono)",
+              color: "var(--text-primary)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis"
+            }}
+          >
+            DUT: <strong style={{ color: "#fff" }}>{state.topModule}</strong>
+          </span>
+          {!isMobile && (
+            <div
+              style={{
+                fontSize: 10,
+                padding: "1px 6px",
+                borderRadius: 3,
+                backgroundColor: "rgba(16, 185, 129, 0.12)",
+                color: "var(--accent-emerald)",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                whiteSpace: "nowrap"
+              }}
+            >
+              <Zap size={10} />
+              <span>Zero-JTAG In-RAM Stimulus Active</span>
+            </div>
+          )}
         </div>
 
         {/* Trigger Stimulus Painter Modal */}
@@ -980,16 +1014,18 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
             gap: 5,
             fontSize: 11,
             fontWeight: 600,
-            padding: "3px 10px",
+            padding: "3px 9px",
             borderRadius: "var(--radius-sm)",
             backgroundColor: "var(--accent-blue)",
             color: "#fff",
             border: "none",
-            cursor: "pointer"
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0
           }}
         >
           <Sparkles size={12} />
-          <span>Paint Waveforms & Export TB</span>
+          <span>{isMobile ? "Paint TB" : "Paint Waveforms & Export TB"}</span>
         </button>
       </div>
 
@@ -1001,6 +1037,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
           gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           gap: 14,
           padding: 14,
+          paddingBottom: isMobile ? 32 : 14,
           overflowY: "auto"
         }}
       >

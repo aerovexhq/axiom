@@ -348,8 +348,7 @@ export const App: React.FC = () => {
             display: "flex",
             flexDirection: "column",
             position: "relative",
-            overflow: "hidden",
-            paddingBottom: 56
+            overflow: "hidden"
           }}
         >
           {!project ? (

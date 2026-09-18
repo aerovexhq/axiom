@@ -57,13 +57,13 @@ export const Header: React.FC<HeaderProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 12px",
+          padding: "0 10px",
           zIndex: 25,
           flexShrink: 0
         }}
       >
         {/* Mobile Left: Hamburger + Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flexShrink: 1 }}>
           <button
             onClick={onToggleMobileDrawer}
             aria-label="Open Navigation Menu"
@@ -72,48 +72,52 @@ export const Header: React.FC<HeaderProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 36,
-              height: 36,
+              width: 34,
+              height: 34,
               borderRadius: "var(--radius-sm)",
               backgroundColor: "var(--bg-tertiary)",
               border: "1px solid var(--border-subtle)",
               color: "var(--text-primary)",
               cursor: "pointer",
-              padding: 0
+              padding: 0,
+              flexShrink: 0
             }}
           >
-            <Menu size={19} />
+            <Menu size={18} />
           </button>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
             <img
               src="/logo.svg"
               alt="Axiom Logo"
               style={{
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
                 borderRadius: "var(--radius-sm)"
               }}
             />
-            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}>
-              Axiom
-            </span>
+            {!project && (
+              <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: "-0.02em" }}>
+                Axiom
+              </span>
+            )}
           </div>
 
           {project ? (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: 600,
                 color: "var(--accent-cyan)",
                 backgroundColor: "rgba(6, 182, 212, 0.1)",
                 border: "1px solid rgba(6, 182, 212, 0.25)",
-                padding: "2px 7px",
+                padding: "2px 6px",
                 borderRadius: "var(--radius-sm)",
-                maxWidth: 110,
+                maxWidth: 90,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                whiteSpace: "nowrap"
+                whiteSpace: "nowrap",
+                flexShrink: 1
               }}
               title={project.name}
             >
@@ -122,7 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 10.5,
                 color: "var(--text-muted)",
                 backgroundColor: "var(--bg-tertiary)",
                 padding: "2px 6px",
@@ -135,18 +139,19 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Mobile Right: Simulation Clock & Quick Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           {project && (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 10.5,
                 fontFamily: "var(--font-mono)",
                 fontWeight: 700,
                 color: "var(--accent-cyan)",
                 backgroundColor: "var(--bg-tertiary)",
-                padding: "3px 6px",
+                padding: "2px 6px",
                 borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-subtle)"
+                border: "1px solid var(--border-subtle)",
+                whiteSpace: "nowrap"
               }}
               title={`Current sim time: ${state.currentSimTimePs} ps (δ=${state.currentDeltaCycle})`}
             >
@@ -165,16 +170,17 @@ export const Header: React.FC<HeaderProps> = ({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 32,
-                    height: 32,
+                    width: 30,
+                    height: 30,
                     backgroundColor: "var(--accent-rose)",
                     color: "#fff",
                     borderRadius: "var(--radius-sm)",
                     border: "none",
-                    cursor: "pointer"
+                    cursor: "pointer",
+                    flexShrink: 0
                   }}
                 >
-                  <Pause size={15} />
+                  <Pause size={14} />
                 </button>
               ) : (
                 <button
@@ -186,16 +192,17 @@ export const Header: React.FC<HeaderProps> = ({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 32,
-                    height: 32,
+                    width: 30,
+                    height: 30,
                     backgroundColor: state.compiled ? "var(--accent-emerald)" : "var(--bg-tertiary)",
                     color: state.compiled ? "#fff" : "var(--text-muted)",
                     borderRadius: "var(--radius-sm)",
                     border: "none",
-                    cursor: state.compiled ? "pointer" : "not-allowed"
+                    cursor: state.compiled ? "pointer" : "not-allowed",
+                    flexShrink: 0
                   }}
                 >
-                  <Play size={15} />
+                  <Play size={14} />
                 </button>
               )}
 
@@ -207,16 +214,17 @@ export const Header: React.FC<HeaderProps> = ({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 32,
-                  height: 32,
+                  width: 30,
+                  height: 30,
                   backgroundColor: state.compiled ? "var(--bg-tertiary)" : "var(--accent-blue)",
                   color: state.compiled ? "var(--text-secondary)" : "#fff",
                   borderRadius: "var(--radius-sm)",
                   border: "1px solid var(--border-subtle)",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  flexShrink: 0
                 }}
               >
-                <Cpu size={15} />
+                <Cpu size={14} />
               </button>
             </>
           )}

@@ -547,7 +547,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
         }}
       >
         {/* Left: Tab Switcher Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
           <button
             onClick={() => setActiveTab("repl")}
             style={{
@@ -765,30 +765,34 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           )}
 
           {/* Maximize / Restore */}
-          <button
-            onClick={() => setIsMaximized((prev) => !prev)}
-            title={isMaximized ? "Restore Height" : "Maximize Dock"}
-            style={{
-              padding: "3px 5px",
-              color: "var(--text-muted)",
-              borderRadius: "var(--radius-sm)"
-            }}
-          >
-            {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          </button>
+          {!isMobileFullScreen && (
+            <button
+              onClick={() => setIsMaximized((prev) => !prev)}
+              title={isMaximized ? "Restore Height" : "Maximize Dock"}
+              style={{
+                padding: "3px 5px",
+                color: "var(--text-muted)",
+                borderRadius: "var(--radius-sm)"
+              }}
+            >
+              {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            </button>
+          )}
 
           {/* Collapse Button */}
-          <button
-            onClick={() => setIsCollapsed(true)}
-            title="Collapse to Status Bar"
-            style={{
-              padding: "3px 5px",
-              color: "var(--text-muted)",
-              borderRadius: "var(--radius-sm)"
-            }}
-          >
-            <ChevronDown size={14} />
-          </button>
+          {!isMobileFullScreen && (
+            <button
+              onClick={() => setIsCollapsed(true)}
+              title="Collapse to Status Bar"
+              style={{
+                padding: "3px 5px",
+                color: "var(--text-muted)",
+                borderRadius: "var(--radius-sm)"
+              }}
+            >
+              <ChevronDown size={14} />
+            </button>
+          )}
         </div>
       </div>
 

@@ -60,18 +60,17 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
   return (
     <nav
       style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 56,
+        position: "relative",
+        width: "100%",
+        flexShrink: 0,
+        height: "calc(52px + env(safe-area-inset-bottom, 0px))",
         backgroundColor: "var(--bg-secondary)",
         borderTop: "1px solid var(--border-subtle)",
         display: "flex",
         alignItems: "stretch",
         justifyContent: "space-around",
-        zIndex: 999,
-        paddingBottom: "max(0px, env(safe-area-inset-bottom))",
+        zIndex: 30,
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
         boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.4)"
       }}
     >
