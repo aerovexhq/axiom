@@ -185,15 +185,27 @@ axiom benchmark tests/fixtures/fifo.v -t fifo_4deep --cycles 5000
 
 ---
 
-## 8. Launch Modern Desktop / Web UI
+## 8. Launch Modern Desktop Studio & Web UI
 
+### Standalone Native Desktop App
+Launch the native desktop window directly (powered by Tauri v2 with zero port hosting and direct Cranelift JIT in RAM):
+```bash
+axiom-desktop
+# or via CLI launcher:
+axiom gui
+```
+
+### In-Browser WebAssembly Studio
+Open the live zero-install studio deployed at **[https://axiom.aerovex.net/studio/](https://axiom.aerovex.net/studio/)**.
+
+### Local UI Development Server
 ```bash
 cd ui
 npm install
 npm run dev
 ```
 
-Open your browser at `http://localhost:5173` to explore:
+Key capabilities:
 - **Unified Omnibar (`Ctrl+K`)**: Instant fuzzy search across signals, netlist hierarchy, actions, and documentation.
 - **High-Density Waveform Viewer**: Multi-radix bus exploder, dual cursors ($\Delta t$), and zero-time $\delta$-cycle hazard drawer.
 - **GPU-Accelerated Schematic DAG**: 60+ FPS Canvas 2D engine with 1-click critical logic cone slicers (`F` / `O`).

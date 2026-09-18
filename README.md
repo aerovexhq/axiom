@@ -133,15 +133,24 @@ Benchmark simulation throughput:
 axiom benchmark tests/fixtures/fifo.v -t fifo_4deep --cycles 5000
 ```
 
-### Launch Interactive GUI (Desktop / Web)
+### Launch Native Desktop Studio
 
+```bash
+# Launch the standalone native Tauri desktop studio (zero local port hosting)
+axiom-desktop
+# or via CLI launcher:
+axiom gui
+```
+
+Alternatively, open the zero-install in-browser WebAssembly Studio directly at **[https://axiom.aerovex.net/studio/](https://axiom.aerovex.net/studio/)**.
+
+For local web UI development:
 ```bash
 cd ui
 npm install
 npm run dev
 ```
-
-Visit `http://localhost:5173` to explore waveforms, single-step delta cycles, and analyze real-time power dissipation.
+Explore waveforms, single-step delta cycles, and analyze real-time power dissipation.
 
 ---
 

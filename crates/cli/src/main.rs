@@ -11,7 +11,6 @@ use axiom_sim::AxiomSimulator;
 use axiom_syntax::parse_hdl;
 use axiom_telemetry::{SaifWriter, TelemetryCollector, VcdWriter};
 
-mod gui_server;
 
 struct SharedTelemetryListener(Arc<Mutex<TelemetryCollector>>);
 
@@ -60,7 +59,7 @@ USAGE:
     {} <SUBCOMMAND> [OPTIONS]
 
 SUBCOMMANDS:
-    gui [OPTIONS]                        Launch embedded in-RAM GUI studio in browser
+    gui                                  Launch native standalone Tauri desktop studio (zero-port)
     compile <FILE> -t <TOP>              In-RAM parse, elaboration, and Cranelift JIT compilation
     run <FILE> -t <TOP> [OPTIONS]        Headless batch simulation with VCD/SAIF export
     benchmark <FILE> -t <TOP> [OPTIONS]  Measure compile latency and simulation throughput
@@ -68,10 +67,6 @@ SUBCOMMANDS:
     lsp                                  Start stdio JSON-RPC Language Server Protocol (LSP) daemon
     help                                 Print this message or the help of the given subcommand(s)
     version                              Print version information
-
-GUI OPTIONS:
-    --port <PORT>            Local HTTP port to bind (default: 8080)
-    --no-browser             Do not automatically open default browser
 
 RUN OPTIONS:
     -t, --top <MODULE>       Name of top-level module (required)
@@ -102,50 +97,43 @@ pub struct BenchmarkConfig {
     pub cycles: u64,
 }
 
+fn launch_desktop_app() {
+    // Try launching axiom-desktop sibling executable first for clean process detachment,
+    // or run directly via in-process Tauri runtime.
+    if let Ok(current_exe) = env::current_exe() {
+        let bin_name = if cfg!(windows) { "axiom-desktop.exe" } else { "axiom-desktop" };
+        let sibling_desktop = current_exe.with_file_name(bin_name);
+        if sibling_desktop.exists() && sibling_desktop != current_exe {
+            let mut cmd = std::process::Command::new(&sibling_desktop);
+            cmd.args(env::args().skip(2));
+            match cmd.spawn() {
+                Ok(_) => return,
+                Err(e) => {
+                    eprintln!("[axiom] Note: Sibling binary failed to spawn ({e}), launching in-process Tauri runtime...");
+                }
+            }
+        }
+    }
+
+    println!("============================================================");
+    println!(" Axiom EDA — Native Tauri Desktop Studio");
+    println!(" Zero-Port Local Execution (No HTTP Server / No Sockets)");
+    println!("============================================================");
+    axiom_desktop::run_desktop_app();
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        // Default to launching the interactive GUI studio if launched with no arguments
-        let config = gui_server::GuiServerConfig {
-            port: 8080,
-            open_browser: true,
-        };
-        if let Err(e) = gui_server::start_gui_server(config) {
-            eprintln!("Error launching Axiom GUI: {e}");
-            std::process::exit(1);
-        }
+        // Default to launching the native Tauri desktop studio if launched with no arguments
+        launch_desktop_app();
         return;
     }
 
     let subcommand = &args[1];
     match subcommand.as_str() {
         "gui" | "studio" | "ui" => {
-            let mut port = 8080;
-            let mut open_browser = true;
-            let mut i = 2;
-            while i < args.len() {
-                match args[i].as_str() {
-                    "--port" => {
-                        if i + 1 < args.len() {
-                            port = args[i + 1].parse().unwrap_or(8080);
-                            i += 1;
-                        }
-                    }
-                    "--no-browser" => {
-                        open_browser = false;
-                    }
-                    _ => {}
-                }
-                i += 1;
-            }
-            let config = gui_server::GuiServerConfig {
-                port,
-                open_browser,
-            };
-            if let Err(e) = gui_server::start_gui_server(config) {
-                eprintln!("Error launching Axiom GUI: {e}");
-                std::process::exit(1);
-            }
+            launch_desktop_app();
         }
         "-h" | "--help" | "help" => {
             print_help();

@@ -151,6 +151,7 @@ if [ "${FORCE_BUILD}" = false ]; then
         echo -e "${CYAN}==> Extracting binary to ${BIN_DIR}...${RESET}"
         tar -xzf "${TMP_DIR}/${TARBALL}" -C "${BIN_DIR}"
         chmod +x "${BIN_DIR}/axiom"
+        [ -f "${BIN_DIR}/axiom-desktop" ] && chmod +x "${BIN_DIR}/axiom-desktop"
         ln -sf "axiom" "${BIN_DIR}/betterado"
         INSTALLED=true
     elif curl -fsSL "${RELEASE_URL}" -o "${TMP_DIR}/${TARBALL}" 2>/dev/null; then
@@ -158,6 +159,7 @@ if [ "${FORCE_BUILD}" = false ]; then
         echo -e "${CYAN}==> Extracting binary to ${BIN_DIR}...${RESET}"
         tar -xzf "${TMP_DIR}/${TARBALL}" -C "${BIN_DIR}"
         chmod +x "${BIN_DIR}/axiom"
+        [ -f "${BIN_DIR}/axiom-desktop" ] && chmod +x "${BIN_DIR}/axiom-desktop"
         ln -sf "axiom" "${BIN_DIR}/betterado"
         INSTALLED=true
     else
@@ -176,9 +178,10 @@ if [ "${INSTALLED}" = false ]; then
     echo -e "${CYAN}==> Cloning repository and compiling from source...${RESET}"
     git clone --depth 1 "https://github.com/${REPO}.git" "${TMP_DIR}/axiom-src"
     cd "${TMP_DIR}/axiom-src"
-    cargo build --release --bin axiom
+    cargo build --release --bin axiom --bin axiom-desktop
     cp -f "${TMP_DIR}/axiom-src/target/release/axiom" "${BIN_DIR}/axiom"
-    chmod +x "${BIN_DIR}/axiom"
+    cp -f "${TMP_DIR}/axiom-src/target/release/axiom-desktop" "${BIN_DIR}/axiom-desktop"
+    chmod +x "${BIN_DIR}/axiom" "${BIN_DIR}/axiom-desktop"
     ln -sf "axiom" "${BIN_DIR}/betterado"
     INSTALLED=true
 fi
@@ -187,8 +190,10 @@ fi
 LOCAL_BIN="${HOME}/.local/bin"
 if [ -d "${LOCAL_BIN}" ] || mkdir -p "${LOCAL_BIN}" 2>/dev/null; then
     ln -sf "${BIN_DIR}/axiom" "${LOCAL_BIN}/axiom" 2>/dev/null || true
+    ln -sf "${BIN_DIR}/axiom-desktop" "${LOCAL_BIN}/axiom-desktop" 2>/dev/null || true
     ln -sf "${BIN_DIR}/axiom" "${LOCAL_BIN}/betterado" 2>/dev/null || true
-    echo -e "  ✓ Linked to standard user path: ${BOLD}${LOCAL_BIN}/axiom${RESET}"
+    echo -e "  ✓ Linked CLI binary: ${BOLD}${LOCAL_BIN}/axiom${RESET}"
+    echo -e "  ✓ Linked Desktop app: ${BOLD}${LOCAL_BIN}/axiom-desktop${RESET}"
 fi
 
 # 4. Download Icon & Register Desktop Application (Searchable in OS)
@@ -228,12 +233,12 @@ Type=Application
 Name=Axiom EDA
 GenericName=HDL Simulator & Silicon Telemetry
 Comment=High-Performance In-RAM Verilog/SystemVerilog Engine & Cranelift JIT Simulator
-Exec=${BIN_DIR}/axiom gui %U
+Exec=${BIN_DIR}/axiom-desktop %U
 Icon=axiom
 Terminal=false
 Categories=Development;Engineering;Electronics;Science;
 Keywords=verilog;systemverilog;hdl;fpga;eda;simulation;vivado;telemetry;schematic;waveform;
-StartupWMClass=axiom
+StartupWMClass=axiom-desktop
 StartupNotify=true
 MimeType=text/x-verilog;text/x-systemverilog;
 EOF
@@ -261,7 +266,11 @@ EOF
 
         cat << 'EOF' > "${MACOS_DIR}/axiom"
 #!/usr/bin/env bash
-exec "${HOME}/.axiom/bin/axiom" gui "$@"
+if [ -x "${HOME}/.axiom/bin/axiom-desktop" ]; then
+    exec "${HOME}/.axiom/bin/axiom-desktop" "$@"
+else
+    exec "${HOME}/.axiom/bin/axiom" gui "$@"
+fi
 EOF
         chmod +x "${MACOS_DIR}/axiom"
 

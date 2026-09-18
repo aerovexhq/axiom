@@ -17,11 +17,6 @@ axiom-lsp = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tiny_http = { workspace = true }
-zstd = { workspace = true }
-
-[build-dependencies]
-zstd = { workspace = true }
 
 [[bin]]
 name = "axiom"

@@ -108,15 +108,19 @@ if (-not $Installed) {
     $SrcDir = Join-Path $TempDir "axiom-src"
     & git clone --depth 1 "https://github.com/$Repo.git" $SrcDir
     Set-Location $SrcDir
-    & cargo build --release --bin axiom
+    & cargo build --release --bin axiom --bin axiom-desktop
     
     $BuiltBin = Join-Path $SrcDir "target\release\axiom.exe"
+    $BuiltDesktop = Join-Path $SrcDir "target\release\axiom-desktop.exe"
     if (-not (Test-Path $BuiltBin)) {
         Write-Error "Failed to compile axiom.exe"
         exit 1
     }
 
     Copy-Item -Path $BuiltBin -Destination (Join-Path $BinDir "axiom.exe") -Force
+    if (Test-Path $BuiltDesktop) {
+        Copy-Item -Path $BuiltDesktop -Destination (Join-Path $BinDir "axiom-desktop.exe") -Force
+    }
     Copy-Item -Path $BuiltBin -Destination (Join-Path $BinDir "betterado.exe") -Force
     $Installed = $true
 }
@@ -153,9 +157,11 @@ try {
     $StartMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
     if (Test-Path $StartMenuDir) {
         $StartShortcutPath = Join-Path $StartMenuDir "Axiom EDA.lnk"
+        $DesktopExe = Join-Path $BinDir "axiom-desktop.exe"
+        $TargetExe = if (Test-Path $DesktopExe) { $DesktopExe } else { (Join-Path $BinDir "axiom.exe") }
         $Shortcut = $WshShell.CreateShortcut($StartShortcutPath)
-        $Shortcut.TargetPath = (Join-Path $BinDir "axiom.exe")
-        $Shortcut.Arguments = "gui"
+        $Shortcut.TargetPath = $TargetExe
+        $Shortcut.Arguments = ""
         $Shortcut.WorkingDirectory = "$InstallDir"
         $Shortcut.Description = "Axiom EDA — High-Performance HDL Simulator & Silicon Telemetry"
         if (Test-Path $IconPath) {
@@ -163,16 +169,18 @@ try {
         }
         $Shortcut.Save()
         Write-Host "  [OK] Created Start Menu Shortcut: $StartShortcutPath" -ForegroundColor Green
-        Write-Host "       (Search 'Axiom' in Windows Start Menu to launch GUI studio)" -ForegroundColor DarkGray
+        Write-Host "       (Search 'Axiom' in Windows Start Menu to launch native desktop studio)" -ForegroundColor DarkGray
     }
 
     # Desktop Shortcut
     $DesktopDir = [Environment]::GetFolderPath("Desktop")
     if (Test-Path $DesktopDir) {
         $DesktopShortcutPath = Join-Path $DesktopDir "Axiom EDA.lnk"
+        $DesktopExe = Join-Path $BinDir "axiom-desktop.exe"
+        $TargetExe = if (Test-Path $DesktopExe) { $DesktopExe } else { (Join-Path $BinDir "axiom.exe") }
         $DesktopShortcut = $WshShell.CreateShortcut($DesktopShortcutPath)
-        $DesktopShortcut.TargetPath = (Join-Path $BinDir "axiom.exe")
-        $DesktopShortcut.Arguments = "gui"
+        $DesktopShortcut.TargetPath = $TargetExe
+        $DesktopShortcut.Arguments = ""
         $DesktopShortcut.WorkingDirectory = "$InstallDir"
         $DesktopShortcut.Description = "Axiom EDA — High-Performance HDL Simulator & Silicon Telemetry"
         if (Test-Path $IconPath) {

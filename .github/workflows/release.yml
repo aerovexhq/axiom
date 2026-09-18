@@ -85,11 +85,11 @@ jobs:
 
       - name: Build Binary (Standard)
         if: "!matrix.use-cross"
-        run: cargo build --release --target ${{ matrix.target }} --bin axiom
+        run: cargo build --release --target ${{ matrix.target }} --bin axiom --bin axiom-desktop
 
       - name: Build Binary (Cross)
         if: matrix.use-cross
-        run: cross build --release --target ${{ matrix.target }} --bin axiom
+        run: cross build --release --target ${{ matrix.target }} --bin axiom --bin axiom-desktop
 
       - name: Package Unix Archive (tar.gz)
         if: "matrix.format == 'tar.gz'"
@@ -98,12 +98,15 @@ jobs:
           ARCHIVE="axiom-${VERSION}-${{ matrix.name }}.tar.gz"
           mkdir -p staging
           BIN_PATH="target/${{ matrix.target }}/release/axiom"
+          DESKTOP_PATH="target/${{ matrix.target }}/release/axiom-desktop"
           if command -v strip &>/dev/null && [ "${{ matrix.target }}" != "aarch64-unknown-linux-gnu" ]; then
             strip "${BIN_PATH}" || true
+            [ -f "${DESKTOP_PATH}" ] && strip "${DESKTOP_PATH}" || true
           fi
           cp "${BIN_PATH}" staging/axiom
-          chmod +x staging/axiom
-          tar -czf "${ARCHIVE}" -C staging axiom
+          [ -f "${DESKTOP_PATH}" ] && cp "${DESKTOP_PATH}" staging/axiom-desktop
+          chmod +x staging/*
+          tar -czf "${ARCHIVE}" -C staging .
           shasum -a 256 "${ARCHIVE}" > "${ARCHIVE}.sha256"
           echo "ARCHIVE_FILE=${ARCHIVE}" >> $GITHUB_ENV
           echo "SHA_FILE=${ARCHIVE}.sha256" >> $GITHUB_ENV
@@ -115,7 +118,10 @@ jobs:
           ARCHIVE="axiom-${VERSION}-${{ matrix.name }}.zip"
           mkdir -p staging
           cp target/${{ matrix.target }}/release/axiom.exe staging/axiom.exe
-          7z a "${ARCHIVE}" ./staging/axiom.exe
+          if [ -f "target/${{ matrix.target }}/release/axiom-desktop.exe" ]; then
+            cp target/${{ matrix.target }}/release/axiom-desktop.exe staging/axiom-desktop.exe
+          fi
+          7z a "${ARCHIVE}" ./staging/*
           shasum -a 256 "${ARCHIVE}" > "${ARCHIVE}.sha256"
           echo "ARCHIVE_FILE=${ARCHIVE}" >> $GITHUB_ENV
           echo "SHA_FILE=${ARCHIVE}.sha256" >> $GITHUB_ENV
