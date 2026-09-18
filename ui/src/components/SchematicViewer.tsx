@@ -413,27 +413,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "#ffffff";
         ctx.textAlign = "center";
         ctx.fillText(node.label, node.x + (node.width - 4) / 2, node.y + node.height / 2 + 4);
-      } else if (visuals.ieeeSymbol) {
-        // Centered IEEE Symbol (&, ≥1, 1, =1, MUX, FDRE)
-        ctx.font =
-          visuals.gateType === "mux" || visuals.gateType === "register"
-            ? "bold 11px JetBrains Mono, monospace"
-            : "bold 13px JetBrains Mono, monospace";
+      } else if (visuals.gateType === "mux" || visuals.gateType === "register") {
+        // Centered label for complex sequential/data blocks
+        ctx.font = "bold 10px JetBrains Mono, monospace";
         ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : visuals.accentColor;
         ctx.textAlign = "center";
-
-        let symbolX = node.x + node.width / 2;
-        if (visuals.gateType === "and" || visuals.gateType === "nand") {
-          symbolX = node.x + node.width * 0.42;
-        } else if (visuals.gateType === "or" || visuals.gateType === "nor") {
-          symbolX = node.x + node.width * 0.45;
-        } else if (visuals.gateType === "xor" || visuals.gateType === "xnor") {
-          symbolX = node.x + node.width * 0.48;
-        } else if (visuals.gateType === "not" || visuals.gateType === "buf") {
-          symbolX = node.x + (node.width - 8) * 0.35;
-        }
-
-        ctx.fillText(visuals.ieeeSymbol, symbolX, node.y + node.height / 2 + 4);
+        ctx.fillText(visuals.ieeeSymbol, node.x + node.width / 2, node.y + node.height / 2 + 4);
 
         // MUX pin indices 0 / 1
         if (visuals.gateType === "mux") {
@@ -450,7 +435,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           ctx.textAlign = "right";
           ctx.fillText("Q", node.x + node.width - 7, node.y + 16);
         }
-      } else {
+      } else if (visuals.gateType === "operator" || visuals.gateType === "module") {
         // General Operators / Modules
         ctx.font = "bold 11px JetBrains Mono, monospace";
         ctx.fillStyle = isSelected ? "#00f0ff" : isCritical ? "#f43f5e" : "#f1f5f9";
@@ -458,25 +443,11 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         const titleY = node.sublabel ? node.y + 16 : node.y + node.height / 2 + 4;
         ctx.fillText(node.label, node.x + node.width / 2, titleY);
       }
+      // Note: Standard logic gates (and, nand, or, nor, xor, xnor, not, buf) have clean,
+      // uncluttered interiors and no text below them. Boolean equations (e.g. w4 = ~B)
+      // and JIT operations (jit: band) are presented on hover/selection tooltip.
 
-      // 3. Sublabel / Boolean Expression below the gate
-      if (node.sublabel && lodLevel !== "macro" && visuals.gateType !== "port_in" && visuals.gateType !== "port_out") {
-        ctx.font = "9px JetBrains Mono, monospace";
-        ctx.fillStyle = isSelected || isHovered ? "rgba(0, 240, 255, 0.9)" : "rgba(148, 163, 184, 0.85)";
-        ctx.textAlign = "center";
-        ctx.fillText(node.sublabel, node.x + node.width / 2, node.y + node.height + 12);
-      }
-
-      // 4. Gate Level Details (LOD 3: Cranelift machine op & delay)
-      if (lodLevel === "gate" && (node.craneliftOp || node.delayPs > 0)) {
-        ctx.font = "8px JetBrains Mono, monospace";
-        ctx.fillStyle = "#94a3b8";
-        ctx.textAlign = "center";
-        const infoText = node.craneliftOp ? `jit: ${node.craneliftOp}` : `${node.delayPs} ps`;
-        ctx.fillText(infoText, node.x + node.width / 2, node.y + node.height + 22);
-      }
-
-      // 5. Port Terminal Dots
+      // 3. Port Terminal Dots
       if (lodLevel !== "macro") {
         ctx.fillStyle = visuals.accentColor;
         // Inputs (Left)
@@ -821,17 +792,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     setOffsetY(newOffsetY);
   };
 
-  // Active hover node metadata for tooltip
+  // Active hover/selected node metadata for tooltip
   const activeHoverNode = useMemo(() => {
-    if (!hoveredNodeId) return null;
-    return graph.nodes.find((n) => n.id === hoveredNodeId) ?? null;
-  }, [hoveredNodeId, graph.nodes]);
+    const targetId = hoveredNodeId || selectedNodeId;
+    if (!targetId) return null;
+    return graph.nodes.find((n) => n.id === targetId) ?? null;
+  }, [hoveredNodeId, selectedNodeId, graph.nodes]);
 
   // Active hover edge metadata for tooltip
   const activeHoverEdge = useMemo(() => {
-    if (!hoveredEdgeId || hoveredNodeId) return null;
+    if (!hoveredEdgeId || hoveredNodeId || selectedNodeId) return null;
     return graph.edges.find((e) => e.id === hoveredEdgeId) ?? null;
-  }, [hoveredEdgeId, hoveredNodeId, graph.edges]);
+  }, [hoveredEdgeId, hoveredNodeId, selectedNodeId, graph.edges]);
 
   // Detailed Gate Information for Vivado Inspector Card
   const activeGateDetails = useMemo(() => {
@@ -841,13 +813,31 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
   // Viewport bounds calculation for floating tooltip
   const tooltipPos = useMemo(() => {
-    const maxX = typeof window !== "undefined" ? window.innerWidth - 380 : 800;
-    const maxY = typeof window !== "undefined" ? window.innerHeight - 360 : 600;
-    return {
-      x: mousePos.x > maxX ? mousePos.x - 360 : mousePos.x + 16,
-      y: mousePos.y > maxY ? Math.max(10, mousePos.y - 280) : mousePos.y + 16
-    };
-  }, [mousePos]);
+    const maxX = typeof window !== "undefined" ? window.innerWidth - 350 : 800;
+    const maxY = typeof window !== "undefined" ? window.innerHeight - 340 : 600;
+
+    if (hoveredNodeId) {
+      return {
+        x: mousePos.x > maxX ? Math.max(12, mousePos.x - 330) : mousePos.x + 16,
+        y: mousePos.y > maxY ? Math.max(12, mousePos.y - 280) : mousePos.y + 16
+      };
+    }
+
+    if (selectedNodeId) {
+      const node = graph.nodes.find((n) => n.id === selectedNodeId);
+      if (node && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const screenX = rect.left + node.x * scale + offsetX;
+        const screenY = rect.top + node.y * scale + offsetY;
+        return {
+          x: Math.min(Math.max(12, screenX + node.width * scale + 14), maxX),
+          y: Math.min(Math.max(48, screenY), maxY)
+        };
+      }
+    }
+
+    return { x: 20, y: 50 };
+  }, [mousePos, hoveredNodeId, selectedNodeId, graph.nodes, scale, offsetX, offsetY]);
 
   return (
     <div
@@ -1388,7 +1378,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             <div>
               <div style={{ fontSize: 9, color: "var(--text-muted)" }}>JIT Op</div>
               <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-emerald)", fontFamily: "var(--font-mono)" }}>
-                {activeHoverNode.craneliftOp || "native_jit"}
+                {activeHoverNode.craneliftOp ? `jit: ${activeHoverNode.craneliftOp}` : "native_jit"}
               </div>
             </div>
           </div>
@@ -1521,42 +1511,42 @@ function getGateVisuals(
   } else if (labelUpper.startsWith("NAND") || op === "bnand") {
     gateType = "nand";
     badge = "NAND2 GATE";
-    ieeeSymbol = "&";
+    ieeeSymbol = "";
     bgColor = "#10241b";
     borderColor = "#059669";
     accentColor = "#34d399";
   } else if (labelUpper.startsWith("AND") || op === "band" || labelUpper.includes("&")) {
     gateType = "and";
     badge = "AND2 GATE";
-    ieeeSymbol = "&";
+    ieeeSymbol = "";
     bgColor = "#10241b";
     borderColor = "#059669";
     accentColor = "#34d399";
   } else if (labelUpper.startsWith("XNOR") || op === "bxnor") {
     gateType = "xnor";
     badge = "XNOR2 GATE";
-    ieeeSymbol = "=1";
+    ieeeSymbol = "";
     bgColor = "#1d1830";
     borderColor = "#7c3aed";
     accentColor = "#a78bfa";
   } else if (labelUpper.startsWith("XOR") || op === "bxor" || labelUpper.includes("^")) {
     gateType = "xor";
     badge = "XOR2 GATE";
-    ieeeSymbol = "=1";
+    ieeeSymbol = "";
     bgColor = "#1d1830";
     borderColor = "#7c3aed";
     accentColor = "#a78bfa";
   } else if (labelUpper.startsWith("NOR") || op === "bnor") {
     gateType = "nor";
     badge = "NOR2 GATE";
-    ieeeSymbol = "≥1";
+    ieeeSymbol = "";
     bgColor = "#23172e";
     borderColor = "#9333ea";
     accentColor = "#c084fc";
   } else if (labelUpper.startsWith("OR") || op === "bor" || labelUpper.includes("|")) {
     gateType = "or";
     badge = "OR2 GATE";
-    ieeeSymbol = "≥1";
+    ieeeSymbol = "";
     bgColor = "#23172e";
     borderColor = "#9333ea";
     accentColor = "#c084fc";
@@ -1568,14 +1558,14 @@ function getGateVisuals(
   ) {
     gateType = "not";
     badge = "INVERTER (INV)";
-    ieeeSymbol = "1";
+    ieeeSymbol = "";
     bgColor = "#24161f";
     borderColor = "#db2777";
     accentColor = "#f472b6";
   } else if (labelUpper.startsWith("BUF")) {
     gateType = "buf";
     badge = "BUFFER (BUF)";
-    ieeeSymbol = "1";
+    ieeeSymbol = "";
     bgColor = "#0f1d2e";
     borderColor = "#0284c7";
     accentColor = "#38bdf8";
