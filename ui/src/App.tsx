@@ -467,7 +467,7 @@ export const App: React.FC = () => {
             }}
           >
             {project ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, overflowX: "auto", scrollbarWidth: "none", flexShrink: 1, minWidth: 0 }}>
                 <button
                   onClick={() => {
                     setCenterView("split");
@@ -476,17 +476,20 @@ export const App: React.FC = () => {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    fontSize: 12.5,
+                    gap: 5,
+                    fontSize: 12,
                     fontWeight: 600,
-                    padding: "4px 11px",
+                    padding: "3px 8px",
                     borderRadius: "var(--radius-sm)",
                     backgroundColor: centerView === "split" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
                     color: centerView === "split" && !maximizedPanel ? "var(--accent-emerald)" : "var(--text-muted)",
-                    border: centerView === "split" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                    border: centerView === "split" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0
                   }}
+                  title="Dual Studio (Split Code Editor & Visualizer)"
                 >
-                  <LayoutGrid size={14} />
+                  <LayoutGrid size={13} />
                   <span>Dual Studio</span>
                 </button>
 
@@ -498,18 +501,21 @@ export const App: React.FC = () => {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    fontSize: 12.5,
+                    gap: 5,
+                    fontSize: 12,
                     fontWeight: 600,
-                    padding: "4px 11px",
+                    padding: "3px 8px",
                     borderRadius: "var(--radius-sm)",
                     backgroundColor: centerView === "waveform" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
                     color: centerView === "waveform" && !maximizedPanel ? "var(--accent-blue)" : "var(--text-muted)",
-                    border: centerView === "waveform" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                    border: centerView === "waveform" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0
                   }}
+                  title="Full-Screen Stratified Waveform Viewer"
                 >
-                  <Activity size={14} />
-                  <span>Waveforms</span>
+                  <Activity size={13} />
+                  <span>Waves</span>
                 </button>
 
                 <button
@@ -520,18 +526,21 @@ export const App: React.FC = () => {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    fontSize: 12.5,
+                    gap: 5,
+                    fontSize: 12,
                     fontWeight: 600,
-                    padding: "4px 11px",
+                    padding: "3px 8px",
                     borderRadius: "var(--radius-sm)",
                     backgroundColor: centerView === "schematic" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
                     color: centerView === "schematic" && !maximizedPanel ? "var(--accent-cyan)" : "var(--text-muted)",
-                    border: centerView === "schematic" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                    border: centerView === "schematic" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0
                   }}
+                  title="Full-Screen Schematic Netlist DAG Viewer"
                 >
-                  <Cpu size={14} />
-                  <span>Schematic DAG</span>
+                  <Cpu size={13} />
+                  <span>Schematic</span>
                 </button>
 
                 <button
@@ -542,18 +551,21 @@ export const App: React.FC = () => {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    fontSize: 12.5,
+                    gap: 5,
+                    fontSize: 12,
                     fontWeight: 600,
-                    padding: "4px 11px",
+                    padding: "3px 8px",
                     borderRadius: "var(--radius-sm)",
                     backgroundColor: centerView === "virtuallab" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
                     color: centerView === "virtuallab" && !maximizedPanel ? "var(--accent-amber)" : "var(--text-muted)",
-                    border: centerView === "virtuallab" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                    border: centerView === "virtuallab" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0
                   }}
+                  title="Interactive Virtual Lab Stimulus Rack"
                 >
-                  <Sliders size={14} />
-                  <span>Virtual Lab</span>
+                  <Sliders size={13} />
+                  <span>Lab</span>
                 </button>
 
                 <button
@@ -564,18 +576,21 @@ export const App: React.FC = () => {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    fontSize: 12.5,
+                    gap: 5,
+                    fontSize: 12,
                     fontWeight: 600,
-                    padding: "4px 11px",
+                    padding: "3px 8px",
                     borderRadius: "var(--radius-sm)",
                     backgroundColor: centerView === "timing" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
                     color: centerView === "timing" && !maximizedPanel ? "var(--accent-purple)" : "var(--text-muted)",
-                    border: centerView === "timing" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                    border: centerView === "timing" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0
                   }}
+                  title="Static Timing Analysis & Dynamic Energy Radar"
                 >
-                  <Clock size={14} />
-                  <span>Timing & Energy</span>
+                  <Clock size={13} />
+                  <span>Timing</span>
                 </button>
               </div>
             ) : (
@@ -586,7 +601,7 @@ export const App: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)", flexShrink: 0 }}>
               {/* Maximize Active Panel Badge */}
               {project && maximizedPanel && (
                 <button
@@ -615,10 +630,10 @@ export const App: React.FC = () => {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 4,
+                    gap: 3,
                     marginRight: 4,
                     backgroundColor: "var(--bg-primary)",
-                    padding: "3px 8px",
+                    padding: "3px 6px",
                     borderRadius: "var(--radius-sm)",
                     border: "1px solid var(--border-subtle)"
                   }}
@@ -630,7 +645,7 @@ export const App: React.FC = () => {
                     style={{
                       fontSize: 11,
                       fontWeight: Math.abs(editorWidthPercent - 42) < 2 ? 700 : 500,
-                      padding: "2px 7px",
+                      padding: "2px 6px",
                       borderRadius: 3,
                       border: "none",
                       cursor: "pointer",
@@ -646,7 +661,7 @@ export const App: React.FC = () => {
                     style={{
                       fontSize: 11,
                       fontWeight: Math.abs(editorWidthPercent - 55) < 2 ? 700 : 500,
-                      padding: "2px 7px",
+                      padding: "2px 6px",
                       borderRadius: 3,
                       border: "none",
                       cursor: "pointer",
@@ -654,7 +669,7 @@ export const App: React.FC = () => {
                       color: Math.abs(editorWidthPercent - 55) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
                     }}
                   >
-                    Code Focus
+                    Code
                   </button>
                   <button
                     onClick={() => setEditorWidthPercent(25)}
@@ -662,7 +677,7 @@ export const App: React.FC = () => {
                     style={{
                       fontSize: 11,
                       fontWeight: Math.abs(editorWidthPercent - 25) < 2 ? 700 : 500,
-                      padding: "2px 7px",
+                      padding: "2px 6px",
                       borderRadius: 3,
                       border: "none",
                       cursor: "pointer",
@@ -670,7 +685,7 @@ export const App: React.FC = () => {
                       color: Math.abs(editorWidthPercent - 25) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
                     }}
                   >
-                    Visual Focus
+                    Visual
                   </button>
                 </div>
               )}
@@ -690,15 +705,17 @@ export const App: React.FC = () => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
-                  padding: "4px 10px",
+                  gap: 5,
+                  padding: "3px 8px",
                   backgroundColor: "var(--bg-tertiary)",
                   border: "1px solid var(--border-subtle)",
                   borderRadius: "var(--radius-sm)",
                   color: "var(--text-secondary)",
                   cursor: "pointer",
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                   transition: "all 0.15s ease"
                 }}
               >
@@ -812,89 +829,101 @@ export const App: React.FC = () => {
                       flexShrink: 0
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
                       <button
                         onClick={() => setSplitActiveVisualizer("schematic")}
+                        title="Schematic Netlist DAG Viewer"
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 6,
+                          gap: 5,
                           fontSize: 12,
                           fontWeight: splitActiveVisualizer === "schematic" ? 700 : 500,
-                          padding: "4px 10px",
+                          padding: "4px 8px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "schematic" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "schematic" ? "var(--accent-cyan)" : "var(--text-muted)",
                           border: splitActiveVisualizer === "schematic" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer"
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
                         }}
                       >
                         <Cpu size={13} />
-                        <span>Schematic DAG</span>
+                        <span style={{ whiteSpace: "nowrap" }}>Schematic</span>
                       </button>
 
                       <button
                         onClick={() => setSplitActiveVisualizer("virtuallab")}
+                        title="Interactive Virtual Lab Rack (DIP switches, buttons, probes)"
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 6,
+                          gap: 5,
                           fontSize: 12,
                           fontWeight: splitActiveVisualizer === "virtuallab" ? 700 : 500,
-                          padding: "4px 10px",
+                          padding: "4px 8px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "virtuallab" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "virtuallab" ? "var(--accent-amber)" : "var(--text-muted)",
                           border: splitActiveVisualizer === "virtuallab" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer"
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
                         }}
                       >
                         <Sliders size={13} />
-                        <span>Virtual Lab</span>
+                        <span style={{ whiteSpace: "nowrap" }}>Lab</span>
                       </button>
 
                       <button
                         onClick={() => setSplitActiveVisualizer("waveform")}
+                        title="Stratified IEEE 1800 Multi-Radix Waveform Traces"
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 6,
+                          gap: 5,
                           fontSize: 12,
                           fontWeight: splitActiveVisualizer === "waveform" ? 700 : 500,
-                          padding: "4px 10px",
+                          padding: "4px 8px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "waveform" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "waveform" ? "var(--accent-blue)" : "var(--text-muted)",
                           border: splitActiveVisualizer === "waveform" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer"
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
                         }}
                       >
                         <Activity size={13} />
-                        <span>Waveforms</span>
+                        <span style={{ whiteSpace: "nowrap" }}>Waveforms</span>
                       </button>
 
                       <button
                         onClick={() => setSplitActiveVisualizer("timing")}
+                        title="Static Timing Analysis & Dynamic Energy Treemap"
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 6,
+                          gap: 5,
                           fontSize: 12,
                           fontWeight: splitActiveVisualizer === "timing" ? 700 : 500,
-                          padding: "4px 10px",
+                          padding: "4px 8px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "timing" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "timing" ? "var(--accent-purple)" : "var(--text-muted)",
                           border: splitActiveVisualizer === "timing" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer"
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
                         }}
                       >
                         <Clock size={13} />
-                        <span>Timing & Energy</span>
+                        <span style={{ whiteSpace: "nowrap" }}>Timing</span>
                       </button>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, whiteSpace: "nowrap" }}>
                       {/* Optional Waveforms Stack Toggle */}
                       {splitActiveVisualizer !== "waveform" && (
                         <button
@@ -904,18 +933,20 @@ export const App: React.FC = () => {
                             display: "flex",
                             alignItems: "center",
                             gap: 4,
-                            padding: "3px 8px",
+                            padding: "3px 7px",
                             fontSize: 11,
                             fontWeight: splitStackWaveform ? 600 : 400,
                             backgroundColor: splitStackWaveform ? "rgba(59, 130, 246, 0.2)" : "var(--bg-tertiary)",
                             border: `1px solid ${splitStackWaveform ? "var(--accent-blue)" : "var(--border-subtle)"}`,
                             color: splitStackWaveform ? "var(--accent-blue)" : "var(--text-muted)",
                             borderRadius: "var(--radius-sm)",
-                            cursor: "pointer"
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0
                           }}
                         >
                           <Activity size={12} />
-                          <span>+ Waveforms</span>
+                          <span style={{ whiteSpace: "nowrap" }}>+ Waves</span>
                         </button>
                       )}
 
@@ -926,18 +957,18 @@ export const App: React.FC = () => {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 4,
-                          padding: "3px 8px",
+                          justifyContent: "center",
+                          width: 26,
+                          height: 24,
                           backgroundColor: "var(--bg-tertiary)",
                           border: "1px solid var(--border-subtle)",
                           borderRadius: "var(--radius-sm)",
                           color: "var(--text-muted)",
                           cursor: "pointer",
-                          fontSize: 11
+                          flexShrink: 0
                         }}
                       >
                         <Maximize2 size={12} />
-                        <span>Maximize</span>
                       </button>
                     </div>
                   </div>

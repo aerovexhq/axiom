@@ -4,7 +4,6 @@ import * as monacoPkg from "monaco-editor";
 import {
   Code2,
   Play,
-  CheckCircle2,
   Plus,
   X,
   Maximize2,
@@ -45,7 +44,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   topModule,
   onChangeCode,
   onCompile,
-  compiled,
+  compiled: _compiled,
   highlightLineSpan,
   project,
   onSelectTab,
@@ -142,20 +141,11 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   const errorCount = localDiags.filter((d) => d.severity === 1).length;
   const warningCount = localDiags.filter((d) => d.severity === 2).length;
 
-  // Build clean de-cramped breadcrumb items
+  // Build clean de-cramped breadcrumb items (sources_1 > file.v)
   const breadcrumbItems: BreadcrumbItem[] = [
-    { label: project?.name ?? "project", highlight: false },
     { label: activeFile?.fileSet ?? "sources_1", highlight: false },
     { label: activeFile?.name ?? `${topModule}.v`, highlight: true }
   ];
-
-  if (activeFile?.isTop) {
-    breadcrumbItems.push({
-      label: `module ${topModule}`,
-      color: "var(--accent-amber)",
-      highlight: false
-    });
-  }
 
   return (
     <div
@@ -182,7 +172,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 8px",
-          overflowX: "auto"
+          overflow: "hidden"
         }}
       >
         {/* Left: Open File Tabs */}
@@ -199,8 +189,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 7,
-                    padding: "6px 12px",
+                    gap: 6,
+                    padding: "5px 8px",
                     borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
                     backgroundColor: isActive ? "var(--bg-primary)" : "transparent",
                     borderTop: isActive ? "2px solid var(--accent-blue)" : "2px solid transparent",
@@ -208,26 +198,39 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                     borderRight: isActive ? "1px solid var(--border-subtle)" : "1px solid transparent",
                     cursor: "pointer",
                     userSelect: "none",
-                    fontSize: 12.5,
+                    fontSize: 12,
                     color: isActive ? "#fff" : "var(--text-secondary)",
                     fontWeight: isActive ? 600 : 400,
-                    maxWidth: 180
+                    maxWidth: 200,
+                    minWidth: 70,
+                    flexShrink: 0
                   }}
                 >
                   {file.fileType === "xdc" ? (
-                    <FileText size={14} color="var(--accent-purple)" />
+                    <FileText size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
                   ) : (
-                    <FileCode size={14} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
+                    <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
                   )}
 
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>
                     {file.name}
                   </span>
 
                   {isTop && (
-                    <Badge color="cyan" size="sm">
+                    <span
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        color: "var(--accent-cyan)",
+                        backgroundColor: "rgba(6, 182, 212, 0.15)",
+                        border: "1px solid rgba(6, 182, 212, 0.3)",
+                        padding: "1px 4px",
+                        borderRadius: 3,
+                        flexShrink: 0
+                      }}
+                    >
                       TOP
-                    </Badge>
+                    </span>
                   )}
 
                   {openFiles.length > 1 && (
@@ -343,12 +346,6 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             )}
           </button>
 
-          {compiled && (
-            <Badge color="emerald" size="sm" icon={<CheckCircle2 size={11} />}>
-              JIT Ready
-            </Badge>
-          )}
-
           {/* Elaborate Button (Componentized) */}
           <Button
             variant="primary"
@@ -356,9 +353,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             onClick={onCompile}
             icon={<Play size={11} fill="#fff" />}
             title="Elaborate & JIT Compile Active HDL Project"
-            style={{ padding: "4px 10px", fontSize: 11.5 }}
+            style={{ padding: "4px 7px", fontSize: 11 }}
           >
-            Elaborate
+            Elab
           </Button>
 
           {onToggleMaximize && (
@@ -389,11 +386,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       <Breadcrumbs
         items={breadcrumbItems}
         rightContent={
-          <>
-            <Badge color="cyan" size="sm">Rust JIT</Badge>
-            <Badge color="slate" size="sm">UTF-8</Badge>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Verilog-2005</span>
-          </>
+          <Badge color="cyan" size="sm">Rust JIT</Badge>
         }
       />
 

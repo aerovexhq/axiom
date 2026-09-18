@@ -310,21 +310,25 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <Cpu size={15} color="var(--accent-blue)" />
+          <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0, flex: 1, overflow: "hidden", marginRight: 8 }}>
+            <Cpu size={15} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
             <span
               style={{
                 fontWeight: 700,
                 fontSize: 13,
                 color: "var(--text-primary)",
-                fontFamily: "var(--font-mono)"
+                fontFamily: "var(--font-mono)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap"
               }}
+              title={project.name}
             >
               {project.name}
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
             <button
               onClick={onOpenNewProject}
               title="Create or Switch Project"

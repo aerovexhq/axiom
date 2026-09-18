@@ -880,9 +880,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               flexShrink: 0
             }}
           >
-            {typeof window !== "undefined" && window.innerWidth <= 768
-              ? `${graph.nodes.length} Cells • ${graph.edges.length} Nets`
-              : `Axiom Schematic DAG (${graph.nodes.length} cells, ${graph.edges.length} nets)`}
+            {`${graph.nodes.length} Cells • ${graph.edges.length} Nets`}
           </span>
 
           {/* LOD Badge */}
@@ -898,7 +896,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               display: "flex",
               alignItems: "center",
               gap: 4,
-              flexShrink: 0
+              flexShrink: 0,
+              whiteSpace: "nowrap"
             }}
           >
             <Layers size={10} />
@@ -910,7 +909,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             onClick={() => setShowLiveValues(!showLiveValues)}
             style={{
               fontSize: 11,
-              padding: "3px 8px",
+              padding: "3px 7px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showLiveValues ? "rgba(16, 185, 129, 0.15)" : "var(--bg-tertiary)",
               color: showLiveValues ? "var(--accent-emerald)" : "var(--text-muted)",
@@ -919,7 +918,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               alignItems: "center",
               gap: 4,
               cursor: "pointer",
-              flexShrink: 0
+              flexShrink: 0,
+              whiteSpace: "nowrap"
             }}
           >
             <Activity size={12} />
@@ -931,7 +931,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             onClick={() => setShowMinimap(!showMinimap)}
             style={{
               fontSize: 11,
-              padding: "3px 8px",
+              padding: "3px 7px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showMinimap ? "rgba(56, 189, 248, 0.15)" : "var(--bg-tertiary)",
               color: showMinimap ? "var(--accent-cyan)" : "var(--text-muted)",
@@ -940,7 +940,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               alignItems: "center",
               gap: 4,
               cursor: "pointer",
-              flexShrink: 0
+              flexShrink: 0,
+              whiteSpace: "nowrap"
             }}
           >
             <MapPin size={12} />
@@ -949,7 +950,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         </div>
 
         {/* Action Controls: 1-Click Cone Slicing, Zoom, Fit */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 6, whiteSpace: "nowrap" }}>
           {/* Slice Fanin Cone Button (Hidden on compact mobile unless cell selected) */}
           {(typeof window === "undefined" || window.innerWidth > 768 || selectedNodeId || selectedEdgeId) && (
             <button
@@ -959,7 +960,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                padding: "3px 8px",
+                padding: "3px 7px",
                 borderRadius: "var(--radius-sm)",
                 backgroundColor: activeCone?.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
                 color: activeCone?.isFanin
@@ -973,11 +974,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                 gap: 4,
                 opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
                 cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer",
-                flexShrink: 0
+                flexShrink: 0,
+                whiteSpace: "nowrap"
               }}
             >
               <Filter size={11} />
-              <span>{typeof window !== "undefined" && window.innerWidth <= 768 ? "Cone" : "Fan-In Cone [F]"}</span>
+              <span>Cone [F]</span>
             </button>
           )}
 

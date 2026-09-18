@@ -62,8 +62,8 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                minWidth: 0,
-                flexShrink: idx === items.length - 1 ? 0 : 1
+                minWidth: "fit-content",
+                flexShrink: 0
               }}
               title={item.label}
             >
@@ -72,7 +72,7 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({
               )}
               <span
                 style={{
-                  maxWidth: idx === 0 ? 140 : 180,
+                  maxWidth: 180,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",

@@ -560,11 +560,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "repl" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "repl" ? "var(--accent-blue)" : "var(--text-muted)",
-              border: activeTab === "repl" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+              border: activeTab === "repl" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <Terminal size={13} />
-            <span>Console & REPL</span>
+            <span style={{ whiteSpace: "nowrap" }}>Console & REPL</span>
           </button>
 
           <button
@@ -579,11 +581,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "problems" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "problems" ? "var(--accent-cyan)" : "var(--text-muted)",
-              border: activeTab === "problems" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+              border: activeTab === "problems" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <AlertCircle size={13} />
-            <span>Problems & Linter</span>
+            <span style={{ whiteSpace: "nowrap" }}>Problems & Linter</span>
             <span
               style={{
                 fontSize: 10,
@@ -601,7 +605,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                     ? "var(--accent-amber)"
                     : "var(--accent-emerald)",
                 padding: "1px 6px",
-                borderRadius: 8
+                borderRadius: 8,
+                whiteSpace: "nowrap",
+                flexShrink: 0
               }}
             >
               {diagnostics.length}
@@ -620,11 +626,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "telemetry" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "telemetry" ? "var(--accent-amber)" : "var(--text-muted)",
-              border: activeTab === "telemetry" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+              border: activeTab === "telemetry" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <Zap size={13} />
-            <span>Power & Telemetry</span>
+            <span style={{ whiteSpace: "nowrap" }}>Power & Telemetry</span>
           </button>
 
           <button
@@ -639,11 +647,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "glitches" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "glitches" ? "var(--accent-rose)" : "var(--text-muted)",
-              border: activeTab === "glitches" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+              border: activeTab === "glitches" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <AlertTriangle size={13} />
-            <span>Glitches & Hazards</span>
+            <span style={{ whiteSpace: "nowrap" }}>Glitches & Hazards</span>
             {state.glitches.length > 0 && (
               <span
                 style={{
@@ -652,7 +662,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                   backgroundColor: "rgba(244, 63, 94, 0.2)",
                   color: "var(--accent-rose)",
                   padding: "1px 5px",
-                  borderRadius: 8
+                  borderRadius: 8,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
                 }}
               >
                 {state.glitches.length}
@@ -672,11 +684,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "timing" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "timing" ? "var(--accent-purple)" : "var(--text-muted)",
-              border: activeTab === "timing" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+              border: activeTab === "timing" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <Clock size={12} />
-            <span>Timing Slack</span>
+            <span style={{ whiteSpace: "nowrap" }}>Timing Slack</span>
           </button>
         </div>
 
