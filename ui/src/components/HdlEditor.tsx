@@ -159,18 +159,18 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       {/* Editor Multi-Tab Strip */}
       <div
         style={{
-          height: 34,
+          height: 38,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 6px",
+          padding: "0 8px",
           overflowX: "auto"
         }}
       >
         {/* Left: Open File Tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: 2, overflowX: "auto", flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", flex: 1, minWidth: 0 }}>
           {openFiles.length > 0 ? (
             openFiles.map((file) => {
               const isActive = file.id === project?.activeFileId;
@@ -183,8 +183,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    padding: "4px 8px 4px 10px",
+                    gap: 7,
+                    padding: "6px 12px",
                     borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
                     backgroundColor: isActive ? "var(--bg-primary)" : "transparent",
                     borderTop: isActive ? "2px solid var(--accent-blue)" : "2px solid transparent",
@@ -192,16 +192,16 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                     borderRight: isActive ? "1px solid var(--border-subtle)" : "1px solid transparent",
                     cursor: "pointer",
                     userSelect: "none",
-                    fontSize: 11,
+                    fontSize: 12.5,
                     color: isActive ? "#fff" : "var(--text-secondary)",
                     fontWeight: isActive ? 600 : 400,
-                    maxWidth: 180
+                    maxWidth: 220
                   }}
                 >
                   {file.fileType === "xdc" ? (
-                    <FileText size={12} color="var(--accent-purple)" />
+                    <FileText size={14} color="var(--accent-purple)" />
                   ) : (
-                    <FileCode size={12} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
+                    <FileCode size={14} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
                   )}
 
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -211,12 +211,12 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   {isTop && (
                     <span
                       style={{
-                        fontSize: 8,
+                        fontSize: 9.5,
                         fontWeight: 700,
                         color: "var(--accent-cyan)",
                         backgroundColor: "rgba(6, 182, 212, 0.15)",
-                        padding: "0 3px",
-                        borderRadius: 2
+                        padding: "1px 5px",
+                        borderRadius: 3
                       }}
                     >
                       TOP
@@ -379,32 +379,32 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       {/* Breadcrumb Bar */}
       <div
         style={{
-          height: 22,
+          height: 26,
           backgroundColor: "var(--bg-tertiary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
-          gap: 4,
-          padding: "0 10px",
-          fontSize: 10,
+          gap: 6,
+          padding: "0 12px",
+          fontSize: 11.5,
           color: "var(--text-muted)",
           fontFamily: "var(--font-mono)"
         }}
       >
         <span>{project?.name ?? "project"}</span>
-        <ChevronRight size={10} />
+        <ChevronRight size={12} />
         <span>{activeFile?.fileSet ?? "sources_1"}</span>
-        <ChevronRight size={10} />
+        <ChevronRight size={12} />
         <span style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
           {activeFile?.name ?? `${topModule}.v`}
         </span>
         {activeFile?.isTop && (
           <>
-            <ChevronRight size={10} />
+            <ChevronRight size={12} />
             <span style={{ color: "var(--accent-amber)" }}>module {topModule}</span>
           </>
         )}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, fontSize: 9, color: "var(--text-muted)" }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "var(--text-muted)" }}>
           <span>LSP: In-RAM Rust JIT</span>
           <span>•</span>
           <span>UTF-8</span>
@@ -425,8 +425,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           onMount={handleEditorDidMount}
           options={{
             fontFamily: "var(--font-mono), 'JetBrains Mono', 'Fira Code', monospace",
-            fontSize: 12,
-            lineHeight: 20,
+            fontSize: 14,
+            lineHeight: 22,
+            letterSpacing: 0.2,
             minimap: { enabled: true, renderCharacters: false, maxColumn: 60 },
             scrollBeyondLastLine: false,
             automaticLayout: true,
@@ -438,6 +439,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             smoothScrolling: true,
             wordWrap: "off",
             folding: true,
+            lineNumbersMinChars: 3,
             showFoldingControls: "always",
             suggest: {
               snippetsPreventQuickSuggestions: false,

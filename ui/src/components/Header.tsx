@@ -31,37 +31,37 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       style={{
-        height: 48,
+        height: 52,
         backgroundColor: "var(--bg-secondary)",
         borderBottom: "1px solid var(--border-subtle)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 16px",
+        padding: "0 18px",
         zIndex: 20
       }}
     >
       {/* Brand & Project Identity */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <img
             src="/logo.svg"
             alt="Axiom Logo"
             style={{
-              width: 24,
-              height: 24,
+              width: 26,
+              height: 26,
               borderRadius: "var(--radius-sm)"
             }}
           />
-          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}>
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.02em" }}>
             Axiom EDA
           </span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 11.5,
               backgroundColor: "var(--bg-tertiary)",
               color: "var(--text-muted)",
-              padding: "2px 6px",
+              padding: "2px 7px",
               borderRadius: "var(--radius-sm)",
               border: "1px solid var(--border-subtle)"
             }}
@@ -70,27 +70,27 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        <div style={{ height: 18, width: 1, backgroundColor: "var(--border-subtle)" }} />
+        <div style={{ height: 20, width: 1, backgroundColor: "var(--border-subtle)" }} />
 
         {/* Project Context & Controls */}
         {project ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 color: "var(--accent-cyan)",
                 backgroundColor: "rgba(6, 182, 212, 0.1)",
                 border: "1px solid rgba(6, 182, 212, 0.25)",
-                padding: "3px 8px",
+                padding: "4px 10px",
                 borderRadius: "var(--radius-sm)",
                 display: "flex",
                 alignItems: "center",
-                gap: 4
+                gap: 5
               }}
             >
               <span>{project.name}</span>
-              <span style={{ color: "var(--text-muted)", fontSize: 10 }}>({project.targetDevice.split(" ")[0]})</span>
+              <span style={{ color: "var(--text-muted)", fontSize: 11 }}>({project.targetDevice.split(" ")[0]})</span>
             </span>
 
             {/* Compile Button */}
@@ -100,18 +100,18 @@ export const Header: React.FC<HeaderProps> = ({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "4px 10px",
+                padding: "5px 12px",
                 backgroundColor: state.compiled ? "var(--bg-tertiary)" : "var(--accent-blue)",
                 color: state.compiled ? "var(--text-primary)" : "#fff",
                 borderRadius: "var(--radius-sm)",
                 border: `1px solid ${state.compiled ? "var(--border-subtle)" : "var(--accent-blue)"}`,
-                fontWeight: 500,
-                fontSize: 11,
+                fontWeight: 600,
+                fontSize: 12,
                 cursor: "pointer",
                 transition: "all 0.15s ease"
               }}
             >
-              <Cpu size={13} />
+              <Cpu size={14} />
               <span>{state.compiled ? "Re-Compile JIT" : "Compile JIT"}</span>
             </button>
 
@@ -122,26 +122,26 @@ export const Header: React.FC<HeaderProps> = ({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 3,
-                  padding: "4px 8px",
+                  gap: 4,
+                  padding: "5px 10px",
                   backgroundColor: "transparent",
                   color: "var(--text-muted)",
                   borderRadius: "var(--radius-sm)",
                   border: "1px solid var(--border-subtle)",
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: "pointer"
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
               >
-                <X size={12} />
+                <X size={13} />
                 <span>Close</span>
               </button>
             )}
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
               No Project Open
             </span>
             {onOpenNewProject && (
@@ -150,18 +150,18 @@ export const Header: React.FC<HeaderProps> = ({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 5,
-                  padding: "4px 10px",
+                  gap: 6,
+                  padding: "5px 12px",
                   backgroundColor: "var(--accent-blue)",
                   color: "#fff",
                   borderRadius: "var(--radius-sm)",
                   border: "none",
                   fontWeight: 600,
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: "pointer"
                 }}
               >
-                <FolderPlus size={13} />
+                <FolderPlus size={14} />
                 <span>New Project</span>
               </button>
             )}
@@ -170,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Center Execution Stepping Controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
         {state.isRunning ? (
           <button
             onClick={() => engineBridge.pause()}
@@ -178,15 +178,15 @@ export const Header: React.FC<HeaderProps> = ({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "5px 12px",
+              padding: "6px 14px",
               backgroundColor: "var(--accent-rose)",
               color: "#fff",
               borderRadius: "var(--radius-sm)",
               fontWeight: 600,
-              fontSize: 12
+              fontSize: 13
             }}
           >
-            <Pause size={14} />
+            <Pause size={15} />
             <span>Pause</span>
           </button>
         ) : (
@@ -197,16 +197,16 @@ export const Header: React.FC<HeaderProps> = ({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "5px 12px",
+              padding: "6px 14px",
               backgroundColor: state.compiled ? "var(--accent-emerald)" : "var(--bg-tertiary)",
               color: state.compiled ? "#fff" : "var(--text-muted)",
               borderRadius: "var(--radius-sm)",
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: 13,
               cursor: state.compiled ? "pointer" : "not-allowed"
             }}
           >
-            <Play size={14} />
+            <Play size={15} />
             <span>Run Free</span>
           </button>
         )}
@@ -218,13 +218,13 @@ export const Header: React.FC<HeaderProps> = ({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 4,
-            padding: "5px 10px",
+            gap: 5,
+            padding: "6px 12px",
             backgroundColor: "var(--bg-tertiary)",
             color: "var(--text-primary)",
             borderRadius: "var(--radius-sm)",
             border: "1px solid var(--border-subtle)",
-            fontSize: 12,
+            fontSize: 12.5,
             opacity: state.compiled ? 1 : 0.5
           }}
         >
@@ -237,12 +237,12 @@ export const Header: React.FC<HeaderProps> = ({
           disabled={!state.compiled || state.isRunning}
           title="Advance simulation by 100 ps"
           style={{
-            padding: "5px 10px",
+            padding: "6px 12px",
             backgroundColor: "var(--bg-tertiary)",
             color: "var(--text-primary)",
             borderRadius: "var(--radius-sm)",
             border: "1px solid var(--border-subtle)",
-            fontSize: 12,
+            fontSize: 12.5,
             opacity: state.compiled ? 1 : 0.5
           }}
         >
@@ -257,13 +257,13 @@ export const Header: React.FC<HeaderProps> = ({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 4,
-            padding: "5px 10px",
+            gap: 5,
+            padding: "6px 12px",
             backgroundColor: "var(--accent-purple)",
             color: "#fff",
             borderRadius: "var(--radius-sm)",
             fontWeight: 600,
-            fontSize: 12,
+            fontSize: 12.5,
             opacity: state.compiled ? 1 : 0.5
           }}
         >
@@ -274,42 +274,42 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => engineBridge.reset()}
           title="Reset Simulation"
           style={{
-            padding: "5px 8px",
+            padding: "6px 10px",
             backgroundColor: "var(--bg-tertiary)",
             color: "var(--text-secondary)",
             borderRadius: "var(--radius-sm)",
             border: "1px solid var(--border-subtle)"
           }}
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={15} />
         </button>
       </div>
 
       {/* Right Telemetry & Status Badges */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         {/* Time & Delta Display */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-cyan)" }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--accent-cyan)" }}>
               {formatTime(state.currentSimTimePs)}
             </span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
               δ = {state.currentDeltaCycle}
             </span>
           </div>
         </div>
 
-        <div style={{ height: 18, width: 1, backgroundColor: "var(--border-subtle)" }} />
+        <div style={{ height: 20, width: 1, backgroundColor: "var(--border-subtle)" }} />
 
         {/* Power / Voltage / Glitch status */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--accent-amber)" }} title="Peak Dynamic Current">
-            <Zap size={13} />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--accent-amber)" }} title="Peak Dynamic Current">
+            <Zap size={14} />
             <span style={{ fontFamily: "var(--font-mono)" }}>{state.peakCurrentMa.toFixed(1)} mA</span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--accent-rose)" }} title="Max Voltage Sag">
-            <Activity size={13} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--accent-rose)" }} title="Max Voltage Sag">
+            <Activity size={14} />
             <span style={{ fontFamily: "var(--font-mono)" }}>-{state.maxSagMv.toFixed(1)} mV</span>
           </div>
 
@@ -318,16 +318,17 @@ export const Header: React.FC<HeaderProps> = ({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
+                gap: 5,
                 color: "var(--signal-glitch)",
                 backgroundColor: "rgba(236, 72, 153, 0.15)",
-                padding: "2px 6px",
+                padding: "2px 7px",
                 borderRadius: "var(--radius-sm)",
-                fontWeight: 600
+                fontWeight: 600,
+                fontSize: 11.5
               }}
               title="Glitches Detected"
             >
-              <Bug size={13} />
+              <Bug size={14} />
               <span>{state.glitchCount}</span>
             </div>
           )}

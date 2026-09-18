@@ -48,6 +48,118 @@ export const FPGA_TARGET_DEVICES: { id: string; name: string; family: string; lo
 
 export const PROJECT_TEMPLATES: ProjectTemplate[] = [
   {
+    id: "logic_circuit_project",
+    name: "Combinational Logic Circuit (A, B, C → F)",
+    category: "standard",
+    description: "Gate-level combinational circuit with inputs A, B, C and output F = ((~A & B) & C) | ~B, with intermediate nets w1, w2, w3, w4.",
+    defaultTopModule: "logic_circuit",
+    defaultDevice: "Artix-7 xc7a35t-csg324-1",
+    files: [
+      {
+        name: "logic_circuit.v",
+        fileType: "verilog",
+        fileSet: "sources_1",
+        isTop: true,
+        content: `// Vivado Design Source: logic_circuit.v
+// Axiom Multi-File Project: Combinational Logic Circuit
+// Inputs: A, B, C | Output: F
+// Logic equations:
+//   w1 = ~A
+//   w2 = w1 & B
+//   w3 = w2 & C
+//   w4 = ~B
+//   F  = w3 | w4
+\`timescale 1ns / 1ps
+
+module logic_circuit (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+
+  // Intermediate nets connecting gates
+  wire w1;
+  wire w2;
+  wire w3;
+  wire w4;
+
+  // Combinational gate assignments
+  assign w1 = ~A;        // NOT gate 1: invert A
+  assign w2 = w1 & B;    // AND gate 1: w1 AND B
+  assign w3 = w2 & C;    // AND gate 2: w2 AND C
+  assign w4 = ~B;        // NOT gate 2: invert B
+  assign F  = w3 | w4;   // OR gate:   w3 OR w4
+
+endmodule
+`
+      },
+      {
+        name: "tb_logic_circuit.sv",
+        fileType: "systemverilog",
+        fileSet: "sim_1",
+        content: `// Vivado Simulation Source: tb_logic_circuit.sv
+// Testbench sweeping all 8 truth table combinations for logic_circuit
+\`timescale 1ns / 1ps
+
+module tb_logic_circuit;
+  reg  A;
+  reg  B;
+  reg  C;
+  wire F;
+
+  // Instantiate Unit Under Test (UUT)
+  logic_circuit uut (
+    .A(A),
+    .B(B),
+    .C(C),
+    .F(F)
+  );
+
+  initial begin
+    $dumpfile("logic_circuit.vcd");
+    $dumpvars(0, tb_logic_circuit);
+
+    // Test all 8 minterms (2^3 = 8)
+    A = 0; B = 0; C = 0; #10;
+    A = 0; B = 0; C = 1; #10;
+    A = 0; B = 1; C = 0; #10;
+    A = 0; B = 1; C = 1; #10;
+    A = 1; B = 0; C = 0; #10;
+    A = 1; B = 0; C = 1; #10;
+    A = 1; B = 1; C = 0; #10;
+    A = 1; B = 1; C = 1; #10;
+
+    $finish;
+  end
+endmodule
+`
+      },
+      {
+        name: "timing.xdc",
+        fileType: "xdc",
+        fileSet: "constrs_1",
+        content: `# Vivado Constraints: timing.xdc
+# Artix-7 xc7a35t-csg324-1 package pin assignments
+
+# Inputs: Switches SW0 (A), SW1 (B), SW2 (C)
+set_property PACKAGE_PIN J15 [get_ports {A}]
+set_property IOSTANDARD LVCMOS33 [get_ports {A}]
+
+set_property PACKAGE_PIN L16 [get_ports {B}]
+set_property IOSTANDARD LVCMOS33 [get_ports {B}]
+
+set_property PACKAGE_PIN M13 [get_ports {C}]
+set_property IOSTANDARD LVCMOS33 [get_ports {C}]
+
+# Output: LED LD0 (F)
+set_property PACKAGE_PIN H17 [get_ports {F}]
+set_property IOSTANDARD LVCMOS33 [get_ports {F}]
+`
+      }
+    ]
+  },
+  {
     id: "riscv_soc_project",
     name: "32-Bit RV32I RISC-V Embedded SoC",
     category: "processors",

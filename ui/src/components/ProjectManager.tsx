@@ -55,7 +55,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       <div style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto", padding: 12 }}>
         <div
           style={{
-            padding: "16px 12px",
+            padding: "18px 14px",
             textAlign: "center",
             backgroundColor: "var(--bg-primary)",
             borderRadius: "var(--radius-md)",
@@ -63,11 +63,11 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             marginBottom: 16
           }}
         >
-          <FolderPlus size={28} color="var(--accent-blue)" style={{ margin: "0 auto 8px", opacity: 0.8 }} />
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+          <FolderPlus size={30} color="var(--accent-blue)" style={{ margin: "0 auto 10px", opacity: 0.85 }} />
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 5 }}>
             No Project Open
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, lineHeight: 1.45 }}>
             Create a new Vivado project or choose a hardware starter template.
           </div>
           <button
@@ -78,36 +78,36 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              padding: "7px 12px",
+              padding: "8px 14px",
               backgroundColor: "var(--accent-blue)",
               color: "#fff",
               borderRadius: "var(--radius-sm)",
               border: "none",
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 600,
               cursor: "pointer",
               transition: "opacity 0.15s ease"
             }}
           >
-            <Plus size={14} />
+            <Plus size={15} />
             <span>Create New Project</span>
           </button>
         </div>
 
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 700,
             color: "var(--text-muted)",
             textTransform: "uppercase",
-            padding: "0 4px 6px",
+            padding: "0 4px 8px",
             letterSpacing: 0.5,
             display: "flex",
             alignItems: "center",
-            gap: 4
+            gap: 5
           }}
         >
-          <Sparkles size={11} color="var(--accent-cyan)" />
+          <Sparkles size={12} color="var(--accent-cyan)" />
           <span>Starter Templates</span>
         </div>
 
@@ -125,7 +125,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               }}
               style={{
                 textAlign: "left",
-                padding: "8px 10px",
+                padding: "8px 11px",
                 borderRadius: "var(--radius-sm)",
                 backgroundColor: "var(--bg-tertiary)",
                 border: "1px solid var(--border-subtle)",
@@ -142,11 +142,11 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                 e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
               }}
             >
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-blue)" }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
                 {tmpl.name}
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                {tmpl.files.length} sources • {tmpl.defaultTopModule}
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                {tmpl.defaultDevice.split(" ")[0]} • {tmpl.files.length} files
               </div>
             </button>
           ))}
@@ -206,7 +206,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "4px 8px 4px 24px",
+          padding: "5px 10px 5px 24px",
           margin: "1px 0",
           borderRadius: "var(--radius-sm)",
           backgroundColor: isActive ? "var(--bg-active)" : "transparent",
@@ -221,16 +221,16 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           if (!isActive) e.currentTarget.style.backgroundColor = "transparent";
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
           {file.fileType === "xdc" ? (
-            <FileText size={13} color="var(--accent-purple)" />
+            <FileText size={14} color="var(--accent-purple)" />
           ) : (
-            <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
+            <FileCode size={14} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
           )}
 
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12.5,
               fontFamily: "var(--font-mono)",
               color: isActive ? "#fff" : "var(--text-primary)",
               fontWeight: isActive ? 600 : 400,
@@ -246,12 +246,12 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             <span
               title="Top Module for Elaboration"
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 700,
                 color: "var(--accent-cyan)",
                 backgroundColor: "rgba(6, 182, 212, 0.15)",
                 border: "1px solid rgba(6, 182, 212, 0.35)",
-                padding: "0 4px",
+                padding: "1px 5px",
                 borderRadius: 3
               }}
             >
@@ -261,21 +261,21 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* Action icons on hover */}
-        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {file.fileSet === "sources_1" && !isTop && (
             <button
               onClick={(e) => handleSetTop(file, e)}
               title="Set as Top Module"
               style={{
-                padding: "2px 4px",
+                padding: "2px 5px",
                 color: "var(--text-muted)",
                 borderRadius: 3,
-                fontSize: 10
+                fontSize: 11
               }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-cyan)")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              <Star size={11} />
+              <Star size={13} />
             </button>
           )}
 
@@ -284,14 +284,14 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               onClick={(e) => handleDeleteFile(file.id, e)}
               title="Remove file from project"
               style={{
-                padding: "2px 4px",
+                padding: "2px 5px",
                 color: "var(--text-muted)",
                 borderRadius: 3
               }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              <Trash2 size={11} />
+              <Trash2 size={13} />
             </button>
           )}
         </div>
@@ -304,18 +304,18 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       {/* Project Meta Card */}
       <div
         style={{
-          padding: "10px",
+          padding: "10px 12px",
           borderBottom: "1px solid var(--border-subtle)",
           backgroundColor: "var(--bg-primary)"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Cpu size={14} color="var(--accent-blue)" />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <Cpu size={15} color="var(--accent-blue)" />
             <span
               style={{
                 fontWeight: 700,
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--text-primary)",
                 fontFamily: "var(--font-mono)"
               }}
@@ -324,7 +324,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <button
               onClick={onOpenNewProject}
               title="Create or Switch Project"
@@ -332,16 +332,16 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 600,
-                padding: "2px 6px",
+                padding: "3px 7px",
                 backgroundColor: "var(--bg-tertiary)",
                 border: "1px solid var(--border-subtle)",
                 borderRadius: "var(--radius-sm)",
                 color: "var(--accent-blue)"
               }}
             >
-              <Plus size={11} />
+              <Plus size={12} />
               <span>New</span>
             </button>
 
@@ -353,9 +353,9 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                   display: "flex",
                   alignItems: "center",
                   gap: 3,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 600,
-                  padding: "2px 6px",
+                  padding: "3px 7px",
                   backgroundColor: "transparent",
                   border: "1px solid var(--border-subtle)",
                   borderRadius: "var(--radius-sm)",
@@ -365,7 +365,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                 onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
               >
-                <X size={11} />
+                <X size={12} />
                 <span>Close</span>
               </button>
             )}
@@ -373,33 +373,35 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* Silicon Part & Top Module Badges */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11 }}>
             <span style={{ color: "var(--text-muted)" }}>Target Part:</span>
             <span
               style={{
                 fontFamily: "var(--font-mono)",
                 color: "var(--accent-emerald)",
                 backgroundColor: "rgba(16, 185, 129, 0.12)",
-                padding: "1px 5px",
+                padding: "2px 6px",
                 borderRadius: 3,
-                border: "1px solid rgba(16, 185, 129, 0.25)"
+                border: "1px solid rgba(16, 185, 129, 0.25)",
+                fontSize: 11
               }}
             >
               {project.targetDevice.split(" ")[0]}
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11 }}>
             <span style={{ color: "var(--text-muted)" }}>Top Module:</span>
             <span
               style={{
                 fontFamily: "var(--font-mono)",
                 color: "var(--accent-cyan)",
                 backgroundColor: "rgba(6, 182, 212, 0.12)",
-                padding: "1px 5px",
+                padding: "2px 6px",
                 borderRadius: 3,
-                border: "1px solid rgba(6, 182, 212, 0.25)"
+                border: "1px solid rgba(6, 182, 212, 0.25)",
+                fontSize: 11
               }}
             >
               {project.topModule}
@@ -408,7 +410,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* Action Toolbar */}
-        <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
+        <div style={{ display: "flex", gap: 5, marginTop: 9 }}>
           <button
             onClick={onOpenAddSource}
             style={{
@@ -416,17 +418,17 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 4,
-              fontSize: 10,
+              gap: 5,
+              fontSize: 11.5,
               fontWeight: 600,
-              padding: "4px 6px",
+              padding: "5px 8px",
               backgroundColor: "var(--accent-blue)",
               color: "#fff",
               borderRadius: "var(--radius-sm)",
               transition: "opacity 0.15s ease"
             }}
           >
-            <FilePlus size={12} />
+            <FilePlus size={13} />
             <span>+ Add Sources</span>
           </button>
 
@@ -437,23 +439,23 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: "4px 8px",
+              padding: "5px 9px",
               backgroundColor: "var(--bg-tertiary)",
               border: "1px solid var(--border-subtle)",
               color: "var(--text-secondary)",
               borderRadius: "var(--radius-sm)"
             }}
           >
-            <Download size={12} />
+            <Download size={13} />
           </button>
         </div>
       </div>
 
       {/* Vivado Hierarchy & File Sets Tree */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "6px 4px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 700,
             color: "var(--text-muted)",
             textTransform: "uppercase",
@@ -465,15 +467,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 1. Design Sources (sources_1) */}
-        <div style={{ marginBottom: 4 }}>
+        <div style={{ marginBottom: 5 }}>
           <div
             onClick={() => setSourcesOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "4px 8px",
-              fontSize: 11,
+              gap: 6,
+              padding: "5px 8px",
+              fontSize: 12,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
@@ -481,10 +483,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               backgroundColor: "rgba(255, 255, 255, 0.02)"
             }}
           >
-            {sourcesOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
-            {sourcesOpen ? <FolderOpen size={13} color="var(--accent-amber)" /> : <Folder size={13} color="var(--accent-amber)" />}
+            {sourcesOpen ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
+            {sourcesOpen ? <FolderOpen size={14} color="var(--accent-amber)" /> : <Folder size={14} color="var(--accent-amber)" />}
             <span>Design Sources</span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({designSources.length})
             </span>
           </div>
@@ -492,7 +494,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {sourcesOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {designSources.length === 0 ? (
-                <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "4px 24px" }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 24px" }}>
                   No design sources added
                 </div>
               ) : (
@@ -503,15 +505,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 2. Simulation Sources (sim_1) */}
-        <div style={{ marginBottom: 4 }}>
+        <div style={{ marginBottom: 5 }}>
           <div
             onClick={() => setSimOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "4px 8px",
-              fontSize: 11,
+              gap: 6,
+              padding: "5px 8px",
+              fontSize: 12,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
@@ -519,10 +521,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               backgroundColor: "rgba(255, 255, 255, 0.02)"
             }}
           >
-            {simOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
-            {simOpen ? <FolderOpen size={13} color="var(--accent-cyan)" /> : <Folder size={13} color="var(--accent-cyan)" />}
+            {simOpen ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
+            {simOpen ? <FolderOpen size={14} color="var(--accent-cyan)" /> : <Folder size={14} color="var(--accent-cyan)" />}
             <span>Simulation Sources</span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({simSources.length})
             </span>
           </div>
@@ -530,7 +532,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {simOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {simSources.length === 0 ? (
-                <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "4px 24px" }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 24px" }}>
                   No testbench sources
                 </div>
               ) : (
@@ -541,26 +543,26 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 3. Constraints (constrs_1) */}
-        <div style={{ marginBottom: 6 }}>
+        <div style={{ marginBottom: 8 }}>
           <div
             onClick={() => setConstrsOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "4px 8px",
-              fontSize: 11,
+              gap: 6,
+              padding: "5px 8px",
+              fontSize: 12,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
               borderRadius: "var(--radius-sm)",
               backgroundColor: "rgba(255, 255, 255, 0.02)"
-}}
+            }}
           >
-            {constrsOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
-            {constrsOpen ? <FolderOpen size={13} color="var(--accent-purple)" /> : <Folder size={13} color="var(--accent-purple)" />}
+            {constrsOpen ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
+            {constrsOpen ? <FolderOpen size={14} color="var(--accent-purple)" /> : <Folder size={14} color="var(--accent-purple)" />}
             <span>Constraints</span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({constrSources.length})
             </span>
           </div>
@@ -568,7 +570,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {constrsOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {constrSources.length === 0 ? (
-                <div style={{ fontSize: 10, color: "var(--text-muted)", padding: "4px 24px" }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 24px" }}>
                   No constraints (.xdc)
                 </div>
               ) : (
@@ -579,15 +581,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 4. Project Templates Section */}
-        <div style={{ marginTop: 10, borderTop: "1px solid var(--border-subtle)", paddingTop: 8 }}>
+        <div style={{ marginTop: 12, borderTop: "1px solid var(--border-subtle)", paddingTop: 10 }}>
           <div
             onClick={() => setTemplatesOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "4px 8px",
-              fontSize: 10,
+              gap: 6,
+              padding: "5px 8px",
+              fontSize: 11,
               fontWeight: 700,
               color: "var(--accent-blue)",
               cursor: "pointer",
@@ -595,13 +597,13 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               letterSpacing: 0.5
             }}
           >
-            {templatesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            <Sparkles size={12} />
+            {templatesOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            <Sparkles size={13} />
             <span>Load Template Project</span>
           </div>
 
           {templatesOpen && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, padding: "6px 8px" }}>
               {PROJECT_TEMPLATES.map((tmpl) => {
                 const isCurrent = project.templateId === tmpl.id;
                 return (
@@ -610,7 +612,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                     onClick={() => handleSelectTemplate(tmpl.id)}
                     style={{
                       textAlign: "left",
-                      padding: "6px 8px",
+                      padding: "7px 9px",
                       borderRadius: "var(--radius-sm)",
                       backgroundColor: isCurrent ? "var(--bg-elevated)" : "var(--bg-tertiary)",
                       border: `1px solid ${isCurrent ? "var(--accent-blue)" : "var(--border-subtle)"}`,
@@ -618,10 +620,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                       cursor: "pointer"
                     }}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 600, color: isCurrent ? "var(--accent-cyan)" : "var(--text-primary)" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? "var(--accent-cyan)" : "var(--text-primary)" }}>
                       {tmpl.name}
                     </div>
-                    <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 2 }}>
+                    <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 2 }}>
                       {tmpl.files.length} files • {tmpl.defaultTopModule}
                     </div>
                   </button>

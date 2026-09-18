@@ -46,6 +46,8 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
 
   const getTemplateIcon = (id: string) => {
     switch (id) {
+      case "logic_circuit_project":
+        return <Zap size={20} color="var(--accent-emerald)" />;
       case "riscv_soc_project":
         return <Cpu size={20} color="var(--accent-cyan)" />;
       case "uart_project":

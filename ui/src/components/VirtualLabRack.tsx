@@ -198,6 +198,239 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
     setTimeout(() => engineBridge.injectStimulus("rst_n", "1"), 250);
   };
 
+  const renderLogicCircuitBays = () => {
+    const sigA = getSigVal("A", "0") === "1";
+    const sigB = getSigVal("B", "0") === "1";
+    const sigC = getSigVal("C", "0") === "1";
+    const sigW1 = getSigVal("w1", (!sigA ? "1" : "0")) === "1";
+    const sigW2 = getSigVal("w2", (sigW1 && sigB ? "1" : "0")) === "1";
+    const sigW3 = getSigVal("w3", (sigW2 && sigC ? "1" : "0")) === "1";
+    const sigW4 = getSigVal("w4", (!sigB ? "1" : "0")) === "1";
+    const sigF = getSigVal("F", (sigW3 || sigW4 ? "1" : "0")) === "1";
+
+    const handleToggleInput = (name: "A" | "B" | "C", currentVal: boolean) => {
+      const nextStr = currentVal ? "0" : "1";
+      engineBridge.injectStimulus(name, nextStr);
+    };
+
+    const handleCycleAll = () => {
+      const currentNum = (sigA ? 4 : 0) | (sigB ? 2 : 0) | (sigC ? 1 : 0);
+      const nextNum = (currentNum + 1) % 8;
+      engineBridge.injectStimulus("A", (nextNum & 4) ? "1" : "0");
+      engineBridge.injectStimulus("B", (nextNum & 2) ? "1" : "0");
+      engineBridge.injectStimulus("C", (nextNum & 1) ? "1" : "0");
+    };
+
+    const truthTable = [
+      { a: 0, b: 0, c: 0, w1: 1, w2: 0, w3: 0, w4: 1, f: 1 },
+      { a: 0, b: 0, c: 1, w1: 1, w2: 0, w3: 0, w4: 1, f: 1 },
+      { a: 0, b: 1, c: 0, w1: 1, w2: 1, w3: 0, w4: 0, f: 0 },
+      { a: 0, b: 1, c: 1, w1: 1, w2: 1, w3: 1, w4: 0, f: 1 },
+      { a: 1, b: 0, c: 0, w1: 0, w2: 0, w3: 0, w4: 1, f: 1 },
+      { a: 1, b: 0, c: 1, w1: 0, w2: 0, w3: 0, w4: 1, f: 1 },
+      { a: 1, b: 1, c: 0, w1: 0, w2: 0, w3: 0, w4: 0, f: 0 },
+      { a: 1, b: 1, c: 1, w1: 0, w2: 0, w3: 0, w4: 0, f: 0 },
+    ];
+
+    return (
+      <>
+        {/* BAY 1: Primary Logic Inputs A, B, C */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Zap size={14} color="var(--accent-emerald)" />
+              <span>Inputs (A, B, C)</span>
+            </div>
+            <button
+              onClick={handleCycleAll}
+              style={{ fontSize: 11, padding: "2px 8px", backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, color: "var(--accent-cyan)", cursor: "pointer" }}
+              title="Cycle through truth table 000 -> 111"
+            >
+              Cycle +1
+            </button>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "14px 0" }}>
+            {[
+              { label: "Input A (SW0)", name: "A" as const, val: sigA, color: "var(--accent-blue)" },
+              { label: "Input B (SW1)", name: "B" as const, val: sigB, color: "var(--accent-amber)" },
+              { label: "Input C (SW2)", name: "C" as const, val: sigC, color: "var(--accent-purple)" }
+            ].map(item => (
+              <div
+                key={item.name}
+                onClick={() => handleToggleInput(item.name, item.val)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  backgroundColor: item.val ? "rgba(59, 130, 246, 0.15)" : "var(--bg-tertiary)",
+                  border: `1px solid ${item.val ? item.color : "var(--border-subtle)"}`,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: item.val ? "var(--accent-emerald)" : "var(--text-muted)", boxShadow: item.val ? "0 0 8px var(--accent-emerald)" : "none" }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{item.label}</span>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)", color: item.val ? "var(--accent-emerald)" : "var(--text-muted)" }}>
+                  {item.val ? "1 (HIGH)" : "0 (LOW)"}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => { engineBridge.injectStimulus("A", "0"); engineBridge.injectStimulus("B", "0"); engineBridge.injectStimulus("C", "0"); }}
+              style={{ flex: 1, padding: "5px 0", fontSize: 11, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
+            >
+              All 0s
+            </button>
+            <button
+              onClick={() => { engineBridge.injectStimulus("A", "1"); engineBridge.injectStimulus("B", "1"); engineBridge.injectStimulus("C", "1"); }}
+              style={{ flex: 1, padding: "5px 0", fontSize: 11, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
+            >
+              All 1s
+            </button>
+          </div>
+        </div>
+
+        {/* BAY 2: Intermediate Net Probes (w1, w2, w3, w4) */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+            <Cpu size={14} color="var(--accent-cyan)" />
+            <span>Gate Probes (w1 - w4)</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
+            {[
+              { label: "w1 = ~A", op: "NOT", val: sigW1 },
+              { label: "w2 = w1 & B", op: "AND", val: sigW2 },
+              { label: "w3 = w2 & C", op: "AND", val: sigW3 },
+              { label: "w4 = ~B", op: "NOT", val: sigW4 }
+            ].map((probe, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "6px 10px",
+                  borderRadius: 5,
+                  backgroundColor: "var(--bg-tertiary)",
+                  border: "1px solid var(--border-subtle)"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, backgroundColor: "rgba(6, 182, 212, 0.15)", color: "var(--accent-cyan)", fontWeight: 700 }}>
+                    {probe.op}
+                  </span>
+                  <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{probe.label}</span>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", color: probe.val ? "var(--accent-emerald)" : "var(--text-muted)" }}>
+                  {probe.val ? "1" : "0"}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center" }}>
+            Real-time zero-time gate evaluation
+          </div>
+        </div>
+
+        {/* BAY 3: Circuit Output F */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ width: "100%", fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+            <Radio size={14} color="var(--accent-rose)" />
+            <span>Output (F = w3 | w4)</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, margin: "14px 0" }}>
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                backgroundColor: sigF ? "var(--accent-emerald)" : "#1e293b",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: sigF ? "0 0 28px rgba(16, 185, 129, 0.6)" : "inset 0 2px 4px rgba(0,0,0,0.5)",
+                border: `3px solid ${sigF ? "#34d399" : "#334155"}`,
+                transition: "all 0.2s ease"
+              }}
+            >
+              <span style={{ fontSize: 24, fontWeight: 900, fontFamily: "var(--font-mono)", color: sigF ? "#fff" : "var(--text-muted)" }}>
+                {sigF ? "1" : "0"}
+              </span>
+            </div>
+
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: sigF ? "var(--accent-emerald)" : "var(--text-muted)" }}>
+                {sigF ? "OUTPUT ACTIVE (HIGH)" : "OUTPUT INACTIVE (LOW)"}
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>
+                Pin H17 • LD0
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width: "100%", padding: "6px 8px", backgroundColor: "var(--bg-tertiary)", borderRadius: 4, textAlign: "center", fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+            F = ((~A & B) & C) | ~B
+          </div>
+        </div>
+
+        {/* BAY 4: Interactive Truth Table HUD */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 12, display: "flex", flexDirection: "column" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <Sparkles size={14} color="var(--accent-amber)" />
+            <span>Truth Table (8 States)</span>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", fontSize: 11, fontFamily: "var(--font-mono)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "20px 20px 20px 1fr 20px", gap: 4, padding: "2px 4px", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)", fontWeight: 700 }}>
+              <span>A</span>
+              <span>B</span>
+              <span>C</span>
+              <span style={{ textAlign: "center" }}>w1..w4</span>
+              <span style={{ textAlign: "right" }}>F</span>
+            </div>
+            {truthTable.map((row, idx) => {
+              const isMatch = (row.a === (sigA ? 1 : 0)) && (row.b === (sigB ? 1 : 0)) && (row.c === (sigC ? 1 : 0));
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "20px 20px 20px 1fr 20px",
+                    gap: 4,
+                    padding: "3px 4px",
+                    margin: "1px 0",
+                    borderRadius: 3,
+                    backgroundColor: isMatch ? "rgba(6, 182, 212, 0.2)" : "transparent",
+                    color: isMatch ? "#fff" : "var(--text-secondary)",
+                    fontWeight: isMatch ? 700 : 400,
+                    border: isMatch ? "1px solid var(--accent-cyan)" : "1px solid transparent"
+                  }}
+                >
+                  <span style={{ color: isMatch ? "var(--accent-cyan)" : undefined }}>{row.a}</span>
+                  <span style={{ color: isMatch ? "var(--accent-cyan)" : undefined }}>{row.b}</span>
+                  <span style={{ color: isMatch ? "var(--accent-cyan)" : undefined }}>{row.c}</span>
+                  <span style={{ textAlign: "center", fontSize: 10, opacity: isMatch ? 1 : 0.6 }}>{row.w1}{row.w2}{row.w3}{row.w4}</span>
+                  <span style={{ textAlign: "right", color: row.f ? "var(--accent-emerald)" : "var(--text-muted)", fontWeight: 700 }}>{row.f}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </>
+    );
+  };
+
   const renderUartBays = () => {
     const rxDataVal = getSigVal("rx_data", "0x00");
     const rxNum = parseInt(rxDataVal.replace("0x", ""), 16) || 0;
@@ -765,18 +998,19 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "1.4fr 1fr 1fr 1.2fr",
-          gap: 12,
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: 14,
           padding: 14,
           overflowY: "auto"
         }}
       >
+        {(activeDesignId === "logic_circuit" || activeDesignId.includes("logic_circuit")) && renderLogicCircuitBays()}
         {activeDesignId === "uart" && renderUartBays()}
         {activeDesignId === "spi" && renderSpiBays()}
         {activeDesignId === "pwm" && renderPwmBays()}
         {activeDesignId === "riscv" && renderRiscvBays()}
 
-        {!["uart", "spi", "pwm", "riscv"].includes(activeDesignId) && (
+        {!["uart", "spi", "pwm", "riscv", "logic_circuit"].some(k => activeDesignId.includes(k)) && (
           <>
             {/* ==================================================================== */}
             {/* BAY 1: 8-Bit DIP Switch Bank & Bus Injector                         */}

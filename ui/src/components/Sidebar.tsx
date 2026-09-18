@@ -74,8 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           style={{
             display: "flex",
             alignItems: "center",
-            padding: `4px 8px 4px ${8 + depth * 14}px`,
-            fontSize: 12,
+            padding: `5px 10px 5px ${10 + depth * 14}px`,
+            fontSize: 12.5,
             color: isChecked ? "var(--text-primary)" : "var(--text-secondary)",
             cursor: "pointer",
             backgroundColor: isChecked ? "var(--bg-active)" : "transparent",
@@ -88,11 +88,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }}
         >
           {hasChildren ? (
-            <span style={{ marginRight: 4, display: "flex", alignItems: "center", color: "var(--text-muted)" }}>
+            <span style={{ marginRight: 5, display: "flex", alignItems: "center", color: "var(--text-muted)" }}>
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </span>
           ) : (
-            <span style={{ width: 18 }} />
+            <span style={{ width: 19 }} />
           )}
 
           {isSignal && (
@@ -103,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onToggleSignal(node.id);
               }}
             >
-              {isChecked ? <CheckSquare size={13} /> : <Square size={13} />}
+              {isChecked ? <CheckSquare size={14} /> : <Square size={14} />}
             </span>
           )}
 
@@ -221,11 +221,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   }
 
-  // Render Full Expanded Sidebar (260px wide)
+  // Render Full Expanded Sidebar (280px wide)
   return (
     <aside
       style={{
-        width: 260,
+        width: 280,
         backgroundColor: "var(--bg-secondary)",
         borderRight: "1px solid var(--border-subtle)",
         display: "flex",
@@ -237,33 +237,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Top Sidebar Header & Tab Bar */}
       <div
         style={{
-          height: 34,
+          height: 38,
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 6px",
+          padding: "0 8px",
           backgroundColor: "var(--bg-primary)"
         }}
       >
         {/* Tabs: Project Sources vs Netlist Hierarchy */}
-        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             onClick={() => setActiveTab("project")}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              fontSize: 11,
+              gap: 6,
+              fontSize: 12,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "4px 10px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "project" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "project" ? "var(--accent-blue)" : "var(--text-muted)",
               border: activeTab === "project" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <Folder size={12} />
+            <Folder size={13} />
             <span>Sources</span>
           </button>
 
@@ -272,17 +272,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              fontSize: 11,
+              gap: 6,
+              fontSize: 12,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "4px 10px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "hierarchy" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "hierarchy" ? "var(--accent-blue)" : "var(--text-muted)",
               border: activeTab === "hierarchy" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <GitCommit size={12} />
+            <GitCommit size={13} />
             <span>Netlist</span>
           </button>
         </div>
@@ -293,13 +293,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={onToggleCollapse}
             title="Collapse Sidebar (Liberate Workspace Space)"
             style={{
-              padding: "3px 5px",
+              padding: "4px 6px",
               color: "var(--text-muted)",
               borderRadius: "var(--radius-sm)",
               cursor: "pointer"
             }}
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft size={15} />
           </button>
         )}
       </div>
@@ -317,10 +317,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onSelectFile={onSelectFile}
           />
         ) : (
-          <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
             {/* Search Box for Hierarchy */}
-            <div style={{ position: "relative", marginBottom: 8 }}>
-              <Search size={12} color="var(--text-muted)" style={{ position: "absolute", left: 8, top: 8 }} />
+            <div style={{ position: "relative", marginBottom: 10 }}>
+              <Search size={13} color="var(--text-muted)" style={{ position: "absolute", left: 8, top: 9 }} />
               <input
                 type="text"
                 value={hierarchySearch}
@@ -328,8 +328,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 placeholder="Filter nets & instances..."
                 style={{
                   width: "100%",
-                  padding: "5px 8px 5px 26px",
-                  fontSize: 11,
+                  padding: "6px 8px 6px 28px",
+                  fontSize: 12,
                   backgroundColor: "var(--bg-tertiary)",
                   color: "var(--text-primary)",
                   border: "1px solid var(--border-subtle)",
@@ -340,14 +340,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {hierarchySearch && (
                 <button
                   onClick={() => setHierarchySearch("")}
-                  style={{ position: "absolute", right: 6, top: 6, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+                  style={{ position: "absolute", right: 6, top: 7, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
                 >
-                  <X size={12} />
+                  <X size={13} />
                 </button>
               )}
             </div>
 
-            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", padding: "4px 8px 6px", letterSpacing: 0.5 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", padding: "4px 8px 6px", letterSpacing: 0.5 }}>
               Elaborated Netlist Tree
             </div>
 

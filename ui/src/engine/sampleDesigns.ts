@@ -9,6 +9,45 @@ export interface SampleDesign {
 
 export const SAMPLE_DESIGNS: SampleDesign[] = [
   {
+    id: "logic_circuit",
+    name: "Combinational Logic Circuit (A, B, C → F)",
+    category: "standard",
+    description: "Gate-level combinational circuit implementing F = ((~A & B) & C) | ~B with intermediate net monitoring (w1–w4).",
+    topModule: "logic_circuit",
+    code: `// Axiom Sample: Combinational Logic Circuit
+// Inputs: A, B, C | Output: F
+// Logic equations:
+//   w1 = ~A
+//   w2 = w1 & B
+//   w3 = w2 & C
+//   w4 = ~B
+//   F  = w3 | w4
+\`timescale 1ns / 1ps
+
+module logic_circuit (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+
+  // Internal intermediate wires
+  wire w1;
+  wire w2;
+  wire w3;
+  wire w4;
+
+  // Combinational gate assignments
+  assign w1 = ~A;        // Invert A
+  assign w2 = w1 & B;    // AND gate: (~A & B)
+  assign w3 = w2 & C;    // AND gate: ((~A & B) & C)
+  assign w4 = ~B;        // Invert B
+  assign F  = w3 | w4;   // OR gate:  (((~A & B) & C) | ~B)
+
+endmodule
+`
+  },
+  {
     id: "alu",
     name: "8-bit Arithmetic Logic Unit (ALU)",
     category: "standard",

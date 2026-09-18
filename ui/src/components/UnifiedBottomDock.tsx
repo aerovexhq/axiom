@@ -356,38 +356,39 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
     setDockHeight((prev) => Math.max(120, Math.min(650, prev - deltaPx)));
   };
 
-  // Render Collapsed Status Bar (28px)
+  // Render Collapsed Status Bar (32px)
   if (isCollapsed) {
     return (
       <div
         style={{
-          height: 28,
+          height: 32,
           backgroundColor: "var(--bg-secondary)",
           borderTop: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 10px",
-          fontSize: 11,
+          padding: "0 14px",
+          fontSize: 12,
           zIndex: 10,
           userSelect: "none"
         }}
       >
         {/* Left: Expand Button & Quick Tab Jumpers */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => setIsCollapsed(false)}
             title="Expand Bottom Dock"
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 5,
               color: "var(--accent-blue)",
               fontWeight: 600,
-              cursor: "pointer"
+              cursor: "pointer",
+              fontSize: 12
             }}
           >
-            <ChevronUp size={14} />
+            <ChevronUp size={15} />
             <span>Dock</span>
           </button>
 
@@ -402,12 +403,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 5,
               color: "var(--text-secondary)",
-              cursor: "pointer"
+              cursor: "pointer",
+              fontSize: 12
             }}
           >
-            <Terminal size={12} />
+            <Terminal size={13} />
             <span>Console</span>
           </button>
 
@@ -419,12 +421,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 5,
               color: errorCount > 0 ? "var(--accent-rose)" : warningCount > 0 ? "var(--accent-amber)" : "var(--text-secondary)",
-              cursor: "pointer"
+              cursor: "pointer",
+              fontSize: 12
             }}
           >
-            <AlertCircle size={12} />
+            <AlertCircle size={13} />
             <span>Problems ({diagnostics.length})</span>
           </button>
 
@@ -436,12 +439,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 5,
               color: "var(--accent-amber)",
-              cursor: "pointer"
+              cursor: "pointer",
+              fontSize: 12
             }}
           >
-            <Zap size={12} />
+            <Zap size={13} />
             <span>Power ({latestPowerMw.toFixed(1)} mW)</span>
           </button>
 
@@ -454,20 +458,21 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
+                gap: 5,
                 color: "var(--accent-rose)",
-                cursor: "pointer"
+                cursor: "pointer",
+                fontSize: 12
               }}
             >
-              <AlertTriangle size={12} />
+              <AlertTriangle size={13} />
               <span>{state.glitches.length} Glitches</span>
             </button>
           )}
         </div>
 
         {/* Right: Live Telemetry & Simulation Status Chips */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-mono)" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: "var(--font-mono)" }}>
+          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
             t = {(state.currentSimTimePs / 1000).toFixed(1)} ns
           </span>
 
@@ -477,7 +482,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               alignItems: "center",
               gap: 4,
               color: currentRailV < 1.15 ? "var(--accent-amber)" : "var(--accent-emerald)",
-              fontSize: 10
+              fontSize: 11
             }}
           >
             <span>Vdd: {currentRailV.toFixed(3)}V</span>
@@ -485,9 +490,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
 
           <span
             style={{
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: 700,
-              padding: "1px 5px",
+              padding: "2px 6px",
               borderRadius: 3,
               backgroundColor: state.isRunning ? "rgba(16, 185, 129, 0.2)" : "rgba(100, 116, 139, 0.2)",
               color: state.isRunning ? "var(--accent-emerald)" : "var(--text-muted)",
@@ -529,33 +534,33 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
       {/* Dock Header & Tab Bar */}
       <div
         style={{
-          height: 32,
+          height: 38,
           backgroundColor: "var(--bg-primary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 10px"
+          padding: "0 12px"
         }}
       >
         {/* Left: Tab Switcher Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <button
             onClick={() => setActiveTab("repl")}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              fontSize: 11,
+              gap: 6,
+              fontSize: 12,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "4px 10px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "repl" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "repl" ? "var(--accent-blue)" : "var(--text-muted)",
               border: activeTab === "repl" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <Terminal size={12} />
+            <Terminal size={13} />
             <span>Console & REPL</span>
           </button>
 
@@ -564,21 +569,21 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              fontSize: 11,
+              gap: 6,
+              fontSize: 12,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "4px 10px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "problems" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "problems" ? "var(--accent-cyan)" : "var(--text-muted)",
               border: activeTab === "problems" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <AlertCircle size={12} />
+            <AlertCircle size={13} />
             <span>Problems & Linter</span>
             <span
               style={{
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 700,
                 backgroundColor:
                   errorCount > 0
@@ -592,7 +597,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                     : warningCount > 0
                     ? "var(--accent-amber)"
                     : "var(--accent-emerald)",
-                padding: "0 5px",
+                padding: "1px 6px",
                 borderRadius: 8
               }}
             >
@@ -605,17 +610,17 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              fontSize: 11,
+              gap: 6,
+              fontSize: 12,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "4px 10px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "telemetry" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "telemetry" ? "var(--accent-amber)" : "var(--text-muted)",
               border: activeTab === "telemetry" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <Zap size={12} />
+            <Zap size={13} />
             <span>Power & Telemetry</span>
           </button>
 
@@ -624,26 +629,26 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              fontSize: 11,
+              gap: 6,
+              fontSize: 12,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "4px 10px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "glitches" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "glitches" ? "var(--accent-rose)" : "var(--text-muted)",
               border: activeTab === "glitches" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <AlertTriangle size={12} />
+            <AlertTriangle size={13} />
             <span>Glitches & Hazards</span>
             {state.glitches.length > 0 && (
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: 700,
                   backgroundColor: "rgba(244, 63, 94, 0.2)",
                   color: "var(--accent-rose)",
-                  padding: "0 4px",
+                  padding: "1px 5px",
                   borderRadius: 8
                 }}
               >
