@@ -246,6 +246,14 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
     return generateCounterGraph();
   } else if (sampleDesignId === "hierarchy") {
     return generateHierarchyGraph();
+  } else if (sampleDesignId === "uart") {
+    return generateUartGraph();
+  } else if (sampleDesignId === "spi") {
+    return generateSpiGraph();
+  } else if (sampleDesignId === "pwm") {
+    return generatePwmGraph();
+  } else if (sampleDesignId === "riscv") {
+    return generateRiscvGraph();
   }
   return generateAluGraph();
 }
@@ -1420,4 +1428,161 @@ export function sliceFanoutCone(
     fanoutCount,
     lumpedCapacitanceFf
   };
+}
+
+// --------------------------------------------------------------------------
+// 3. Additional Dynamic Graph Synthesizers
+// --------------------------------------------------------------------------
+
+function generateUartGraph(): SchematicGraph {
+  const nodes: SchematicNode[] = [
+    { id: "in_clk", label: "clk", kind: "port_in", scope: "uart_transceiver", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 6, lineEnd: 6 } },
+    { id: "in_rst_n", label: "rst_n", kind: "port_in", scope: "uart_transceiver", inputs: [], outputs: [{ id: "out", name: "rst_n", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 7, lineEnd: 7 } },
+    { id: "in_tx_start", label: "tx_start", kind: "port_in", scope: "uart_transceiver", inputs: [], outputs: [{ id: "out", name: "tx_start", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 8, lineEnd: 8 } },
+    { id: "in_tx_data", label: "tx_data[7:0]", kind: "port_in", scope: "uart_transceiver", inputs: [], outputs: [{ id: "out", name: "tx_data[7:0]", width: 8, direction: "out" }], x: 0, y: 0, width: 110, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.08, sourceSpan: { lineStart: 9, lineEnd: 9 } },
+    { id: "in_rx_serial", label: "rx_serial", kind: "port_in", scope: "uart_transceiver", inputs: [], outputs: [{ id: "out", name: "rx_serial", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.04, sourceSpan: { lineStart: 10, lineEnd: 10 } },
+
+    { id: "baud_div", label: "Baud Prescaler", sublabel: "div_by_4", kind: "operator", scope: "uart_transceiver", inputs: [{ id: "clk", name: "clk", width: 1, direction: "in" }], outputs: [{ id: "baud_tick", name: "baud_tick", width: 1, direction: "out" }], x: 0, y: 0, width: 130, height: 44, layer: 1, delayPs: 80, dynamicPowerMw: 0.22, sourceSpan: { lineStart: 18, lineEnd: 32 } },
+    { id: "tx_fsm", label: "TX Controller", sublabel: "FSM (IDLE/START/DATA/STOP)", kind: "module", scope: "uart_transceiver", inputs: [{ id: "baud_tick", name: "baud_tick", width: 1, direction: "in" }, { id: "tx_start", name: "tx_start", width: 1, direction: "in" }], outputs: [{ id: "tx_busy", name: "tx_busy", width: 1, direction: "out" }, { id: "tx_done", name: "tx_done", width: 1, direction: "out" }, { id: "shift_en", name: "shift_en", width: 1, direction: "out" }], x: 0, y: 0, width: 150, height: 64, layer: 1, delayPs: 120, dynamicPowerMw: 0.35, sourceSpan: { lineStart: 42, lineEnd: 90 } },
+    { id: "rx_fsm", label: "RX Sampler & FSM", sublabel: "8-N-1 Detector", kind: "module", scope: "uart_transceiver", inputs: [{ id: "baud_tick", name: "baud_tick", width: 1, direction: "in" }, { id: "rx_serial", name: "rx_serial", width: 1, direction: "in" }], outputs: [{ id: "rx_ready", name: "rx_ready", width: 1, direction: "out" }, { id: "rx_error", name: "rx_error", width: 1, direction: "out" }, { id: "sample_en", name: "sample_en", width: 1, direction: "out" }], x: 0, y: 0, width: 150, height: 64, layer: 1, delayPs: 140, dynamicPowerMw: 0.38, sourceSpan: { lineStart: 102, lineEnd: 155 } },
+
+    { id: "tx_shift", label: "TX PISO Shifter", sublabel: "8-bit Shift Register", kind: "register", scope: "uart_transceiver", inputs: [{ id: "tx_data", name: "tx_data[7:0]", width: 8, direction: "in" }, { id: "shift_en", name: "shift_en", width: 1, direction: "in" }], outputs: [{ id: "tx_serial", name: "tx_serial", width: 1, direction: "out" }], x: 0, y: 0, width: 140, height: 50, layer: 2, delayPs: 90, dynamicPowerMw: 0.28, sourceSpan: { lineStart: 60, lineEnd: 75 } },
+    { id: "rx_shift", label: "RX SIPO Buffer", sublabel: "8-bit Deserializer", kind: "register", scope: "uart_transceiver", inputs: [{ id: "rx_serial", name: "rx_serial", width: 1, direction: "in" }, { id: "sample_en", name: "sample_en", width: 1, direction: "in" }], outputs: [{ id: "rx_data", name: "rx_data[7:0]", width: 8, direction: "out" }], x: 0, y: 0, width: 140, height: 50, layer: 2, delayPs: 95, dynamicPowerMw: 0.30, sourceSpan: { lineStart: 125, lineEnd: 140 } },
+
+    { id: "out_tx_serial", label: "tx_serial", kind: "port_out", scope: "uart_transceiver", inputs: [{ id: "in", name: "tx_serial", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 11, lineEnd: 11 } },
+    { id: "out_tx_busy", label: "tx_busy", kind: "port_out", scope: "uart_transceiver", inputs: [{ id: "in", name: "tx_busy", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 12, lineEnd: 12 } },
+    { id: "out_tx_done", label: "tx_done", kind: "port_out", scope: "uart_transceiver", inputs: [{ id: "in", name: "tx_done", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 13, lineEnd: 13 } },
+    { id: "out_rx_data", label: "rx_data[7:0]", kind: "port_out", scope: "uart_transceiver", inputs: [{ id: "in", name: "rx_data[7:0]", width: 8, direction: "in" }], outputs: [], x: 0, y: 0, width: 110, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.06, sourceSpan: { lineStart: 14, lineEnd: 14 } },
+    { id: "out_rx_ready", label: "rx_ready", kind: "port_out", scope: "uart_transceiver", inputs: [{ id: "in", name: "rx_ready", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 15, lineEnd: 15 } }
+  ];
+
+  const edges: SchematicEdge[] = [
+    { id: "e_clk_baud", netName: "clk", sourceNodeId: "in_clk", sourcePortId: "out", targetNodeId: "baud_div", targetPortId: "clk", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "uart_transceiver.clk", fanout: 3 },
+    { id: "e_baud_tx", netName: "baud_tick", sourceNodeId: "baud_div", sourcePortId: "baud_tick", targetNodeId: "tx_fsm", targetPortId: "baud_tick", width: 1, isBus: false, wirePoints: [], delayPs: 20, signalId: "uart_transceiver.baud_tick", fanout: 2 },
+    { id: "e_baud_rx", netName: "baud_tick", sourceNodeId: "baud_div", sourcePortId: "baud_tick", targetNodeId: "rx_fsm", targetPortId: "baud_tick", width: 1, isBus: false, wirePoints: [], delayPs: 20, signalId: "uart_transceiver.baud_tick", fanout: 2 },
+    { id: "e_tx_start", netName: "tx_start", sourceNodeId: "in_tx_start", sourcePortId: "out", targetNodeId: "tx_fsm", targetPortId: "tx_start", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "uart_transceiver.tx_start", fanout: 1 },
+    { id: "e_tx_data_shift", netName: "tx_data", sourceNodeId: "in_tx_data", sourcePortId: "out", targetNodeId: "tx_shift", targetPortId: "tx_data", width: 8, isBus: true, wirePoints: [], delayPs: 25, signalId: "uart_transceiver.tx_data", fanout: 1 },
+    { id: "e_shift_en", netName: "shift_en", sourceNodeId: "tx_fsm", sourcePortId: "shift_en", targetNodeId: "tx_shift", targetPortId: "shift_en", width: 1, isBus: false, wirePoints: [], delayPs: 20, signalId: "uart_transceiver.shift_en", fanout: 1 },
+    { id: "e_tx_busy", netName: "tx_busy", sourceNodeId: "tx_fsm", sourcePortId: "tx_busy", targetNodeId: "out_tx_busy", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "uart_transceiver.tx_busy", fanout: 1 },
+    { id: "e_tx_done", netName: "tx_done", sourceNodeId: "tx_fsm", sourcePortId: "tx_done", targetNodeId: "out_tx_done", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "uart_transceiver.tx_done", fanout: 1 },
+    { id: "e_tx_serial", netName: "tx_serial", sourceNodeId: "tx_shift", sourcePortId: "tx_serial", targetNodeId: "out_tx_serial", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 12, signalId: "uart_transceiver.tx_serial", fanout: 1 },
+    { id: "e_rx_serial", netName: "rx_serial", sourceNodeId: "in_rx_serial", sourcePortId: "out", targetNodeId: "rx_fsm", targetPortId: "rx_serial", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "uart_transceiver.rx_serial", fanout: 2 },
+    { id: "e_sample_en", netName: "sample_en", sourceNodeId: "rx_fsm", sourcePortId: "sample_en", targetNodeId: "rx_shift", targetPortId: "sample_en", width: 1, isBus: false, wirePoints: [], delayPs: 20, signalId: "uart_transceiver.sample_en", fanout: 1 },
+    { id: "e_rx_data", netName: "rx_data", sourceNodeId: "rx_shift", sourcePortId: "rx_data", targetNodeId: "out_rx_data", targetPortId: "in", width: 8, isBus: true, wirePoints: [], delayPs: 15, signalId: "uart_transceiver.rx_data", fanout: 1 },
+    { id: "e_rx_ready", netName: "rx_ready", sourceNodeId: "rx_fsm", sourcePortId: "rx_ready", targetNodeId: "out_rx_ready", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "uart_transceiver.rx_ready", fanout: 1 }
+  ];
+
+  const graph: SchematicGraph = { id: "uart_graph", topModule: "uart_transceiver", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
+  return layoutAndRouteGraph(graph);
+}
+
+function generateSpiGraph(): SchematicGraph {
+  const nodes: SchematicNode[] = [
+    { id: "in_clk", label: "clk", kind: "port_in", scope: "spi_master", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 5, lineEnd: 5 } },
+    { id: "in_start", label: "start", kind: "port_in", scope: "spi_master", inputs: [], outputs: [{ id: "out", name: "start", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 7, lineEnd: 7 } },
+    { id: "in_tx_byte", label: "tx_byte[7:0]", kind: "port_in", scope: "spi_master", inputs: [], outputs: [{ id: "out", name: "tx_byte[7:0]", width: 8, direction: "out" }], x: 0, y: 0, width: 110, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.08, sourceSpan: { lineStart: 10, lineEnd: 10 } },
+    { id: "in_miso", label: "miso", kind: "port_in", scope: "spi_master", inputs: [], outputs: [{ id: "out", name: "miso", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.04, sourceSpan: { lineStart: 18, lineEnd: 18 } },
+
+    { id: "spi_ctrl", label: "SPI Controller", sublabel: "State FSM & SCK Generator", kind: "module", scope: "spi_master", inputs: [{ id: "clk", name: "clk", width: 1, direction: "in" }, { id: "start", name: "start", width: 1, direction: "in" }], outputs: [{ id: "cs_n", name: "cs_n", width: 1, direction: "out" }, { id: "sck", name: "sck", width: 1, direction: "out" }, { id: "shift_en", name: "shift_en", width: 1, direction: "out" }, { id: "busy", name: "busy", width: 1, direction: "out" }, { id: "done", name: "done", width: 1, direction: "out" }], x: 0, y: 0, width: 160, height: 70, layer: 1, delayPs: 110, dynamicPowerMw: 0.42, sourceSpan: { lineStart: 30, lineEnd: 75 } },
+    { id: "mosi_shift", label: "MOSI PISO Shifter", sublabel: "MSB First (D7..D0)", kind: "register", scope: "spi_master", inputs: [{ id: "tx_byte", name: "tx_byte[7:0]", width: 8, direction: "in" }, { id: "shift_en", name: "shift_en", width: 1, direction: "in" }], outputs: [{ id: "mosi", name: "mosi", width: 1, direction: "out" }], x: 0, y: 0, width: 140, height: 50, layer: 2, delayPs: 85, dynamicPowerMw: 0.25, sourceSpan: { lineStart: 50, lineEnd: 65 } },
+    { id: "miso_sample", label: "MISO SIPO Sampler", sublabel: "Shift In on SCK", kind: "register", scope: "spi_master", inputs: [{ id: "miso", name: "miso", width: 1, direction: "in" }, { id: "sck", name: "sck", width: 1, direction: "in" }], outputs: [{ id: "rx_byte", name: "rx_byte[7:0]", width: 8, direction: "out" }], x: 0, y: 0, width: 140, height: 50, layer: 2, delayPs: 90, dynamicPowerMw: 0.26, sourceSpan: { lineStart: 55, lineEnd: 68 } },
+
+    { id: "out_sck", label: "sck", kind: "port_out", scope: "spi_master", inputs: [{ id: "in", name: "sck", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.08, sourceSpan: { lineStart: 15, lineEnd: 15 } },
+    { id: "out_cs_n", label: "cs_n", kind: "port_out", scope: "spi_master", inputs: [{ id: "in", name: "cs_n", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.03, sourceSpan: { lineStart: 16, lineEnd: 16 } },
+    { id: "out_mosi", label: "mosi", kind: "port_out", scope: "spi_master", inputs: [{ id: "in", name: "mosi", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 17, lineEnd: 17 } },
+    { id: "out_rx_byte", label: "rx_byte[7:0]", kind: "port_out", scope: "spi_master", inputs: [{ id: "in", name: "rx_byte[7:0]", width: 8, direction: "in" }], outputs: [], x: 0, y: 0, width: 110, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.06, sourceSpan: { lineStart: 11, lineEnd: 11 } },
+    { id: "out_busy", label: "busy", kind: "port_out", scope: "spi_master", inputs: [{ id: "in", name: "busy", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 12, lineEnd: 12 } },
+    { id: "out_done", label: "done", kind: "port_out", scope: "spi_master", inputs: [{ id: "in", name: "done", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 90, height: 28, layer: 3, delayPs: 10, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 13, lineEnd: 13 } }
+  ];
+
+  const edges: SchematicEdge[] = [
+    { id: "e_clk", netName: "clk", sourceNodeId: "in_clk", sourcePortId: "out", targetNodeId: "spi_ctrl", targetPortId: "clk", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "spi_master.clk", fanout: 2 },
+    { id: "e_start", netName: "start", sourceNodeId: "in_start", sourcePortId: "out", targetNodeId: "spi_ctrl", targetPortId: "start", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "spi_master.start", fanout: 1 },
+    { id: "e_sck", netName: "sck", sourceNodeId: "spi_ctrl", sourcePortId: "sck", targetNodeId: "out_sck", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "spi_master.sck", fanout: 2 },
+    { id: "e_cs_n", netName: "cs_n", sourceNodeId: "spi_ctrl", sourcePortId: "cs_n", targetNodeId: "out_cs_n", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "spi_master.cs_n", fanout: 1 },
+    { id: "e_busy", netName: "busy", sourceNodeId: "spi_ctrl", sourcePortId: "busy", targetNodeId: "out_busy", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "spi_master.busy", fanout: 1 },
+    { id: "e_done", netName: "done", sourceNodeId: "spi_ctrl", sourcePortId: "done", targetNodeId: "out_done", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "spi_master.done", fanout: 1 },
+    { id: "e_tx_byte", netName: "tx_byte", sourceNodeId: "in_tx_byte", sourcePortId: "out", targetNodeId: "mosi_shift", targetPortId: "tx_byte", width: 8, isBus: true, wirePoints: [], delayPs: 20, signalId: "spi_master.tx_byte", fanout: 1 },
+    { id: "e_shift_en", netName: "shift_en", sourceNodeId: "spi_ctrl", sourcePortId: "shift_en", targetNodeId: "mosi_shift", targetPortId: "shift_en", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "spi_master.shift_en", fanout: 1 },
+    { id: "e_mosi", netName: "mosi", sourceNodeId: "mosi_shift", sourcePortId: "mosi", targetNodeId: "out_mosi", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 12, signalId: "spi_master.mosi", fanout: 1 },
+    { id: "e_miso", netName: "miso", sourceNodeId: "in_miso", sourcePortId: "out", targetNodeId: "miso_sample", targetPortId: "miso", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "spi_master.miso", fanout: 1 },
+    { id: "e_rx_byte", netName: "rx_byte", sourceNodeId: "miso_sample", sourcePortId: "rx_byte", targetNodeId: "out_rx_byte", targetPortId: "in", width: 8, isBus: true, wirePoints: [], delayPs: 15, signalId: "spi_master.rx_byte", fanout: 1 }
+  ];
+
+  const graph: SchematicGraph = { id: "spi_graph", topModule: "spi_master", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
+  return layoutAndRouteGraph(graph);
+}
+
+function generatePwmGraph(): SchematicGraph {
+  const nodes: SchematicNode[] = [
+    { id: "in_clk", label: "clk", kind: "port_in", scope: "pwm_generator", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 5, lineEnd: 5 } },
+    { id: "in_enable", label: "enable", kind: "port_in", scope: "pwm_generator", inputs: [], outputs: [{ id: "out", name: "enable", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 7, lineEnd: 7 } },
+    { id: "in_duty", label: "duty_cycle[7:0]", kind: "port_in", scope: "pwm_generator", inputs: [], outputs: [{ id: "out", name: "duty_cycle[7:0]", width: 8, direction: "out" }], x: 0, y: 0, width: 120, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.08, sourceSpan: { lineStart: 8, lineEnd: 8 } },
+    { id: "in_dead_time", label: "dead_time[3:0]", kind: "port_in", scope: "pwm_generator", inputs: [], outputs: [{ id: "out", name: "dead_time[3:0]", width: 4, direction: "out" }], x: 0, y: 0, width: 120, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.04, sourceSpan: { lineStart: 9, lineEnd: 9 } },
+
+    { id: "period_cnt", label: "Period Counter", sublabel: "8-bit Free-Running (0..255)", kind: "register", scope: "pwm_generator", inputs: [{ id: "clk", name: "clk", width: 1, direction: "in" }, { id: "enable", name: "enable", width: 1, direction: "in" }], outputs: [{ id: "count", name: "count[7:0]", width: 8, direction: "out" }, { id: "sync", name: "sync", width: 1, direction: "out" }], x: 0, y: 0, width: 150, height: 54, layer: 1, delayPs: 90, dynamicPowerMw: 0.35, sourceSpan: { lineStart: 20, lineEnd: 32 } },
+    { id: "duty_cmp", label: "Duty Comparator", sublabel: "count < duty_cycle", kind: "operator", scope: "pwm_generator", inputs: [{ id: "count", name: "count[7:0]", width: 8, direction: "in" }, { id: "duty", name: "duty[7:0]", width: 8, direction: "in" }], outputs: [{ id: "raw_pwm", name: "raw_pwm", width: 1, direction: "out" }], x: 0, y: 0, width: 140, height: 50, layer: 2, delayPs: 70, dynamicPowerMw: 0.22, sourceSpan: { lineStart: 28, lineEnd: 30 } },
+
+    { id: "dt_gen", label: "Dead-Time Safe Stage", sublabel: "Half-Bridge Shoot-Through Prev.", kind: "module", scope: "pwm_generator", inputs: [{ id: "raw_pwm", name: "raw_pwm", width: 1, direction: "in" }, { id: "dead_time", name: "dead_time[3:0]", width: 4, direction: "in" }], outputs: [{ id: "pwm_high", name: "pwm_high", width: 1, direction: "out" }, { id: "pwm_low", name: "pwm_low", width: 1, direction: "out" }], x: 0, y: 0, width: 160, height: 60, layer: 3, delayPs: 110, dynamicPowerMw: 0.45, sourceSpan: { lineStart: 38, lineEnd: 65 } },
+
+    { id: "out_pwm_high", label: "pwm_high (Gate H)", kind: "port_out", scope: "pwm_generator", inputs: [{ id: "in", name: "pwm_high", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 130, height: 28, layer: 4, delayPs: 10, dynamicPowerMw: 0.12, sourceSpan: { lineStart: 10, lineEnd: 10 } },
+    { id: "out_pwm_low", label: "pwm_low (Gate L)", kind: "port_out", scope: "pwm_generator", inputs: [{ id: "in", name: "pwm_low", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 130, height: 28, layer: 4, delayPs: 10, dynamicPowerMw: 0.12, sourceSpan: { lineStart: 11, lineEnd: 11 } },
+    { id: "out_cycle_sync", label: "cycle_sync", kind: "port_out", scope: "pwm_generator", inputs: [{ id: "in", name: "cycle_sync", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 100, height: 28, layer: 4, delayPs: 10, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 13, lineEnd: 13 } }
+  ];
+
+  const edges: SchematicEdge[] = [
+    { id: "e_clk_cnt", netName: "clk", sourceNodeId: "in_clk", sourcePortId: "out", targetNodeId: "period_cnt", targetPortId: "clk", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "pwm_generator.clk", fanout: 2 },
+    { id: "e_en_cnt", netName: "enable", sourceNodeId: "in_enable", sourcePortId: "out", targetNodeId: "period_cnt", targetPortId: "enable", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "pwm_generator.enable", fanout: 1 },
+    { id: "e_count_cmp", netName: "count", sourceNodeId: "period_cnt", sourcePortId: "count", targetNodeId: "duty_cmp", targetPortId: "count", width: 8, isBus: true, wirePoints: [], delayPs: 20, signalId: "pwm_generator.period_count", fanout: 1 },
+    { id: "e_duty_cmp", netName: "duty_cycle", sourceNodeId: "in_duty", sourcePortId: "out", targetNodeId: "duty_cmp", targetPortId: "duty", width: 8, isBus: true, wirePoints: [], delayPs: 20, signalId: "pwm_generator.duty_cycle", fanout: 1 },
+    { id: "e_raw_pwm", netName: "raw_pwm", sourceNodeId: "duty_cmp", sourcePortId: "raw_pwm", targetNodeId: "dt_gen", targetPortId: "raw_pwm", width: 1, isBus: false, wirePoints: [], delayPs: 25, signalId: "pwm_generator.raw_pwm", fanout: 1 },
+    { id: "e_dt", netName: "dead_time", sourceNodeId: "in_dead_time", sourcePortId: "out", targetNodeId: "dt_gen", targetPortId: "dead_time", width: 4, isBus: true, wirePoints: [], delayPs: 20, signalId: "pwm_generator.dead_time", fanout: 1 },
+    { id: "e_pwm_h", netName: "pwm_high", sourceNodeId: "dt_gen", sourcePortId: "pwm_high", targetNodeId: "out_pwm_high", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "pwm_generator.pwm_high", fanout: 1 },
+    { id: "e_pwm_l", netName: "pwm_low", sourceNodeId: "dt_gen", sourcePortId: "pwm_low", targetNodeId: "out_pwm_low", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "pwm_generator.pwm_low", fanout: 1 },
+    { id: "e_sync", netName: "cycle_sync", sourceNodeId: "period_cnt", sourcePortId: "sync", targetNodeId: "out_cycle_sync", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "pwm_generator.cycle_sync", fanout: 1 }
+  ];
+
+  const graph: SchematicGraph = { id: "pwm_graph", topModule: "pwm_generator", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
+  return layoutAndRouteGraph(graph);
+}
+
+function generateRiscvGraph(): SchematicGraph {
+  const nodes: SchematicNode[] = [
+    { id: "in_clk", label: "clk", kind: "port_in", scope: "riscv_mini_core", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 5, lineEnd: 5 } },
+    { id: "in_step_en", label: "step_en", kind: "port_in", scope: "riscv_mini_core", inputs: [], outputs: [{ id: "out", name: "step_en", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 7, lineEnd: 7 } },
+
+    { id: "pc_reg", label: "Program Counter (PC)", sublabel: "32-bit Instruction Pointer", kind: "register", scope: "riscv_mini_core", inputs: [{ id: "clk", name: "clk", width: 1, direction: "in" }, { id: "step_en", name: "step_en", width: 1, direction: "in" }], outputs: [{ id: "pc", name: "pc[31:0]", width: 32, direction: "out" }], x: 0, y: 0, width: 160, height: 50, layer: 1, delayPs: 80, dynamicPowerMw: 0.45, sourceSpan: { lineStart: 55, lineEnd: 75 } },
+    { id: "instr_rom", label: "Instruction ROM", sublabel: "Embedded Code Memory", kind: "module", scope: "riscv_mini_core", inputs: [{ id: "pc", name: "pc[31:0]", width: 32, direction: "in" }], outputs: [{ id: "instr", name: "instr[31:0]", width: 32, direction: "out" }], x: 0, y: 0, width: 150, height: 50, layer: 2, delayPs: 120, dynamicPowerMw: 0.60, sourceSpan: { lineStart: 16, lineEnd: 28 } },
+    { id: "imm_dec", label: "Immediate & Decoder", sublabel: "I-Type / R-Type Decoder", kind: "operator", scope: "riscv_mini_core", inputs: [{ id: "instr", name: "instr[31:0]", width: 32, direction: "in" }], outputs: [{ id: "imm", name: "imm[31:0]", width: 32, direction: "out" }, { id: "rs1", name: "rs1[2:0]", width: 3, direction: "out" }, { id: "rs2", name: "rs2[2:0]", width: 3, direction: "out" }, { id: "funct3", name: "funct3[2:0]", width: 3, direction: "out" }], x: 0, y: 0, width: 160, height: 64, layer: 3, delayPs: 75, dynamicPowerMw: 0.30, sourceSpan: { lineStart: 31, lineEnd: 38 } },
+
+    { id: "regfile", label: "Register File (x0..x7)", sublabel: "8 x 32-bit Dual-Read Single-Write", kind: "register", scope: "riscv_mini_core", inputs: [{ id: "rs1", name: "rs1", width: 3, direction: "in" }, { id: "rs2", name: "rs2", width: 3, direction: "in" }, { id: "write_data", name: "wdata", width: 32, direction: "in" }], outputs: [{ id: "src_a", name: "src_a[31:0]", width: 32, direction: "out" }, { id: "src_b", name: "src_b[31:0]", width: 32, direction: "out" }, { id: "reg_x1", name: "x1[31:0]", width: 32, direction: "out" }, { id: "reg_x2", name: "x2[31:0]", width: 32, direction: "out" }], x: 0, y: 0, width: 180, height: 74, layer: 4, delayPs: 140, dynamicPowerMw: 0.85, sourceSpan: { lineStart: 41, lineEnd: 46 } },
+    { id: "rv32_alu", label: "32-Bit Execution ALU", sublabel: "ADD, SUB, XOR, OR, AND", kind: "operator", scope: "riscv_mini_core", inputs: [{ id: "src_a", name: "src_a", width: 32, direction: "in" }, { id: "src_b", name: "src_b", width: 32, direction: "in" }, { id: "funct3", name: "funct3", width: 3, direction: "in" }], outputs: [{ id: "result", name: "result[31:0]", width: 32, direction: "out" }, { id: "branch", name: "branch", width: 1, direction: "out" }], x: 0, y: 0, width: 160, height: 64, layer: 5, delayPs: 160, dynamicPowerMw: 0.95, sourceSpan: { lineStart: 48, lineEnd: 58 } },
+
+    { id: "out_pc", label: "pc[31:0]", kind: "port_out", scope: "riscv_mini_core", inputs: [{ id: "in", name: "pc", width: 32, direction: "in" }], outputs: [], x: 0, y: 0, width: 110, height: 28, layer: 6, delayPs: 10, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 8, lineEnd: 8 } },
+    { id: "out_instr", label: "instr[31:0]", kind: "port_out", scope: "riscv_mini_core", inputs: [{ id: "in", name: "instr", width: 32, direction: "in" }], outputs: [], x: 0, y: 0, width: 120, height: 28, layer: 6, delayPs: 10, dynamicPowerMw: 0.08, sourceSpan: { lineStart: 9, lineEnd: 9 } },
+    { id: "out_alu_res", label: "alu_result[31:0]", kind: "port_out", scope: "riscv_mini_core", inputs: [{ id: "in", name: "res", width: 32, direction: "in" }], outputs: [], x: 0, y: 0, width: 130, height: 28, layer: 6, delayPs: 10, dynamicPowerMw: 0.10, sourceSpan: { lineStart: 10, lineEnd: 10 } },
+    { id: "out_x1", label: "reg_x1[31:0]", kind: "port_out", scope: "riscv_mini_core", inputs: [{ id: "in", name: "x1", width: 32, direction: "in" }], outputs: [], x: 0, y: 0, width: 110, height: 28, layer: 6, delayPs: 10, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 11, lineEnd: 11 } },
+    { id: "out_x2", label: "reg_x2[31:0]", kind: "port_out", scope: "riscv_mini_core", inputs: [{ id: "in", name: "x2", width: 32, direction: "in" }], outputs: [], x: 0, y: 0, width: 110, height: 28, layer: 6, delayPs: 10, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 12, lineEnd: 12 } }
+  ];
+
+  const edges: SchematicEdge[] = [
+    { id: "e_clk_pc", netName: "clk", sourceNodeId: "in_clk", sourcePortId: "out", targetNodeId: "pc_reg", targetPortId: "clk", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "riscv_mini_core.clk", fanout: 2 },
+    { id: "e_step_pc", netName: "step_en", sourceNodeId: "in_step_en", sourcePortId: "out", targetNodeId: "pc_reg", targetPortId: "step_en", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "riscv_mini_core.step_en", fanout: 1 },
+    { id: "e_pc_rom", netName: "pc", sourceNodeId: "pc_reg", sourcePortId: "pc", targetNodeId: "instr_rom", targetPortId: "pc", width: 32, isBus: true, wirePoints: [], delayPs: 20, signalId: "riscv_mini_core.pc", fanout: 2 },
+    { id: "e_pc_out", netName: "pc", sourceNodeId: "pc_reg", sourcePortId: "pc", targetNodeId: "out_pc", targetPortId: "in", width: 32, isBus: true, wirePoints: [], delayPs: 10, signalId: "riscv_mini_core.pc", fanout: 2 },
+    { id: "e_rom_dec", netName: "instr", sourceNodeId: "instr_rom", sourcePortId: "instr", targetNodeId: "imm_dec", targetPortId: "instr", width: 32, isBus: true, wirePoints: [], delayPs: 25, signalId: "riscv_mini_core.instr", fanout: 2 },
+    { id: "e_instr_out", netName: "instr", sourceNodeId: "instr_rom", sourcePortId: "instr", targetNodeId: "out_instr", targetPortId: "in", width: 32, isBus: true, wirePoints: [], delayPs: 10, signalId: "riscv_mini_core.instr", fanout: 2 },
+    { id: "e_rs1_rf", netName: "rs1", sourceNodeId: "imm_dec", sourcePortId: "rs1", targetNodeId: "regfile", targetPortId: "rs1", width: 3, isBus: true, wirePoints: [], delayPs: 15, signalId: "riscv_mini_core.rs1", fanout: 1 },
+    { id: "e_rs2_rf", netName: "rs2", sourceNodeId: "imm_dec", sourcePortId: "rs2", targetNodeId: "regfile", targetPortId: "rs2", width: 3, isBus: true, wirePoints: [], delayPs: 15, signalId: "riscv_mini_core.rs2", fanout: 1 },
+    { id: "e_src_a_alu", netName: "src_a", sourceNodeId: "regfile", sourcePortId: "src_a", targetNodeId: "rv32_alu", targetPortId: "src_a", width: 32, isBus: true, wirePoints: [], delayPs: 25, signalId: "riscv_mini_core.src_a", fanout: 1 },
+    { id: "e_src_b_alu", netName: "src_b", sourceNodeId: "regfile", sourcePortId: "src_b", targetNodeId: "rv32_alu", targetPortId: "src_b", width: 32, isBus: true, wirePoints: [], delayPs: 25, signalId: "riscv_mini_core.src_b", fanout: 1 },
+    { id: "e_f3_alu", netName: "funct3", sourceNodeId: "imm_dec", sourcePortId: "funct3", targetNodeId: "rv32_alu", targetPortId: "funct3", width: 3, isBus: true, wirePoints: [], delayPs: 20, signalId: "riscv_mini_core.funct3", fanout: 1 },
+    { id: "e_alu_wb", netName: "alu_result", sourceNodeId: "rv32_alu", sourcePortId: "result", targetNodeId: "regfile", targetPortId: "write_data", width: 32, isBus: true, wirePoints: [], delayPs: 30, signalId: "riscv_mini_core.alu_result", fanout: 2 },
+    { id: "e_alu_out", netName: "alu_result", sourceNodeId: "rv32_alu", sourcePortId: "result", targetNodeId: "out_alu_res", targetPortId: "in", width: 32, isBus: true, wirePoints: [], delayPs: 10, signalId: "riscv_mini_core.alu_result", fanout: 2 },
+    { id: "e_x1_out", netName: "reg_x1", sourceNodeId: "regfile", sourcePortId: "reg_x1", targetNodeId: "out_x1", targetPortId: "in", width: 32, isBus: true, wirePoints: [], delayPs: 10, signalId: "riscv_mini_core.reg_x1", fanout: 1 },
+    { id: "e_x2_out", netName: "reg_x2", sourceNodeId: "regfile", sourcePortId: "reg_x2", targetNodeId: "out_x2", targetPortId: "in", width: 32, isBus: true, wirePoints: [], delayPs: 10, signalId: "riscv_mini_core.reg_x2", fanout: 1 }
+  ];
+
+  const graph: SchematicGraph = { id: "riscv_graph", topModule: "riscv_mini_core", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
+  return layoutAndRouteGraph(graph);
 }

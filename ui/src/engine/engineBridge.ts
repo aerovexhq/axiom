@@ -123,94 +123,184 @@ export class AxiomEngineBridge {
   }
 
   private getInitialState(topModule: string): SimulationState {
-    const signals: SignalDef[] = [
-      {
-        id: "clk",
-        name: "clk",
-        scope: topModule,
-        fullName: `${topModule}.clk`,
-        width: 1,
-        isBus: false,
-        radix: "bin",
-        samples: [{ timePs: 0, delta: 0, value: "0" }]
-      },
-      {
-        id: "rst_n",
-        name: "rst_n",
-        scope: topModule,
-        fullName: `${topModule}.rst_n`,
-        width: 1,
-        isBus: false,
-        radix: "bin",
-        samples: [{ timePs: 0, delta: 0, value: "0" }]
-      },
-      {
-        id: "opcode",
-        name: "opcode[2:0]",
-        scope: topModule,
-        fullName: `${topModule}.opcode`,
-        width: 3,
-        isBus: true,
-        radix: "bin",
-        samples: [{ timePs: 0, delta: 0, value: "000" }]
-      },
-      {
-        id: "a",
-        name: "a[7:0]",
-        scope: topModule,
-        fullName: `${topModule}.a`,
-        width: 8,
-        isBus: true,
-        radix: "hex",
-        samples: [{ timePs: 0, delta: 0, value: "0x00" }]
-      },
-      {
-        id: "b",
-        name: "b[7:0]",
-        scope: topModule,
-        fullName: `${topModule}.b`,
-        width: 8,
-        isBus: true,
-        radix: "hex",
-        samples: [{ timePs: 0, delta: 0, value: "0x00" }]
-      },
-      {
-        id: "result",
-        name: "result[7:0]",
-        scope: topModule,
-        fullName: `${topModule}.result`,
-        width: 8,
-        isBus: true,
-        radix: "hex",
-        samples: [{ timePs: 0, delta: 0, value: "0x00" }]
-      },
-      {
-        id: "zero_flag",
-        name: "zero_flag",
-        scope: topModule,
-        fullName: `${topModule}.zero_flag`,
-        width: 1,
-        isBus: false,
-        radix: "bin",
-        samples: [{ timePs: 0, delta: 0, value: "1" }]
-      },
-      {
-        id: "carry_flag",
-        name: "carry_flag",
-        scope: topModule,
-        fullName: `${topModule}.carry_flag`,
-        width: 1,
-        isBus: false,
-        radix: "bin",
-        samples: [{ timePs: 0, delta: 0, value: "0" }]
-      }
-    ];
+    let signals: SignalDef[] = [];
+    let hierarchy: HierarchyNode[] = [];
 
-    const hierarchy: HierarchyNode[] = [
-      {
-        id: topModule,
-        name: topModule,
-        kind: "module",
+    if (topModule === "uart_transceiver" || topModule === "uart") {
+      signals = [
+        { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rst_n", name: "rst_n", scope: topModule, fullName: `${topModule}.rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "tx_start", name: "tx_start", scope: topModule, fullName: `${topModule}.tx_start`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "tx_data", name: "tx_data[7:0]", scope: topModule, fullName: `${topModule}.tx_data`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x41" }] },
+        { id: "tx_serial", name: "tx_serial", scope: topModule, fullName: `${topModule}.tx_serial`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "tx_busy", name: "tx_busy", scope: topModule, fullName: `${topModule}.tx_busy`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "tx_done", name: "tx_done", scope: topModule, fullName: `${topModule}.tx_done`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rx_serial", name: "rx_serial", scope: topModule, fullName: `${topModule}.rx_serial`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "rx_data", name: "rx_data[7:0]", scope: topModule, fullName: `${topModule}.rx_data`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00" }] },
+        { id: "rx_ready", name: "rx_ready", scope: topModule, fullName: `${topModule}.rx_ready`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rx_error", name: "rx_error", scope: topModule, fullName: `${topModule}.rx_error`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "baud_tick", name: "baud_tick", scope: topModule, fullName: `${topModule}.baud_tick`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.clk`, name: "clk", kind: "net", width: 1 },
+          { id: `${topModule}.rst_n`, name: "rst_n", kind: "net", width: 1 },
+          { id: `${topModule}.tx_start`, name: "tx_start", kind: "net", width: 1 },
+          { id: `${topModule}.tx_data`, name: "tx_data[7:0]", kind: "net", width: 8 },
+          { id: `${topModule}.tx_serial`, name: "tx_serial", kind: "reg", width: 1 },
+          { id: `${topModule}.tx_busy`, name: "tx_busy", kind: "reg", width: 1 },
+          { id: `${topModule}.tx_done`, name: "tx_done", kind: "reg", width: 1 },
+          { id: `${topModule}.rx_serial`, name: "rx_serial", kind: "net", width: 1 },
+          { id: `${topModule}.rx_data`, name: "rx_data[7:0]", kind: "reg", width: 8 },
+          { id: `${topModule}.rx_ready`, name: "rx_ready", kind: "reg", width: 1 },
+          { id: `${topModule}.rx_error`, name: "rx_error", kind: "reg", width: 1 },
+          { id: `${topModule}.baud_gen`, name: "always @(posedge clk) [baud_gen]", kind: "process" },
+          { id: `${topModule}.tx_fsm`, name: "always @(posedge clk) [tx_fsm]", kind: "process" },
+          { id: `${topModule}.rx_fsm`, name: "always @(posedge clk) [rx_fsm]", kind: "process" }
+        ]
+      }];
+    } else if (topModule === "spi_master" || topModule === "spi") {
+      signals = [
+        { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rst_n", name: "rst_n", scope: topModule, fullName: `${topModule}.rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "start", name: "start", scope: topModule, fullName: `${topModule}.start`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "cpol", name: "cpol", scope: topModule, fullName: `${topModule}.cpol`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "cpha", name: "cpha", scope: topModule, fullName: `${topModule}.cpha`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "tx_byte", name: "tx_byte[7:0]", scope: topModule, fullName: `${topModule}.tx_byte`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0xA5" }] },
+        { id: "rx_byte", name: "rx_byte[7:0]", scope: topModule, fullName: `${topModule}.rx_byte`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00" }] },
+        { id: "sck", name: "sck", scope: topModule, fullName: `${topModule}.sck`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "cs_n", name: "cs_n", scope: topModule, fullName: `${topModule}.cs_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "mosi", name: "mosi", scope: topModule, fullName: `${topModule}.mosi`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "miso", name: "miso", scope: topModule, fullName: `${topModule}.miso`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "busy", name: "busy", scope: topModule, fullName: `${topModule}.busy`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "done", name: "done", scope: topModule, fullName: `${topModule}.done`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.clk`, name: "clk", kind: "net", width: 1 },
+          { id: `${topModule}.rst_n`, name: "rst_n", kind: "net", width: 1 },
+          { id: `${topModule}.start`, name: "start", kind: "net", width: 1 },
+          { id: `${topModule}.tx_byte`, name: "tx_byte[7:0]", kind: "net", width: 8 },
+          { id: `${topModule}.rx_byte`, name: "rx_byte[7:0]", kind: "reg", width: 8 },
+          { id: `${topModule}.sck`, name: "sck", kind: "reg", width: 1 },
+          { id: `${topModule}.cs_n`, name: "cs_n", kind: "reg", width: 1 },
+          { id: `${topModule}.mosi`, name: "mosi", kind: "reg", width: 1 },
+          { id: `${topModule}.miso`, name: "miso", kind: "net", width: 1 },
+          { id: `${topModule}.state_ctrl`, name: "always @(posedge clk) [spi_controller]", kind: "process" }
+        ]
+      }];
+    } else if (topModule === "pwm_generator" || topModule === "pwm") {
+      signals = [
+        { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rst_n", name: "rst_n", scope: topModule, fullName: `${topModule}.rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "enable", name: "enable", scope: topModule, fullName: `${topModule}.enable`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "duty_cycle", name: "duty_cycle[7:0]", scope: topModule, fullName: `${topModule}.duty_cycle`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x80" }] },
+        { id: "dead_time", name: "dead_time[3:0]", scope: topModule, fullName: `${topModule}.dead_time`, width: 4, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x3" }] },
+        { id: "period_count", name: "period_count[7:0]", scope: topModule, fullName: `${topModule}.period_count`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00" }] },
+        { id: "pwm_high", name: "pwm_high", scope: topModule, fullName: `${topModule}.pwm_high`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "pwm_low", name: "pwm_low", scope: topModule, fullName: `${topModule}.pwm_low`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "cycle_sync", name: "cycle_sync", scope: topModule, fullName: `${topModule}.cycle_sync`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.clk`, name: "clk", kind: "net", width: 1 },
+          { id: `${topModule}.rst_n`, name: "rst_n", kind: "net", width: 1 },
+          { id: `${topModule}.enable`, name: "enable", kind: "net", width: 1 },
+          { id: `${topModule}.duty_cycle`, name: "duty_cycle[7:0]", kind: "net", width: 8 },
+          { id: `${topModule}.dead_time`, name: "dead_time[3:0]", kind: "net", width: 4 },
+          { id: `${topModule}.period_count`, name: "period_count[7:0]", kind: "reg", width: 8 },
+          { id: `${topModule}.pwm_high`, name: "pwm_high", kind: "reg", width: 1 },
+          { id: `${topModule}.pwm_low`, name: "pwm_low", kind: "reg", width: 1 },
+          { id: `${topModule}.cycle_sync`, name: "cycle_sync", kind: "wire", width: 1 }
+        ]
+      }];
+    } else if (topModule === "riscv_mini_core" || topModule === "riscv") {
+      signals = [
+        { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rst_n", name: "rst_n", scope: topModule, fullName: `${topModule}.rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "step_en", name: "step_en", scope: topModule, fullName: `${topModule}.step_en`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "pc", name: "pc[31:0]", scope: topModule, fullName: `${topModule}.pc`, width: 32, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00000000" }] },
+        { id: "instr", name: "instr[31:0]", scope: topModule, fullName: `${topModule}.instr`, width: 32, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00500093" }] },
+        { id: "alu_result", name: "alu_result[31:0]", scope: topModule, fullName: `${topModule}.alu_result`, width: 32, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00000000" }] },
+        { id: "reg_x1", name: "reg_x1[31:0]", scope: topModule, fullName: `${topModule}.reg_x1`, width: 32, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00000000" }] },
+        { id: "reg_x2", name: "reg_x2[31:0]", scope: topModule, fullName: `${topModule}.reg_x2`, width: 32, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00000000" }] },
+        { id: "branch_taken", name: "branch_taken", scope: topModule, fullName: `${topModule}.branch_taken`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.clk`, name: "clk", kind: "net", width: 1 },
+          { id: `${topModule}.rst_n`, name: "rst_n", kind: "net", width: 1 },
+          { id: `${topModule}.step_en`, name: "step_en", kind: "net", width: 1 },
+          { id: `${topModule}.pc`, name: "pc[31:0]", kind: "reg", width: 32 },
+          { id: `${topModule}.instr`, name: "instr[31:0]", kind: "wire", width: 32 },
+          { id: `${topModule}.alu_result`, name: "alu_result[31:0]", kind: "reg", width: 32 },
+          { id: `${topModule}.reg_x1`, name: "reg_x1[31:0]", kind: "reg", width: 32 },
+          { id: `${topModule}.reg_x2`, name: "reg_x2[31:0]", kind: "reg", width: 32 },
+          { id: `${topModule}.regfile`, name: "regfile[0:7] [8x32-bit RF]", kind: "process" },
+          { id: `${topModule}.alu_core`, name: "always @(*) [rv32_alu]", kind: "process" }
+        ]
+      }];
+    } else if (topModule === "counter_glitch_demo" || topModule === "counter") {
+      signals = [
+        { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rst_n", name: "rst_n", scope: topModule, fullName: `${topModule}.rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "enable", name: "enable", scope: topModule, fullName: `${topModule}.enable`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "up_down", name: "up_down", scope: topModule, fullName: `${topModule}.up_down`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "count", name: "count[7:0]", scope: topModule, fullName: `${topModule}.count`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00" }] },
+        { id: "terminal_count", name: "terminal_count", scope: topModule, fullName: `${topModule}.terminal_count`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "glitch_hazard_wire", name: "glitch_hazard_wire", scope: topModule, fullName: `${topModule}.glitch_hazard_wire`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.clk`, name: "clk", kind: "net", width: 1 },
+          { id: `${topModule}.rst_n`, name: "rst_n", kind: "net", width: 1 },
+          { id: `${topModule}.enable`, name: "enable", kind: "net", width: 1 },
+          { id: `${topModule}.up_down`, name: "up_down", kind: "net", width: 1 },
+          { id: `${topModule}.count`, name: "count[7:0]", kind: "reg", width: 8 },
+          { id: `${topModule}.terminal_count`, name: "terminal_count", kind: "wire", width: 1 },
+          { id: `${topModule}.glitch_hazard_wire`, name: "glitch_hazard_wire", kind: "wire", width: 1 }
+        ]
+      }];
+    } else if (topModule === "soc_subsystem_top" || topModule === "hierarchy") {
+      signals = [
+        { id: "sys_clk", name: "sys_clk", scope: topModule, fullName: `${topModule}.sys_clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "sys_rst_n", name: "sys_rst_n", scope: topModule, fullName: `${topModule}.sys_rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "data_in", name: "data_in[7:0]", scope: topModule, fullName: `${topModule}.data_in`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x01" }] },
+        { id: "divided_clk", name: "divided_clk", scope: topModule, fullName: `${topModule}.divided_clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "accum_out", name: "accum_out[15:0]", scope: topModule, fullName: `${topModule}.accum_out`, width: 16, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x0000" }] },
+        { id: "core_heartbeat", name: "core_heartbeat", scope: topModule, fullName: `${topModule}.core_heartbeat`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.sys_clk`, name: "sys_clk", kind: "net", width: 1 },
+          { id: `${topModule}.sys_rst_n`, name: "sys_rst_n", kind: "net", width: 1 },
+          { id: `${topModule}.data_in`, name: "data_in[7:0]", kind: "net", width: 8 },
+          { id: `${topModule}.divided_clk`, name: "divided_clk", kind: "wire", width: 1 },
+          { id: `${topModule}.accum_out`, name: "accum_out[15:0]", kind: "reg", width: 16 },
+          { id: `${topModule}.core_heartbeat`, name: "core_heartbeat", kind: "wire", width: 1 },
+          { id: `${topModule}.u_div`, name: "clk_divider u_div", kind: "module" }
+        ]
+      }];
+    } else {
+      // Default: alu_8bit
+      signals = [
+        { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rst_n", name: "rst_n", scope: topModule, fullName: `${topModule}.rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "opcode", name: "opcode[2:0]", scope: topModule, fullName: `${topModule}.opcode`, width: 3, isBus: true, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "000" }] },
+        { id: "a", name: "a[7:0]", scope: topModule, fullName: `${topModule}.a`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00" }] },
+        { id: "b", name: "b[7:0]", scope: topModule, fullName: `${topModule}.b`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00" }] },
+        { id: "result", name: "result[7:0]", scope: topModule, fullName: `${topModule}.result`, width: 8, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00" }] },
+        { id: "zero_flag", name: "zero_flag", scope: topModule, fullName: `${topModule}.zero_flag`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "carry_flag", name: "carry_flag", scope: topModule, fullName: `${topModule}.carry_flag`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
         children: [
           { id: `${topModule}.clk`, name: "clk", kind: "net", width: 1 },
           { id: `${topModule}.rst_n`, name: "rst_n", kind: "net", width: 1 },
@@ -223,8 +313,8 @@ export class AxiomEngineBridge {
           { id: `${topModule}.proc_calc`, name: "always @(*) [combinational]", kind: "process" },
           { id: `${topModule}.proc_seq`, name: "always @(posedge clk) [sequential]", kind: "process" }
         ]
-      }
-    ];
+      }];
+    }
 
     return {
       compiled: false,
@@ -409,18 +499,40 @@ export class AxiomEngineBridge {
   }
 
   private scheduleInitialStimulus() {
-    // Populate initial reset and clock signals
-    const clk = this.state.signals.find(s => s.id === "clk");
-    const rst = this.state.signals.find(s => s.id === "rst_n");
+    // Populate initial reset and clock signals for all designs
+    const clk = this.state.signals.find(s => s.id === "clk" || s.id === "sys_clk");
+    const rst = this.state.signals.find(s => s.id === "rst_n" || s.id === "sys_rst_n");
+    if (clk) clk.samples = [{ timePs: 0, delta: 0, value: "0" }];
+    if (rst) rst.samples = [{ timePs: 0, delta: 0, value: "0" }];
+
     const a = this.state.signals.find(s => s.id === "a");
     const b = this.state.signals.find(s => s.id === "b");
     const op = this.state.signals.find(s => s.id === "opcode");
-
-    if (clk) clk.samples = [{ timePs: 0, delta: 0, value: "0" }];
-    if (rst) rst.samples = [{ timePs: 0, delta: 0, value: "0" }];
     if (a) a.samples = [{ timePs: 0, delta: 0, value: "0x12" }];
     if (b) b.samples = [{ timePs: 0, delta: 0, value: "0x34" }];
     if (op) op.samples = [{ timePs: 0, delta: 0, value: "000" }];
+
+    const txData = this.state.signals.find(s => s.id === "tx_data");
+    const txSerial = this.state.signals.find(s => s.id === "tx_serial");
+    const rxSerial = this.state.signals.find(s => s.id === "rx_serial");
+    if (txData) txData.samples = [{ timePs: 0, delta: 0, value: "0x41" }];
+    if (txSerial) txSerial.samples = [{ timePs: 0, delta: 0, value: "1" }];
+    if (rxSerial) rxSerial.samples = [{ timePs: 0, delta: 0, value: "1" }];
+
+    const txByte = this.state.signals.find(s => s.id === "tx_byte");
+    const csN = this.state.signals.find(s => s.id === "cs_n");
+    if (txByte) txByte.samples = [{ timePs: 0, delta: 0, value: "0xA5" }];
+    if (csN) csN.samples = [{ timePs: 0, delta: 0, value: "1" }];
+
+    const duty = this.state.signals.find(s => s.id === "duty_cycle");
+    const deadTime = this.state.signals.find(s => s.id === "dead_time");
+    if (duty) duty.samples = [{ timePs: 0, delta: 0, value: "0x80" }];
+    if (deadTime) deadTime.samples = [{ timePs: 0, delta: 0, value: "0x3" }];
+
+    const pc = this.state.signals.find(s => s.id === "pc");
+    const instr = this.state.signals.find(s => s.id === "instr");
+    if (pc) pc.samples = [{ timePs: 0, delta: 0, value: "0x00000000" }];
+    if (instr) instr.samples = [{ timePs: 0, delta: 0, value: "0x00500093" }];
   }
 
   public tick(deltaPs: number) {
@@ -445,6 +557,25 @@ export class AxiomEngineBridge {
   private tickWasm(deltaPs: number) {
     if (!this.wasmEngine) return;
     try {
+      // Auto-drive clock signal if present in circuit and not explicitly forced
+      const clkSig = this.state.signals.find(s => s.id === "clk" || s.id === "sys_clk" || s.name === "clk" || s.name === "sys_clk");
+      if (clkSig && !this.state.forcedSignalIds.includes(clkSig.id)) {
+        const lastVal = clkSig.samples[clkSig.samples.length - 1]?.value ?? "0";
+        const nextVal = lastVal === "1" ? "0" : "1";
+        try { this.wasmEngine.force_signal(clkSig.fullName, nextVal); } catch {}
+      }
+
+      // Auto-deassert reset after 2ns
+      if (this.state.currentSimTimePs >= 2000) {
+        const rstSig = this.state.signals.find(s => s.id === "rst_n" || s.id === "sys_rst_n" || s.name === "rst_n" || s.name === "sys_rst_n");
+        if (rstSig && !this.state.forcedSignalIds.includes(rstSig.id)) {
+          const lastVal = rstSig.samples[rstSig.samples.length - 1]?.value ?? "0";
+          if (lastVal === "0") {
+            try { this.wasmEngine.force_signal(rstSig.fullName, "1"); } catch {}
+          }
+        }
+      }
+
       const res = this.wasmEngine.step_time(deltaPs);
       if (res) {
         this.applyStepResponse(res);
@@ -637,7 +768,344 @@ export class AxiomEngineBridge {
     this.state.currentSimTimePs = newTimePs;
     this.state.currentDeltaCycle = 0;
 
-    // Toggle clock every 500 ps
+    const top = this.state.topModule;
+    if (top === "uart_transceiver" || top === "uart") {
+      this.advanceUart(newTimePs);
+    } else if (top === "spi_master" || top === "spi") {
+      this.advanceSpi(newTimePs);
+    } else if (top === "pwm_generator" || top === "pwm") {
+      this.advancePwm(newTimePs);
+    } else if (top === "riscv_mini_core" || top === "riscv") {
+      this.advanceRiscv(newTimePs);
+    } else if (top === "counter_glitch_demo" || top === "counter") {
+      this.advanceCounter(newTimePs);
+    } else if (top === "soc_subsystem_top" || top === "hierarchy") {
+      this.advanceHierarchy(newTimePs);
+    } else {
+      this.advanceAlu(newTimePs);
+    }
+  }
+
+  private advanceUart(newTimePs: number) {
+    const clk = this.state.signals.find(s => s.id === "clk");
+    const rst = this.state.signals.find(s => s.id === "rst_n");
+    const txStart = this.state.signals.find(s => s.id === "tx_start");
+    const txData = this.state.signals.find(s => s.id === "tx_data");
+    const txSerial = this.state.signals.find(s => s.id === "tx_serial");
+    const txBusy = this.state.signals.find(s => s.id === "tx_busy");
+    const txDone = this.state.signals.find(s => s.id === "tx_done");
+    const rxSerial = this.state.signals.find(s => s.id === "rx_serial");
+    const rxData = this.state.signals.find(s => s.id === "rx_data");
+    const rxReady = this.state.signals.find(s => s.id === "rx_ready");
+    const rxError = this.state.signals.find(s => s.id === "rx_error");
+    const baudTick = this.state.signals.find(s => s.id === "baud_tick");
+
+    let numSwitches = 0;
+    if (newTimePs >= 2000 && rst && rst.samples[rst.samples.length - 1].value === "0") {
+      rst.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+      numSwitches++;
+    }
+
+    if (clk) {
+      const prevClk = clk.samples[clk.samples.length - 1].value;
+      const nextClk = prevClk === "1" ? "0" : "1";
+      clk.samples.push({ timePs: newTimePs, delta: 0, value: nextClk });
+      numSwitches++;
+
+      if (nextClk === "1" && newTimePs > 2000) {
+        const cycle = Math.floor(newTimePs / 1000);
+        const bTick = (cycle % 4 === 0) ? "1" : "0";
+        if (baudTick) baudTick.samples.push({ timePs: newTimePs, delta: 0, value: bTick });
+
+        const testBytes = [0x41, 0x58, 0x49, 0x4F, 0x4D]; // "AXIOM"
+        const packetIdx = Math.floor(cycle / 20) % testBytes.length;
+        const subCycle = cycle % 20;
+
+        const currentByte = testBytes[packetIdx];
+        if (txData) txData.samples.push({ timePs: newTimePs, delta: 0, value: `0x${currentByte.toString(16).padStart(2, "0").toUpperCase()}` });
+
+        if (subCycle === 0) {
+          if (txStart) txStart.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (txBusy) txBusy.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (txSerial) txSerial.samples.push({ timePs: newTimePs, delta: 0, value: "0" }); // Start bit
+          if (rxSerial) rxSerial.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+        } else if (subCycle >= 1 && subCycle <= 8) {
+          if (txStart) txStart.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          const bitVal = ((currentByte >> (subCycle - 1)) & 1).toString();
+          if (txSerial) txSerial.samples.push({ timePs: newTimePs, delta: 0, value: bitVal });
+          if (rxSerial) rxSerial.samples.push({ timePs: newTimePs, delta: 0, value: bitVal });
+        } else if (subCycle === 9) {
+          if (txSerial) txSerial.samples.push({ timePs: newTimePs, delta: 0, value: "1" }); // Stop bit
+          if (rxSerial) rxSerial.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (txDone) txDone.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (txBusy) txBusy.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (rxData) rxData.samples.push({ timePs: newTimePs, delta: 0, value: `0x${currentByte.toString(16).padStart(2, "0").toUpperCase()}` });
+          if (rxReady) rxReady.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (rxError) rxError.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+        } else {
+          if (txDone) txDone.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (rxReady) rxReady.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (txSerial) txSerial.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (rxSerial) rxSerial.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+        }
+        numSwitches += 6;
+      }
+    }
+    this.state.totalEventsExecuted += numSwitches;
+    this.recordTelemetry(newTimePs, 0, numSwitches);
+  }
+
+  private advanceSpi(newTimePs: number) {
+    const clk = this.state.signals.find(s => s.id === "clk");
+    const rst = this.state.signals.find(s => s.id === "rst_n");
+    const start = this.state.signals.find(s => s.id === "start");
+    const cpol = this.state.signals.find(s => s.id === "cpol");
+    const cpha = this.state.signals.find(s => s.id === "cpha");
+    const txByte = this.state.signals.find(s => s.id === "tx_byte");
+    const rxByte = this.state.signals.find(s => s.id === "rx_byte");
+    const sck = this.state.signals.find(s => s.id === "sck");
+    const csN = this.state.signals.find(s => s.id === "cs_n");
+    const mosi = this.state.signals.find(s => s.id === "mosi");
+    const miso = this.state.signals.find(s => s.id === "miso");
+    const busy = this.state.signals.find(s => s.id === "busy");
+    const done = this.state.signals.find(s => s.id === "done");
+
+    let numSwitches = 0;
+    if (newTimePs >= 2000 && rst && rst.samples[rst.samples.length - 1].value === "0") {
+      rst.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+      numSwitches++;
+    }
+
+    if (clk) {
+      const prevClk = clk.samples[clk.samples.length - 1].value;
+      const nextClk = prevClk === "1" ? "0" : "1";
+      clk.samples.push({ timePs: newTimePs, delta: 0, value: nextClk });
+      numSwitches++;
+
+      if (nextClk === "1" && newTimePs > 2000) {
+        const cycle = Math.floor(newTimePs / 1000);
+        const testWords = [0xA5, 0x5A, 0x3C, 0xF0];
+        const wordIdx = Math.floor(cycle / 24) % testWords.length;
+        const subCycle = cycle % 24;
+        const currentWord = testWords[wordIdx];
+
+        if (cpol) cpol.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+        if (cpha) cpha.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+        if (txByte) txByte.samples.push({ timePs: newTimePs, delta: 0, value: `0x${currentWord.toString(16).padStart(2, "0").toUpperCase()}` });
+
+        if (subCycle === 0) {
+          if (start) start.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (csN) csN.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (busy) busy.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (sck) sck.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+        } else if (subCycle >= 1 && subCycle <= 16) {
+          if (start) start.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          const bitIdx = Math.floor((subCycle - 1) / 2);
+          const sckVal = (subCycle % 2 === 1) ? "1" : "0";
+          const mosiVal = ((currentWord >> (7 - bitIdx)) & 1).toString();
+          if (sck) sck.samples.push({ timePs: newTimePs, delta: 0, value: sckVal });
+          if (mosi) mosi.samples.push({ timePs: newTimePs, delta: 0, value: mosiVal });
+          if (miso) miso.samples.push({ timePs: newTimePs, delta: 0, value: mosiVal });
+        } else if (subCycle === 17) {
+          if (csN) csN.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (busy) busy.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (done) done.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+          if (rxByte) rxByte.samples.push({ timePs: newTimePs, delta: 0, value: `0x${currentWord.toString(16).padStart(2, "0").toUpperCase()}` });
+        } else {
+          if (done) done.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (sck) sck.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (csN) csN.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+        }
+        numSwitches += 5;
+      }
+    }
+    this.state.totalEventsExecuted += numSwitches;
+    this.recordTelemetry(newTimePs, 0, numSwitches);
+  }
+
+  private advancePwm(newTimePs: number) {
+    const clk = this.state.signals.find(s => s.id === "clk");
+    const rst = this.state.signals.find(s => s.id === "rst_n");
+    const enable = this.state.signals.find(s => s.id === "enable");
+    const dutyCycle = this.state.signals.find(s => s.id === "duty_cycle");
+    const deadTime = this.state.signals.find(s => s.id === "dead_time");
+    const periodCount = this.state.signals.find(s => s.id === "period_count");
+    const pwmHigh = this.state.signals.find(s => s.id === "pwm_high");
+    const pwmLow = this.state.signals.find(s => s.id === "pwm_low");
+    const cycleSync = this.state.signals.find(s => s.id === "cycle_sync");
+
+    let numSwitches = 0;
+    if (newTimePs >= 2000 && rst && rst.samples[rst.samples.length - 1].value === "0") {
+      rst.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+      numSwitches++;
+    }
+
+    if (clk) {
+      const prevClk = clk.samples[clk.samples.length - 1].value;
+      const nextClk = prevClk === "1" ? "0" : "1";
+      clk.samples.push({ timePs: newTimePs, delta: 0, value: nextClk });
+      numSwitches++;
+
+      if (nextClk === "1" && newTimePs > 2000) {
+        const cycle = Math.floor(newTimePs / 1000);
+        const cnt = cycle % 16;
+        const dutyThresholds = [4, 8, 12];
+        const duty = dutyThresholds[Math.floor(cycle / 64) % dutyThresholds.length];
+
+        if (enable) enable.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+        if (deadTime) deadTime.samples.push({ timePs: newTimePs, delta: 0, value: "0x2" });
+        if (dutyCycle) dutyCycle.samples.push({ timePs: newTimePs, delta: 0, value: `0x${(duty * 16).toString(16).toUpperCase()}` });
+        if (periodCount) periodCount.samples.push({ timePs: newTimePs, delta: 0, value: `0x${cnt.toString(16).padStart(2, "0").toUpperCase()}` });
+        if (cycleSync) cycleSync.samples.push({ timePs: newTimePs, delta: 0, value: cnt === 0 ? "1" : "0" });
+
+        const rawHigh = cnt < duty;
+        const dt = 1; // 1 step deadtime
+        if (rawHigh) {
+          if (pwmLow) pwmLow.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (pwmHigh) pwmHigh.samples.push({ timePs: newTimePs, delta: 0, value: cnt >= dt ? "1" : "0" });
+        } else {
+          if (pwmHigh) pwmHigh.samples.push({ timePs: newTimePs, delta: 0, value: "0" });
+          if (pwmLow) pwmLow.samples.push({ timePs: newTimePs, delta: 0, value: (cnt - duty) >= dt ? "1" : "0" });
+        }
+        numSwitches += 4;
+      }
+    }
+    this.state.totalEventsExecuted += numSwitches;
+    this.recordTelemetry(newTimePs, 0, numSwitches);
+  }
+
+  private advanceRiscv(newTimePs: number) {
+    const clk = this.state.signals.find(s => s.id === "clk");
+    const rst = this.state.signals.find(s => s.id === "rst_n");
+    const stepEn = this.state.signals.find(s => s.id === "step_en");
+    const pc = this.state.signals.find(s => s.id === "pc");
+    const instr = this.state.signals.find(s => s.id === "instr");
+    const aluResult = this.state.signals.find(s => s.id === "alu_result");
+    const regX1 = this.state.signals.find(s => s.id === "reg_x1");
+    const regX2 = this.state.signals.find(s => s.id === "reg_x2");
+    const branchTaken = this.state.signals.find(s => s.id === "branch_taken");
+
+    let numSwitches = 0;
+    if (newTimePs >= 2000 && rst && rst.samples[rst.samples.length - 1].value === "0") {
+      rst.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+      numSwitches++;
+    }
+
+    if (clk) {
+      const prevClk = clk.samples[clk.samples.length - 1].value;
+      const nextClk = prevClk === "1" ? "0" : "1";
+      clk.samples.push({ timePs: newTimePs, delta: 0, value: nextClk });
+      numSwitches++;
+
+      if (nextClk === "1" && newTimePs > 2000) {
+        const cycle = Math.floor(newTimePs / 1000);
+        const pcVal = (cycle * 4) % 32;
+
+        if (stepEn) stepEn.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+        if (pc) pc.samples.push({ timePs: newTimePs, delta: 0, value: `0x${pcVal.toString(16).padStart(8, "0").toUpperCase()}` });
+
+        let instrHex = "0x00000013";
+        let resVal = 0;
+        let x1Val = 5;
+        let x2Val = 10;
+
+        switch (pcVal) {
+          case 0:  instrHex = "0x00500093"; resVal = 5;  break; // addi x1, 5
+          case 4:  instrHex = "0x00A00113"; resVal = 10; break; // addi x2, 10
+          case 8:  instrHex = "0x002081B3"; resVal = 15; break; // add x3, x1, x2
+          case 12: instrHex = "0x40110233"; resVal = 5;  break; // sub x4, x2, x1
+          case 16: instrHex = "0x0020C2B3"; resVal = 15; break; // xor x5, x1, x2
+          case 20: instrHex = "0x0010E333"; resVal = 15; break; // or x6, x1, x2
+          case 24: instrHex = "0x0020F3B3"; resVal = 0;  break; // and x7, x1, x2
+          case 28: instrHex = "0x0000006F"; resVal = 0;  break; // jal loop
+        }
+
+        if (instr) instr.samples.push({ timePs: newTimePs, delta: 0, value: instrHex });
+        if (aluResult) aluResult.samples.push({ timePs: newTimePs, delta: 1, value: `0x${resVal.toString(16).padStart(8, "0").toUpperCase()}` });
+        if (regX1) regX1.samples.push({ timePs: newTimePs, delta: 1, value: `0x${x1Val.toString(16).padStart(8, "0").toUpperCase()}` });
+        if (regX2) regX2.samples.push({ timePs: newTimePs, delta: 1, value: `0x${x2Val.toString(16).padStart(8, "0").toUpperCase()}` });
+        if (branchTaken) branchTaken.samples.push({ timePs: newTimePs, delta: 1, value: pcVal === 28 ? "1" : "0" });
+        numSwitches += 5;
+      }
+    }
+    this.state.totalEventsExecuted += numSwitches;
+    this.recordTelemetry(newTimePs, 0, numSwitches);
+  }
+
+  private advanceCounter(newTimePs: number) {
+    const clk = this.state.signals.find(s => s.id === "clk");
+    const rst = this.state.signals.find(s => s.id === "rst_n");
+    const enable = this.state.signals.find(s => s.id === "enable");
+    const upDown = this.state.signals.find(s => s.id === "up_down");
+    const count = this.state.signals.find(s => s.id === "count");
+    const term = this.state.signals.find(s => s.id === "terminal_count");
+    const glitch = this.state.signals.find(s => s.id === "glitch_hazard_wire");
+
+    let numSwitches = 0;
+    if (newTimePs >= 2000 && rst && rst.samples[rst.samples.length - 1].value === "0") {
+      rst.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+      numSwitches++;
+    }
+
+    if (clk) {
+      const prevClk = clk.samples[clk.samples.length - 1].value;
+      const nextClk = prevClk === "1" ? "0" : "1";
+      clk.samples.push({ timePs: newTimePs, delta: 0, value: nextClk });
+      numSwitches++;
+
+      if (nextClk === "1" && newTimePs > 2000) {
+        const cycle = Math.floor(newTimePs / 1000);
+        const cntVal = cycle & 0xFF;
+        if (enable) enable.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+        if (upDown) upDown.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+        if (count) count.samples.push({ timePs: newTimePs, delta: 0, value: `0x${cntVal.toString(16).padStart(2, "0").toUpperCase()}` });
+        if (term) term.samples.push({ timePs: newTimePs, delta: 0, value: cntVal === 0xFF ? "1" : "0" });
+        const gVal = ((cntVal & 1) ^ ((cntVal >> 1) & 1)).toString();
+        if (glitch) glitch.samples.push({ timePs: newTimePs, delta: 0, value: gVal });
+        numSwitches += 4;
+      }
+    }
+    this.state.totalEventsExecuted += numSwitches;
+    this.recordTelemetry(newTimePs, 0, numSwitches);
+  }
+
+  private advanceHierarchy(newTimePs: number) {
+    const clk = this.state.signals.find(s => s.id === "sys_clk");
+    const rst = this.state.signals.find(s => s.id === "sys_rst_n");
+    const dataIn = this.state.signals.find(s => s.id === "data_in");
+    const divClk = this.state.signals.find(s => s.id === "divided_clk");
+    const accum = this.state.signals.find(s => s.id === "accum_out");
+    const heart = this.state.signals.find(s => s.id === "core_heartbeat");
+
+    let numSwitches = 0;
+    if (newTimePs >= 2000 && rst && rst.samples[rst.samples.length - 1].value === "0") {
+      rst.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
+      numSwitches++;
+    }
+
+    if (clk) {
+      const prevClk = clk.samples[clk.samples.length - 1].value;
+      const nextClk = prevClk === "1" ? "0" : "1";
+      clk.samples.push({ timePs: newTimePs, delta: 0, value: nextClk });
+      numSwitches++;
+
+      if (nextClk === "1" && newTimePs > 2000) {
+        const cycle = Math.floor(newTimePs / 1000);
+        const divState = (Math.floor(cycle / 4) % 2 === 0) ? "1" : "0";
+        if (divClk) divClk.samples.push({ timePs: newTimePs, delta: 0, value: divState });
+        if (heart) heart.samples.push({ timePs: newTimePs, delta: 0, value: divState });
+        if (dataIn) dataIn.samples.push({ timePs: newTimePs, delta: 0, value: "0x03" });
+
+        const accumVal = (Math.floor(cycle / 4) * 3) & 0xFFFF;
+        if (accum) accum.samples.push({ timePs: newTimePs, delta: 1, value: `0x${accumVal.toString(16).padStart(4, "0").toUpperCase()}` });
+        numSwitches += 4;
+      }
+    }
+    this.state.totalEventsExecuted += numSwitches;
+    this.recordTelemetry(newTimePs, 0, numSwitches);
+  }
+
+  private advanceAlu(newTimePs: number) {
     const clk = this.state.signals.find(s => s.id === "clk");
     const rst = this.state.signals.find(s => s.id === "rst_n");
     const a = this.state.signals.find(s => s.id === "a");
@@ -648,22 +1116,17 @@ export class AxiomEngineBridge {
     const carry = this.state.signals.find(s => s.id === "carry_flag");
 
     let numSwitches = 0;
-
-    // Reset deassertion at 2000 ps
     if (newTimePs >= 2000 && rst && rst.samples[rst.samples.length - 1].value === "0") {
       rst.samples.push({ timePs: newTimePs, delta: 0, value: "1" });
-      this.log(`t=${newTimePs}ps: Reset deasserted (rst_n=1)`, "event");
       numSwitches++;
     }
 
-    // Toggle clock
     if (clk) {
       const prevClk = clk.samples[clk.samples.length - 1].value;
       const nextClk = prevClk === "1" ? "0" : "1";
       clk.samples.push({ timePs: newTimePs, delta: 0, value: nextClk });
       numSwitches++;
 
-      // On posedge clk and rst active
       if (nextClk === "1" && newTimePs > 2000) {
         const cycle = Math.floor(newTimePs / 1000);
         const aVal = (cycle * 17) & 0xFF;
@@ -688,11 +1151,9 @@ export class AxiomEngineBridge {
         if (res) res.samples.push({ timePs: newTimePs, delta: 1, value: `0x${resVal.toString(16).padStart(2, "0").toUpperCase()}` });
         if (carry) carry.samples.push({ timePs: newTimePs, delta: 1, value: cFlag });
         if (zero) zero.samples.push({ timePs: newTimePs, delta: 1, value: resVal === 0 ? "1" : "0" });
-
         numSwitches += 5;
       }
     }
-
     this.state.totalEventsExecuted += numSwitches;
     this.recordTelemetry(newTimePs, 0, numSwitches);
   }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Activity, Cpu, LayoutGrid, Sliders, Clock, Search } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Activity, Cpu, LayoutGrid, Sliders, Clock, Search, Columns } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -10,6 +10,7 @@ import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { TelemetryViewer } from "./components/TelemetryViewer";
 import { BottomConsole } from "./components/BottomConsole";
 import { OmnibarModal } from "./components/OmnibarModal";
+import { ResizableSplitter } from "./components/ResizableSplitter";
 import { engineBridge, SimulationState } from "./engine/engineBridge";
 import { SAMPLE_DESIGNS, SampleDesign } from "./engine/sampleDesigns";
 
@@ -109,6 +110,32 @@ export const App: React.FC = () => {
   const handleJumpToCode = (lineStart: number, lineEnd: number) => {
     setHighlightLineSpan({ lineStart, lineEnd });
   };
+
+  // Dynamic Resizable Layout State
+  const [editorWidthPercent, setEditorWidthPercent] = useState<number>(33);
+  const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(45);
+  const [schematicLabWidthPercent, setSchematicLabWidthPercent] = useState<number>(50);
+
+  const handleEditorResize = useCallback((deltaPx: number) => {
+    const totalWidth = window.innerWidth - 260;
+    if (totalWidth <= 0) return;
+    const deltaPct = (deltaPx / totalWidth) * 100;
+    setEditorWidthPercent((prev) => Math.max(18, Math.min(65, Math.round((prev + deltaPct) * 10) / 10)));
+  }, []);
+
+  const handleWaveformHeightResize = useCallback((deltaPx: number) => {
+    const totalHeight = window.innerHeight - 240;
+    if (totalHeight <= 0) return;
+    const deltaPct = (deltaPx / totalHeight) * 100;
+    setSplitWaveformHeightPercent((prev) => Math.max(20, Math.min(80, Math.round((prev + deltaPct) * 10) / 10)));
+  }, []);
+
+  const handleSchematicLabResize = useCallback((deltaPx: number) => {
+    const totalWidth = (window.innerWidth - 260) * ((100 - editorWidthPercent) / 100);
+    if (totalWidth <= 0) return;
+    const deltaPct = (deltaPx / totalWidth) * 100;
+    setSchematicLabWidthPercent((prev) => Math.max(20, Math.min(80, Math.round((prev + deltaPct) * 10) / 10)));
+  }, [editorWidthPercent]);
 
   return (
     <div className="axiom-app">
@@ -239,6 +266,70 @@ export const App: React.FC = () => {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-muted)" }}>
+              {/* Quick Layout Presets */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  marginRight: 4,
+                  backgroundColor: "var(--bg-primary)",
+                  padding: "2px 6px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)"
+                }}
+              >
+                <Columns size={11} color="var(--text-muted)" style={{ marginRight: 2 }} />
+                <button
+                  onClick={() => setEditorWidthPercent(33)}
+                  title="Balanced Layout (33% Code / 67% Visuals)"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: Math.abs(editorWidthPercent - 33) < 2 ? 700 : 500,
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                    border: "none",
+                    cursor: "pointer",
+                    backgroundColor: Math.abs(editorWidthPercent - 33) < 2 ? "var(--bg-elevated)" : "transparent",
+                    color: Math.abs(editorWidthPercent - 33) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
+                  }}
+                >
+                  Balanced
+                </button>
+                <button
+                  onClick={() => setEditorWidthPercent(52)}
+                  title="Code Focus (52% Code / 48% Visuals)"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: Math.abs(editorWidthPercent - 52) < 2 ? 700 : 500,
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                    border: "none",
+                    cursor: "pointer",
+                    backgroundColor: Math.abs(editorWidthPercent - 52) < 2 ? "var(--bg-elevated)" : "transparent",
+                    color: Math.abs(editorWidthPercent - 52) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
+                  }}
+                >
+                  Code Focus
+                </button>
+                <button
+                  onClick={() => setEditorWidthPercent(20)}
+                  title="Visualizer Focus (20% Code / 80% Visuals)"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: Math.abs(editorWidthPercent - 20) < 2 ? 700 : 500,
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                    border: "none",
+                    cursor: "pointer",
+                    backgroundColor: Math.abs(editorWidthPercent - 20) < 2 ? "var(--bg-elevated)" : "transparent",
+                    color: Math.abs(editorWidthPercent - 20) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
+                  }}
+                >
+                  Visual Focus
+                </button>
+              </div>
+
               {activeCrossProbeSignal && (
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span>Probing:</span>
@@ -286,9 +377,9 @@ export const App: React.FC = () => {
 
           {/* Upper Workspace: View Depending on centerView Mode */}
           {centerView === "split" && (
-            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
               {/* Left: HDL Editor */}
-              <div style={{ width: "32%", display: "flex", minWidth: 300 }}>
+              <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 220, overflow: "hidden" }}>
                 <HdlEditor
                   code={editorCode}
                   topModule={activeDesign.topModule}
@@ -299,13 +390,28 @@ export const App: React.FC = () => {
                 />
               </div>
 
-              {/* Right: Stacked Waveform (46%) & Split Schematic + Virtual Lab (54%) */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 400, overflow: "hidden" }}>
-                <div style={{ height: "46%", display: "flex", minHeight: 180, borderBottom: "1px solid var(--border-subtle)" }}>
+              {/* Resizable Divider: Editor <-> Visualizers */}
+              <ResizableSplitter
+                orientation="horizontal"
+                onResize={handleEditorResize}
+                onDoubleClick={() => setEditorWidthPercent(33)}
+              />
+
+              {/* Right: Stacked Waveform & Split Schematic + Virtual Lab */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 320, overflow: "hidden" }}>
+                <div style={{ height: `${splitWaveformHeightPercent}%`, display: "flex", minHeight: 120, overflow: "hidden" }}>
                   <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
                 </div>
-                <div style={{ flex: 1, display: "flex", minHeight: 200, overflow: "hidden" }}>
-                  <div style={{ flex: 1.15, display: "flex", borderRight: "1px solid var(--border-subtle)", overflow: "hidden" }}>
+
+                {/* Resizable Divider: Waveform <-> Schematic/Lab */}
+                <ResizableSplitter
+                  orientation="vertical"
+                  onResize={handleWaveformHeightResize}
+                  onDoubleClick={() => setSplitWaveformHeightPercent(45)}
+                />
+
+                <div style={{ flex: 1, display: "flex", minHeight: 140, overflow: "hidden" }}>
+                  <div style={{ width: `${schematicLabWidthPercent}%`, display: "flex", minWidth: 160, overflow: "hidden" }}>
                     <SchematicViewer
                       state={state}
                       activeDesignId={activeDesign.id}
@@ -314,7 +420,15 @@ export const App: React.FC = () => {
                       onJumpToCode={handleJumpToCode}
                     />
                   </div>
-                  <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+                  {/* Resizable Divider: Schematic <-> Virtual Lab */}
+                  <ResizableSplitter
+                    orientation="horizontal"
+                    onResize={handleSchematicLabResize}
+                    onDoubleClick={() => setSchematicLabWidthPercent(50)}
+                  />
+
+                  <div style={{ flex: 1, display: "flex", minWidth: 160, overflow: "hidden" }}>
                     <VirtualLabRack state={state} activeDesignId={activeDesign.id} />
                   </div>
                 </div>
@@ -323,8 +437,8 @@ export const App: React.FC = () => {
           )}
 
           {centerView === "timing" && (
-            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
-              <div style={{ width: "32%", display: "flex", minWidth: 320 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+              <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 220, overflow: "hidden" }}>
                 <HdlEditor
                   code={editorCode}
                   topModule={activeDesign.topModule}
@@ -334,15 +448,20 @@ export const App: React.FC = () => {
                   highlightLineSpan={highlightLineSpan}
                 />
               </div>
-              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+              <ResizableSplitter
+                orientation="horizontal"
+                onResize={handleEditorResize}
+                onDoubleClick={() => setEditorWidthPercent(33)}
+              />
+              <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                 <TimingRadarViewer state={state} activeDesignId={activeDesign.id} />
               </div>
             </div>
           )}
 
           {centerView === "virtuallab" && (
-            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
-              <div style={{ width: "32%", display: "flex", minWidth: 320 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+              <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 220, overflow: "hidden" }}>
                 <HdlEditor
                   code={editorCode}
                   topModule={activeDesign.topModule}
@@ -352,15 +471,20 @@ export const App: React.FC = () => {
                   highlightLineSpan={highlightLineSpan}
                 />
               </div>
-              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+              <ResizableSplitter
+                orientation="horizontal"
+                onResize={handleEditorResize}
+                onDoubleClick={() => setEditorWidthPercent(33)}
+              />
+              <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                 <VirtualLabRack state={state} activeDesignId={activeDesign.id} />
               </div>
             </div>
           )}
 
           {centerView === "waveform" && (
-            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
-              <div style={{ width: "38%", display: "flex", minWidth: 320 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+              <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 220, overflow: "hidden" }}>
                 <HdlEditor
                   code={editorCode}
                   topModule={activeDesign.topModule}
@@ -370,15 +494,20 @@ export const App: React.FC = () => {
                   highlightLineSpan={highlightLineSpan}
                 />
               </div>
-              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+              <ResizableSplitter
+                orientation="horizontal"
+                onResize={handleEditorResize}
+                onDoubleClick={() => setEditorWidthPercent(33)}
+              />
+              <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                 <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
               </div>
             </div>
           )}
 
           {centerView === "schematic" && (
-            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0 }}>
-              <div style={{ width: "35%", display: "flex", minWidth: 320 }}>
+            <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+              <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 220, overflow: "hidden" }}>
                 <HdlEditor
                   code={editorCode}
                   topModule={activeDesign.topModule}
@@ -388,7 +517,12 @@ export const App: React.FC = () => {
                   highlightLineSpan={highlightLineSpan}
                 />
               </div>
-              <div style={{ flex: 1, display: "flex", minWidth: 400 }}>
+              <ResizableSplitter
+                orientation="horizontal"
+                onResize={handleEditorResize}
+                onDoubleClick={() => setEditorWidthPercent(33)}
+              />
+              <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                 <SchematicViewer
                   state={state}
                   activeDesignId={activeDesign.id}

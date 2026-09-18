@@ -3,7 +3,13 @@ import {
   RotateCcw,
   Sparkles,
   Zap,
-  Play
+  Play,
+  Terminal,
+  Cpu,
+  Radio,
+  Gauge,
+  Send,
+  RefreshCw
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { StimulusPainterModal } from "./StimulusPainterModal";
@@ -50,6 +56,12 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
 
   // Rotary Dial Value (0 to 255)
   const [rotaryVal, setRotaryVal] = useState<number>(0);
+
+  // Dynamic design states
+  const [uartTxInput, setUartTxInput] = useState<string>("A");
+  const [spiTxInput, setSpiTxInput] = useState<string>("0xA5");
+  const [pwmDutyInput, setPwmDutyInput] = useState<number>(128);
+  const [pwmDtInput, setPwmDtInput] = useState<number>(3);
 
   // 7-Segment Display Source
   const defaultDispSource = useMemo(() => {
@@ -154,6 +166,530 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
     return { highDigit, lowDigit, numVal: num };
   }, [dispSource, state.signals]);
 
+  const getSigVal = (id: string, defVal: string = "0") => {
+    const s = state.signals.find(sig => sig.id === id || sig.name === id || sig.fullName.endsWith(`.${id}`));
+    return s?.samples[s.samples.length - 1]?.value ?? defVal;
+  };
+
+  const handleUartSend = () => {
+    const code = (uartTxInput.charCodeAt(0) || 0x41) & 0xFF;
+    engineBridge.injectStimulus("tx_data", "0x" + code.toString(16).padStart(2, "0").toUpperCase());
+    engineBridge.injectStimulus("tx_start", "1");
+    setTimeout(() => engineBridge.injectStimulus("tx_start", "0"), 250);
+  };
+
+  const handleSpiSend = () => {
+    engineBridge.injectStimulus("tx_byte", spiTxInput);
+    engineBridge.injectStimulus("start", "1");
+    setTimeout(() => engineBridge.injectStimulus("start", "0"), 250);
+  };
+
+  const handlePwmDutyChange = (val: number) => {
+    setPwmDutyInput(val);
+    engineBridge.injectStimulus("duty_cycle", "0x" + val.toString(16).padStart(2, "0").toUpperCase());
+  };
+
+  const handleRiscvStep = () => {
+    engineBridge.pulseSignal("clk");
+  };
+
+  const handleRiscvReset = () => {
+    engineBridge.injectStimulus("rst_n", "0");
+    setTimeout(() => engineBridge.injectStimulus("rst_n", "1"), 250);
+  };
+
+  const renderUartBays = () => {
+    const rxDataVal = getSigVal("rx_data", "0x00");
+    const rxNum = parseInt(rxDataVal.replace("0x", ""), 16) || 0;
+    const rxChar = (rxNum >= 32 && rxNum <= 126) ? String.fromCharCode(rxNum) : ".";
+    const txBusy = getSigVal("tx_busy") === "1";
+    const txDone = getSigVal("tx_done") === "1";
+    const rxReady = getSigVal("rx_ready") === "1";
+    const rxError = getSigVal("rx_error") === "1";
+    const txSerial = getSigVal("tx_serial", "1");
+    const rxSerial = getSigVal("rx_serial", "1");
+
+    return (
+      <>
+        {/* BAY 1: UART Transmitter */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+            <Terminal size={14} color="var(--accent-cyan)" />
+            <span>UART Transmitter</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "12px 0" }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Transmit Character / ASCII:</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                type="text"
+                maxLength={1}
+                value={uartTxInput}
+                onChange={(e) => setUartTxInput(e.target.value)}
+                style={{ width: 44, textAlign: "center", fontSize: 16, fontWeight: 700, backgroundColor: "#070a0e", border: "1px solid var(--border-medium)", color: "var(--accent-cyan)", borderRadius: 4 }}
+              />
+              <button
+                onClick={handleUartSend}
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 4, fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+              >
+                <Send size={12} />
+                <span>Send Byte</span>
+              </button>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: txBusy ? "var(--accent-amber)" : "#222" }} />
+              <span style={{ color: txBusy ? "var(--accent-amber)" : "var(--text-muted)" }}>TX Busy</span>
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: txDone ? "var(--accent-emerald)" : "#222" }} />
+              <span style={{ color: txDone ? "var(--accent-emerald)" : "var(--text-muted)" }}>TX Done</span>
+            </span>
+          </div>
+        </div>
+
+        {/* BAY 2: UART Receiver */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+            <Radio size={14} color="var(--accent-emerald)" />
+            <span>UART Receiver</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 75, backgroundColor: "#070a0e", border: "1px solid var(--border-subtle)", borderRadius: 6, margin: "8px 0" }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "var(--accent-emerald)", fontFamily: "var(--font-mono)" }}>
+              '{rxChar}'
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+              Hex: {rxDataVal}
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: rxReady ? "var(--accent-emerald)" : "#222" }} />
+              <span style={{ color: rxReady ? "var(--accent-emerald)" : "var(--text-muted)" }}>RX Ready</span>
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: rxError ? "var(--accent-rose)" : "#222" }} />
+              <span style={{ color: rxError ? "var(--accent-rose)" : "var(--text-muted)" }}>Frame Err</span>
+            </span>
+          </div>
+        </div>
+
+        {/* BAY 3: Serial Physical Line */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Line Activity
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", backgroundColor: "#070a0e", borderRadius: 4 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>tx_serial:</span>
+              <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: txSerial === "1" ? "var(--accent-emerald)" : "var(--accent-rose)" }}>
+                {txSerial} ({txSerial === "1" ? "MARK" : "SPACE"})
+              </span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", backgroundColor: "#070a0e", borderRadius: 4 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>rx_serial:</span>
+              <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: rxSerial === "1" ? "var(--accent-emerald)" : "var(--accent-rose)" }}>
+                {rxSerial} ({rxSerial === "1" ? "MARK" : "SPACE"})
+              </span>
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            8-N-1 (1 Start, 8 Data, 1 Stop)
+          </div>
+        </div>
+
+        {/* BAY 4: Baud Prescaler */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Protocol Controls
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: "8px 0" }}>
+            <button
+              onClick={() => {
+                const chars = ["A", "X", "I", "O", "M"];
+                let idx = 0;
+                const itv = setInterval(() => {
+                  if (idx >= chars.length) { clearInterval(itv); return; }
+                  const code = chars[idx].charCodeAt(0);
+                  engineBridge.injectStimulus("tx_data", "0x" + code.toString(16).padStart(2, "0").toUpperCase());
+                  engineBridge.injectStimulus("tx_start", "1");
+                  setTimeout(() => engineBridge.injectStimulus("tx_start", "0"), 120);
+                  idx++;
+                }, 350);
+              }}
+              style={{ padding: "6px", backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-medium)", color: "var(--accent-purple)", borderRadius: 4, fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+            >
+              Stream "AXIOM" String
+            </button>
+            <button
+              onClick={() => {
+                engineBridge.injectStimulus("rst_n", "0");
+                setTimeout(() => engineBridge.injectStimulus("rst_n", "1"), 200);
+              }}
+              style={{ padding: "6px", backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-medium)", color: "var(--text-secondary)", borderRadius: 4, fontSize: 11, cursor: "pointer" }}
+            >
+              Reset Transceiver (rst_n)
+            </button>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            Baud Rate: 115200 (4 cycles/baud)
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderSpiBays = () => {
+    const sck = getSigVal("sck");
+    const csN = getSigVal("cs_n", "1");
+    const mosi = getSigVal("mosi");
+    const miso = getSigVal("miso");
+    const spiBusy = getSigVal("busy") === "1";
+    const spiDone = getSigVal("done") === "1";
+    const rxByte = getSigVal("rx_byte", "0x00");
+
+    return (
+      <>
+        {/* BAY 1: SPI Master Config */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+            <Cpu size={14} color="var(--accent-cyan)" />
+            <span>SPI Master Config</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "12px 0" }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Mode: Mode 0 (CPOL=0, CPHA=0)</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={() => {
+                  engineBridge.injectStimulus("cpol", "0");
+                  engineBridge.injectStimulus("cpha", "0");
+                }}
+                style={{ flex: 1, padding: "4px", backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, fontSize: 10, color: "var(--accent-cyan)", cursor: "pointer" }}
+              >
+                Mode 0
+              </button>
+              <button
+                onClick={() => {
+                  engineBridge.injectStimulus("cpol", "1");
+                  engineBridge.injectStimulus("cpha", "1");
+                }}
+                style={{ flex: 1, padding: "4px", backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, fontSize: 10, color: "var(--accent-purple)", cursor: "pointer" }}
+              >
+                Mode 3
+              </button>
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            Clock Prescaler: div_by_4
+          </div>
+        </div>
+
+        {/* BAY 2: SPI Transfer */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Transfer Controller
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                type="text"
+                value={spiTxInput}
+                onChange={(e) => setSpiTxInput(e.target.value)}
+                style={{ width: 60, textAlign: "center", fontSize: 12, fontFamily: "var(--font-mono)", backgroundColor: "#070a0e", border: "1px solid var(--border-medium)", color: "var(--accent-cyan)", borderRadius: 4 }}
+              />
+              <button
+                onClick={handleSpiSend}
+                style={{ flex: 1, backgroundColor: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 4, fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+              >
+                Transfer
+              </button>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: spiBusy ? "var(--accent-amber)" : "#222" }} />
+              <span style={{ color: spiBusy ? "var(--accent-amber)" : "var(--text-muted)" }}>Busy</span>
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: spiDone ? "var(--accent-emerald)" : "#222" }} />
+              <span style={{ color: spiDone ? "var(--accent-emerald)" : "var(--text-muted)" }}>Done</span>
+            </span>
+          </div>
+        </div>
+
+        {/* BAY 3: Bus Monitor */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Physical SPI Bus
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, margin: "8px 0" }}>
+            <div style={{ padding: "4px 8px", backgroundColor: "#070a0e", borderRadius: 4, fontSize: 11, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-muted)" }}>SCK:</span>
+              <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: sck === "1" ? "var(--accent-cyan)" : "#64748b" }}>{sck}</span>
+            </div>
+            <div style={{ padding: "4px 8px", backgroundColor: "#070a0e", borderRadius: 4, fontSize: 11, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-muted)" }}>CS#:</span>
+              <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: csN === "0" ? "var(--accent-emerald)" : "#64748b" }}>{csN}</span>
+            </div>
+            <div style={{ padding: "4px 8px", backgroundColor: "#070a0e", borderRadius: 4, fontSize: 11, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-muted)" }}>MOSI:</span>
+              <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: mosi === "1" ? "var(--accent-amber)" : "#64748b" }}>{mosi}</span>
+            </div>
+            <div style={{ padding: "4px 8px", backgroundColor: "#070a0e", borderRadius: 4, fontSize: 11, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-muted)" }}>MISO:</span>
+              <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)", color: miso === "1" ? "var(--accent-purple)" : "#64748b" }}>{miso}</span>
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            Full-Duplex Synchronous Serial
+          </div>
+        </div>
+
+        {/* BAY 4: Received Data */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Received Buffer
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 60, backgroundColor: "#070a0e", border: "1px solid var(--border-subtle)", borderRadius: 6, margin: "8px 0" }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
+              {rxByte}
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            8-Bit Shift Register Latch
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderPwmBays = () => {
+    const pwmHigh = getSigVal("pwm_high") === "1";
+    const pwmLow = getSigVal("pwm_low") === "1";
+    const periodCnt = getSigVal("period_count", "0x00");
+    const cycleSync = getSigVal("cycle_sync") === "1";
+
+    return (
+      <>
+        {/* BAY 1: Duty Cycle Fader */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+            <Gauge size={14} color="var(--accent-amber)" />
+            <span>Duty Cycle Control</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "var(--text-muted)" }}>Duty:</span>
+              <span style={{ fontWeight: 700, color: "var(--accent-amber)", fontFamily: "var(--font-mono)" }}>
+                {((pwmDutyInput / 256) * 100).toFixed(1)}% (0x{pwmDutyInput.toString(16).toUpperCase()})
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={255}
+              value={pwmDutyInput}
+              onChange={(e) => handlePwmDutyChange(parseInt(e.target.value))}
+              style={{ width: "100%", accentColor: "var(--accent-amber)", cursor: "pointer" }}
+            />
+            <div style={{ display: "flex", gap: 4 }}>
+              {[64, 128, 192].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => handlePwmDutyChange(v)}
+                  style={{ flex: 1, padding: "3px", backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, fontSize: 10, color: "var(--text-secondary)", cursor: "pointer" }}
+                >
+                  {((v / 256) * 100).toFixed(0)}%
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            8-Bit Resolution (0..255)
+          </div>
+        </div>
+
+        {/* BAY 2: Half-Bridge Gate Drivers */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Gate Driver Outputs
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", backgroundColor: "#070a0e", borderRadius: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>High-Side (HS):</span>
+              <span style={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: pwmHigh ? "var(--accent-emerald)" : "#222", boxShadow: pwmHigh ? "0 0 10px #10b981" : "none" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", backgroundColor: "#070a0e", borderRadius: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Low-Side (LS):</span>
+              <span style={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: pwmLow ? "var(--accent-cyan)" : "#222", boxShadow: pwmLow ? "0 0 10px #06b6d4" : "none" }} />
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: (pwmHigh && pwmLow) ? "var(--accent-rose)" : "var(--accent-emerald)" }}>
+            {(pwmHigh && pwmLow) ? "CRITICAL: Shoot-Through Overlap!" : "Break-Before-Make Verified"}
+          </div>
+        </div>
+
+        {/* BAY 3: Dead-Time Adjuster */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Dead-Time Safety
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: "10px 0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+              <span style={{ color: "var(--text-muted)" }}>Dead-Time:</span>
+              <span style={{ fontWeight: 700, color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
+                {pwmDtInput} clock cycles
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={8}
+              value={pwmDtInput}
+              onChange={(e) => {
+                const v = parseInt(e.target.value);
+                setPwmDtInput(v);
+                engineBridge.injectStimulus("dead_time", "0x" + v.toString(16));
+              }}
+              style={{ width: "100%", accentColor: "var(--accent-cyan)", cursor: "pointer" }}
+            />
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            Prevents Half-Bridge Cross-Conduction
+          </div>
+        </div>
+
+        {/* BAY 4: Period Sync */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Period Counter
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 60, backgroundColor: "#070a0e", border: "1px solid var(--border-subtle)", borderRadius: 6, margin: "8px 0" }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "var(--accent-purple)", fontFamily: "var(--font-mono)" }}>
+              {periodCnt}
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+            <span style={{ color: "var(--text-muted)" }}>Cycle Sync:</span>
+            <span style={{ fontWeight: 700, color: cycleSync ? "var(--accent-emerald)" : "#64748b" }}>
+              {cycleSync ? "PULSE" : "IDLE"}
+            </span>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderRiscvBays = () => {
+    const pc = getSigVal("pc", "0x00000000");
+    const instr = getSigVal("instr", "0x00000013");
+    const aluRes = getSigVal("alu_result", "0x00000000");
+    const regX1 = getSigVal("reg_x1", "0x00000000");
+    const regX2 = getSigVal("reg_x2", "0x00000000");
+    const branchTaken = getSigVal("branch_taken") === "1";
+
+    let mnemonic = "nop";
+    if (instr === "0x00500093") mnemonic = "addi x1, x0, 5";
+    else if (instr === "0x00A00113") mnemonic = "addi x2, x0, 10";
+    else if (instr === "0x002081B3") mnemonic = "add x3, x1, x2";
+    else if (instr === "0x40110233") mnemonic = "sub x4, x2, x1";
+    else if (instr === "0x0020C2B3") mnemonic = "xor x5, x1, x2";
+    else if (instr === "0x0010E333") mnemonic = "or x6, x1, x2";
+    else if (instr === "0x0020F3B3") mnemonic = "and x7, x1, x2";
+    else if (instr === "0x0000006F") mnemonic = "jal x0, loop";
+
+    return (
+      <>
+        {/* BAY 1: Execution Control */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+            <Cpu size={14} color="var(--accent-cyan)" />
+            <span>RV32I Core Stepper</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
+            <button
+              onClick={handleRiscvStep}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", backgroundColor: "var(--accent-blue)", color: "#fff", border: "none", borderRadius: 4, fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+            >
+              <Play size={12} />
+              <span>Step Clock Cycle</span>
+            </button>
+            <button
+              onClick={handleRiscvReset}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)", borderRadius: 4, fontSize: 11, cursor: "pointer" }}
+            >
+              <RefreshCw size={12} />
+              <span>Reset Core (rst_n)</span>
+            </button>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            Single-Cycle RV32I Datapath
+          </div>
+        </div>
+
+        {/* BAY 2: Program Counter & ROM */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Instruction ROM
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: "8px 0" }}>
+            <div style={{ padding: "4px 8px", backgroundColor: "#070a0e", borderRadius: 4, display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+              <span style={{ color: "var(--text-muted)" }}>PC:</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-cyan)", fontWeight: 700 }}>{pc}</span>
+            </div>
+            <div style={{ padding: "6px 8px", backgroundColor: "#070a0e", borderRadius: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Mnemonic:</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-emerald)", fontWeight: 700, fontSize: 12 }}>
+                {mnemonic}
+              </span>
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+            Raw: {instr}
+          </div>
+        </div>
+
+        {/* BAY 3: Register File matrix */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            Register File (x1..x2)
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: "8px 0" }}>
+            <div style={{ padding: "4px 8px", backgroundColor: "#070a0e", borderRadius: 4, display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+              <span style={{ color: "var(--text-muted)" }}>x1 (reg_x1):</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-amber)", fontWeight: 700 }}>{regX1}</span>
+            </div>
+            <div style={{ padding: "4px 8px", backgroundColor: "#070a0e", borderRadius: 4, display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+              <span style={{ color: "var(--text-muted)" }}>x2 (reg_x2):</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--accent-purple)", fontWeight: 700 }}>{regX2}</span>
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            Dual-Read Single-Write Register File
+          </div>
+        </div>
+
+        {/* BAY 4: ALU & Branch */}
+        <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            ALU Execution
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 60, backgroundColor: "#070a0e", border: "1px solid var(--border-subtle)", borderRadius: 6, margin: "8px 0" }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "var(--accent-blue)", fontFamily: "var(--font-mono)" }}>
+              {aluRes}
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+            <span style={{ color: "var(--text-muted)" }}>Branch Taken:</span>
+            <span style={{ fontWeight: 700, color: branchTaken ? "var(--accent-emerald)" : "#64748b" }}>
+              {branchTaken ? "YES" : "NO"}
+            </span>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   return (
     <div
       style={{
@@ -235,9 +771,16 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
           overflowY: "auto"
         }}
       >
-        {/* ==================================================================== */}
-        {/* BAY 1: 8-Bit DIP Switch Bank & Bus Injector                         */}
-        {/* ==================================================================== */}
+        {activeDesignId === "uart" && renderUartBays()}
+        {activeDesignId === "spi" && renderSpiBays()}
+        {activeDesignId === "pwm" && renderPwmBays()}
+        {activeDesignId === "riscv" && renderRiscvBays()}
+
+        {!["uart", "spi", "pwm", "riscv"].includes(activeDesignId) && (
+          <>
+            {/* ==================================================================== */}
+            {/* BAY 1: 8-Bit DIP Switch Bank & Bus Injector                         */}
+            {/* ==================================================================== */}
         <div
           style={{
             backgroundColor: "var(--bg-secondary)",
@@ -661,6 +1204,8 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
             })}
           </div>
         </div>
+      </>
+    )}
       </div>
 
       {/* Waveform Stimulus Painter Modal */}
