@@ -12,7 +12,7 @@ import { OmnibarModal } from "./components/OmnibarModal";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { AddSourceModal } from "./components/AddSourceModal";
 import { ResizableSplitter } from "./components/ResizableSplitter";
-import { engineBridge, SimulationState } from "./engine/engineBridge";
+import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBridge";
 import {
   AxiomProject,
   ProjectFile,
@@ -41,6 +41,7 @@ export const App: React.FC = () => {
   // Cross-Probing State: Signal ID and Code Highlight Span
   const [activeCrossProbeSignal, setActiveCrossProbeSignal] = useState<string | null>(null);
   const [highlightLineSpan, setHighlightLineSpan] = useState<{ lineStart: number; lineEnd: number } | null>(null);
+  const [diagnostics, setDiagnostics] = useState<LspDiagnostic[]>([]);
 
   const [selectedSignalIds, setSelectedSignalIds] = useState<Set<string>>(
     new Set([
@@ -538,6 +539,7 @@ export const App: React.FC = () => {
                   onAddFileClick={() => setIsAddSourceOpen(true)}
                   isMaximized={true}
                   onToggleMaximize={() => toggleMaximizePanel("editor")}
+                  onDiagnosticsChange={setDiagnostics}
                 />
               </div>
             ) : maximizedPanel === "waveform" ? (
@@ -575,6 +577,7 @@ export const App: React.FC = () => {
                     onAddFileClick={() => setIsAddSourceOpen(true)}
                     isMaximized={false}
                     onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
                   />
                 </div>
 
@@ -690,6 +693,7 @@ export const App: React.FC = () => {
                     onSelectTab={handleSelectFile}
                     onCloseTab={handleCloseTab}
                     onAddFileClick={() => setIsAddSourceOpen(true)}
+                    onDiagnosticsChange={setDiagnostics}
                   />
                 </div>
                 <ResizableSplitter
@@ -715,6 +719,7 @@ export const App: React.FC = () => {
                     onSelectTab={handleSelectFile}
                     onCloseTab={handleCloseTab}
                     onAddFileClick={() => setIsAddSourceOpen(true)}
+                    onDiagnosticsChange={setDiagnostics}
                   />
                 </div>
                 <ResizableSplitter
@@ -746,6 +751,7 @@ export const App: React.FC = () => {
                     onSelectTab={handleSelectFile}
                     onCloseTab={handleCloseTab}
                     onAddFileClick={() => setIsAddSourceOpen(true)}
+                    onDiagnosticsChange={setDiagnostics}
                   />
                 </div>
                 <ResizableSplitter
@@ -771,6 +777,7 @@ export const App: React.FC = () => {
                     onSelectTab={handleSelectFile}
                     onCloseTab={handleCloseTab}
                     onAddFileClick={() => setIsAddSourceOpen(true)}
+                    onDiagnosticsChange={setDiagnostics}
                   />
                 </div>
                 <ResizableSplitter
@@ -785,8 +792,12 @@ export const App: React.FC = () => {
             )}
           </div>
 
-          {/* Unified Dockable Bottom Drawer (Console, REPL, Telemetry, Glitches, Timing) */}
-          <UnifiedBottomDock state={state} />
+          {/* Unified Dockable Bottom Drawer (Console, REPL, Telemetry, Glitches, Timing, Problems) */}
+          <UnifiedBottomDock
+            state={state}
+            diagnostics={diagnostics}
+            onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+          />
         </div>
       </div>
 

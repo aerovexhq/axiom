@@ -13,6 +13,7 @@ axiom-jit = { workspace = true, features = ["native-jit"] }
 axiom-sim = { workspace = true }
 axiom-telemetry = { workspace = true }
 axiom-desktop = { workspace = true }
+axiom-lsp = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

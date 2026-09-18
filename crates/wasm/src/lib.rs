@@ -315,4 +315,47 @@ impl WasmEngine {
         );
         Ok(saif)
     }
+
+    /// Run in-RAM static analysis linter on Verilog source code.
+    #[wasm_bindgen]
+    pub fn lint(&self, source: &str) -> Result<JsValue, JsValue> {
+        let diags = axiom_lsp::VerilogLinter::lint(source);
+        serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Query hover documentation for identifier/keyword at (line, column).
+    #[wasm_bindgen]
+    pub fn hover(&self, source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+        let result = axiom_lsp::VerilogHover::hover(source, line, column);
+        serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Query autocompletions for position at (line, column).
+    #[wasm_bindgen]
+    pub fn complete(&self, source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+        let items = axiom_lsp::VerilogCompletion::complete(source, line, column);
+        serde_wasm_bindgen::to_value(&items).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
 }
+
+/// Standalone WebAssembly function to lint Verilog source without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_lint(source: &str) -> Result<JsValue, JsValue> {
+    let diags = axiom_lsp::VerilogLinter::lint(source);
+    serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Standalone WebAssembly function to query hover info without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_hover(source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+    let result = axiom_lsp::VerilogHover::hover(source, line, column);
+    serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Standalone WebAssembly function to query completions without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_complete(source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+    let items = axiom_lsp::VerilogCompletion::complete(source, line, column);
+    serde_wasm_bindgen::to_value(&items).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+

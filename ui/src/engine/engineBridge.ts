@@ -75,6 +75,38 @@ export interface SimulationState {
   }>;
 }
 
+export interface LspDiagnostic {
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+  message: string;
+  severity: number; // 1: Error, 2: Warning, 3: Info, 4: Hint
+  code: string;
+  source: string;
+  help?: string;
+}
+
+export interface LspRange {
+  start_line_number: number;
+  start_column: number;
+  end_line_number: number;
+  end_column: number;
+}
+
+export interface HoverResult {
+  contents: string;
+  range?: LspRange;
+}
+
+export interface CompletionItem {
+  label: string;
+  kind: number;
+  detail: string;
+  insertText: string;
+  documentation?: string;
+}
+
 export type StateListener = (state: SimulationState) => void;
 export type LogListener = (msg: string, level: "info" | "warn" | "error" | "event") => void;
 
@@ -120,6 +152,42 @@ export class AxiomEngineBridge {
 
   public getActiveSourceCode(): string {
     return this.activeSourceCode;
+  }
+
+  public async lint(source: string): Promise<LspDiagnostic[]> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm) {
+        return wasm.lint(source) as LspDiagnostic[];
+      }
+    } catch (e) {
+      console.error("[engineBridge] Lint error:", e);
+    }
+    return [];
+  }
+
+  public async hover(source: string, line: number, column: number): Promise<HoverResult | null> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm) {
+        return wasm.hover(source, line, column) as HoverResult | null;
+      }
+    } catch (e) {
+      console.error("[engineBridge] Hover error:", e);
+    }
+    return null;
+  }
+
+  public async complete(source: string, line: number, column: number): Promise<CompletionItem[]> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm) {
+        return wasm.complete(source, line, column) as CompletionItem[];
+      }
+    } catch (e) {
+      console.error("[engineBridge] Complete error:", e);
+    }
+    return [];
   }
 
   private getInitialState(topModule: string): SimulationState {

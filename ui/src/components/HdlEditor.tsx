@@ -1,4 +1,6 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
+import Editor, { OnMount, loader } from "@monaco-editor/react";
+import * as monacoPkg from "monaco-editor";
 import {
   Code2,
   Play,
@@ -9,9 +11,17 @@ import {
   Minimize2,
   FileCode,
   FileText,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle
 } from "lucide-react";
 import { AxiomProject } from "../engine/projectModel";
+import { engineBridge, LspDiagnostic } from "../engine/engineBridge";
+import { registerVerilogLanguage } from "../engine/monacoVerilog";
+
+// Configure monaco-editor loader to use bundled package
+loader.config({ monaco: monacoPkg });
 
 interface HdlEditorProps {
   code: string;
@@ -26,6 +36,8 @@ interface HdlEditorProps {
   onAddFileClick?: () => void;
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
+  onDiagnosticsChange?: (diagnostics: LspDiagnostic[]) => void;
+  onOpenProblems?: () => void;
 }
 
 export const HdlEditor: React.FC<HdlEditorProps> = ({
@@ -40,19 +52,82 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   onCloseTab,
   onAddFileClick,
   isMaximized,
-  onToggleMaximize
+  onToggleMaximize,
+  onDiagnosticsChange,
+  onOpenProblems
 }) => {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const gutterRef = useRef<HTMLDivElement | null>(null);
-  const lines = code.split("\n");
+  const editorRef = useRef<monacoPkg.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof monacoPkg | null>(null);
+  const [localDiags, setLocalDiags] = useState<LspDiagnostic[]>([]);
 
+  // Setup Monaco on mount
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+    registerVerilogLanguage(monaco);
+
+    if (highlightLineSpan) {
+      editor.revealLineInCenter(highlightLineSpan.lineStart);
+      editor.setPosition({ lineNumber: highlightLineSpan.lineStart, column: 1 });
+    }
+  };
+
+  // Debounced live static analysis linting
   useEffect(() => {
-    if (highlightLineSpan && textareaRef.current) {
-      const targetY = Math.max(0, (highlightLineSpan.lineStart - 3) * 20);
-      textareaRef.current.scrollTo({ top: targetY, behavior: "smooth" });
-      if (gutterRef.current) {
-        gutterRef.current.scrollTo({ top: targetY, behavior: "smooth" });
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (!code) {
+        setLocalDiags([]);
+        onDiagnosticsChange?.([]);
+        return;
       }
+      try {
+        const diags = await engineBridge.lint(code);
+        if (cancelled) return;
+
+        setLocalDiags(diags);
+        onDiagnosticsChange?.(diags);
+
+        if (editorRef.current && monacoRef.current) {
+          const model = editorRef.current.getModel();
+          if (model) {
+            const markers: monacoPkg.editor.IMarkerData[] = diags.map((d) => ({
+              startLineNumber: d.startLineNumber,
+              startColumn: d.startColumn,
+              endLineNumber: d.endLineNumber,
+              endColumn: d.endColumn,
+              message: `${d.message}${d.help ? `\n↳ ${d.help}` : ""}`,
+              severity:
+                d.severity === 1
+                  ? monacoRef.current!.MarkerSeverity.Error
+                  : d.severity === 2
+                  ? monacoRef.current!.MarkerSeverity.Warning
+                  : d.severity === 3
+                  ? monacoRef.current!.MarkerSeverity.Info
+                  : monacoRef.current!.MarkerSeverity.Hint,
+              source: d.source || "axiom-linter",
+              code: d.code,
+            }));
+            monacoRef.current.editor.setModelMarkers(model, "axiom-linter", markers);
+          }
+        }
+      } catch (err) {
+        console.error("[HdlEditor] Linting error:", err);
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [code, onDiagnosticsChange]);
+
+  // Jump to highlightLineSpan when updated
+  useEffect(() => {
+    if (highlightLineSpan && editorRef.current) {
+      editorRef.current.revealLineInCenter(highlightLineSpan.lineStart);
+      editorRef.current.setPosition({ lineNumber: highlightLineSpan.lineStart, column: 1 });
+      editorRef.current.focus();
     }
   }, [highlightLineSpan]);
 
@@ -63,6 +138,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         .map((id) => project.files.find((f) => f.id === id))
         .filter((f): f is NonNullable<typeof f> => !!f)
     : [];
+
+  const errorCount = localDiags.filter((d) => d.severity === 1).length;
+  const warningCount = localDiags.filter((d) => d.severity === 2).length;
 
   return (
     <div
@@ -156,7 +234,10 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                         padding: "1px 2px",
                         color: "var(--text-muted)",
                         borderRadius: 2,
-                        marginLeft: 2
+                        marginLeft: 2,
+                        backgroundColor: "transparent",
+                        border: "none",
+                        cursor: "pointer"
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
                       onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
@@ -184,7 +265,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                 padding: "3px 5px",
                 color: "var(--text-muted)",
                 cursor: "pointer",
-                borderRadius: "var(--radius-sm)"
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: "transparent",
+                border: "none"
               }}
             >
               <Plus size={13} />
@@ -192,8 +275,60 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           )}
         </div>
 
-        {/* Right: Actions (Compiled status, Elaborate, Maximize) */}
+        {/* Right: Actions (Linter Status Badge, Compiled status, Elaborate, Maximize) */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+          {/* Linter Diagnostic Pill */}
+          <button
+            onClick={onOpenProblems}
+            title="Axiom Verilog Linter & Static Analysis Status"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "2px 7px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor:
+                errorCount > 0
+                  ? "rgba(244, 63, 94, 0.15)"
+                  : warningCount > 0
+                  ? "rgba(245, 158, 11, 0.15)"
+                  : "rgba(16, 185, 129, 0.1)",
+              border: `1px solid ${
+                errorCount > 0
+                  ? "rgba(244, 63, 94, 0.3)"
+                  : warningCount > 0
+                  ? "rgba(245, 158, 11, 0.3)"
+                  : "rgba(16, 185, 129, 0.2)"
+              }`,
+              color:
+                errorCount > 0
+                  ? "var(--accent-rose)"
+                  : warningCount > 0
+                  ? "var(--accent-amber)"
+                  : "var(--accent-emerald)",
+              cursor: "pointer"
+            }}
+          >
+            {errorCount > 0 ? (
+              <>
+                <AlertCircle size={11} />
+                <span>{errorCount} {errorCount === 1 ? "Error" : "Errors"}</span>
+              </>
+            ) : warningCount > 0 ? (
+              <>
+                <AlertTriangle size={11} />
+                <span>{warningCount} {warningCount === 1 ? "Warning" : "Warnings"}</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle size={11} />
+                <span>Clean</span>
+              </>
+            )}
+          </button>
+
           {compiled && (
             <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: "var(--accent-emerald)", marginRight: 4 }}>
               <CheckCircle2 size={12} />
@@ -213,7 +348,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               padding: "3px 8px",
               backgroundColor: "var(--accent-blue)",
               color: "#fff",
-              borderRadius: "var(--radius-sm)"
+              borderRadius: "var(--radius-sm)",
+              border: "none",
+              cursor: "pointer"
             }}
           >
             <Play size={10} fill="#fff" />
@@ -228,7 +365,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                 padding: "3px 5px",
                 color: "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
-                cursor: "pointer"
+                cursor: "pointer",
+                backgroundColor: "transparent",
+                border: "none"
               }}
             >
               {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
@@ -265,71 +404,51 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             <span style={{ color: "var(--accent-amber)" }}>module {topModule}</span>
           </>
         )}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, fontSize: 9, color: "var(--text-muted)" }}>
+          <span>LSP: In-RAM Rust JIT</span>
+          <span>•</span>
+          <span>UTF-8</span>
+          <span>•</span>
+          <span>Verilog-2005 / SystemVerilog</span>
+        </div>
       </div>
 
-      {/* Code Text Area with Line Numbers */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
-        {/* Line Numbers Gutter */}
-        <div
-          ref={gutterRef}
-          style={{
-            width: 44,
-            backgroundColor: "var(--bg-secondary)",
-            borderRight: "1px solid var(--border-subtle)",
-            padding: "8px 6px",
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: "var(--text-muted)",
-            textAlign: "right",
-            userSelect: "none",
-            overflow: "hidden"
-          }}
-        >
-          {lines.map((_, idx) => {
-            const lineNum = idx + 1;
-            const isHighlighted =
-              highlightLineSpan &&
-              lineNum >= highlightLineSpan.lineStart &&
-              lineNum <= highlightLineSpan.lineEnd;
-            return (
-              <div
-                key={idx}
-                style={{
-                  height: 20,
-                  lineHeight: "20px",
-                  color: isHighlighted ? "var(--accent-cyan)" : "inherit",
-                  fontWeight: isHighlighted ? 700 : 400,
-                  backgroundColor: isHighlighted ? "rgba(56, 189, 248, 0.15)" : "transparent",
-                  borderRadius: 2
-                }}
-              >
-                {lineNum}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Text Area */}
-        <textarea
-          ref={textareaRef}
+      {/* Monaco Code Editor */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <Editor
+          height="100%"
+          language="verilog"
+          theme="axiom-dark"
           value={code}
-          onChange={(e) => onChangeCode(e.target.value)}
-          spellCheck={false}
-          style={{
-            flex: 1,
-            height: "100%",
-            backgroundColor: "transparent",
-            color: "var(--text-primary)",
-            fontFamily: "var(--font-mono)",
+          onChange={(val) => onChangeCode(val ?? "")}
+          beforeMount={(monaco) => registerVerilogLanguage(monaco)}
+          onMount={handleEditorDidMount}
+          options={{
+            fontFamily: "var(--font-mono), 'JetBrains Mono', 'Fira Code', monospace",
             fontSize: 12,
-            lineHeight: "20px",
-            padding: "8px 12px",
-            border: "none",
-            resize: "none",
-            outline: "none",
-            whiteSpace: "pre",
-            overflowWrap: "normal",
-            overflowX: "auto"
+            lineHeight: 20,
+            minimap: { enabled: true, renderCharacters: false, maxColumn: 60 },
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            tabSize: 4,
+            insertSpaces: true,
+            renderLineHighlight: "all",
+            bracketPairColorization: { enabled: true },
+            cursorBlinking: "smooth",
+            smoothScrolling: true,
+            wordWrap: "off",
+            folding: true,
+            showFoldingControls: "always",
+            suggest: {
+              snippetsPreventQuickSuggestions: false,
+              showWords: true,
+            },
+            quickSuggestions: {
+              other: true,
+              comments: false,
+              strings: false,
+            },
+            padding: { top: 6, bottom: 6 },
           }}
         />
       </div>

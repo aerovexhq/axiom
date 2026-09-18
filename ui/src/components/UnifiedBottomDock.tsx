@@ -9,13 +9,18 @@ import {
   Maximize2,
   Minimize2,
   Download,
-  CheckCircle
+  CheckCircle,
+  AlertCircle,
+  Info,
+  CheckCircle2
 } from "lucide-react";
-import { SimulationState, engineBridge } from "../engine/engineBridge";
+import { SimulationState, engineBridge, LspDiagnostic } from "../engine/engineBridge";
 import { ResizableSplitter } from "./ResizableSplitter";
 
 interface UnifiedBottomDockProps {
   state: SimulationState;
+  diagnostics?: LspDiagnostic[];
+  onNavigateToLine?: (line: number, column?: number) => void;
 }
 
 interface LogEntry {
@@ -31,12 +36,20 @@ interface ReplEntry {
   text: string;
 }
 
-export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({ state }) => {
+export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
+  state,
+  diagnostics = [],
+  onNavigateToLine
+}) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [dockHeight, setDockHeight] = useState<number>(230);
-  const [activeTab, setActiveTab] = useState<"repl" | "telemetry" | "glitches" | "timing">("repl");
+  const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing">("repl");
   const [replMode, setReplMode] = useState<"logs" | "shell">("shell");
+
+  const errorCount = diagnostics.filter((d) => d.severity === 1).length;
+  const warningCount = diagnostics.filter((d) => d.severity === 2).length;
+  const infoCount = diagnostics.filter((d) => d.severity >= 3).length;
 
   // Console Logs State
   const [logs, setLogs] = useState<LogEntry[]>([
@@ -400,6 +413,23 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({ state }) =
 
           <button
             onClick={() => {
+              setActiveTab("problems");
+              setIsCollapsed(false);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              color: errorCount > 0 ? "var(--accent-rose)" : warningCount > 0 ? "var(--accent-amber)" : "var(--text-secondary)",
+              cursor: "pointer"
+            }}
+          >
+            <AlertCircle size={12} />
+            <span>Problems ({diagnostics.length})</span>
+          </button>
+
+          <button
+            onClick={() => {
               setActiveTab("telemetry");
               setIsCollapsed(false);
             }}
@@ -527,6 +557,47 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({ state }) =
           >
             <Terminal size={12} />
             <span>Console & REPL</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("problems")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "3px 8px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: activeTab === "problems" ? "var(--bg-tertiary)" : "transparent",
+              color: activeTab === "problems" ? "var(--accent-cyan)" : "var(--text-muted)",
+              border: activeTab === "problems" ? "1px solid var(--border-subtle)" : "1px solid transparent"
+            }}
+          >
+            <AlertCircle size={12} />
+            <span>Problems & Linter</span>
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                backgroundColor:
+                  errorCount > 0
+                    ? "rgba(244, 63, 94, 0.2)"
+                    : warningCount > 0
+                    ? "rgba(245, 158, 11, 0.2)"
+                    : "rgba(16, 185, 129, 0.15)",
+                color:
+                  errorCount > 0
+                    ? "var(--accent-rose)"
+                    : warningCount > 0
+                    ? "var(--accent-amber)"
+                    : "var(--accent-emerald)",
+                padding: "0 5px",
+                borderRadius: 8
+              }}
+            >
+              {diagnostics.length}
+            </span>
           </button>
 
           <button
@@ -811,6 +882,136 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({ state }) =
                 <div ref={logEndRef} />
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB: PROBLEMS & LINTER */}
+        {activeTab === "problems" && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, backgroundColor: "#0b0d10" }}>
+            {/* Filter toolbar */}
+            <div
+              style={{
+                height: 28,
+                backgroundColor: "var(--bg-tertiary)",
+                borderBottom: "1px solid var(--border-subtle)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 10px",
+                fontSize: 10
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ color: "var(--text-muted)" }}>
+                  Total Issues: <strong style={{ color: "var(--text-primary)" }}>{diagnostics.length}</strong>
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--accent-rose)" }}>
+                  <AlertCircle size={10} />
+                  <span>{errorCount} Errors</span>
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--accent-amber)" }}>
+                  <AlertTriangle size={10} />
+                  <span>{warningCount} Warnings</span>
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--accent-blue)" }}>
+                  <Info size={10} />
+                  <span>{infoCount} Info/Hints</span>
+                </span>
+              </div>
+              <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 9 }}>
+                Engine: <span style={{ color: "var(--accent-cyan)" }}>axiom-lsp v0.1.0</span> (IEEE 1800-2017)
+              </div>
+            </div>
+
+            {/* List of problems */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+              {diagnostics.length === 0 ? (
+                <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--text-muted)", minHeight: 120 }}>
+                  <CheckCircle2 size={32} color="var(--accent-emerald)" />
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                    No Problems Detected
+                  </div>
+                  <div style={{ fontSize: 11, maxWidth: 360, textAlign: "center", color: "var(--text-muted)" }}>
+                    Clean AST. Zero syntax errors, zero driver contention, zero race hazards.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {diagnostics.map((d, idx) => {
+                    const isErr = d.severity === 1;
+                    const isWarn = d.severity === 2;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => onNavigateToLine?.(d.startLineNumber, d.startColumn)}
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 8,
+                          padding: "6px 10px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: isErr ? "rgba(244, 63, 94, 0.06)" : isWarn ? "rgba(245, 158, 11, 0.06)" : "rgba(56, 189, 248, 0.06)",
+                          border: `1px solid ${isErr ? "rgba(244, 63, 94, 0.25)" : isWarn ? "rgba(245, 158, 11, 0.25)" : "rgba(56, 189, 248, 0.25)"}`,
+                          cursor: "pointer",
+                          transition: "background-color 0.15s ease"
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isErr ? "rgba(244, 63, 94, 0.12)" : isWarn ? "rgba(245, 158, 11, 0.12)" : "rgba(56, 189, 248, 0.12)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isErr ? "rgba(244, 63, 94, 0.06)" : isWarn ? "rgba(245, 158, 11, 0.06)" : "rgba(56, 189, 248, 0.06)")}
+                      >
+                        <div style={{ marginTop: 2 }}>
+                          {isErr ? (
+                            <AlertCircle size={13} color="var(--accent-rose)" />
+                          ) : isWarn ? (
+                            <AlertTriangle size={13} color="var(--accent-amber)" />
+                          ) : (
+                            <Info size={13} color="var(--accent-blue)" />
+                          )}
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                            <span
+                              style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                fontFamily: "var(--font-mono)",
+                                color: isErr ? "var(--accent-rose)" : isWarn ? "var(--accent-amber)" : "var(--accent-blue)",
+                                backgroundColor: isErr ? "rgba(244, 63, 94, 0.15)" : isWarn ? "rgba(245, 158, 11, 0.15)" : "rgba(56, 189, 248, 0.15)",
+                                padding: "1px 5px",
+                                borderRadius: 3
+                              }}
+                            >
+                              {d.code}
+                            </span>
+
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontFamily: "var(--font-mono)",
+                                color: "var(--accent-cyan)",
+                                textDecoration: "underline"
+                              }}
+                            >
+                              Line {d.startLineNumber}:{d.startColumn}
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: 11, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                            {d.message}
+                          </div>
+
+                          {d.help && (
+                            <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, fontStyle: "italic" }}>
+                              ↳ help: {d.help}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

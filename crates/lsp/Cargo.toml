@@ -1,0 +1,16 @@
+[package]
+name = "axiom-lsp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Verilog and SystemVerilog Language Server Protocol (LSP) and in-RAM static analysis linter"
+
+[dependencies]
+axiom-core = { workspace = true }
+axiom-syntax = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+lasso = { workspace = true }
+
+[dev-dependencies]

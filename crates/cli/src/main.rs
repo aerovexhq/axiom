@@ -64,6 +64,8 @@ SUBCOMMANDS:
     compile <FILE> -t <TOP>              In-RAM parse, elaboration, and Cranelift JIT compilation
     run <FILE> -t <TOP> [OPTIONS]        Headless batch simulation with VCD/SAIF export
     benchmark <FILE> -t <TOP> [OPTIONS]  Measure compile latency and simulation throughput
+    lint <FILE>                          Run static analysis rules on Verilog source file
+    lsp                                  Start stdio JSON-RPC Language Server Protocol (LSP) daemon
     help                                 Print this message or the help of the given subcommand(s)
     version                              Print version information
 
@@ -150,6 +152,45 @@ fn main() {
         }
         "-v" | "--version" | "version" => {
             println!("axiom {} (in-ram cranelift jit engine)", env!("CARGO_PKG_VERSION"));
+        }
+        "lsp" => {
+            let mut server = axiom_lsp::LspServer::new();
+            if let Err(e) = server.run_stdio() {
+                eprintln!("[axiom-lsp] Server terminated with error: {e}");
+                std::process::exit(1);
+            }
+        }
+        "lint" => {
+            if args.len() < 3 {
+                eprintln!("Error: 'lint' requires a file path. Usage: axiom lint <FILE>");
+                std::process::exit(1);
+            }
+            let file_path = &args[2];
+            let content = match fs::read_to_string(file_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Failed to read '{file_path}': {e}");
+                    std::process::exit(1);
+                }
+            };
+            let diags = axiom_lsp::VerilogLinter::lint(&content);
+            if diags.is_empty() {
+                println!("✓ No issues found in {}", file_path);
+            } else {
+                println!("Found {} issues in {}:", diags.len(), file_path);
+                for d in &diags {
+                    let sev = match d.severity {
+                        1 => "\x1b[1;31m[ERROR]\x1b[0m",
+                        2 => "\x1b[1;33m[WARN]\x1b[0m",
+                        3 => "\x1b[1;36m[INFO]\x1b[0m",
+                        _ => "\x1b[1;37m[HINT]\x1b[0m",
+                    };
+                    println!("  {} {}:{}:{} [{}]: {}", sev, file_path, d.start_line_number, d.start_column, d.code, d.message);
+                    if let Some(help) = &d.help {
+                        println!("      ↳ \x1b[2mhelp: {}\x1b[0m", help);
+                    }
+                }
+            }
         }
         "compile" => {
             if args.len() < 3 {

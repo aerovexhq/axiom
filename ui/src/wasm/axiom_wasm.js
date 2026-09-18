@@ -32,6 +32,22 @@ export class WasmEngine {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * Query autocompletions for position at (line, column).
+     * @param {string} source
+     * @param {number} line
+     * @param {number} column
+     * @returns {any}
+     */
+    complete(source, line, column) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_complete(this.__wbg_ptr, ptr0, len0, line, column);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Export simulation switching activity as SAIF.
      * @returns {string}
      */
@@ -90,6 +106,36 @@ export class WasmEngine {
             throw takeFromExternrefTable0(ret[0]);
         }
     }
+    /**
+     * Query hover documentation for identifier/keyword at (line, column).
+     * @param {string} source
+     * @param {number} line
+     * @param {number} column
+     * @returns {any}
+     */
+    hover(source, line, column) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_hover(this.__wbg_ptr, ptr0, len0, line, column);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Run in-RAM static analysis linter on Verilog source code.
+     * @param {string} source
+     * @returns {any}
+     */
+    lint(source) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_lint(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
     constructor() {
         const ret = wasm.wasmengine_new();
         this.__wbg_ptr = ret;
@@ -121,6 +167,55 @@ export class WasmEngine {
     }
 }
 if (Symbol.dispose) WasmEngine.prototype[Symbol.dispose] = WasmEngine.prototype.free;
+
+/**
+ * Standalone WebAssembly function to query completions without creating an engine instance.
+ * @param {string} source
+ * @param {number} line
+ * @param {number} column
+ * @returns {any}
+ */
+export function wasm_complete(source, line, column) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_complete(ptr0, len0, line, column);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to query hover info without creating an engine instance.
+ * @param {string} source
+ * @param {number} line
+ * @param {number} column
+ * @returns {any}
+ */
+export function wasm_hover(source, line, column) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_hover(ptr0, len0, line, column);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to lint Verilog source without creating an engine instance.
+ * @param {string} source
+ * @returns {any}
+ */
+export function wasm_lint(source) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_lint(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

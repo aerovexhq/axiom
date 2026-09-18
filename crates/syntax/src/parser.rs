@@ -586,29 +586,22 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 // Assignments: lhs = rhs; or lhs <= rhs;
-                let expr = self.parse_expr()?;
-                if let Expr::Binary { op: BinaryOp::LtEq, lhs, rhs, span } = expr {
+                let lhs = self.parse_expr_precedence(Precedence::Shift)?;
+                if self.match_token(&TokenKind::LtEq) || self.match_token(&TokenKind::AssignLe) {
+                    let rhs = self.parse_expr()?;
                     let end_span = self.expect(&TokenKind::Semicolon, "non-blocking assignment ';'")?;
                     Some(Statement::NonBlockingAssign {
-                        lhs: *lhs,
-                        rhs: *rhs,
-                        span: span.merge(end_span),
+                        span: lhs.span().merge(end_span),
+                        lhs,
+                        rhs,
                     })
                 } else if self.match_token(&TokenKind::AssignEq) {
                     let rhs = self.parse_expr()?;
                     let end_span = self.expect(&TokenKind::Semicolon, "assignment ';'")?;
                     Some(Statement::BlockingAssign {
-                        lhs: expr.clone(),
+                        span: lhs.span().merge(end_span),
+                        lhs,
                         rhs,
-                        span: expr.span().merge(end_span),
-                    })
-                } else if self.match_token(&TokenKind::LtEq) || self.match_token(&TokenKind::AssignLe) {
-                    let rhs = self.parse_expr()?;
-                    let end_span = self.expect(&TokenKind::Semicolon, "non-blocking assignment ';'")?;
-                    Some(Statement::NonBlockingAssign {
-                        lhs: expr.clone(),
-                        rhs,
-                        span: expr.span().merge(end_span),
                     })
                 } else {
                     self.diagnostics.push(Diagnostic::error("Expected assignment operator", self.current_span()));
