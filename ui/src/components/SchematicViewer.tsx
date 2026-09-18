@@ -5,7 +5,6 @@ import {
   Maximize2,
   Filter,
   Layers,
-  Zap,
   Activity,
   AlertTriangle,
   CheckCircle2,
@@ -84,7 +83,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
   // View Options
   const [showLiveValues, setShowLiveValues] = useState<boolean>(true);
-  const [showMinimap, setShowMinimap] = useState<boolean>(true);
+  const [showMinimap, setShowMinimap] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth > 768;
+    }
+    return false;
+  });
 
   // Map signal names to live logic values
   const liveValuesMap = useMemo(() => {
@@ -112,19 +116,29 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   // Auto-focus camera on graph bounds initially or when design changes
   const fitToScreen = useCallback(() => {
     if (!containerRef.current || !graph) return;
-    const width = containerRef.current.clientWidth;
-    const height = containerRef.current.clientHeight;
+    const width = containerRef.current.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 800);
+    const height = containerRef.current.clientHeight || (typeof window !== "undefined" ? window.innerHeight - 100 : 600);
 
-    const graphWidth = graph.bounds.width || 1200;
-    const graphHeight = graph.bounds.height || 650;
+    const isMobileViewport = width <= 768;
+    const graphWidth = graph.bounds.width || 1000;
+    const graphHeight = graph.bounds.height || 220;
 
-    const scaleX = (width - 120) / graphWidth;
-    const scaleY = (height - 120) / graphHeight;
-    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.2);
+    if (isMobileViewport) {
+      // Mobile portrait: comfortable scale so gate shapes and wire probes are legible and clear
+      const targetScale = Math.min(Math.max((height - 140) / (graphHeight * 1.8), 0.68), 0.85);
+      setScale(targetScale);
+      setOffsetX(24); // Start cleanly from left with padding, never negative
+      const visibleH = height - 42;
+      setOffsetY(Math.max(16, (visibleH - graphHeight * targetScale) / 2 + 10));
+    } else {
+      const scaleX = (width - 120) / graphWidth;
+      const scaleY = (height - 120) / graphHeight;
+      const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.2);
 
-    setScale(newScale);
-    setOffsetX((width - graphWidth * newScale) / 2);
-    setOffsetY((height - graphHeight * newScale) / 2);
+      setScale(newScale);
+      setOffsetX(Math.max(24, (width - graphWidth * newScale) / 2));
+      setOffsetY(Math.max(24, (height - graphHeight * newScale) / 2));
+    }
   }, [graph]);
 
   useEffect(() => {
@@ -490,10 +504,11 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     // 3. Draw Minimap (Bottom-Right)
     // ------------------------------------------------------------------------
     if (showMinimap) {
-      const mapWidth = 180;
-      const mapHeight = 110;
-      const mapX = width - mapWidth - 14;
-      const mapY = height - mapHeight - 14;
+      const isMobile = width <= 768;
+      const mapWidth = isMobile ? 120 : 180;
+      const mapHeight = isMobile ? 70 : 110;
+      const mapX = width - mapWidth - (isMobile ? 10 : 14);
+      const mapY = height - mapHeight - (isMobile ? 10 : 14);
 
       ctx.fillStyle = "rgba(12, 16, 23, 0.85)";
       ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
@@ -571,6 +586,106 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   // --------------------------------------------------------------------------
   // Canvas Mouse Events: Pan, Zoom, Hit-Testing, Selection
   // --------------------------------------------------------------------------
+  // Touch Gestures for Mobile Panning and Pinch-to-Zoom
+  const touchStateRef = useRef<{
+    startX: number;
+    startY: number;
+    startOffsetX: number;
+    startOffsetY: number;
+    isPinch: boolean;
+    startPinchDist: number;
+    startScale: number;
+  } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const rect = e.currentTarget.getBoundingClientRect();
+      touchStateRef.current = {
+        startX: t.clientX - rect.left,
+        startY: t.clientY - rect.top,
+        startOffsetX: offsetX,
+        startOffsetY: offsetY,
+        isPinch: false,
+        startPinchDist: 0,
+        startScale: scale
+      };
+      setIsPanning(true);
+    } else if (e.touches.length === 2) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const t0 = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      const t1 = { x: e.touches[1].clientX - rect.left, y: e.touches[1].clientY - rect.top };
+      const dist = Math.hypot(t1.x - t0.x, t1.y - t0.y);
+      touchStateRef.current = {
+        startX: (t0.x + t1.x) / 2,
+        startY: (t0.y + t1.y) / 2,
+        startOffsetX: offsetX,
+        startOffsetY: offsetY,
+        isPinch: true,
+        startPinchDist: dist,
+        startScale: scale
+      };
+      setIsPanning(false);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!touchStateRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    if (!touchStateRef.current.isPinch && e.touches.length === 1) {
+      const t = e.touches[0];
+      const curX = t.clientX - rect.left;
+      const curY = t.clientY - rect.top;
+      const dx = curX - touchStateRef.current.startX;
+      const dy = curY - touchStateRef.current.startY;
+      setOffsetX(touchStateRef.current.startOffsetX + dx);
+      setOffsetY(touchStateRef.current.startOffsetY + dy);
+    } else if (e.touches.length === 2 && touchStateRef.current.startPinchDist > 0) {
+      const t0 = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      const t1 = { x: e.touches[1].clientX - rect.left, y: e.touches[1].clientY - rect.top };
+      const dist = Math.hypot(t1.x - t0.x, t1.y - t0.y);
+      const ratio = dist / touchStateRef.current.startPinchDist;
+      const newScale = Math.min(Math.max(touchStateRef.current.startScale * ratio, 0.2), 3.0);
+      setScale(newScale);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (touchStateRef.current && !touchStateRef.current.isPinch && e.changedTouches.length === 1) {
+      const t = e.changedTouches[0];
+      const rect = e.currentTarget.getBoundingClientRect();
+      const endX = t.clientX - rect.left;
+      const endY = t.clientY - rect.top;
+      const distMoved = Math.hypot(endX - touchStateRef.current.startX, endY - touchStateRef.current.startY);
+
+      // Tap to select
+      if (distMoved < 8) {
+        const graphX = (endX - offsetX) / scale;
+        const graphY = (endY - offsetY) / scale;
+
+        let hitNode: SchematicNode | null = null;
+        for (let i = graph.nodes.length - 1; i >= 0; i--) {
+          const n = graph.nodes[i];
+          if (graphX >= n.x && graphX <= n.x + n.width && graphY >= n.y && graphY <= n.y + n.height) {
+            hitNode = n;
+            break;
+          }
+        }
+
+        if (hitNode) {
+          setSelectedNodeId(hitNode.id);
+          setSelectedEdgeId(null);
+          onSelectSignal(hitNode.id);
+        } else {
+          setSelectedNodeId(null);
+        }
+      }
+    }
+    setIsPanning(false);
+    touchStateRef.current = null;
+  };
+
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
@@ -749,26 +864,42 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       {/* Top Schematic Toolbar */}
       <div
         style={{
-          height: 36,
+          height: 38,
+          minHeight: 38,
+          flexShrink: 0,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 10px",
-          zIndex: 10
+          zIndex: 10,
+          overflowX: "auto",
+          overflowY: "hidden",
+          whiteSpace: "nowrap",
+          scrollbarWidth: "none"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Axiom Schematic DAG ({graph.nodes.length} cells, {graph.edges.length} nets)
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--text-secondary)",
+              whiteSpace: "nowrap",
+              flexShrink: 0
+            }}
+          >
+            {typeof window !== "undefined" && window.innerWidth <= 768
+              ? `${graph.nodes.length} Cells • ${graph.edges.length} Nets`
+              : `Axiom Schematic DAG (${graph.nodes.length} cells, ${graph.edges.length} nets)`}
           </span>
 
           {/* LOD Badge */}
           <div
             style={{
               fontSize: 10,
-              padding: "1px 6px",
+              padding: "2px 6px",
               borderRadius: 3,
               backgroundColor: "var(--bg-tertiary)",
               color: "var(--accent-cyan)",
@@ -776,13 +907,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               textTransform: "uppercase",
               display: "flex",
               alignItems: "center",
-              gap: 4
+              gap: 4,
+              flexShrink: 0
             }}
           >
             <Layers size={10} />
-            <span>
-              LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)
-            </span>
+            <span>LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)</span>
           </div>
 
           {/* Live Values Toggle */}
@@ -790,18 +920,20 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             onClick={() => setShowLiveValues(!showLiveValues)}
             style={{
               fontSize: 11,
-              padding: "2px 8px",
+              padding: "3px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showLiveValues ? "rgba(16, 185, 129, 0.15)" : "var(--bg-tertiary)",
               color: showLiveValues ? "var(--accent-emerald)" : "var(--text-muted)",
               border: "1px solid var(--border-subtle)",
               display: "flex",
               alignItems: "center",
-              gap: 4
+              gap: 4,
+              cursor: "pointer",
+              flexShrink: 0
             }}
           >
             <Activity size={12} />
-            <span>Wire Values</span>
+            <span>Values</span>
           </button>
 
           {/* Minimap Toggle */}
@@ -809,78 +941,55 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             onClick={() => setShowMinimap(!showMinimap)}
             style={{
               fontSize: 11,
-              padding: "2px 8px",
+              padding: "3px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showMinimap ? "rgba(56, 189, 248, 0.15)" : "var(--bg-tertiary)",
               color: showMinimap ? "var(--accent-cyan)" : "var(--text-muted)",
               border: "1px solid var(--border-subtle)",
               display: "flex",
               alignItems: "center",
-              gap: 4
+              gap: 4,
+              cursor: "pointer",
+              flexShrink: 0
             }}
           >
             <MapPin size={12} />
-            <span>Minimap</span>
+            <span>Map</span>
           </button>
         </div>
 
         {/* Action Controls: 1-Click Cone Slicing, Zoom, Fit */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {/* Slice Fanin Cone Button */}
-          <button
-            onClick={handleSliceFanin}
-            disabled={!selectedNodeId && !selectedEdgeId}
-            title="Extract combinational fan-in logic cone (HotKey: F)"
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: "3px 8px",
-              borderRadius: "var(--radius-sm)",
-              backgroundColor: activeCone?.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
-              color: activeCone?.isFanin
-                ? "#fff"
-                : !selectedNodeId && !selectedEdgeId
-                ? "var(--text-muted)"
-                : "var(--text-primary)",
-              border: "1px solid var(--border-subtle)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
-              cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer"
-            }}
-          >
-            <Filter size={11} />
-            <span>Fan-In Cone [F]</span>
-          </button>
-
-          {/* Slice Fanout Tree Button */}
-          <button
-            onClick={handleSliceFanout}
-            disabled={!selectedNodeId && !selectedEdgeId}
-            title="Extract driven load fan-out tree (HotKey: O)"
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: "3px 8px",
-              borderRadius: "var(--radius-sm)",
-              backgroundColor: activeCone && !activeCone.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
-              color: activeCone && !activeCone.isFanin
-                ? "#fff"
-                : !selectedNodeId && !selectedEdgeId
-                ? "var(--text-muted)"
-                : "var(--text-primary)",
-              border: "1px solid var(--border-subtle)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
-              cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer"
-            }}
-          >
-            <Zap size={11} />
-            <span>Fan-Out [O]</span>
-          </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+          {/* Slice Fanin Cone Button (Hidden on compact mobile unless cell selected) */}
+          {(typeof window === "undefined" || window.innerWidth > 768 || selectedNodeId || selectedEdgeId) && (
+            <button
+              onClick={handleSliceFanin}
+              disabled={!selectedNodeId && !selectedEdgeId}
+              title="Extract combinational fan-in logic cone (HotKey: F)"
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "3px 8px",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: activeCone?.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
+                color: activeCone?.isFanin
+                  ? "#fff"
+                  : !selectedNodeId && !selectedEdgeId
+                  ? "var(--text-muted)"
+                  : "var(--text-primary)",
+                border: "1px solid var(--border-subtle)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
+                cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer",
+                flexShrink: 0
+              }}
+            >
+              <Filter size={11} />
+              <span>{typeof window !== "undefined" && window.innerWidth <= 768 ? "Cone" : "Fan-In Cone [F]"}</span>
+            </button>
+          )}
 
           {/* Clear Cone Slice */}
           {activeCone && (
@@ -896,7 +1005,9 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                 border: "1px solid #f43f5e",
                 display: "flex",
                 alignItems: "center",
-                gap: 2
+                gap: 2,
+                cursor: "pointer",
+                flexShrink: 0
               }}
             >
               <X size={11} />
@@ -904,30 +1015,38 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             </button>
           )}
 
-          <div style={{ width: 1, height: 16, backgroundColor: "var(--border-subtle)", margin: "0 4px" }} />
+          <div style={{ width: 1, height: 16, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
 
           {/* Zoom Buttons */}
           <button
-            onClick={() => setScale((s) => Math.min(s * 1.2, 3.5))}
+            onClick={() => setScale((s) => Math.min(s * 1.25, 3.5))}
             style={{
-              padding: 4,
+              padding: "4px 6px",
               backgroundColor: "var(--bg-tertiary)",
               borderRadius: 3,
               border: "1px solid var(--border-subtle)",
-              color: "var(--text-muted)"
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              flexShrink: 0
             }}
             title="Zoom In"
           >
             <ZoomIn size={13} />
           </button>
           <button
-            onClick={() => setScale((s) => Math.max(s / 1.2, 0.2))}
+            onClick={() => setScale((s) => Math.max(s / 1.25, 0.2))}
             style={{
-              padding: 4,
+              padding: "4px 6px",
               backgroundColor: "var(--bg-tertiary)",
               borderRadius: 3,
               border: "1px solid var(--border-subtle)",
-              color: "var(--text-muted)"
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              flexShrink: 0
             }}
             title="Zoom Out"
           >
@@ -936,15 +1055,23 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           <button
             onClick={fitToScreen}
             style={{
-              padding: 4,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "4px 8px",
               backgroundColor: "var(--bg-tertiary)",
               borderRadius: 3,
               border: "1px solid var(--border-subtle)",
-              color: "var(--text-muted)"
+              color: "var(--accent-cyan)",
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 600,
+              flexShrink: 0
             }}
-            title="Fit to Screen"
+            title="Reset / Fit View to Screen"
           >
-            <Maximize2 size={13} />
+            <Maximize2 size={12} />
+            <span>Fit</span>
           </button>
         </div>
       </div>
@@ -957,11 +1084,19 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => {
+          setIsPanning(false);
+          touchStateRef.current = null;
+        }}
         style={{
           flex: 1,
           width: "100%",
           height: "100%",
-          cursor: isPanning ? "grabbing" : "crosshair"
+          cursor: isPanning ? "grabbing" : "crosshair",
+          touchAction: "none"
         }}
       />
 

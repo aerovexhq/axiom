@@ -136,10 +136,10 @@ function routeOrthogonalEdge(
 
 function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   // Layer spacing constants
-  const layerSpacingX = 145;
-  const nodeSpacingY = 32;
-  const startX = 40;
-  const startY = 40;
+  const layerSpacingX = 105;
+  const nodeSpacingY = 26;
+  const startX = 36;
+  const startY = 36;
 
   // Group nodes by layer
   const layerMap = new Map<number, SchematicNode[]>();
@@ -151,13 +151,32 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
 
   const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
 
+  // Determine the max layer height across all layers to vertically center each layer
+  let maxLayerHeight = 0;
+  for (const layer of sortedLayers) {
+    const nodesInLayer = layerMap.get(layer)!;
+    let h = 0;
+    for (let i = 0; i < nodesInLayer.length; i++) {
+      h += nodesInLayer[i].height + (i > 0 ? nodeSpacingY : 0);
+    }
+    if (h > maxLayerHeight) maxLayerHeight = h;
+  }
+
   let currentX = startX;
   let maxGlobalY = 0;
   let maxGlobalX = 0;
 
   for (const layer of sortedLayers) {
     const nodesInLayer = layerMap.get(layer)!;
-    let currentY = startY;
+
+    // Calculate total height of this specific layer
+    let layerHeight = 0;
+    for (let i = 0; i < nodesInLayer.length; i++) {
+      layerHeight += nodesInLayer[i].height + (i > 0 ? nodeSpacingY : 0);
+    }
+
+    // Vertically center this layer relative to the tallest layer
+    let currentY = startY + Math.max(0, (maxLayerHeight - layerHeight) / 2);
 
     // Determine max width in this layer
     let maxLayerWidth = 0;
