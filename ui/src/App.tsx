@@ -13,6 +13,8 @@ import { NewProjectModal } from "./components/NewProjectModal";
 import { AddSourceModal } from "./components/AddSourceModal";
 import { WelcomeLaunchpad } from "./components/WelcomeLaunchpad";
 import { ResizableSplitter } from "./components/ResizableSplitter";
+import { MobileDrawer, MobilePanelType } from "./components/MobileDrawer";
+import { MobileBottomBar } from "./components/MobileBottomBar";
 import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBridge";
 import {
   AxiomProject,
@@ -33,6 +35,24 @@ export const App: React.FC = () => {
   const [project, setProject] = useState<AxiomProject | null>(() => loadSavedProject());
   const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "split">("split");
   const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | "timing" | null>(null);
+
+  // Responsive Mobile Mode & Off-Canvas Left Drawer
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth <= 768;
+    }
+    return false;
+  });
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
+  const [activeMobilePanel, setActiveMobilePanel] = useState<MobilePanelType>("editor");
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Sidebar & Modals
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -278,10 +298,144 @@ export const App: React.FC = () => {
         project={project}
         onOpenNewProject={() => setIsNewProjectOpen(true)}
         onCloseProject={handleCloseProject}
+        isMobile={isMobile}
+        onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
+        activeMobilePanel={activeMobilePanel}
+      />
+
+      {/* Mobile Off-Canvas Left Drawer */}
+      <MobileDrawer
+        isOpen={isMobileDrawerOpen}
+        onClose={() => setIsMobileDrawerOpen(false)}
+        project={project}
+        activePanel={activeMobilePanel}
+        onSelectPanel={(panel) => {
+          setActiveMobilePanel(panel);
+          setIsMobileDrawerOpen(false);
+        }}
+        state={state}
+        onCompile={handleCompile}
+        onOpenNewProject={() => {
+          setIsMobileDrawerOpen(false);
+          setIsNewProjectOpen(true);
+        }}
+        onOpenAddSource={() => {
+          setIsMobileDrawerOpen(false);
+          setIsAddSourceOpen(true);
+        }}
+        onCloseProject={() => {
+          setIsMobileDrawerOpen(false);
+          handleCloseProject();
+        }}
+        onSelectFile={(fileId) => {
+          handleSelectFile(fileId);
+          setActiveMobilePanel("editor");
+          setIsMobileDrawerOpen(false);
+        }}
+        onSelectTemplate={(templateId) => {
+          handleSelectTemplate(templateId);
+          setActiveMobilePanel("editor");
+          setIsMobileDrawerOpen(false);
+        }}
       />
 
       {/* Main Workspace Body */}
-      <div className="axiom-body">
+      {isMobile ? (
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
+            overflow: "hidden",
+            paddingBottom: 56
+          }}
+        >
+          {!project ? (
+            <WelcomeLaunchpad
+              onOpenNewProject={() => setIsNewProjectOpen(true)}
+              onSelectTemplate={(tmplId) => {
+                handleSelectTemplate(tmplId);
+                setActiveMobilePanel("editor");
+              }}
+              onImportProjectJson={handleImportProjectJson}
+            />
+          ) : activeMobilePanel === "editor" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <HdlEditor
+                code={activeFile?.content ?? ""}
+                topModule={project.topModule}
+                onChangeCode={handleCodeChange}
+                onCompile={handleCompile}
+                compiled={state.compiled}
+                highlightLineSpan={highlightLineSpan}
+                project={project}
+                onSelectTab={handleSelectFile}
+                onCloseTab={handleCloseTab}
+                onAddFileClick={() => setIsAddSourceOpen(true)}
+                isMaximized={false}
+                onDiagnosticsChange={setDiagnostics}
+              />
+            </div>
+          ) : activeMobilePanel === "schematic" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <SchematicViewer
+                state={state}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                selectedSignalId={activeCrossProbeSignal}
+                onSelectSignal={handleSchematicSelectSignal}
+                onJumpToCode={(line) => {
+                  handleJumpToCode(line, line);
+                  setActiveMobilePanel("editor");
+                }}
+              />
+            </div>
+          ) : activeMobilePanel === "virtuallab" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <VirtualLabRack
+                state={state}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+              />
+            </div>
+          ) : activeMobilePanel === "waveform" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <WaveformViewer
+                state={state}
+                selectedSignalIds={selectedSignalIds}
+              />
+            </div>
+          ) : activeMobilePanel === "timing" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <TimingRadarViewer
+                state={state}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+              />
+            </div>
+          ) : (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <UnifiedBottomDock
+                state={state}
+                diagnostics={diagnostics}
+                onNavigateToLine={(line) => {
+                  setHighlightLineSpan({ lineStart: line, lineEnd: line });
+                  setActiveMobilePanel("editor");
+                }}
+                isMobileFullScreen={true}
+              />
+            </div>
+          )}
+
+          {/* Fixed 1-Tap Thumb Bottom Bar for Mobile */}
+          <MobileBottomBar
+            activePanel={activeMobilePanel}
+            onSelectPanel={setActiveMobilePanel}
+            diagnosticCount={diagnostics.length}
+            glitchCount={state.glitchCount}
+          />
+        </div>
+      ) : (
+        <div className="axiom-body">
         {/* Left Sidebar: Vivado Project Manager & Elaborated Netlist Hierarchy */}
         <Sidebar
           state={state}
@@ -971,6 +1125,7 @@ export const App: React.FC = () => {
           />
         </div>
       </div>
+      )}
 
       {/* Omnibar & Global Command Palette Modal */}
       <OmnibarModal

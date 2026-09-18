@@ -1,7 +1,20 @@
 import React from "react";
-import { Play, Pause, FastForward, RotateCcw, Cpu, Zap, Activity, Bug, FolderPlus, X } from "lucide-react";
+import {
+  Play,
+  Pause,
+  FastForward,
+  RotateCcw,
+  Cpu,
+  Zap,
+  Activity,
+  Bug,
+  FolderPlus,
+  X,
+  Menu
+} from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
+import { MobilePanelType } from "./MobileDrawer";
 
 interface HeaderProps {
   state: SimulationState;
@@ -9,6 +22,9 @@ interface HeaderProps {
   project?: AxiomProject | null;
   onOpenNewProject?: () => void;
   onCloseProject?: () => void;
+  isMobile?: boolean;
+  onToggleMobileDrawer?: () => void;
+  activeMobilePanel?: MobilePanelType;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,7 +32,10 @@ export const Header: React.FC<HeaderProps> = ({
   onCompile,
   project,
   onOpenNewProject,
-  onCloseProject
+  onCloseProject,
+  isMobile = false,
+  onToggleMobileDrawer,
+  activeMobilePanel: _activeMobilePanel
 }) => {
   const formatTime = (timePs: number) => {
     if (timePs >= 1_000_000) {
@@ -27,6 +46,184 @@ export const Header: React.FC<HeaderProps> = ({
       return `${timePs} ps`;
     }
   };
+
+  if (isMobile) {
+    return (
+      <header
+        style={{
+          height: 48,
+          backgroundColor: "var(--bg-secondary)",
+          borderBottom: "1px solid var(--border-subtle)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 12px",
+          zIndex: 25,
+          flexShrink: 0
+        }}
+      >
+        {/* Mobile Left: Hamburger + Brand */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={onToggleMobileDrawer}
+            aria-label="Open Navigation Menu"
+            title="Open Project & View Menu"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 36,
+              height: 36,
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "var(--bg-tertiary)",
+              border: "1px solid var(--border-subtle)",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+              padding: 0
+            }}
+          >
+            <Menu size={19} />
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <img
+              src="/logo.svg"
+              alt="Axiom Logo"
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "var(--radius-sm)"
+              }}
+            />
+            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em" }}>
+              Axiom
+            </span>
+          </div>
+
+          {project ? (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--accent-cyan)",
+                backgroundColor: "rgba(6, 182, 212, 0.1)",
+                border: "1px solid rgba(6, 182, 212, 0.25)",
+                padding: "2px 7px",
+                borderRadius: "var(--radius-sm)",
+                maxWidth: 110,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap"
+              }}
+              title={project.name}
+            >
+              {project.name}
+            </span>
+          ) : (
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--text-muted)",
+                backgroundColor: "var(--bg-tertiary)",
+                padding: "2px 6px",
+                borderRadius: "var(--radius-sm)"
+              }}
+            >
+              No Project
+            </span>
+          )}
+        </div>
+
+        {/* Mobile Right: Simulation Clock & Quick Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {project && (
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                fontWeight: 700,
+                color: "var(--accent-cyan)",
+                backgroundColor: "var(--bg-tertiary)",
+                padding: "3px 6px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border-subtle)"
+              }}
+              title={`Current sim time: ${state.currentSimTimePs} ps (δ=${state.currentDeltaCycle})`}
+            >
+              {formatTime(state.currentSimTimePs)}
+            </span>
+          )}
+
+          {project && (
+            <>
+              {state.isRunning ? (
+                <button
+                  onClick={() => engineBridge.pause()}
+                  aria-label="Pause"
+                  title="Pause Simulation"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 32,
+                    height: 32,
+                    backgroundColor: "var(--accent-rose)",
+                    color: "#fff",
+                    borderRadius: "var(--radius-sm)",
+                    border: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  <Pause size={15} />
+                </button>
+              ) : (
+                <button
+                  onClick={() => engineBridge.play()}
+                  disabled={!state.compiled}
+                  aria-label="Run"
+                  title="Run Simulation"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 32,
+                    height: 32,
+                    backgroundColor: state.compiled ? "var(--accent-emerald)" : "var(--bg-tertiary)",
+                    color: state.compiled ? "#fff" : "var(--text-muted)",
+                    borderRadius: "var(--radius-sm)",
+                    border: "none",
+                    cursor: state.compiled ? "pointer" : "not-allowed"
+                  }}
+                >
+                  <Play size={15} />
+                </button>
+              )}
+
+              <button
+                onClick={onCompile}
+                title="Re-Compile JIT"
+                aria-label="Compile JIT"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 32,
+                  height: 32,
+                  backgroundColor: state.compiled ? "var(--bg-tertiary)" : "var(--accent-blue)",
+                  color: state.compiled ? "var(--text-secondary)" : "#fff",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  cursor: "pointer"
+                }}
+              >
+                <Cpu size={15} />
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header

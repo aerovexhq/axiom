@@ -21,6 +21,7 @@ interface UnifiedBottomDockProps {
   state: SimulationState;
   diagnostics?: LspDiagnostic[];
   onNavigateToLine?: (line: number, column?: number) => void;
+  isMobileFullScreen?: boolean;
 }
 
 interface LogEntry {
@@ -39,7 +40,8 @@ interface ReplEntry {
 export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   state,
   diagnostics = [],
-  onNavigateToLine
+  onNavigateToLine,
+  isMobileFullScreen = false
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
@@ -356,8 +358,8 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
     setDockHeight((prev) => Math.max(120, Math.min(650, prev - deltaPx)));
   };
 
-  // Render Collapsed Status Bar (32px)
-  if (isCollapsed) {
+  // If in mobile full-screen mode, never collapse
+  if (isCollapsed && !isMobileFullScreen) {
     return (
       <div
         style={{
@@ -510,20 +512,21 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   return (
     <div
       style={{
-        height: isMaximized ? "100%" : dockHeight,
-        maxHeight: isMaximized ? "100%" : "60vh",
+        height: isMobileFullScreen || isMaximized ? "100%" : dockHeight,
+        maxHeight: isMobileFullScreen || isMaximized ? "100%" : "60vh",
+        flex: isMobileFullScreen ? 1 : undefined,
         backgroundColor: "var(--bg-secondary)",
-        borderTop: "1px solid var(--border-subtle)",
+        borderTop: isMobileFullScreen ? "none" : "1px solid var(--border-subtle)",
         display: "flex",
         flexDirection: "column",
-        position: isMaximized ? "absolute" : "relative",
-        inset: isMaximized ? 0 : undefined,
+        position: isMaximized && !isMobileFullScreen ? "absolute" : "relative",
+        inset: isMaximized && !isMobileFullScreen ? 0 : undefined,
         zIndex: isMaximized ? 100 : 8,
         overflow: "hidden"
       }}
     >
-      {/* Top Resizable Drag Handle (if not maximized) */}
-      {!isMaximized && (
+      {/* Top Resizable Drag Handle (if not maximized or mobile) */}
+      {!isMaximized && !isMobileFullScreen && (
         <ResizableSplitter
           orientation="vertical"
           onResize={handleResize}
