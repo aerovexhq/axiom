@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   Folder,
   FolderOpen,
+  FolderPlus,
   FileCode,
   FileText,
   FilePlus,
@@ -12,7 +13,8 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
 import {
   AxiomProject,
@@ -24,11 +26,13 @@ import {
 } from "../engine/projectModel";
 
 interface ProjectManagerProps {
-  project: AxiomProject;
+  project: AxiomProject | null;
   onUpdateProject: (updated: AxiomProject) => void;
   onOpenAddSource: () => void;
   onOpenNewProject: () => void;
   onSelectFile: (fileId: string) => void;
+  onCloseProject?: () => void;
+  onSelectTemplate?: (templateId: string) => void;
 }
 
 export const ProjectManager: React.FC<ProjectManagerProps> = ({
@@ -36,12 +40,120 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   onUpdateProject,
   onOpenAddSource,
   onOpenNewProject,
-  onSelectFile
+  onSelectFile,
+  onCloseProject,
+  onSelectTemplate
 }) => {
   const [sourcesOpen, setSourcesOpen] = useState<boolean>(true);
   const [simOpen, setSimOpen] = useState<boolean>(true);
   const [constrsOpen, setConstrsOpen] = useState<boolean>(true);
   const [templatesOpen, setTemplatesOpen] = useState<boolean>(false);
+
+  // Render empty state if no project is currently loaded
+  if (!project) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto", padding: 12 }}>
+        <div
+          style={{
+            padding: "16px 12px",
+            textAlign: "center",
+            backgroundColor: "var(--bg-primary)",
+            borderRadius: "var(--radius-md)",
+            border: "1px dashed var(--border-subtle)",
+            marginBottom: 16
+          }}
+        >
+          <FolderPlus size={28} color="var(--accent-blue)" style={{ margin: "0 auto 8px", opacity: 0.8 }} />
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+            No Project Open
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
+            Create a new Vivado project or choose a hardware starter template.
+          </div>
+          <button
+            onClick={onOpenNewProject}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              padding: "7px 12px",
+              backgroundColor: "var(--accent-blue)",
+              color: "#fff",
+              borderRadius: "var(--radius-sm)",
+              border: "none",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "opacity 0.15s ease"
+            }}
+          >
+            <Plus size={14} />
+            <span>Create New Project</span>
+          </button>
+        </div>
+
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: "var(--text-muted)",
+            textTransform: "uppercase",
+            padding: "0 4px 6px",
+            letterSpacing: 0.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 4
+          }}
+        >
+          <Sparkles size={11} color="var(--accent-cyan)" />
+          <span>Starter Templates</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {PROJECT_TEMPLATES.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              onClick={() => {
+                if (onSelectTemplate) {
+                  onSelectTemplate(tmpl.id);
+                } else {
+                  const newProj = createProjectFromTemplate(tmpl.id);
+                  onUpdateProject(newProj);
+                }
+              }}
+              style={{
+                textAlign: "left",
+                padding: "8px 10px",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: "var(--bg-tertiary)",
+                border: "1px solid var(--border-subtle)",
+                color: "var(--text-primary)",
+                cursor: "pointer",
+                transition: "all 0.12s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent-blue)";
+                e.currentTarget.style.backgroundColor = "var(--bg-elevated)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-subtle)";
+                e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-blue)" }}>
+                {tmpl.name}
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                {tmpl.files.length} sources • {tmpl.defaultTopModule}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const designSources = project.files.filter((f) => f.fileSet === "sources_1");
   const simSources = project.files.filter((f) => f.fileSet === "sim_1");
@@ -212,25 +324,52 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             </span>
           </div>
 
-          <button
-            onClick={onOpenNewProject}
-            title="Create or Switch Project"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              fontSize: 10,
-              fontWeight: 600,
-              padding: "2px 6px",
-              backgroundColor: "var(--bg-tertiary)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--accent-blue)"
-            }}
-          >
-            <Plus size={11} />
-            <span>New</span>
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button
+              onClick={onOpenNewProject}
+              title="Create or Switch Project"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                fontSize: 10,
+                fontWeight: 600,
+                padding: "2px 6px",
+                backgroundColor: "var(--bg-tertiary)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--accent-blue)"
+              }}
+            >
+              <Plus size={11} />
+              <span>New</span>
+            </button>
+
+            {onCloseProject && (
+              <button
+                onClick={onCloseProject}
+                title="Close active project"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: "2px 6px",
+                  backgroundColor: "transparent",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-muted)",
+                  cursor: "pointer"
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+              >
+                <X size={11} />
+                <span>Close</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Silicon Part & Top Module Badges */}

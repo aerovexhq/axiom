@@ -30,7 +30,7 @@ interface HdlEditorProps {
   onCompile: () => void;
   compiled: boolean;
   highlightLineSpan?: { lineStart: number; lineEnd: number } | null;
-  project?: AxiomProject;
+  project?: AxiomProject | null;
   onSelectTab?: (fileId: string) => void;
   onCloseTab?: (fileId: string) => void;
   onAddFileClick?: () => void;

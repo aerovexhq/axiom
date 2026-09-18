@@ -1,13 +1,23 @@
 import React from "react";
-import { Play, Pause, FastForward, RotateCcw, Cpu, Zap, Activity, Bug } from "lucide-react";
+import { Play, Pause, FastForward, RotateCcw, Cpu, Zap, Activity, Bug, FolderPlus, X } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
+import { AxiomProject } from "../engine/projectModel";
 
 interface HeaderProps {
   state: SimulationState;
   onCompile: () => void;
+  project?: AxiomProject | null;
+  onOpenNewProject?: () => void;
+  onCloseProject?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ state, onCompile }) => {
+export const Header: React.FC<HeaderProps> = ({
+  state,
+  onCompile,
+  project,
+  onOpenNewProject,
+  onCloseProject
+}) => {
   const formatTime = (timePs: number) => {
     if (timePs >= 1_000_000) {
       return `${(timePs / 1_000_000).toFixed(3)} μs`;
@@ -62,26 +72,101 @@ export const Header: React.FC<HeaderProps> = ({ state, onCompile }) => {
 
         <div style={{ height: 18, width: 1, backgroundColor: "var(--border-subtle)" }} />
 
-        {/* Compile Button */}
-        <button
-          onClick={onCompile}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "5px 12px",
-            backgroundColor: state.compiled ? "var(--bg-tertiary)" : "var(--accent-blue)",
-            color: state.compiled ? "var(--text-primary)" : "#fff",
-            borderRadius: "var(--radius-sm)",
-            border: `1px solid ${state.compiled ? "var(--border-subtle)" : "var(--accent-blue)"}`,
-            fontWeight: 500,
-            fontSize: 12,
-            transition: "all 0.15s ease"
-          }}
-        >
-          <Cpu size={14} />
-          <span>{state.compiled ? "Re-Compile JIT" : "Compile JIT"}</span>
-        </button>
+        {/* Project Context & Controls */}
+        {project ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--accent-cyan)",
+                backgroundColor: "rgba(6, 182, 212, 0.1)",
+                border: "1px solid rgba(6, 182, 212, 0.25)",
+                padding: "3px 8px",
+                borderRadius: "var(--radius-sm)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4
+              }}
+            >
+              <span>{project.name}</span>
+              <span style={{ color: "var(--text-muted)", fontSize: 10 }}>({project.targetDevice.split(" ")[0]})</span>
+            </span>
+
+            {/* Compile Button */}
+            <button
+              onClick={onCompile}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                backgroundColor: state.compiled ? "var(--bg-tertiary)" : "var(--accent-blue)",
+                color: state.compiled ? "var(--text-primary)" : "#fff",
+                borderRadius: "var(--radius-sm)",
+                border: `1px solid ${state.compiled ? "var(--border-subtle)" : "var(--accent-blue)"}`,
+                fontWeight: 500,
+                fontSize: 11,
+                cursor: "pointer",
+                transition: "all 0.15s ease"
+              }}
+            >
+              <Cpu size={13} />
+              <span>{state.compiled ? "Re-Compile JIT" : "Compile JIT"}</span>
+            </button>
+
+            {onCloseProject && (
+              <button
+                onClick={onCloseProject}
+                title="Close active project and return to launchpad"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  padding: "4px 8px",
+                  backgroundColor: "transparent",
+                  color: "var(--text-muted)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  fontSize: 11,
+                  cursor: "pointer"
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+              >
+                <X size={12} />
+                <span>Close</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
+              No Project Open
+            </span>
+            {onOpenNewProject && (
+              <button
+                onClick={onOpenNewProject}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "4px 10px",
+                  backgroundColor: "var(--accent-blue)",
+                  color: "#fff",
+                  borderRadius: "var(--radius-sm)",
+                  border: "none",
+                  fontWeight: 600,
+                  fontSize: 11,
+                  cursor: "pointer"
+                }}
+              >
+                <FolderPlus size={13} />
+                <span>New Project</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Center Execution Stepping Controls */}

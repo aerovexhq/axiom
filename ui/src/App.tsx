@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, LayoutGrid, Sliders, Clock, Search, Columns, Maximize2, Minimize2 } from "lucide-react";
+import { Activity, Cpu, LayoutGrid, Sliders, Clock, Search, Columns, Maximize2, Minimize2, Sparkles } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -11,6 +11,7 @@ import { UnifiedBottomDock } from "./components/UnifiedBottomDock";
 import { OmnibarModal } from "./components/OmnibarModal";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { AddSourceModal } from "./components/AddSourceModal";
+import { WelcomeLaunchpad } from "./components/WelcomeLaunchpad";
 import { ResizableSplitter } from "./components/ResizableSplitter";
 import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBridge";
 import {
@@ -22,13 +23,14 @@ import {
   updateFileContent,
   addFileToProject,
   loadSavedProject,
-  saveProjectToStorage
+  saveProjectToStorage,
+  clearSavedProject
 } from "./engine/projectModel";
 import { SampleDesign } from "./engine/sampleDesigns";
 
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
-  const [project, setProject] = useState<AxiomProject>(() => loadSavedProject());
+  const [project, setProject] = useState<AxiomProject | null>(() => loadSavedProject());
   const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "split">("split");
   const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | null>(null);
 
@@ -62,8 +64,9 @@ export const App: React.FC = () => {
 
   // Active File currently opened in HDL Editor
   const activeFile = useMemo(() => {
-    return project.files.find((f) => f.id === project.activeFileId) ?? project.files[0];
-  }, [project.files, project.activeFileId]);
+    if (!project) return null;
+    return project.files.find((f) => f.id === project.activeFileId) ?? project.files[0] ?? null;
+  }, [project]);
 
   // Initial compilation on mount
   useEffect(() => {
@@ -71,9 +74,11 @@ export const App: React.FC = () => {
       setState(newState);
     });
 
-    // Compile active project sources
-    const bundledCode = bundleProjectSources(project);
-    engineBridge.compile(bundledCode, project.topModule);
+    // Compile active project sources if project exists
+    if (project) {
+      const bundledCode = bundleProjectSources(project);
+      engineBridge.compile(bundledCode, project.topModule);
+    }
 
     return unsub;
   }, []);
@@ -99,27 +104,34 @@ export const App: React.FC = () => {
   };
 
   const handleCompile = () => {
+    if (!project) return;
     const bundled = bundleProjectSources(project);
     engineBridge.compile(bundled, project.topModule);
   };
 
   const handleCodeChange = (newCode: string) => {
-    if (!activeFile) return;
+    if (!project || !activeFile) return;
     const updated = updateFileContent(project, activeFile.id, newCode);
     setProject(updated);
     saveProjectToStorage(updated);
   };
 
   const handleSelectFile = (fileId: string) => {
-    setProject((prev) => ({
-      ...prev,
-      activeFileId: fileId,
-      openFileIds: prev.openFileIds.includes(fileId) ? prev.openFileIds : [...prev.openFileIds, fileId]
-    }));
+    if (!project) return;
+    setProject((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        activeFileId: fileId,
+        openFileIds: prev.openFileIds.includes(fileId) ? prev.openFileIds : [...prev.openFileIds, fileId]
+      };
+    });
   };
 
   const handleCloseTab = (fileId: string) => {
+    if (!project) return;
     setProject((prev) => {
+      if (!prev) return prev;
       const remainingOpenIds = prev.openFileIds.filter((id) => id !== fileId);
       const fallbackId = remainingOpenIds.length > 0 ? remainingOpenIds[0] : prev.files[0]?.id ?? "";
       return {
@@ -131,11 +143,36 @@ export const App: React.FC = () => {
   };
 
   const handleAddSource = (file: Omit<ProjectFile, "id">) => {
+    if (!project) return;
     const { project: updated } = addFileToProject(project, file);
     setProject(updated);
     saveProjectToStorage(updated);
     const bundled = bundleProjectSources(updated);
     engineBridge.compile(bundled, updated.topModule);
+  };
+
+  const handleCloseProject = () => {
+    setProject(null);
+    clearSavedProject();
+    engineBridge.reset();
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    const newProj = createProjectFromTemplate(templateId);
+    handleCreateProject(newProj);
+  };
+
+  const handleImportProjectJson = (jsonStr: string) => {
+    try {
+      const parsed = JSON.parse(jsonStr) as AxiomProject;
+      if (parsed && parsed.files && Array.isArray(parsed.files) && parsed.files.length > 0) {
+        handleCreateProject(parsed);
+      } else {
+        alert("Invalid project JSON: Missing valid files array.");
+      }
+    } catch (err) {
+      alert("Failed to parse project JSON: " + String(err));
+    }
   };
 
   const handleCreateProject = (newProj: AxiomProject) => {
@@ -241,7 +278,13 @@ export const App: React.FC = () => {
   return (
     <div className="axiom-app">
       {/* Simulation Execution & Status Header */}
-      <Header state={state} onCompile={handleCompile} />
+      <Header
+        state={state}
+        onCompile={handleCompile}
+        project={project}
+        onOpenNewProject={() => setIsNewProjectOpen(true)}
+        onCloseProject={handleCloseProject}
+      />
 
       {/* Main Workspace Body */}
       <div className="axiom-body">
@@ -252,6 +295,8 @@ export const App: React.FC = () => {
           onUpdateProject={handleUpdateProject}
           onOpenAddSource={() => setIsAddSourceOpen(true)}
           onOpenNewProject={() => setIsNewProjectOpen(true)}
+          onCloseProject={handleCloseProject}
+          onSelectTemplate={handleSelectTemplate}
           onSelectFile={handleSelectFile}
           selectedSignalIds={selectedSignalIds}
           onToggleSignal={handleToggleSignal}
@@ -274,121 +319,129 @@ export const App: React.FC = () => {
               zIndex: 5
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <button
-                onClick={() => {
-                  setCenterView("split");
-                  setMaximizedPanel(null);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 9px",
-                  borderRadius: "var(--radius-sm)",
-                  backgroundColor: centerView === "split" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                  color: centerView === "split" && !maximizedPanel ? "var(--accent-emerald)" : "var(--text-muted)",
-                  border: centerView === "split" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
-                }}
-              >
-                <LayoutGrid size={12} />
-                <span>Split Studio</span>
-              </button>
+            {project ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  onClick={() => {
+                    setCenterView("split");
+                    setMaximizedPanel(null);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: centerView === "split" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
+                    color: centerView === "split" && !maximizedPanel ? "var(--accent-emerald)" : "var(--text-muted)",
+                    border: centerView === "split" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                  }}
+                >
+                  <LayoutGrid size={12} />
+                  <span>Split Studio</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setCenterView("waveform");
-                  setMaximizedPanel(null);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 9px",
-                  borderRadius: "var(--radius-sm)",
-                  backgroundColor: centerView === "waveform" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                  color: centerView === "waveform" && !maximizedPanel ? "var(--accent-blue)" : "var(--text-muted)",
-                  border: centerView === "waveform" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
-                }}
-              >
-                <Activity size={12} />
-                <span>Waveforms</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setCenterView("waveform");
+                    setMaximizedPanel(null);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: centerView === "waveform" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
+                    color: centerView === "waveform" && !maximizedPanel ? "var(--accent-blue)" : "var(--text-muted)",
+                    border: centerView === "waveform" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                  }}
+                >
+                  <Activity size={12} />
+                  <span>Waveforms</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setCenterView("schematic");
-                  setMaximizedPanel(null);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 9px",
-                  borderRadius: "var(--radius-sm)",
-                  backgroundColor: centerView === "schematic" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                  color: centerView === "schematic" && !maximizedPanel ? "var(--accent-cyan)" : "var(--text-muted)",
-                  border: centerView === "schematic" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
-                }}
-              >
-                <Cpu size={12} />
-                <span>Schematic DAG</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setCenterView("schematic");
+                    setMaximizedPanel(null);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: centerView === "schematic" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
+                    color: centerView === "schematic" && !maximizedPanel ? "var(--accent-cyan)" : "var(--text-muted)",
+                    border: centerView === "schematic" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                  }}
+                >
+                  <Cpu size={12} />
+                  <span>Schematic DAG</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setCenterView("virtuallab");
-                  setMaximizedPanel(null);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 9px",
-                  borderRadius: "var(--radius-sm)",
-                  backgroundColor: centerView === "virtuallab" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                  color: centerView === "virtuallab" && !maximizedPanel ? "var(--accent-amber)" : "var(--text-muted)",
-                  border: centerView === "virtuallab" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
-                }}
-              >
-                <Sliders size={12} />
-                <span>Virtual Lab</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setCenterView("virtuallab");
+                    setMaximizedPanel(null);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: centerView === "virtuallab" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
+                    color: centerView === "virtuallab" && !maximizedPanel ? "var(--accent-amber)" : "var(--text-muted)",
+                    border: centerView === "virtuallab" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                  }}
+                >
+                  <Sliders size={12} />
+                  <span>Virtual Lab</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setCenterView("timing");
-                  setMaximizedPanel(null);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 9px",
-                  borderRadius: "var(--radius-sm)",
-                  backgroundColor: centerView === "timing" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                  color: centerView === "timing" && !maximizedPanel ? "var(--accent-purple)" : "var(--text-muted)",
-                  border: centerView === "timing" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
-                }}
-              >
-                <Clock size={12} />
-                <span>Timing & Energy</span>
-              </button>
-            </div>
+                <button
+                  onClick={() => {
+                    setCenterView("timing");
+                    setMaximizedPanel(null);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: centerView === "timing" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
+                    color: centerView === "timing" && !maximizedPanel ? "var(--accent-purple)" : "var(--text-muted)",
+                    border: centerView === "timing" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent"
+                  }}
+                >
+                  <Clock size={12} />
+                  <span>Timing & Energy</span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
+                <Sparkles size={13} color="var(--accent-cyan)" />
+                <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>Axiom Studio Launchpad</span>
+                <span style={{ opacity: 0.7 }}>• Select or create a project below to begin simulation</span>
+              </div>
+            )}
 
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-muted)" }}>
               {/* Maximize Active Panel Badge */}
-              {maximizedPanel && (
+              {project && maximizedPanel && (
                 <button
                   onClick={() => setMaximizedPanel(null)}
                   style={{
@@ -410,7 +463,7 @@ export const App: React.FC = () => {
               )}
 
               {/* Quick Layout Presets for Split View */}
-              {centerView === "split" && !maximizedPanel && (
+              {project && centerView === "split" && !maximizedPanel && (
                 <div
                   style={{
                     display: "flex",
@@ -475,7 +528,7 @@ export const App: React.FC = () => {
                 </div>
               )}
 
-              {activeCrossProbeSignal && (
+              {project && activeCrossProbeSignal && (
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span>Probing:</span>
                   <span style={{ color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
@@ -523,8 +576,13 @@ export const App: React.FC = () => {
 
           {/* Upper Workspace: View Depending on Mode or Panel Maximization */}
           <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", position: "relative" }}>
-            {/* Panel Maximization Overrides */}
-            {maximizedPanel === "editor" ? (
+            {!project ? (
+              <WelcomeLaunchpad
+                onOpenNewProject={() => setIsNewProjectOpen(true)}
+                onSelectTemplate={handleSelectTemplate}
+                onImportProjectJson={handleImportProjectJson}
+              />
+            ) : maximizedPanel === "editor" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <HdlEditor
                   code={activeFile?.content ?? ""}

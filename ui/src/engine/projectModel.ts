@@ -942,7 +942,7 @@ export function updateFileContent(
 // Local storage persistence
 const STORAGE_KEY = "axiom_current_project";
 
-export function loadSavedProject(): AxiomProject {
+export function loadSavedProject(): AxiomProject | null {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -955,14 +955,26 @@ export function loadSavedProject(): AxiomProject {
     console.warn("Could not load saved project from localStorage:", e);
   }
 
-  // Default: RV32I RISC-V SoC Project
-  return createProjectFromTemplate("riscv_soc_project");
+  // Default: start from clean "no project" standpoint
+  return null;
 }
 
-export function saveProjectToStorage(project: AxiomProject): void {
+export function saveProjectToStorage(project: AxiomProject | null): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    if (project) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   } catch (e) {
     console.warn("Could not save project to localStorage:", e);
+  }
+}
+
+export function clearSavedProject(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {
+    console.warn("Could not clear project from localStorage:", e);
   }
 }

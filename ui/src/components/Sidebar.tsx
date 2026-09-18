@@ -22,10 +22,12 @@ interface SidebarProps {
   activeDesignId?: string;
   selectedSignalIds: Set<string>;
   onToggleSignal: (id: string) => void;
-  project: AxiomProject;
+  project: AxiomProject | null;
   onUpdateProject: (p: AxiomProject) => void;
   onOpenAddSource: () => void;
   onOpenNewProject: () => void;
+  onCloseProject?: () => void;
+  onSelectTemplate?: (templateId: string) => void;
   onSelectFile: (fileId: string) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -39,6 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onUpdateProject,
   onOpenAddSource,
   onOpenNewProject,
+  onCloseProject,
+  onSelectTemplate,
   onSelectFile,
   isCollapsed = false,
   onToggleCollapse
@@ -308,6 +312,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onUpdateProject={onUpdateProject}
             onOpenAddSource={onOpenAddSource}
             onOpenNewProject={onOpenNewProject}
+            onCloseProject={onCloseProject}
+            onSelectTemplate={onSelectTemplate}
             onSelectFile={onSelectFile}
           />
         ) : (
@@ -345,7 +351,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Elaborated Netlist Tree
             </div>
 
-            {state.hierarchy.map((node) => renderHierarchyNode(node))}
+            {(!project || state.hierarchy.length === 0) ? (
+              <div style={{ padding: "28px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>
+                <Box size={26} style={{ margin: "0 auto 8px", opacity: 0.4 }} />
+                <div style={{ fontWeight: 600, color: "var(--text-secondary)" }}>No Netlist Available</div>
+                <div style={{ fontSize: 10, marginTop: 4, opacity: 0.7 }}>
+                  Create or open a project to elaborate hardware netlist hierarchy.
+                </div>
+              </div>
+            ) : (
+              state.hierarchy.map((node) => renderHierarchyNode(node))
+            )}
           </div>
         )}
       </div>
