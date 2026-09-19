@@ -32,6 +32,7 @@ interface SidebarProps {
   onSelectFile: (fileId: string) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  width?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -46,7 +47,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTemplate,
   onSelectFile,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
+  width = 280
 }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"project" | "hierarchy">("project");
@@ -224,11 +226,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   }
 
-  // Render Full Expanded Sidebar (228px wide)
+  // Render Full Expanded Sidebar (customizable width, default 280px)
   return (
     <aside
       style={{
-        width: 228,
+        width,
+        minWidth: width,
+        maxWidth: width,
         backgroundColor: "var(--bg-secondary)",
         borderRight: "1px solid var(--border-subtle)",
         display: "flex",

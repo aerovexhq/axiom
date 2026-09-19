@@ -115,6 +115,10 @@ export const App: React.FC = () => {
 
   // Sidebar & Modals
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem("axiom_sidebar_width");
+    return saved ? Math.max(220, Math.min(500, parseInt(saved, 10))) : 285;
+  });
   const [isOmnibarOpen, setIsOmnibarOpen] = useState<boolean>(false);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState<boolean>(false);
   const [newProjectInitialTemplateId, setNewProjectInitialTemplateId] = useState<string>("logic_circuit_project");
@@ -465,12 +469,20 @@ export const App: React.FC = () => {
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
+  const handleSidebarResize = useCallback((deltaPx: number) => {
+    setSidebarWidth((prev) => {
+      const next = Math.max(220, Math.min(500, Math.round(prev + deltaPx)));
+      localStorage.setItem("axiom_sidebar_width", String(next));
+      return next;
+    });
+  }, []);
+
   const handleEditorResize = useCallback((deltaPx: number) => {
-    const totalWidth = window.innerWidth - (isSidebarCollapsed ? 38 : 228);
+    const totalWidth = window.innerWidth - (isSidebarCollapsed ? 38 : sidebarWidth);
     if (totalWidth <= 0) return;
     const deltaPct = (deltaPx / totalWidth) * 100;
     setEditorWidthPercent((prev) => Math.max(18, Math.min(75, Math.round((prev + deltaPct) * 10) / 10)));
-  }, [isSidebarCollapsed]);
+  }, [isSidebarCollapsed, sidebarWidth]);
 
   const handleWaveformHeightResize = useCallback((deltaPx: number) => {
     const totalHeight = window.innerHeight - 200;
@@ -664,7 +676,20 @@ export const App: React.FC = () => {
           onToggleSignal={handleToggleSignal}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+          width={sidebarWidth}
         />
+
+        {/* Resizable Divider: Sidebar <-> Center Workspace */}
+        {!isSidebarCollapsed && (
+          <ResizableSplitter
+            orientation="horizontal"
+            onResize={handleSidebarResize}
+            onDoubleClick={() => {
+              setSidebarWidth(285);
+              localStorage.setItem("axiom_sidebar_width", "285");
+            }}
+          />
+        )}
 
         {/* Center Simulation Workspace */}
         <div className="axiom-center">

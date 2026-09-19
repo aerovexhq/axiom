@@ -5,7 +5,6 @@ import {
   FileCode,
   FileText,
   FilePlus,
-  Plus,
   Trash2,
   Star,
   Cpu,
@@ -38,7 +37,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   project,
   onUpdateProject,
   onOpenAddSource,
-  onOpenNewProject,
+  onOpenNewProject: _onOpenNewProject,
   onSelectFile,
   onCloseProject,
   onSelectTemplate: _onSelectTemplate
@@ -115,13 +114,14 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "5px 8px 5px 22px",
+          padding: "5px 8px 5px 18px",
           margin: "1px 0",
           borderRadius: "var(--radius-sm)",
           backgroundColor: isActive ? "var(--bg-active)" : "transparent",
           cursor: "pointer",
           userSelect: "none",
-          transition: "background-color 0.15s ease, color 0.15s ease"
+          transition: "background-color 0.15s ease, color 0.15s ease",
+          minWidth: 0
         }}
         onMouseEnter={(e) => {
           if (!isActive) e.currentTarget.style.backgroundColor = "var(--bg-hover)";
@@ -130,11 +130,11 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           if (!isActive) e.currentTarget.style.backgroundColor = "transparent";
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0, flex: 1, overflow: "hidden" }}>
           {file.fileType === "xdc" ? (
-            <FileText size={13} color="var(--accent-purple)" />
+            <FileText size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
           ) : (
-            <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
+            <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
           )}
 
           <span
@@ -145,8 +145,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               fontWeight: isActive ? 600 : 400,
               whiteSpace: "nowrap",
               overflow: "hidden",
-              textOverflow: "ellipsis"
+              textOverflow: "ellipsis",
+              flex: 1
             }}
+            title={file.name}
           >
             {file.name}
           </span>
@@ -161,7 +163,8 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                 backgroundColor: "rgba(6, 182, 212, 0.15)",
                 border: "1px solid rgba(6, 182, 212, 0.35)",
                 padding: "0 4px",
-                borderRadius: 2
+                borderRadius: 2,
+                flexShrink: 0
               }}
             >
               {t("sidebar.topBadge")}
@@ -169,21 +172,21 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           )}
         </div>
 
-        {/* Action icons on hover */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        {/* Action icons */}
+        <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginLeft: 4 }}>
           {file.fileSet === "sources_1" && !isTop && (
             <button
               onClick={(e) => handleSetTop(file, e)}
               title={t("sidebar.setAsTop")}
               className="btn-icon"
               style={{
-                padding: "2px 5px",
+                padding: "2px 4px",
                 color: "var(--text-muted)",
                 borderRadius: 3,
                 fontSize: 11
               }}
             >
-              <Star size={13} />
+              <Star size={12} />
             </button>
           )}
 
@@ -193,12 +196,12 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               title={t("common.delete")}
               className="btn-icon"
               style={{
-                padding: "2px 5px",
+                padding: "2px 4px",
                 color: "var(--text-muted)",
                 borderRadius: 3
               }}
             >
-              <Trash2 size={13} />
+              <Trash2 size={12} />
             </button>
           )}
         </div>
@@ -211,18 +214,18 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       {/* Project Meta Card */}
       <div
         style={{
-          padding: "8px 10px",
+          padding: "8px 12px",
           borderBottom: "1px solid var(--border-subtle)",
           backgroundColor: "var(--bg-primary)"
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1, overflow: "hidden", marginRight: 6 }}>
-            <Cpu size={14} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0, flex: 1, overflow: "hidden" }}>
+            <Cpu size={15} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
             <span
               style={{
                 fontWeight: 700,
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--text-primary)",
                 fontFamily: "var(--font-mono)",
                 overflow: "hidden",
@@ -235,29 +238,16 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+          {onCloseProject && (
             <button
-              onClick={onOpenNewProject}
-              title={t("header.newProject")}
-              className="btn btn-ghost"
-              style={{ padding: "3px 8px", fontSize: 11, color: "var(--accent-blue)" }}
+              onClick={onCloseProject}
+              title={t("header.closeProject")}
+              className="btn-icon"
+              style={{ padding: 4, color: "var(--text-muted)", flexShrink: 0 }}
             >
-              <Plus size={12} />
-              <span>{t("common.create")}</span>
+              <X size={14} />
             </button>
-
-            {onCloseProject && (
-              <button
-                onClick={onCloseProject}
-                title={t("header.closeProject")}
-                className="btn btn-ghost"
-                style={{ padding: "3px 7px", fontSize: 11 }}
-              >
-                <X size={12} />
-                <span>{t("common.close")}</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Silicon Part & Top Module Badges */}
@@ -320,27 +310,31 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           Project File Sets
         </div>
 
-        {/* 1. Design Sources (sources_1) */}
+        {/* 1. Design Sources */}
         <div style={{ marginBottom: 3 }}>
           <div
             onClick={() => setSourcesOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "3px 6px",
+              gap: 6,
+              padding: "4px 8px",
               fontSize: 11.5,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
               borderRadius: "var(--radius-sm)",
-              backgroundColor: "rgba(255, 255, 255, 0.02)"
+              backgroundColor: "rgba(255, 255, 255, 0.02)",
+              userSelect: "none",
+              whiteSpace: "nowrap"
             }}
           >
-            {sourcesOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
-            {sourcesOpen ? <FolderOpen size={13} color="var(--accent-amber)" /> : <Folder size={13} color="var(--accent-amber)" />}
-            <span>{t("sidebar.designSources")}</span>
-            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto" }}>
+            {sourcesOpen ? <ChevronDown size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} /> : <ChevronRight size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
+            {sourcesOpen ? <FolderOpen size={13} color="var(--accent-amber)" style={{ flexShrink: 0 }} /> : <Folder size={13} color="var(--accent-amber)" style={{ flexShrink: 0 }} />}
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {t("sidebar.designSources")}
+            </span>
+            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto", flexShrink: 0 }}>
               ({designSources.length})
             </span>
           </div>
@@ -358,7 +352,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           )}
         </div>
 
-        {/* 2. Simulation Sources (sim_1) */}
+        {/* 2. Simulation Sources */}
         <div style={{ marginBottom: 4 }}>
           <div
             onClick={() => setSimOpen((prev) => !prev)}
@@ -366,20 +360,24 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "5px 8px",
-              fontSize: 12,
+              padding: "4px 8px",
+              fontSize: 11.5,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
               borderRadius: "var(--radius-sm)",
               backgroundColor: "rgba(255, 255, 255, 0.02)",
-              transition: "background-color 0.15s ease"
+              transition: "background-color 0.15s ease",
+              userSelect: "none",
+              whiteSpace: "nowrap"
             }}
           >
-            {simOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
-            {simOpen ? <FolderOpen size={13} color="var(--accent-cyan)" /> : <Folder size={13} color="var(--accent-cyan)" />}
-            <span>{t("sidebar.simSources")}</span>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+            {simOpen ? <ChevronDown size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} /> : <ChevronRight size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
+            {simOpen ? <FolderOpen size={13} color="var(--accent-cyan)" style={{ flexShrink: 0 }} /> : <Folder size={13} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />}
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {t("sidebar.simSources")}
+            </span>
+            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto", flexShrink: 0 }}>
               ({simSources.length})
             </span>
           </div>
@@ -397,7 +395,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           )}
         </div>
 
-        {/* 3. Constraints (constrs_1) */}
+        {/* 3. Constraints */}
         <div style={{ marginBottom: 6 }}>
           <div
             onClick={() => setConstrsOpen((prev) => !prev)}
@@ -405,20 +403,24 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "5px 8px",
-              fontSize: 12,
+              padding: "4px 8px",
+              fontSize: 11.5,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
               borderRadius: "var(--radius-sm)",
               backgroundColor: "rgba(255, 255, 255, 0.02)",
-              transition: "background-color 0.15s ease"
+              transition: "background-color 0.15s ease",
+              userSelect: "none",
+              whiteSpace: "nowrap"
             }}
           >
-            {constrsOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
-            {constrsOpen ? <FolderOpen size={13} color="var(--accent-purple)" /> : <Folder size={13} color="var(--accent-purple)" />}
-            <span>{t("sidebar.constraints")}</span>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+            {constrsOpen ? <ChevronDown size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} /> : <ChevronRight size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
+            {constrsOpen ? <FolderOpen size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} /> : <Folder size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />}
+            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {t("sidebar.constraints")}
+            </span>
+            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto", flexShrink: 0 }}>
               ({constrSources.length})
             </span>
           </div>
