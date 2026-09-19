@@ -9,7 +9,6 @@ import {
   Activity,
   Bug,
   FolderPlus,
-  X,
   Menu,
   Search,
   Columns,
@@ -21,6 +20,7 @@ import { AxiomProject } from "../engine/projectModel";
 import { MobilePanelType } from "./MobileDrawer";
 import { useTranslation, SupportedLanguage } from "../i18n";
 import { Select, SelectOption } from "./ui";
+import { ProjectDropdown } from "./ProjectDropdown";
 
 interface HeaderProps {
   state: SimulationState;
@@ -28,6 +28,10 @@ interface HeaderProps {
   project?: AxiomProject | null;
   onOpenNewProject?: () => void;
   onCloseProject?: () => void;
+  onSaveProject?: () => void;
+  onExportProjectJson?: () => void;
+  onOpenAddSource?: () => void;
+  isSaved?: boolean;
   isMobile?: boolean;
   onToggleMobileDrawer?: () => void;
   activeMobilePanel?: MobilePanelType;
@@ -46,6 +50,10 @@ export const Header: React.FC<HeaderProps> = ({
   project,
   onOpenNewProject,
   onCloseProject,
+  onSaveProject,
+  onExportProjectJson,
+  onOpenAddSource,
+  isSaved = true,
   isMobile = false,
   onToggleMobileDrawer,
   activeMobilePanel: _activeMobilePanel,
@@ -280,22 +288,15 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Project Context & Controls */}
         {project ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 1 }}>
-            <span
-              className="badge badge-cyan"
-              style={{
-                maxWidth: "clamp(100px, 14vw, 180px)",
-                padding: "3px 8px",
-                fontSize: 11.5
-              }}
-              title={`${project.name} (${project.targetDevice})`}
-            >
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
-                {project.name}
-              </span>
-              <span style={{ color: "var(--text-muted)", fontSize: 10.5, flexShrink: 0, whiteSpace: "nowrap" }}>
-                ({project.targetDevice.split(" ")[0]})
-              </span>
-            </span>
+            <ProjectDropdown
+              project={project}
+              onCloseProject={onCloseProject ?? (() => {})}
+              onOpenNewProject={onOpenNewProject ?? (() => {})}
+              onOpenAddSource={onOpenAddSource ?? (() => {})}
+              onExportProjectJson={onExportProjectJson ?? (() => {})}
+              onSaveProject={onSaveProject ?? (() => {})}
+              isSaved={isSaved}
+            />
 
             {/* Compile Button */}
             <button
@@ -307,17 +308,6 @@ export const Header: React.FC<HeaderProps> = ({
               <Cpu size={13} />
               <span>{state.compiled ? t("header.recompile") : t("header.compile")}</span>
             </button>
-
-            {onCloseProject && (
-              <button
-                onClick={onCloseProject}
-                title={t("header.closeProject")}
-                className="btn btn-ghost btn-icon"
-                style={{ width: 26, height: 26 }}
-              >
-                <X size={13} />
-              </button>
-            )}
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -338,141 +328,149 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      {/* Center: Unified Simulation Control Ribbon */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          backgroundColor: "var(--bg-tertiary)",
-          padding: "3px 6px",
-          borderRadius: "var(--radius-sm)",
-          border: "1px solid var(--border-subtle)",
-          flexShrink: 0,
-          whiteSpace: "nowrap"
-        }}
-      >
-        {state.isRunning ? (
-          <button
-            onClick={() => engineBridge.pause()}
-            title={t("header.pause")}
-            className="btn btn-danger"
-            style={{ height: 26, padding: "2px 9px" }}
-          >
-            <Pause size={12} />
-            <span>{t("header.pause")}</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => engineBridge.play()}
-            disabled={!state.compiled}
-            title={state.compiled ? t("header.run") : t("launchpad.inRamJitDesc")}
-            className={state.compiled ? "btn btn-success" : "btn btn-ghost"}
-            style={{ height: 26, padding: "2px 9px" }}
-          >
-            <Play size={12} />
-            <span>{t("header.run")}</span>
-          </button>
-        )}
-
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
-
-        <button
-          onClick={() => engineBridge.tick(1000)}
-          disabled={!state.compiled || state.isRunning}
-          title={`${t("header.step1ns")} (Physical Time Step)`}
-          className="btn btn-ghost"
-          style={{ height: 26, padding: "2px 7px" }}
-        >
-          <FastForward size={12} />
-          <span>{t("header.step1ns")}</span>
-        </button>
-
-        <button
-          onClick={() => engineBridge.tick(100)}
-          disabled={!state.compiled || state.isRunning}
-          title={`${t("header.step100ps")} (Physical Time Step)`}
-          className="btn btn-ghost"
-          style={{ height: 26, padding: "2px 6px" }}
-        >
-          <span>{t("header.step100ps")}</span>
-        </button>
-
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
-
-        <button
-          onClick={() => engineBridge.stepDelta()}
-          disabled={!state.compiled || state.isRunning}
-          title={`${t("header.stepDelta")} (Zero-Time Combinational Cycle)`}
-          className="badge badge-purple btn"
-          style={{ height: 26, padding: "2px 8px", cursor: state.compiled ? "pointer" : "not-allowed" }}
-        >
-          <span>{t("header.stepDelta")}</span>
-        </button>
-
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
-
-        <button
-          onClick={() => engineBridge.reset()}
-          title={t("header.resetSim")}
-          className="btn btn-ghost btn-icon"
-          style={{ width: 26, height: 26 }}
-        >
-          <RotateCcw size={12} />
-        </button>
-      </div>
-
-      {/* Right: Telemetry, Language, Presets & Omnibar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0, whiteSpace: "nowrap" }}>
-        {/* Simulation Clock & Delta */}
+      {/* Center: Unified Simulation Control Ribbon (Rendered ONLY when a project is active) */}
+      {project ? (
         <div
-          className="mono-num"
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
-            fontSize: 11.5,
-            flexShrink: 0
+            gap: 4,
+            backgroundColor: "var(--bg-tertiary)",
+            padding: "3px 6px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border-subtle)",
+            flexShrink: 0,
+            whiteSpace: "nowrap"
           }}
         >
-          <span style={{ fontWeight: 700, color: "var(--accent-cyan)", whiteSpace: "nowrap" }}>
-            {formatTime(state.currentSimTimePs)}
-          </span>
-          <span style={{ color: "var(--text-muted)", fontSize: 10.5, whiteSpace: "nowrap" }}>
-            δ={state.currentDeltaCycle}
-          </span>
-        </div>
-
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-
-        {/* Dynamic Telemetry (Power & Sag) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexShrink: 0, whiteSpace: "nowrap" }}>
-          <div
-            style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-amber)" }}
-            title="Peak Dynamic Current"
-          >
-            <Zap size={11} />
-            <span className="mono-num">{state.peakCurrentMa.toFixed(1)} mA</span>
-          </div>
-
-          <div
-            style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-rose)" }}
-            title="Max Voltage Sag"
-          >
-            <Activity size={11} />
-            <span className="mono-num">-{state.maxSagMv.toFixed(1)} mV</span>
-          </div>
-
-          {state.glitchCount > 0 && (
-            <div
-              className="badge badge-rose pulse-alert"
-              title="Zero-Time Glitches Detected"
+          {state.isRunning ? (
+            <button
+              onClick={() => engineBridge.pause()}
+              title={t("header.pause")}
+              className="btn btn-danger"
+              style={{ height: 26, padding: "2px 9px" }}
             >
-              <Bug size={11} />
-              <span>{state.glitchCount}</span>
-            </div>
+              <Pause size={12} />
+              <span>{t("header.pause")}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => engineBridge.play()}
+              disabled={!state.compiled}
+              title={state.compiled ? t("header.run") : t("launchpad.inRamJitDesc")}
+              className={state.compiled ? "btn btn-success" : "btn btn-ghost"}
+              style={{ height: 26, padding: "2px 9px" }}
+            >
+              <Play size={12} />
+              <span>{t("header.run")}</span>
+            </button>
           )}
+
+          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
+
+          <button
+            onClick={() => engineBridge.tick(1000)}
+            disabled={!state.compiled || state.isRunning}
+            title={`${t("header.step1ns")} (Physical Time Step)`}
+            className="btn btn-ghost"
+            style={{ height: 26, padding: "2px 7px" }}
+          >
+            <FastForward size={12} />
+            <span>{t("header.step1ns")}</span>
+          </button>
+
+          <button
+            onClick={() => engineBridge.tick(100)}
+            disabled={!state.compiled || state.isRunning}
+            title={`${t("header.step100ps")} (Physical Time Step)`}
+            className="btn btn-ghost"
+            style={{ height: 26, padding: "2px 6px" }}
+          >
+            <span>{t("header.step100ps")}</span>
+          </button>
+
+          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
+
+          <button
+            onClick={() => engineBridge.stepDelta()}
+            disabled={!state.compiled || state.isRunning}
+            title={`${t("header.stepDelta")} (Zero-Time Combinational Cycle)`}
+            className="badge badge-purple btn"
+            style={{ height: 26, padding: "2px 8px", cursor: state.compiled ? "pointer" : "not-allowed" }}
+          >
+            <span>{t("header.stepDelta")}</span>
+          </button>
+
+          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
+
+          <button
+            onClick={() => engineBridge.reset()}
+            title={t("header.resetSim")}
+            className="btn btn-ghost btn-icon"
+            style={{ width: 26, height: 26 }}
+          >
+            <RotateCcw size={12} />
+          </button>
         </div>
+      ) : (
+        <div style={{ flex: 1 }} />
+      )}
+
+      {/* Right: Telemetry, Language, Presets & Omnibar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0, whiteSpace: "nowrap" }}>
+        {project && (
+          <>
+            {/* Simulation Clock & Delta */}
+            <div
+              className="mono-num"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 11.5,
+                flexShrink: 0
+              }}
+            >
+              <span style={{ fontWeight: 700, color: "var(--accent-cyan)", whiteSpace: "nowrap" }}>
+                {formatTime(state.currentSimTimePs)}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: 10.5, whiteSpace: "nowrap" }}>
+                δ={state.currentDeltaCycle}
+              </span>
+            </div>
+
+            <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
+
+            {/* Dynamic Telemetry (Power & Sag) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexShrink: 0, whiteSpace: "nowrap" }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-amber)" }}
+                title="Peak Dynamic Current"
+              >
+                <Zap size={11} />
+                <span className="mono-num">{state.peakCurrentMa.toFixed(1)} mA</span>
+              </div>
+
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-rose)" }}
+                title="Max Voltage Sag"
+              >
+                <Activity size={11} />
+                <span className="mono-num">-{state.maxSagMv.toFixed(1)} mV</span>
+              </div>
+
+              {state.glitchCount > 0 && (
+                <div
+                  className="badge badge-rose pulse-alert"
+                  title="Zero-Time Glitches Detected"
+                >
+                  <Bug size={11} />
+                  <span>{state.glitchCount}</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Maximize Active Panel Restore Badge */}
         {project && maximizedPanel && onRestoreMaximizedPanel && (

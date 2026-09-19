@@ -59,6 +59,29 @@ export const App: React.FC = () => {
   const [isOmnibarOpen, setIsOmnibarOpen] = useState<boolean>(false);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState<boolean>(false);
   const [isAddSourceOpen, setIsAddSourceOpen] = useState<boolean>(false);
+  const [isSaved, setIsSaved] = useState<boolean>(true);
+
+  // Manual save handler
+  const handleSaveProject = useCallback(() => {
+    if (!project) return;
+    saveProjectToStorage(project);
+    setIsSaved(true);
+  }, [project]);
+
+  // Export JSON bundle handler
+  const handleExportProjectJson = useCallback(() => {
+    if (!project) return;
+    const jsonStr = JSON.stringify(project, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${project.name}.axiom.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [project]);
 
   // Cross-Probing State: Signal ID and Code Highlight Span
   const [activeCrossProbeSignal, setActiveCrossProbeSignal] = useState<string | null>(null);
@@ -103,22 +126,26 @@ export const App: React.FC = () => {
     return unsub;
   }, []);
 
-  // Global Omnibar Keyboard Shortcut (Ctrl+K / Cmd+K)
+  // Global Keyboard Shortcuts (Ctrl+K / Cmd+K for Omnibar, Ctrl+S / Cmd+S for Save)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsOmnibarOpen((prev) => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        handleSaveProject();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [handleSaveProject]);
 
   // Project Modification Handlers
   const handleUpdateProject = (updated: AxiomProject) => {
     setProject(updated);
     saveProjectToStorage(updated);
+    setIsSaved(true);
     const bundled = bundleProjectSources(updated);
     engineBridge.compile(bundled, updated.topModule);
   };
@@ -134,6 +161,7 @@ export const App: React.FC = () => {
     const updated = updateFileContent(project, activeFile.id, newCode);
     setProject(updated);
     saveProjectToStorage(updated);
+    setIsSaved(true);
   };
 
   const handleSelectFile = (fileId: string) => {
@@ -298,6 +326,10 @@ export const App: React.FC = () => {
         project={project}
         onOpenNewProject={() => setIsNewProjectOpen(true)}
         onCloseProject={handleCloseProject}
+        onSaveProject={handleSaveProject}
+        onExportProjectJson={handleExportProjectJson}
+        onOpenAddSource={() => setIsAddSourceOpen(true)}
+        isSaved={isSaved}
         isMobile={isMobile}
         onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
         activeMobilePanel={activeMobilePanel}

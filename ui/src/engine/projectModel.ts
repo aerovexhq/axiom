@@ -1051,7 +1051,9 @@ export function updateFileContent(
   };
 }
 
-// Local storage persistence
+// Local storage and FileSystem persistence
+import { getFileSystem } from "./fs";
+
 const STORAGE_KEY = "axiom_current_project";
 
 export function loadSavedProject(): AxiomProject | null {
@@ -1071,10 +1073,35 @@ export function loadSavedProject(): AxiomProject | null {
   return null;
 }
 
+export async function saveProjectToFs(project: AxiomProject): Promise<void> {
+  try {
+    const fs = getFileSystem();
+    const projDir = `/projects/${project.id}`;
+    await fs.mkdir(`${projDir}/sources_1`);
+    await fs.mkdir(`${projDir}/sim_1`);
+    await fs.mkdir(`${projDir}/constrs_1`);
+
+    // Write project manifest JSON
+    await fs.writeFile(`${projDir}/project.json`, JSON.stringify(project, null, 2));
+
+    // Write each file in its respective Vivado file set folder
+    for (const f of project.files) {
+      const filePath = `${projDir}/${f.fileSet}/${f.name}`;
+      await fs.writeFile(filePath, f.content);
+    }
+  } catch (e) {
+    console.warn("[FileSystem] Error persisting project to FS:", e);
+  }
+}
+
 export function saveProjectToStorage(project: AxiomProject | null): void {
   try {
     if (project) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+      // Asynchronously mirror to dual-runtime FileSystem (IndexedDB / Tauri host disk)
+      saveProjectToFs(project).catch((err) => {
+        console.warn("[FileSystem] Background sync error:", err);
+      });
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -1090,3 +1117,4 @@ export function clearSavedProject(): void {
     console.warn("Could not clear project from localStorage:", e);
   }
 }
+

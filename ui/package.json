@@ -11,6 +11,8 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@tauri-apps/api": "^2.11.1",
+    "browser-fs-access": "^0.38.0",
+    "idb": "^8.0.3",
     "lucide-react": "^1.16.0",
     "monaco-editor": "^0.56.0",
     "react": "^19.0.0",

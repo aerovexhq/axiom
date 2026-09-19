@@ -39,6 +39,53 @@ fn export_saif(state: State<'_, EngineState>) -> Result<String, String> {
     state.lock().unwrap().export_saif()
 }
 
+#[tauri::command]
+fn fs_read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fs_write_file(path: String, content: String) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fs_remove_file(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if p.is_dir() {
+        std::fs::remove_dir_all(p).map_err(|e| e.to_string())
+    } else {
+        std::fs::remove_file(p).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn fs_list_dir(path: String) -> Result<Vec<String>, String> {
+    let mut entries = Vec::new();
+    let read_dir = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
+    for entry in read_dir {
+        if let Ok(entry) = entry {
+            if let Some(name) = entry.file_name().to_str() {
+                entries.push(name.to_string());
+            }
+        }
+    }
+    Ok(entries)
+}
+
+#[tauri::command]
+fn fs_create_dir(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fs_exists(path: String) -> Result<bool, String> {
+    Ok(std::path::Path::new(&path).exists())
+}
+
 pub fn run_desktop_app() {
     let engine: EngineState = Arc::new(Mutex::new(DesktopEngine::new()));
 
@@ -50,7 +97,13 @@ pub fn run_desktop_app() {
             step_delta,
             force_signal,
             export_vcd,
-            export_saif
+            export_saif,
+            fs_read_file,
+            fs_write_file,
+            fs_remove_file,
+            fs_list_dir,
+            fs_create_dir,
+            fs_exists
         ])
         .run(tauri::generate_context!())
         .expect("error while running Axiom EDA desktop application");

@@ -568,41 +568,53 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     lodLevel
   ]);
 
-  // Handle Resize & Trigger Render
-  useEffect(() => {
-    const handleResize = () => {
-      if (!canvasRef.current || !containerRef.current) return;
-      canvasRef.current.width = containerRef.current.clientWidth;
-      canvasRef.current.height = containerRef.current.clientHeight;
-      renderCanvas();
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [renderCanvas]);
-
-  // Keep camera fitted on initial container layout & design switch
+  const prevContainerSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const hasFittedRef = useRef<boolean>(false);
+
   useEffect(() => {
     hasFittedRef.current = false;
+    prevContainerSizeRef.current = { width: 0, height: 0 };
   }, [activeDesignId]);
 
+  // Handle Resize & Trigger Render: Continuous ResizeObserver tracking splitter drag & window resize
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.contentRect.width > 50 && entry.contentRect.height > 50) {
-          if (!hasFittedRef.current) {
-            hasFittedRef.current = true;
-            fitToScreen();
+        const newW = Math.round(entry.contentRect.width);
+        const newH = Math.round(entry.contentRect.height);
+        if (newW <= 50 || newH <= 50) continue;
+
+        // Keep canvas buffer matching container CSS dimensions to eliminate bitmap stretching/squeezing
+        if (canvasRef.current) {
+          if (canvasRef.current.width !== newW || canvasRef.current.height !== newH) {
+            canvasRef.current.width = newW;
+            canvasRef.current.height = newH;
           }
+        }
+
+        if (!hasFittedRef.current) {
+          hasFittedRef.current = true;
+          prevContainerSizeRef.current = { width: newW, height: newH };
+          fitToScreen();
+        } else {
+          const prevW = prevContainerSizeRef.current.width;
+          const prevH = prevContainerSizeRef.current.height;
+          if (prevW > 0 && prevH > 0 && (newW !== prevW || newH !== prevH)) {
+            const deltaW = newW - prevW;
+            const deltaH = newH - prevH;
+            // Mathematically lock the world midpoint to screen center with constant zoom scale
+            setOffsetX((prev) => prev + deltaW / 2);
+            setOffsetY((prev) => prev + deltaH / 2);
+          }
+          prevContainerSizeRef.current = { width: newW, height: newH };
+          renderCanvas();
         }
       }
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [fitToScreen]);
+  }, [fitToScreen, renderCanvas]);
 
   useEffect(() => {
     renderCanvas();

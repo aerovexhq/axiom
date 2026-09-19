@@ -49,7 +49,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   const [sourcesOpen, setSourcesOpen] = useState<boolean>(true);
   const [simOpen, setSimOpen] = useState<boolean>(true);
   const [constrsOpen, setConstrsOpen] = useState<boolean>(true);
-  const [templatesOpen, setTemplatesOpen] = useState<boolean>(false);
 
   // Render empty state if no project is currently loaded
   if (!project) {
@@ -167,13 +166,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     a.download = `${project.name}_vivado_project.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const handleSelectTemplate = (templateId: string) => {
-    if (confirm("Switching templates will load the new project files. Proceed?")) {
-      const newProj = createProjectFromTemplate(templateId);
-      onUpdateProject(newProj);
-    }
   };
 
   const renderFileItem = (file: ProjectFile) => {
@@ -505,61 +497,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               ) : (
                 constrSources.map(renderFileItem)
               )}
-            </div>
-          )}
-        </div>
-
-        {/* 4. Project Templates Section */}
-        <div style={{ marginTop: 14, borderTop: "1px solid var(--border-subtle)", paddingTop: 12 }}>
-          <div
-            onClick={() => setTemplatesOpen((prev) => !prev)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 8px",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "var(--accent-blue)",
-              cursor: "pointer",
-              textTransform: "uppercase",
-              letterSpacing: 0.5
-            }}
-          >
-            {templatesOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            <Sparkles size={13} />
-            <span>{t("sidebar.loadTemplate")}</span>
-          </div>
-
-          {templatesOpen && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "6px 8px" }}>
-              {PROJECT_TEMPLATES.map((tmpl) => {
-                const isCurrent = project.templateId === tmpl.id;
-                return (
-                  <button
-                    key={tmpl.id}
-                    onClick={() => handleSelectTemplate(tmpl.id)}
-                    className="axiom-card axiom-card-hover"
-                    style={{
-                      textAlign: "left",
-                      padding: "8px 10px",
-                      borderRadius: "var(--radius-sm)",
-                      backgroundColor: isCurrent ? "var(--bg-elevated)" : "var(--bg-tertiary)",
-                      border: `1px solid ${isCurrent ? "var(--accent-blue)" : "var(--border-subtle)"}`,
-                      color: isCurrent ? "#fff" : "var(--text-secondary)",
-                      cursor: "pointer",
-                      transition: "border-color 0.15s ease, background-color 0.15s ease"
-                    }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? "var(--accent-cyan)" : "var(--text-primary)" }}>
-                      {tmpl.name}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 2 }}>
-                      {tmpl.files.length} files • {tmpl.defaultTopModule}
-                    </div>
-                  </button>
-                );
-              })}
             </div>
           )}
         </div>
