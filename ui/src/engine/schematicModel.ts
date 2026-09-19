@@ -42,6 +42,7 @@ export interface SchematicNode {
   height: number;
   layer: number;
   gridRow?: number; // Vivado-grade datapath alignment row (e.g. 0, 1, 2, ...)
+  fixedY?: number; // Explicit Y position for zero-turn horizontal pin alignment
   delayPs: number; // Cell propagation delay in ps
   dynamicPowerMw: number; // Static/dynamic estimated dissipation
   expressionText?: string;
@@ -157,19 +158,28 @@ function routeOrthogonalEdge(
     return obstacles.find((b) => minY < b.bottom && maxY > b.top && x >= b.left && x <= b.right);
   };
 
-  if (Math.abs(dy) < 4 && !getHCollision(srcX, dstX, srcY)) {
-    // Almost straight horizontal with zero collisions
+  if (Math.abs(dy) <= 6 && !getHCollision(srcX, dstX, srcY)) {
+    // Almost straight horizontal with zero collisions: eliminate micro-jogs and render 0-turn straight wire
     points.push({ x: dstX, y: dstY });
   } else if (dx > 20) {
-    // Normal forward flow with midpoint Manhattan channel
-    let midX = srcX + Math.max(16, dx * 0.5) + channelOffset;
+    // Forward flow with vertical Manhattan routing channel
+    let midX: number;
+    if (dx >= 150) {
+      // Multi-layer connection (spans 2+ layers, e.g. C -> and2, inv2 -> or1):
+      // Maintain horizontal momentum along clear corridor through intermediate layers,
+      // and execute the vertical transition in the open channel immediately preceding the destination!
+      midX = dstX - 28 + channelOffset;
+    } else {
+      // Single-layer adjacent connection: center the step in the inter-layer channel
+      midX = srcX + Math.max(16, dx * 0.5) + channelOffset;
+    }
 
     // Check if vertical trunk at midX collides with any intermediate obstacle
     const vObs = getVCollision(midX, srcY, dstY);
     if (vObs) {
       // Shift trunk into open inter-layer channel before or after the obstacle
-      const beforeX = vObs.left - 10 + channelOffset;
-      const afterX = vObs.right + 10 + channelOffset;
+      const beforeX = vObs.left - 12 + channelOffset;
+      const afterX = vObs.right + 12 + channelOffset;
       if (beforeX > srcX + 8 && !getVCollision(beforeX, srcY, dstY)) {
         midX = beforeX;
       } else if (afterX < dstX - 8 && !getVCollision(afterX, srcY, dstY)) {
@@ -220,8 +230,8 @@ function routeOrthogonalEdge(
 }
 
 function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
-  // Layer spacing constants (calibrated for ergonomic, collision-free gate-level layouts)
-  const layerSpacingX = 72;
+  // Layer spacing constants (calibrated for ergonomic, collision-free gate-level layouts with generous padding)
+  const layerSpacingX = 92;
   const nodeSpacingY = 28;
   const rowHeight = 62;
   const startX = 36;
@@ -237,7 +247,7 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
 
   const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
 
-  // Determine the max layer height across all layers to vertically center each layer (when not using gridRow)
+  // Determine the max layer height across all layers to vertically center each layer (when not using explicit positioning)
   let maxLayerHeight = 0;
   for (const layer of sortedLayers) {
     const nodesInLayer = layerMap.get(layer)!;
@@ -259,14 +269,20 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
       if (n.width > maxLayerWidth) maxLayerWidth = n.width;
     }
 
-    const layerUsesGridRow = nodesInLayer.some((n) => n.gridRow !== undefined);
+    const layerUsesExplicitLayout = nodesInLayer.some(
+      (n) => n.fixedY !== undefined || n.gridRow !== undefined
+    );
 
-    if (layerUsesGridRow) {
-      // Vivado-grade datapath grid row alignment
+    if (layerUsesExplicitLayout) {
+      // Vivado-grade datapath grid row alignment & precision pin alignment
       for (const node of nodesInLayer) {
         node.x = currentX;
-        const row = node.gridRow ?? 0;
-        node.y = startY + row * rowHeight;
+        if (node.fixedY !== undefined) {
+          node.y = node.fixedY;
+        } else {
+          const row = node.gridRow ?? 0;
+          node.y = startY + row * rowHeight;
+        }
         assignPortOffsets(node);
       }
     } else {
@@ -414,7 +430,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "A", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, gridRow: 0, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 33, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 12, lineEnd: 12 }
     },
     {
@@ -424,7 +440,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "B", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, gridRow: 1, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 108, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 13, lineEnd: 13 }
     },
     {
@@ -434,7 +450,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "C", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, gridRow: 2, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 183, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 14, lineEnd: 14 }
     },
 
@@ -449,7 +465,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w1", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~A",
-      x: 0, y: 0, width: 68, height: 38, layer: 1, gridRow: 0, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 28, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 25, lineEnd: 25 }
     },
     {
@@ -462,7 +478,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w4", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~B",
-      x: 0, y: 0, width: 68, height: 38, layer: 1, gridRow: 2.8, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 245, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 28, lineEnd: 28 }
     },
 
@@ -480,7 +496,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w2", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w1 & B",
-      x: 0, y: 0, width: 78, height: 48, layer: 2, gridRow: 0.55, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 2, fixedY: 90, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 26, lineEnd: 26 }
     },
 
@@ -498,7 +514,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w3", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w2 & C",
-      x: 0, y: 0, width: 78, height: 48, layer: 3, gridRow: 0.75, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 3, fixedY: 98, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 27, lineEnd: 27 }
     },
 
@@ -516,7 +532,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "F", width: 1, direction: "out" }],
       craneliftOp: "bor",
       expressionText: "w3 | w4",
-      x: 0, y: 0, width: 78, height: 48, layer: 4, gridRow: 0.95, delayPs: 65, dynamicPowerMw: 0.20,
+      x: 0, y: 0, width: 78, height: 48, layer: 4, fixedY: 106, delayPs: 65, dynamicPowerMw: 0.20,
       sourceSpan: { lineStart: 29, lineEnd: 29 }
     },
 
@@ -528,7 +544,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [{ id: "in", name: "F", width: 1, direction: "in" }],
       outputs: [],
-      x: 0, y: 0, width: 76, height: 28, layer: 5, gridRow: 1.15, delayPs: 10, dynamicPowerMw: 0.05,
+      x: 0, y: 0, width: 76, height: 28, layer: 5, fixedY: 116, delayPs: 10, dynamicPowerMw: 0.05,
       sourceSpan: { lineStart: 15, lineEnd: 15 }
     }
   ];
