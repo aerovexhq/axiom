@@ -68,6 +68,7 @@ export interface Translations {
     restore: string;
     language: string;
     closeProject: string;
+    moveToTrash: string;
     simClock: string;
     stackWaveforms: string;
     hideStackedWaveforms: string;
@@ -83,6 +84,20 @@ export interface Translations {
     quickStartTitle: string;
     quickStartSubtitle: string;
     openTemplate: string;
+    createTemplate: string;
+    yourProjects: string;
+    activeProjects: string;
+    trashProjects: string;
+    emptyTrash: string;
+    restoreProject: string;
+    deletePermanently: string;
+    moveToTrash: string;
+    noProjects: string;
+    trashEmpty: string;
+    openProject: string;
+    confirmTrash: string;
+    confirmDelete: string;
+    confirmEmptyTrash: string;
     inRamJitTitle: string;
     inRamJitDesc: string;
     deltaSteppingTitle: string;

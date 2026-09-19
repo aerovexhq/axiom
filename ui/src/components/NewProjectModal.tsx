@@ -1,11 +1,16 @@
-import React, { useState } from "react";
-import { Sparkles, Check, ArrowRight } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Sparkles, Check, ArrowRight, Folder, AlertCircle } from "lucide-react";
 import {
   FPGA_TARGET_DEVICES,
   PROJECT_TEMPLATES,
   AxiomProject,
   createProjectFromTemplate
 } from "../engine/projectModel";
+import {
+  sanitizeProjectName,
+  validateProjectName,
+  loadProjectRegistry
+} from "../engine/projectRegistry";
 import { Modal, Input, Select, Button, Card, Badge } from "./ui";
 import { useTranslation } from "../i18n/i18nContext";
 
@@ -13,27 +18,65 @@ interface NewProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateProject: (project: AxiomProject) => void;
+  initialTemplateId?: string;
 }
 
 export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   isOpen,
   onClose,
-  onCreateProject
+  onCreateProject,
+  initialTemplateId = "logic_circuit_project"
 }) => {
   const { t } = useTranslation();
-  const [projectName, setProjectName] = useState<string>("axi_system_top");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(initialTemplateId);
+  const [projectName, setProjectName] = useState<string>(() => {
+    const tmpl = PROJECT_TEMPLATES.find((t) => t.id === initialTemplateId) ?? PROJECT_TEMPLATES[0];
+    return tmpl.defaultTopModule;
+  });
   const [selectedDevice, setSelectedDevice] = useState<string>(FPGA_TARGET_DEVICES[0].name);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("logic_circuit_project");
+
+  // Sync initialTemplateId when modal opens or prop changes
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedTemplateId(initialTemplateId);
+      const tmpl = PROJECT_TEMPLATES.find((t) => t.id === initialTemplateId) ?? PROJECT_TEMPLATES[0];
+      setProjectName(tmpl.defaultTopModule);
+    }
+  }, [isOpen, initialTemplateId]);
+
+  // When template selection changes inside modal, update device default if desired
+  const handleSelectTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const tmpl = PROJECT_TEMPLATES.find((t) => t.id === templateId);
+    if (tmpl) {
+      setProjectName(tmpl.defaultTopModule);
+      setSelectedDevice(tmpl.defaultDevice);
+    }
+  };
+
+  const existingProjects = useMemo(() => {
+    if (!isOpen) return [];
+    return loadProjectRegistry();
+  }, [isOpen]);
+
+  const validation = useMemo(() => {
+    return validateProjectName(projectName, existingProjects);
+  }, [projectName, existingProjects]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validation.valid) return;
+    const finalName = sanitizeProjectName(projectName);
     const newProj = createProjectFromTemplate(
       selectedTemplateId,
-      projectName.trim() || "untitled_project",
+      finalName,
       selectedDevice
     );
+    // Enforce matching ID and name for FileSystem folder parity: /projects/{finalName}/
+    newProj.id = finalName;
+    newProj.name = finalName;
     onCreateProject(newProj);
     onClose();
   };
@@ -61,6 +104,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             variant="primary"
             size="sm"
             onClick={handleSubmit}
+            disabled={!validation.valid}
             iconRight={<ArrowRight size={14} />}
           >
             {t.modals.createProjectBtn}
@@ -68,15 +112,58 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
         </>
       }
     >
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        {/* Project Name */}
-        <Input
-          label={t.modals.projectName}
-          value={projectName}
-          onChange={(e) => setProjectName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, "_"))}
-          placeholder="e.g. axi_system_top"
-          autoFocus
-        />
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Project Name & Live Filesystem Folder Preview */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Input
+            label={t.modals.projectName}
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value.replace(/[^a-zA-Z0-9_.-]/g, "_"))}
+            placeholder="e.g. logic_circuit_1"
+            autoFocus
+          />
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              fontSize: 11,
+              color: "var(--text-muted)",
+              padding: "0 2px"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <Folder size={12} color="var(--accent-cyan)" />
+              <span>
+                Filesystem Folder:{" "}
+                <span className="mono-num" style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
+                  /projects/{projectName.trim() ? sanitizeProjectName(projectName) : "..."}
+                </span>
+              </span>
+            </div>
+            <span>[a-zA-Z0-9_.-]</span>
+          </div>
+
+          {!validation.valid && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 11.5,
+                color: "var(--accent-rose)",
+                backgroundColor: "rgba(244, 63, 94, 0.1)",
+                padding: "6px 10px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid rgba(244, 63, 94, 0.25)"
+              }}
+            >
+              <AlertCircle size={14} style={{ flexShrink: 0 }} />
+              <span>{validation.error}</span>
+            </div>
+          )}
+        </div>
 
         {/* Target FPGA Silicon Part (Custom Dark Select) */}
         <Select
@@ -109,7 +196,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                   key={tmpl.id}
                   clickable
                   selected={isSelected}
-                  onClick={() => setSelectedTemplateId(tmpl.id)}
+                  onClick={() => handleSelectTemplate(tmpl.id)}
                   style={{
                     display: "flex",
                     flexDirection: "column",

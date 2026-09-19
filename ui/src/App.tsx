@@ -20,7 +20,6 @@ import {
   AxiomProject,
   ProjectFile,
   PROJECT_TEMPLATES,
-  createProjectFromTemplate,
   bundleProjectSources,
   updateFileContent,
   addFileToProject,
@@ -28,6 +27,17 @@ import {
   saveProjectToStorage,
   clearSavedProject
 } from "./engine/projectModel";
+import {
+  ProjectMetadata,
+  loadProjectRegistry,
+  syncRegistryFromFs,
+  createAndPersistProject,
+  loadProjectById,
+  trashProject,
+  restoreProject,
+  permanentDeleteProject,
+  emptyTrash
+} from "./engine/projectRegistry";
 import { SampleDesign } from "./engine/sampleDesigns";
 
 // URL Project Query Parameter Routing (?project=unique_name)
@@ -54,23 +64,26 @@ function getInitialProject(): AxiomProject | null {
     // When visiting without ?project=... (e.g. fresh http://localhost:3000/ or /studio/), start cleanly in Main Menu
     return null;
   }
+  const registry = loadProjectRegistry();
+  const meta = registry.find((p) => p.id === slug && !p.isTrashed);
+  if (meta) {
+    try {
+      const cached = localStorage.getItem(`axiom_project_${slug}`);
+      if (cached) {
+        const parsed = JSON.parse(cached) as AxiomProject;
+        if (parsed && parsed.files && parsed.files.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+  }
   const saved = loadSavedProject();
-  if (saved && (saved.name === slug || saved.id === slug || saved.templateId === slug)) {
+  if (saved && (saved.name === slug || saved.id === slug) && !registry.find((p) => p.id === slug)?.isTrashed) {
     return saved;
   }
-  // Check if slug matches a known template
-  const tmpl = PROJECT_TEMPLATES.find(
-    (t) =>
-      t.id === slug ||
-      t.defaultTopModule === slug ||
-      t.name.toLowerCase().replace(/[^a-z0-9]/g, "_").includes(slug.toLowerCase())
-  );
-  if (tmpl) {
-    const newProj = createProjectFromTemplate(tmpl.id);
-    saveProjectToStorage(newProj);
-    return newProj;
-  }
-  return saved;
+  // Disallow temporary phantom projects: if slug is not found or is in trash, clean URL
+  setUrlProjectSlug(null);
+  return null;
 }
 
 export const App: React.FC = () => {
@@ -101,8 +114,17 @@ export const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isOmnibarOpen, setIsOmnibarOpen] = useState<boolean>(false);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState<boolean>(false);
+  const [newProjectInitialTemplateId, setNewProjectInitialTemplateId] = useState<string>("logic_circuit_project");
+  const [projects, setProjects] = useState<ProjectMetadata[]>(() => loadProjectRegistry());
   const [isAddSourceOpen, setIsAddSourceOpen] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(true);
+
+  // Background sync registry from FileSystem
+  useEffect(() => {
+    syncRegistryFromFs().then((list) => {
+      setProjects(list);
+    });
+  }, []);
 
   // Manual save handler
   const handleSaveProject = useCallback(() => {
@@ -242,12 +264,87 @@ export const App: React.FC = () => {
     engineBridge.compile(bundled, updated.topModule);
   };
 
-  const handleCloseProject = () => {
+  const handleCloseProject = useCallback(() => {
     setUrlProjectSlug(null);
     setProject(null);
     clearSavedProject();
     engineBridge.reset();
-  };
+  }, []);
+
+  const handleOpenNewProject = useCallback((templateId?: string) => {
+    if (templateId) {
+      setNewProjectInitialTemplateId(templateId);
+    }
+    setIsNewProjectOpen(true);
+  }, []);
+
+  const handleSelectTemplate = useCallback((templateId: string) => {
+    handleOpenNewProject(templateId);
+  }, [handleOpenNewProject]);
+
+  const handleCreateProject = useCallback(async (newProj: AxiomProject) => {
+    const slug = newProj.id;
+    setUrlProjectSlug(slug);
+    setProject(newProj);
+    await createAndPersistProject(newProj);
+    setProjects(loadProjectRegistry());
+    setIsSaved(true);
+    const bundled = bundleProjectSources(newProj);
+    engineBridge.compile(bundled, newProj.topModule);
+
+    // Auto-select signals
+    const sigIds = new Set<string>();
+    engineBridge.getState().signals.forEach((s) => {
+      sigIds.add(s.id);
+      sigIds.add(s.fullName);
+    });
+    setSelectedSignalIds(sigIds);
+  }, []);
+
+  const handleOpenProjectById = useCallback(async (id: string) => {
+    const loaded = await loadProjectById(id);
+    if (loaded) {
+      setUrlProjectSlug(loaded.id);
+      setProject(loaded);
+      saveProjectToStorage(loaded);
+      setIsSaved(true);
+      const bundled = bundleProjectSources(loaded);
+      engineBridge.compile(bundled, loaded.topModule);
+
+      const sigIds = new Set<string>();
+      engineBridge.getState().signals.forEach((s) => {
+        sigIds.add(s.id);
+        sigIds.add(s.fullName);
+      });
+      setSelectedSignalIds(sigIds);
+    }
+  }, []);
+
+  const handleTrashProject = useCallback(async (id: string) => {
+    await trashProject(id);
+    setProjects(loadProjectRegistry());
+    if (project && project.id === id) {
+      handleCloseProject();
+    }
+  }, [project, handleCloseProject]);
+
+  const handleRestoreProject = useCallback(async (id: string) => {
+    await restoreProject(id);
+    setProjects(loadProjectRegistry());
+  }, []);
+
+  const handlePermanentDeleteProject = useCallback(async (id: string) => {
+    await permanentDeleteProject(id);
+    setProjects(loadProjectRegistry());
+    if (project && project.id === id) {
+      handleCloseProject();
+    }
+  }, [project, handleCloseProject]);
+
+  const handleEmptyTrash = useCallback(async () => {
+    await emptyTrash();
+    setProjects(loadProjectRegistry());
+  }, []);
 
   // Browser back/forward navigation sync
   useEffect(() => {
@@ -257,27 +354,30 @@ export const App: React.FC = () => {
         setProject(null);
         engineBridge.reset();
       } else {
-        const saved = loadSavedProject();
-        if (saved && (saved.name === slug || saved.id === slug || saved.templateId === slug)) {
-          setProject(saved);
+        const registry = loadProjectRegistry();
+        const meta = registry.find((p) => p.id === slug && !p.isTrashed);
+        if (meta) {
+          loadProjectById(slug).then((loaded) => {
+            if (loaded) {
+              setProject(loaded);
+              const bundled = bundleProjectSources(loaded);
+              engineBridge.compile(bundled, loaded.topModule);
+            } else {
+              setProject(null);
+              setUrlProjectSlug(null);
+              engineBridge.reset();
+            }
+          });
         } else {
-          const tmpl = PROJECT_TEMPLATES.find((t) => t.id === slug || t.defaultTopModule === slug);
-          if (tmpl) {
-            const newProj = createProjectFromTemplate(tmpl.id);
-            setProject(newProj);
-            saveProjectToStorage(newProj);
-          }
+          setProject(null);
+          setUrlProjectSlug(null);
+          engineBridge.reset();
         }
       }
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
-
-  const handleSelectTemplate = (templateId: string) => {
-    const newProj = createProjectFromTemplate(templateId);
-    handleCreateProject(newProj);
-  };
 
   const handleImportProjectJson = (jsonStr: string) => {
     try {
@@ -292,50 +392,12 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleCreateProject = (newProj: AxiomProject) => {
-    const slug = newProj.name || newProj.id;
-    setUrlProjectSlug(slug);
-    setProject(newProj);
-    saveProjectToStorage(newProj);
-    const bundled = bundleProjectSources(newProj);
-    engineBridge.compile(bundled, newProj.topModule);
-
-    // Auto-select signals
-    const sigIds = new Set<string>();
-    engineBridge.getState().signals.forEach((s) => {
-      sigIds.add(s.id);
-      sigIds.add(s.fullName);
-    });
-    setSelectedSignalIds(sigIds);
-  };
-
   const handleSelectDesign = (design: SampleDesign) => {
     const tmpl = PROJECT_TEMPLATES.find((t) => t.id === design.id || t.defaultTopModule === design.topModule);
     if (tmpl) {
-      const newProj = createProjectFromTemplate(tmpl.id);
-      handleCreateProject(newProj);
+      handleOpenNewProject(tmpl.id);
     } else {
-      const newProj: AxiomProject = {
-        id: `proj_${Date.now()}`,
-        name: design.id,
-        targetDevice: "Artix-7 xc7a35t-csg324-1",
-        topModule: design.topModule,
-        activeFileId: "file_top",
-        openFileIds: ["file_top"],
-        files: [
-          {
-            id: "file_top",
-            name: `${design.topModule}.v`,
-            fileType: "verilog",
-            fileSet: "sources_1",
-            isTop: true,
-            content: design.code
-          }
-        ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      handleCreateProject(newProj);
+      handleOpenNewProject("logic_circuit_project");
     }
   };
 
@@ -395,8 +457,9 @@ export const App: React.FC = () => {
         state={state}
         onCompile={handleCompile}
         project={project}
-        onOpenNewProject={() => setIsNewProjectOpen(true)}
+        onOpenNewProject={() => handleOpenNewProject()}
         onCloseProject={handleCloseProject}
+        onTrashProject={project ? () => handleTrashProject(project.id) : undefined}
         onSaveProject={handleSaveProject}
         onExportProjectJson={handleExportProjectJson}
         onOpenAddSource={() => setIsAddSourceOpen(true)}
@@ -463,12 +526,21 @@ export const App: React.FC = () => {
         >
           {!project ? (
             <WelcomeLaunchpad
-              onOpenNewProject={() => setIsNewProjectOpen(true)}
+              onOpenNewProject={handleOpenNewProject}
               onSelectTemplate={(tmplId) => {
                 handleSelectTemplate(tmplId);
                 setActiveMobilePanel("editor");
               }}
               onImportProjectJson={handleImportProjectJson}
+              projects={projects}
+              onOpenProject={(id) => {
+                handleOpenProjectById(id);
+                setActiveMobilePanel("editor");
+              }}
+              onTrashProject={handleTrashProject}
+              onRestoreProject={handleRestoreProject}
+              onPermanentDeleteProject={handlePermanentDeleteProject}
+              onEmptyTrash={handleEmptyTrash}
             />
           ) : activeMobilePanel === "editor" ? (
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -567,9 +639,15 @@ export const App: React.FC = () => {
           <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", position: "relative" }}>
             {!project ? (
               <WelcomeLaunchpad
-                onOpenNewProject={() => setIsNewProjectOpen(true)}
+                onOpenNewProject={handleOpenNewProject}
                 onSelectTemplate={handleSelectTemplate}
                 onImportProjectJson={handleImportProjectJson}
+                projects={projects}
+                onOpenProject={handleOpenProjectById}
+                onTrashProject={handleTrashProject}
+                onRestoreProject={handleRestoreProject}
+                onPermanentDeleteProject={handlePermanentDeleteProject}
+                onEmptyTrash={handleEmptyTrash}
               />
             ) : maximizedPanel === "editor" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -1001,6 +1079,7 @@ export const App: React.FC = () => {
         isOpen={isNewProjectOpen}
         onClose={() => setIsNewProjectOpen(false)}
         onCreateProject={handleCreateProject}
+        initialTemplateId={newProjectInitialTemplateId}
       />
 
       {/* Vivado Add Source File Modal */}

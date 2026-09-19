@@ -8,7 +8,6 @@ import {
   Zap,
   Activity,
   Bug,
-  FolderPlus,
   Menu,
   Search,
   Columns,
@@ -28,6 +27,7 @@ interface HeaderProps {
   project?: AxiomProject | null;
   onOpenNewProject?: () => void;
   onCloseProject?: () => void;
+  onTrashProject?: () => void;
   onSaveProject?: () => void;
   onExportProjectJson?: () => void;
   onOpenAddSource?: () => void;
@@ -50,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
   project,
   onOpenNewProject,
   onCloseProject,
+  onTrashProject,
   onSaveProject,
   onExportProjectJson,
   onOpenAddSource,
@@ -320,6 +321,7 @@ export const Header: React.FC<HeaderProps> = ({
             <ProjectDropdown
               project={project}
               onCloseProject={onCloseProject ?? (() => {})}
+              onTrashProject={onTrashProject}
               onOpenNewProject={onOpenNewProject ?? (() => {})}
               onOpenAddSource={onOpenAddSource ?? (() => {})}
               onExportProjectJson={onExportProjectJson ?? (() => {})}
@@ -339,20 +341,20 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontStyle: "italic", whiteSpace: "nowrap" }}>
+          <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--text-muted)",
+                backgroundColor: "var(--bg-tertiary)",
+                padding: "2px 8px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border-subtle)",
+                whiteSpace: "nowrap"
+              }}
+            >
               {t("header.noProject")}
             </span>
-            {onOpenNewProject && (
-              <button
-                onClick={onOpenNewProject}
-                className="btn btn-primary"
-                style={{ height: 28 }}
-              >
-                <FolderPlus size={13} />
-                <span>{t("header.newProject")}</span>
-              </button>
-            )}
           </div>
         )}
       </div>

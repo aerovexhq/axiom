@@ -8,6 +8,7 @@ import {
   FilePlus,
   FolderPlus,
   X,
+  Trash2,
   Cpu,
   Check
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { useTranslation } from "../i18n";
 interface ProjectDropdownProps {
   project: AxiomProject;
   onCloseProject: () => void;
+  onTrashProject?: () => void;
   onOpenNewProject: () => void;
   onOpenAddSource: () => void;
   onExportProjectJson: () => void;
@@ -27,6 +29,7 @@ interface ProjectDropdownProps {
 export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
   project,
   onCloseProject,
+  onTrashProject,
   onOpenNewProject,
   onOpenAddSource,
   onExportProjectJson,
@@ -279,7 +282,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
           {/* Divider */}
           <div style={{ height: 1, backgroundColor: "var(--border-subtle)", margin: "2px 0" }} />
 
-          {/* Exit Action: Close Project */}
+          {/* Exit Action: Close Project & Move to Trash */}
           <div style={{ padding: "4px 0" }}>
             <button
               onClick={() => {
@@ -293,7 +296,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 gap: 8,
                 padding: "7px 12px",
                 fontSize: 12,
-                color: "var(--accent-rose)",
+                color: "var(--text-secondary)",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
@@ -302,9 +305,38 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 transition: "background 0.1s ease, color 0.1s ease"
               }}
             >
-              <X size={13} />
+              <X size={13} color="var(--text-muted)" />
               <span>{t("header.closeProject")}</span>
             </button>
+
+            {onTrashProject && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  if (confirm(t("launchpad.confirmTrash").replace("{name}", project.name))) {
+                    onTrashProject();
+                  }
+                }}
+                className="axiom-menu-item"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 12px",
+                  fontSize: 12,
+                  color: "var(--accent-rose)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  width: "100%",
+                  textAlign: "left",
+                  transition: "background 0.1s ease, color 0.1s ease"
+                }}
+              >
+                <Trash2 size={13} color="var(--accent-rose)" />
+                <span>{t("header.moveToTrash")}</span>
+              </button>
+            )}
           </div>
         </div>
       )}

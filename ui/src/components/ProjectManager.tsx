@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   Folder,
   FolderOpen,
-  FolderPlus,
   FileCode,
   FileText,
   FilePlus,
@@ -27,7 +26,7 @@ interface ProjectManagerProps {
   project: AxiomProject | null;
   onUpdateProject: (updated: AxiomProject) => void;
   onOpenAddSource: () => void;
-  onOpenNewProject: () => void;
+  onOpenNewProject?: () => void;
   onSelectFile: (fileId: string) => void;
   onCloseProject?: () => void;
   onSelectTemplate?: (templateId: string) => void;
@@ -47,35 +46,14 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   const [simOpen, setSimOpen] = useState<boolean>(true);
   const [constrsOpen, setConstrsOpen] = useState<boolean>(true);
 
-  // Render empty state if no project is currently loaded
+  // Render empty state if no project is currently loaded (matches Netlist panel design)
   if (!project) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto", padding: 12 }}>
-        <div
-          className="axiom-card"
-          style={{
-            padding: "24px 16px",
-            textAlign: "center",
-            backgroundColor: "var(--bg-primary)",
-            borderRadius: "var(--radius-md)",
-            border: "1px dashed var(--border-subtle)"
-          }}
-        >
-          <FolderPlus size={32} color="var(--accent-blue)" style={{ margin: "0 auto 12px", opacity: 0.85 }} />
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
-            {t("sidebar.emptyTitle")}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.45 }}>
-            {t("sidebar.emptyDesc")}
-          </div>
-          <button
-            onClick={onOpenNewProject}
-            className="btn btn-primary"
-            style={{ width: "100%", justifyContent: "center" }}
-          >
-            <Plus size={15} />
-            <span>{t("sidebar.newProjectAction")}</span>
-          </button>
+      <div style={{ padding: "28px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>
+        <Folder size={26} style={{ margin: "0 auto 8px", opacity: 0.4 }} />
+        <div style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{t("sidebar.emptyTitle")}</div>
+        <div style={{ fontSize: 10, marginTop: 4, opacity: 0.7 }}>
+          {t("sidebar.emptyDesc")}
         </div>
       </div>
     );
