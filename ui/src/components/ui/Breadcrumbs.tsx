@@ -22,15 +22,16 @@ export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({
   return (
     <div
       style={{
-        height: 28,
+        height: 22,
+        minHeight: 22,
         backgroundColor: "var(--bg-tertiary)",
         borderBottom: "1px solid var(--border-subtle)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 12px",
+        padding: "0 8px",
         fontFamily: "var(--font-sans)",
-        fontSize: 12,
+        fontSize: 11,
         color: "var(--text-muted)",
         overflow: "hidden",
         userSelect: "none",

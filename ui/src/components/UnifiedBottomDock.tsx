@@ -45,7 +45,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
-  const [dockHeight, setDockHeight] = useState<number>(230);
+  const [dockHeight, setDockHeight] = useState<number>(180);
   const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing">("repl");
   const [replMode, setReplMode] = useState<"logs" | "shell">("shell");
 
@@ -363,34 +363,35 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
     return (
       <div
         style={{
-          height: 32,
+          height: 26,
+          minHeight: 26,
           backgroundColor: "var(--bg-secondary)",
           borderTop: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 14px",
-          fontSize: 12,
+          padding: "0 10px",
+          fontSize: 11.5,
           zIndex: 10,
           userSelect: "none"
         }}
       >
         {/* Left: Expand Button & Quick Tab Jumpers */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
             onClick={() => setIsCollapsed(false)}
             title="Expand Bottom Dock"
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
+              gap: 4,
               color: "var(--accent-blue)",
               fontWeight: 600,
               cursor: "pointer",
-              fontSize: 12
+              fontSize: 11.5
             }}
           >
-            <ChevronUp size={15} />
+            <ChevronUp size={13} />
             <span>Dock</span>
           </button>
 
@@ -530,43 +531,45 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
         <ResizableSplitter
           orientation="vertical"
           onResize={handleResize}
-          onDoubleClick={() => setDockHeight(230)}
+          onDoubleClick={() => setDockHeight(180)}
         />
       )}
 
       {/* Dock Header & Tab Bar */}
       <div
         style={{
-          height: 38,
+          height: 28,
+          minHeight: 28,
           backgroundColor: "var(--bg-primary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 12px"
+          padding: "0 8px"
         }}
       >
         {/* Left: Tab Switcher Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 5, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
           <button
             onClick={() => setActiveTab("repl")}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "4px 10px",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: activeTab === "repl" ? 600 : 400,
+              padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "repl" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "repl" ? "var(--accent-blue)" : "var(--text-muted)",
               border: activeTab === "repl" ? "1px solid var(--border-subtle)" : "1px solid transparent",
               whiteSpace: "nowrap",
+              cursor: "pointer",
               flexShrink: 0
             }}
           >
-            <Terminal size={13} />
-            <span style={{ whiteSpace: "nowrap" }}>Console & REPL</span>
+            <Terminal size={12} />
+            <span style={{ whiteSpace: "nowrap" }}>Console</span>
           </button>
 
           <button
@@ -574,23 +577,24 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "4px 10px",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: activeTab === "problems" ? 600 : 400,
+              padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "problems" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "problems" ? "var(--accent-cyan)" : "var(--text-muted)",
               border: activeTab === "problems" ? "1px solid var(--border-subtle)" : "1px solid transparent",
               whiteSpace: "nowrap",
+              cursor: "pointer",
               flexShrink: 0
             }}
           >
-            <AlertCircle size={13} />
-            <span style={{ whiteSpace: "nowrap" }}>Problems & Linter</span>
+            <AlertCircle size={12} />
+            <span style={{ whiteSpace: "nowrap" }}>Problems</span>
             <span
               style={{
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: 700,
                 backgroundColor:
                   errorCount > 0
@@ -604,7 +608,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                     : warningCount > 0
                     ? "var(--accent-amber)"
                     : "var(--accent-emerald)",
-                padding: "1px 6px",
+                padding: "0 5px",
                 borderRadius: 8,
                 whiteSpace: "nowrap",
                 flexShrink: 0
@@ -619,20 +623,21 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "4px 10px",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: activeTab === "telemetry" ? 600 : 400,
+              padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "telemetry" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "telemetry" ? "var(--accent-amber)" : "var(--text-muted)",
               border: activeTab === "telemetry" ? "1px solid var(--border-subtle)" : "1px solid transparent",
               whiteSpace: "nowrap",
+              cursor: "pointer",
               flexShrink: 0
             }}
           >
-            <Zap size={13} />
-            <span style={{ whiteSpace: "nowrap" }}>Power & Telemetry</span>
+            <Zap size={12} />
+            <span style={{ whiteSpace: "nowrap" }}>Power</span>
           </button>
 
           <button
@@ -640,28 +645,29 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "4px 10px",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: activeTab === "glitches" ? 600 : 400,
+              padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "glitches" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "glitches" ? "var(--accent-rose)" : "var(--text-muted)",
               border: activeTab === "glitches" ? "1px solid var(--border-subtle)" : "1px solid transparent",
               whiteSpace: "nowrap",
+              cursor: "pointer",
               flexShrink: 0
             }}
           >
-            <AlertTriangle size={13} />
-            <span style={{ whiteSpace: "nowrap" }}>Glitches & Hazards</span>
+            <AlertTriangle size={12} />
+            <span style={{ whiteSpace: "nowrap" }}>Glitches</span>
             {state.glitches.length > 0 && (
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 9.5,
                   fontWeight: 700,
                   backgroundColor: "rgba(244, 63, 94, 0.2)",
                   color: "var(--accent-rose)",
-                  padding: "1px 5px",
+                  padding: "0 4px",
                   borderRadius: 8,
                   whiteSpace: "nowrap",
                   flexShrink: 0
@@ -678,19 +684,20 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               display: "flex",
               alignItems: "center",
               gap: 5,
-              fontSize: 11,
-              fontWeight: 600,
-              padding: "3px 8px",
+              fontSize: 11.5,
+              fontWeight: activeTab === "timing" ? 600 : 400,
+              padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "timing" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "timing" ? "var(--accent-purple)" : "var(--text-muted)",
               border: activeTab === "timing" ? "1px solid var(--border-subtle)" : "1px solid transparent",
               whiteSpace: "nowrap",
+              cursor: "pointer",
               flexShrink: 0
             }}
           >
             <Clock size={12} />
-            <span style={{ whiteSpace: "nowrap" }}>Timing Slack</span>
+            <span style={{ whiteSpace: "nowrap" }}>Timing</span>
           </button>
         </div>
 

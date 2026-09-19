@@ -206,7 +206,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "5px 10px 5px 24px",
+          padding: "3px 6px 3px 20px",
           margin: "1px 0",
           borderRadius: "var(--radius-sm)",
           backgroundColor: isActive ? "var(--bg-active)" : "transparent",
@@ -221,16 +221,16 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           if (!isActive) e.currentTarget.style.backgroundColor = "transparent";
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           {file.fileType === "xdc" ? (
-            <FileText size={14} color="var(--accent-purple)" />
+            <FileText size={13} color="var(--accent-purple)" />
           ) : (
-            <FileCode size={14} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
+            <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} />
           )}
 
           <span
             style={{
-              fontSize: 12.5,
+              fontSize: 11.5,
               fontFamily: "var(--font-mono)",
               color: isActive ? "#fff" : "var(--text-primary)",
               fontWeight: isActive ? 600 : 400,
@@ -246,13 +246,13 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             <span
               title="Top Module for Elaboration"
               style={{
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: 700,
                 color: "var(--accent-cyan)",
                 backgroundColor: "rgba(6, 182, 212, 0.15)",
                 border: "1px solid rgba(6, 182, 212, 0.35)",
-                padding: "1px 5px",
-                borderRadius: 3
+                padding: "0 4px",
+                borderRadius: 2
               }}
             >
               TOP
@@ -304,18 +304,18 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       {/* Project Meta Card */}
       <div
         style={{
-          padding: "10px 12px",
+          padding: "6px 8px",
           borderBottom: "1px solid var(--border-subtle)",
           backgroundColor: "var(--bg-primary)"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0, flex: 1, overflow: "hidden", marginRight: 8 }}>
-            <Cpu size={15} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, flex: 1, overflow: "hidden", marginRight: 6 }}>
+            <Cpu size={14} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
             <span
               style={{
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: 12,
                 color: "var(--text-primary)",
                 fontFamily: "var(--font-mono)",
                 overflow: "hidden",
@@ -471,15 +471,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 1. Design Sources (sources_1) */}
-        <div style={{ marginBottom: 5 }}>
+        <div style={{ marginBottom: 3 }}>
           <div
             onClick={() => setSourcesOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              padding: "5px 8px",
-              fontSize: 12,
+              gap: 5,
+              padding: "3px 6px",
+              fontSize: 11.5,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
@@ -487,10 +487,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               backgroundColor: "rgba(255, 255, 255, 0.02)"
             }}
           >
-            {sourcesOpen ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
-            {sourcesOpen ? <FolderOpen size={14} color="var(--accent-amber)" /> : <Folder size={14} color="var(--accent-amber)" />}
+            {sourcesOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
+            {sourcesOpen ? <FolderOpen size={13} color="var(--accent-amber)" /> : <Folder size={13} color="var(--accent-amber)" />}
             <span>Design Sources</span>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({designSources.length})
             </span>
           </div>
@@ -498,7 +498,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {sourcesOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {designSources.length === 0 ? (
-                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 24px" }}>
+                <div style={{ fontSize: 10.5, color: "var(--text-muted)", padding: "3px 20px" }}>
                   No design sources added
                 </div>
               ) : (
@@ -509,15 +509,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 2. Simulation Sources (sim_1) */}
-        <div style={{ marginBottom: 5 }}>
+        <div style={{ marginBottom: 3 }}>
           <div
             onClick={() => setSimOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              padding: "5px 8px",
-              fontSize: 12,
+              gap: 5,
+              padding: "3px 6px",
+              fontSize: 11.5,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
@@ -525,10 +525,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               backgroundColor: "rgba(255, 255, 255, 0.02)"
             }}
           >
-            {simOpen ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
-            {simOpen ? <FolderOpen size={14} color="var(--accent-cyan)" /> : <Folder size={14} color="var(--accent-cyan)" />}
+            {simOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
+            {simOpen ? <FolderOpen size={13} color="var(--accent-cyan)" /> : <Folder size={13} color="var(--accent-cyan)" />}
             <span>Simulation Sources</span>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({simSources.length})
             </span>
           </div>
@@ -536,7 +536,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {simOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {simSources.length === 0 ? (
-                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 24px" }}>
+                <div style={{ fontSize: 10.5, color: "var(--text-muted)", padding: "3px 20px" }}>
                   No testbench sources
                 </div>
               ) : (
@@ -547,15 +547,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 3. Constraints (constrs_1) */}
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 5 }}>
           <div
             onClick={() => setConstrsOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              padding: "5px 8px",
-              fontSize: 12,
+              gap: 5,
+              padding: "3px 6px",
+              fontSize: 11.5,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
@@ -563,10 +563,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
               backgroundColor: "rgba(255, 255, 255, 0.02)"
             }}
           >
-            {constrsOpen ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
-            {constrsOpen ? <FolderOpen size={14} color="var(--accent-purple)" /> : <Folder size={14} color="var(--accent-purple)" />}
+            {constrsOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
+            {constrsOpen ? <FolderOpen size={13} color="var(--accent-purple)" /> : <Folder size={13} color="var(--accent-purple)" />}
             <span>Constraints</span>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({constrSources.length})
             </span>
           </div>

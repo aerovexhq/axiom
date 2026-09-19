@@ -74,8 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           style={{
             display: "flex",
             alignItems: "center",
-            padding: `5px 10px 5px ${10 + depth * 14}px`,
-            fontSize: 12.5,
+            padding: `3px 8px 3px ${8 + depth * 12}px`,
+            fontSize: 11.5,
             color: isChecked ? "var(--text-primary)" : "var(--text-secondary)",
             cursor: "pointer",
             backgroundColor: isChecked ? "var(--bg-active)" : "transparent",
@@ -221,11 +221,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   }
 
-  // Render Full Expanded Sidebar (280px wide)
+  // Render Full Expanded Sidebar (228px wide)
   return (
     <aside
       style={{
-        width: 280,
+        width: 228,
         backgroundColor: "var(--bg-secondary)",
         borderRight: "1px solid var(--border-subtle)",
         display: "flex",
@@ -237,33 +237,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Top Sidebar Header & Tab Bar */}
       <div
         style={{
-          height: 38,
+          height: 28,
+          minHeight: 28,
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 8px",
+          padding: "0 6px",
           backgroundColor: "var(--bg-primary)"
         }}
       >
         {/* Tabs: Project Sources vs Netlist Hierarchy */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
           <button
             onClick={() => setActiveTab("project")}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              fontSize: 12,
+              gap: 4,
+              fontSize: 11.5,
               fontWeight: 600,
-              padding: "4px 10px",
+              padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "project" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "project" ? "var(--accent-blue)" : "var(--text-muted)",
               border: activeTab === "project" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <Folder size={13} />
+            <Folder size={12} />
             <span>Sources</span>
           </button>
 
@@ -272,17 +273,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              fontSize: 12,
+              gap: 4,
+              fontSize: 11.5,
               fontWeight: 600,
-              padding: "4px 10px",
+              padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: activeTab === "hierarchy" ? "var(--bg-tertiary)" : "transparent",
               color: activeTab === "hierarchy" ? "var(--accent-blue)" : "var(--text-muted)",
               border: activeTab === "hierarchy" ? "1px solid var(--border-subtle)" : "1px solid transparent"
             }}
           >
-            <GitCommit size={13} />
+            <GitCommit size={12} />
             <span>Netlist</span>
           </button>
         </div>

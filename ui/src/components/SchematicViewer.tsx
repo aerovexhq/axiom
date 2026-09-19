@@ -854,15 +854,15 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       {/* Top Schematic Toolbar */}
       <div
         style={{
-          height: 38,
-          minHeight: 38,
+          height: 26,
+          minHeight: 26,
           flexShrink: 0,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 10px",
+          padding: "0 8px",
           zIndex: 10,
           overflowX: "auto",
           overflowY: "hidden",
@@ -870,10 +870,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           scrollbarWidth: "none"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: 700,
               color: "var(--text-secondary)",
               whiteSpace: "nowrap",
@@ -886,8 +886,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           {/* LOD Badge */}
           <div
             style={{
-              fontSize: 10,
-              padding: "2px 6px",
+              fontSize: 9.5,
+              padding: "1px 5px",
               borderRadius: 3,
               backgroundColor: "var(--bg-tertiary)",
               color: "var(--accent-cyan)",
@@ -895,12 +895,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               textTransform: "uppercase",
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 3,
               flexShrink: 0,
               whiteSpace: "nowrap"
             }}
           >
-            <Layers size={10} />
+            <Layers size={9} />
             <span>LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)</span>
           </div>
 
@@ -908,21 +908,21 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           <button
             onClick={() => setShowLiveValues(!showLiveValues)}
             style={{
-              fontSize: 11,
-              padding: "3px 7px",
+              fontSize: 10.5,
+              padding: "2px 6px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showLiveValues ? "rgba(16, 185, 129, 0.15)" : "var(--bg-tertiary)",
               color: showLiveValues ? "var(--accent-emerald)" : "var(--text-muted)",
               border: "1px solid var(--border-subtle)",
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 3,
               cursor: "pointer",
               flexShrink: 0,
               whiteSpace: "nowrap"
             }}
           >
-            <Activity size={12} />
+            <Activity size={11} />
             <span>Values</span>
           </button>
 
@@ -930,37 +930,37 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           <button
             onClick={() => setShowMinimap(!showMinimap)}
             style={{
-              fontSize: 11,
-              padding: "3px 7px",
+              fontSize: 10.5,
+              padding: "2px 6px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showMinimap ? "rgba(56, 189, 248, 0.15)" : "var(--bg-tertiary)",
               color: showMinimap ? "var(--accent-cyan)" : "var(--text-muted)",
               border: "1px solid var(--border-subtle)",
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 3,
               cursor: "pointer",
               flexShrink: 0,
               whiteSpace: "nowrap"
             }}
           >
-            <MapPin size={12} />
+            <MapPin size={11} />
             <span>Map</span>
           </button>
         </div>
 
         {/* Action Controls: 1-Click Cone Slicing, Zoom, Fit */}
-        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 6, whiteSpace: "nowrap" }}>
-          {/* Slice Fanin Cone Button (Hidden on compact mobile unless cell selected) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 6, whiteSpace: "nowrap" }}>
+          {/* Slice Fanin Cone Button */}
           {(typeof window === "undefined" || window.innerWidth > 768 || selectedNodeId || selectedEdgeId) && (
             <button
               onClick={handleSliceFanin}
               disabled={!selectedNodeId && !selectedEdgeId}
               title="Extract combinational fan-in logic cone (HotKey: F)"
               style={{
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: 600,
-                padding: "3px 7px",
+                padding: "2px 6px",
                 borderRadius: "var(--radius-sm)",
                 backgroundColor: activeCone?.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
                 color: activeCone?.isFanin
@@ -971,14 +971,14 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                 border: "1px solid var(--border-subtle)",
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
+                gap: 3,
                 opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
                 cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer",
                 flexShrink: 0,
                 whiteSpace: "nowrap"
               }}
             >
-              <Filter size={11} />
+              <Filter size={10} />
               <span>Cone [F]</span>
             </button>
           )}
@@ -989,8 +989,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               onClick={handleClearSlice}
               title="Clear active cone slice (Esc)"
               style={{
-                fontSize: 11,
-                padding: "3px 6px",
+                fontSize: 10.5,
+                padding: "2px 5px",
                 borderRadius: "var(--radius-sm)",
                 backgroundColor: "rgba(244, 63, 94, 0.15)",
                 color: "#f43f5e",
@@ -1002,18 +1002,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                 flexShrink: 0
               }}
             >
-              <X size={11} />
+              <X size={10} />
               <span>Clear</span>
             </button>
           )}
 
-          <div style={{ width: 1, height: 16, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
+          <div style={{ width: 1, height: 14, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
 
           {/* Zoom Buttons */}
           <button
             onClick={() => setScale((s) => Math.min(s * 1.25, 3.5))}
             style={{
-              padding: "4px 6px",
+              padding: "2px 5px",
               backgroundColor: "var(--bg-tertiary)",
               borderRadius: 3,
               border: "1px solid var(--border-subtle)",
@@ -1025,12 +1025,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             }}
             title="Zoom In"
           >
-            <ZoomIn size={13} />
+            <ZoomIn size={11} />
           </button>
           <button
             onClick={() => setScale((s) => Math.max(s / 1.25, 0.2))}
             style={{
-              padding: "4px 6px",
+              padding: "2px 5px",
               backgroundColor: "var(--bg-tertiary)",
               borderRadius: 3,
               border: "1px solid var(--border-subtle)",
@@ -1042,27 +1042,27 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             }}
             title="Zoom Out"
           >
-            <ZoomOut size={13} />
+            <ZoomOut size={11} />
           </button>
           <button
             onClick={fitToScreen}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
-              padding: "4px 8px",
+              gap: 3,
+              padding: "2px 6px",
               backgroundColor: "var(--bg-tertiary)",
               borderRadius: 3,
               border: "1px solid var(--border-subtle)",
               color: "var(--accent-cyan)",
               cursor: "pointer",
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: 600,
               flexShrink: 0
             }}
             title="Reset / Fit View to Screen"
           >
-            <Maximize2 size={12} />
+            <Maximize2 size={11} />
             <span>Fit</span>
           </button>
         </div>

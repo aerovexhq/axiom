@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, LayoutGrid, Sliders, Clock, Search, Columns, Maximize2, Minimize2, Sparkles } from "lucide-react";
+import { Activity, Cpu, Sliders, Clock, Maximize2 } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -271,14 +271,14 @@ export const App: React.FC = () => {
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
   const handleEditorResize = useCallback((deltaPx: number) => {
-    const totalWidth = window.innerWidth - (isSidebarCollapsed ? 38 : 280);
+    const totalWidth = window.innerWidth - (isSidebarCollapsed ? 38 : 228);
     if (totalWidth <= 0) return;
     const deltaPct = (deltaPx / totalWidth) * 100;
     setEditorWidthPercent((prev) => Math.max(18, Math.min(75, Math.round((prev + deltaPct) * 10) / 10)));
   }, [isSidebarCollapsed]);
 
   const handleWaveformHeightResize = useCallback((deltaPx: number) => {
-    const totalHeight = window.innerHeight - 280;
+    const totalHeight = window.innerHeight - 200;
     if (totalHeight <= 0) return;
     const deltaPct = (deltaPx / totalHeight) * 100;
     setSplitWaveformHeightPercent((prev) => Math.max(20, Math.min(80, Math.round((prev + deltaPct) * 10) / 10)));
@@ -301,6 +301,13 @@ export const App: React.FC = () => {
         isMobile={isMobile}
         onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
         activeMobilePanel={activeMobilePanel}
+        editorWidthPercent={editorWidthPercent}
+        onSetEditorWidthPercent={setEditorWidthPercent}
+        maximizedPanel={maximizedPanel}
+        onRestoreMaximizedPanel={() => setMaximizedPanel(null)}
+        activeCrossProbeSignal={activeCrossProbeSignal}
+        onOpenOmnibar={() => setIsOmnibarOpen(true)}
+        isSplitView={centerView === "split"}
       />
 
       {/* Mobile Off-Canvas Left Drawer */}
@@ -453,291 +460,6 @@ export const App: React.FC = () => {
 
         {/* Center Simulation Workspace */}
         <div className="axiom-center">
-          {/* Studio View Switcher Tab Bar */}
-          <div
-            style={{
-              height: 38,
-              backgroundColor: "var(--bg-secondary)",
-              borderBottom: "1px solid var(--border-subtle)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 12px",
-              zIndex: 5
-            }}
-          >
-            {project ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, overflowX: "auto", scrollbarWidth: "none", flexShrink: 1, minWidth: 0 }}>
-                <button
-                  onClick={() => {
-                    setCenterView("split");
-                    setMaximizedPanel(null);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: "3px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    backgroundColor: centerView === "split" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                    color: centerView === "split" && !maximizedPanel ? "var(--accent-emerald)" : "var(--text-muted)",
-                    border: centerView === "split" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0
-                  }}
-                  title="Dual Studio (Split Code Editor & Visualizer)"
-                >
-                  <LayoutGrid size={13} />
-                  <span>Dual Studio</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setCenterView("waveform");
-                    setMaximizedPanel(null);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: "3px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    backgroundColor: centerView === "waveform" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                    color: centerView === "waveform" && !maximizedPanel ? "var(--accent-blue)" : "var(--text-muted)",
-                    border: centerView === "waveform" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0
-                  }}
-                  title="Full-Screen Stratified Waveform Viewer"
-                >
-                  <Activity size={13} />
-                  <span>Waves</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setCenterView("schematic");
-                    setMaximizedPanel(null);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: "3px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    backgroundColor: centerView === "schematic" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                    color: centerView === "schematic" && !maximizedPanel ? "var(--accent-cyan)" : "var(--text-muted)",
-                    border: centerView === "schematic" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0
-                  }}
-                  title="Full-Screen Schematic Netlist DAG Viewer"
-                >
-                  <Cpu size={13} />
-                  <span>Schematic</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setCenterView("virtuallab");
-                    setMaximizedPanel(null);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: "3px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    backgroundColor: centerView === "virtuallab" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                    color: centerView === "virtuallab" && !maximizedPanel ? "var(--accent-amber)" : "var(--text-muted)",
-                    border: centerView === "virtuallab" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0
-                  }}
-                  title="Interactive Virtual Lab Stimulus Rack"
-                >
-                  <Sliders size={13} />
-                  <span>Lab</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setCenterView("timing");
-                    setMaximizedPanel(null);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: "3px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    backgroundColor: centerView === "timing" && !maximizedPanel ? "var(--bg-tertiary)" : "transparent",
-                    color: centerView === "timing" && !maximizedPanel ? "var(--accent-purple)" : "var(--text-muted)",
-                    border: centerView === "timing" && !maximizedPanel ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0
-                  }}
-                  title="Static Timing Analysis & Dynamic Energy Radar"
-                >
-                  <Clock size={13} />
-                  <span>Timing</span>
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--text-muted)" }}>
-                <Sparkles size={14} color="var(--accent-cyan)" />
-                <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>Axiom Studio Launchpad</span>
-                <span style={{ opacity: 0.7 }}>• Select or create a project below to begin simulation</span>
-              </div>
-            )}
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)", flexShrink: 0 }}>
-              {/* Maximize Active Panel Badge */}
-              {project && maximizedPanel && (
-                <button
-                  onClick={() => setMaximizedPanel(null)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "3px 9px",
-                    backgroundColor: "rgba(59, 130, 246, 0.2)",
-                    border: "1px solid var(--accent-blue)",
-                    color: "var(--accent-blue)",
-                    borderRadius: "var(--radius-sm)",
-                    fontWeight: 600,
-                    fontSize: 11
-                  }}
-                >
-                  <Minimize2 size={12} />
-                  <span>Restore {maximizedPanel.toUpperCase()} (🗗)</span>
-                </button>
-              )}
-
-              {/* Quick Layout Presets for Split View */}
-              {project && centerView === "split" && !maximizedPanel && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 3,
-                    marginRight: 4,
-                    backgroundColor: "var(--bg-primary)",
-                    padding: "3px 6px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-subtle)"
-                  }}
-                >
-                  <Columns size={12} color="var(--text-muted)" style={{ marginRight: 2 }} />
-                  <button
-                    onClick={() => setEditorWidthPercent(42)}
-                    title="Balanced Layout (42% Code / 58% Visuals)"
-                    style={{
-                      fontSize: 11,
-                      fontWeight: Math.abs(editorWidthPercent - 42) < 2 ? 700 : 500,
-                      padding: "2px 6px",
-                      borderRadius: 3,
-                      border: "none",
-                      cursor: "pointer",
-                      backgroundColor: Math.abs(editorWidthPercent - 42) < 2 ? "var(--bg-elevated)" : "transparent",
-                      color: Math.abs(editorWidthPercent - 42) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
-                    }}
-                  >
-                    Balanced
-                  </button>
-                  <button
-                    onClick={() => setEditorWidthPercent(55)}
-                    title="Code Focus (55% Code / 45% Visuals)"
-                    style={{
-                      fontSize: 11,
-                      fontWeight: Math.abs(editorWidthPercent - 55) < 2 ? 700 : 500,
-                      padding: "2px 6px",
-                      borderRadius: 3,
-                      border: "none",
-                      cursor: "pointer",
-                      backgroundColor: Math.abs(editorWidthPercent - 55) < 2 ? "var(--bg-elevated)" : "transparent",
-                      color: Math.abs(editorWidthPercent - 55) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
-                    }}
-                  >
-                    Code
-                  </button>
-                  <button
-                    onClick={() => setEditorWidthPercent(25)}
-                    title="Visualizer Focus (25% Code / 75% Visuals)"
-                    style={{
-                      fontSize: 11,
-                      fontWeight: Math.abs(editorWidthPercent - 25) < 2 ? 700 : 500,
-                      padding: "2px 6px",
-                      borderRadius: 3,
-                      border: "none",
-                      cursor: "pointer",
-                      backgroundColor: Math.abs(editorWidthPercent - 25) < 2 ? "var(--bg-elevated)" : "transparent",
-                      color: Math.abs(editorWidthPercent - 25) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
-                    }}
-                  >
-                    Visual
-                  </button>
-                </div>
-              )}
-
-              {project && activeCrossProbeSignal && (
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span>Probing:</span>
-                  <span style={{ color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
-                    {activeCrossProbeSignal}
-                  </span>
-                </span>
-              )}
-
-              <button
-                onClick={() => setIsOmnibarOpen(true)}
-                title="Omnibar & Command Palette (Ctrl+K or Cmd+K)"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "3px 8px",
-                  backgroundColor: "var(--bg-tertiary)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-secondary)",
-                  cursor: "pointer",
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  transition: "all 0.15s ease"
-                }}
-              >
-                <Search size={12} color="var(--accent-blue)" />
-                <span>Omnibar</span>
-                <kbd
-                  style={{
-                    fontSize: 10,
-                    padding: "1px 5px",
-                    backgroundColor: "var(--bg-secondary)",
-                    borderRadius: 3,
-                    border: "1px solid var(--border-subtle)",
-                    color: "var(--text-muted)",
-                    fontFamily: "var(--font-mono)"
-                  }}
-                >
-                  Ctrl+K
-                </kbd>
-              </button>
-            </div>
-          </div>
-
           {/* Upper Workspace: View Depending on Mode or Panel Maximization */}
           <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", position: "relative" }}>
             {!project ? (
@@ -819,27 +541,28 @@ export const App: React.FC = () => {
                   {/* Visualizer Tab Switcher Bar */}
                   <div
                     style={{
-                      height: 38,
+                      height: 28,
+                      minHeight: 28,
                       backgroundColor: "var(--bg-secondary)",
                       borderBottom: "1px solid var(--border-subtle)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      padding: "0 10px",
+                      padding: "0 8px",
                       flexShrink: 0
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
                       <button
                         onClick={() => setSplitActiveVisualizer("schematic")}
                         title="Schematic Netlist DAG Viewer"
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 5,
-                          fontSize: 12,
-                          fontWeight: splitActiveVisualizer === "schematic" ? 700 : 500,
-                          padding: "4px 8px",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "schematic" ? 600 : 400,
+                          padding: "2px 7px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "schematic" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "schematic" ? "var(--accent-cyan)" : "var(--text-muted)",
@@ -849,7 +572,7 @@ export const App: React.FC = () => {
                           flexShrink: 0
                         }}
                       >
-                        <Cpu size={13} />
+                        <Cpu size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Schematic</span>
                       </button>
 
@@ -859,10 +582,10 @@ export const App: React.FC = () => {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 5,
-                          fontSize: 12,
-                          fontWeight: splitActiveVisualizer === "virtuallab" ? 700 : 500,
-                          padding: "4px 8px",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "virtuallab" ? 600 : 400,
+                          padding: "2px 7px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "virtuallab" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "virtuallab" ? "var(--accent-amber)" : "var(--text-muted)",
@@ -872,7 +595,7 @@ export const App: React.FC = () => {
                           flexShrink: 0
                         }}
                       >
-                        <Sliders size={13} />
+                        <Sliders size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Lab</span>
                       </button>
 
@@ -882,10 +605,10 @@ export const App: React.FC = () => {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 5,
-                          fontSize: 12,
-                          fontWeight: splitActiveVisualizer === "waveform" ? 700 : 500,
-                          padding: "4px 8px",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "waveform" ? 600 : 400,
+                          padding: "2px 7px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "waveform" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "waveform" ? "var(--accent-blue)" : "var(--text-muted)",
@@ -895,7 +618,7 @@ export const App: React.FC = () => {
                           flexShrink: 0
                         }}
                       >
-                        <Activity size={13} />
+                        <Activity size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Waveforms</span>
                       </button>
 
@@ -905,10 +628,10 @@ export const App: React.FC = () => {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 5,
-                          fontSize: 12,
-                          fontWeight: splitActiveVisualizer === "timing" ? 700 : 500,
-                          padding: "4px 8px",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "timing" ? 600 : 400,
+                          padding: "2px 7px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: splitActiveVisualizer === "timing" ? "var(--bg-tertiary)" : "transparent",
                           color: splitActiveVisualizer === "timing" ? "var(--accent-purple)" : "var(--text-muted)",
@@ -918,12 +641,12 @@ export const App: React.FC = () => {
                           flexShrink: 0
                         }}
                       >
-                        <Clock size={13} />
+                        <Clock size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Timing</span>
                       </button>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, whiteSpace: "nowrap" }}>
                       {/* Optional Waveforms Stack Toggle */}
                       {splitActiveVisualizer !== "waveform" && (
                         <button
@@ -932,9 +655,9 @@ export const App: React.FC = () => {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: 4,
-                            padding: "3px 7px",
-                            fontSize: 11,
+                            gap: 3,
+                            padding: "2px 6px",
+                            fontSize: 10.5,
                             fontWeight: splitStackWaveform ? 600 : 400,
                             backgroundColor: splitStackWaveform ? "rgba(59, 130, 246, 0.2)" : "var(--bg-tertiary)",
                             border: `1px solid ${splitStackWaveform ? "var(--accent-blue)" : "var(--border-subtle)"}`,
@@ -945,7 +668,7 @@ export const App: React.FC = () => {
                             flexShrink: 0
                           }}
                         >
-                          <Activity size={12} />
+                          <Activity size={11} />
                           <span style={{ whiteSpace: "nowrap" }}>+ Waves</span>
                         </button>
                       )}
@@ -958,8 +681,8 @@ export const App: React.FC = () => {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          width: 26,
-                          height: 24,
+                          width: 24,
+                          height: 22,
                           backgroundColor: "var(--bg-tertiary)",
                           border: "1px solid var(--border-subtle)",
                           borderRadius: "var(--radius-sm)",
@@ -967,8 +690,10 @@ export const App: React.FC = () => {
                           cursor: "pointer",
                           flexShrink: 0
                         }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                       >
-                        <Maximize2 size={12} />
+                        <Maximize2 size={11} />
                       </button>
                     </div>
                   </div>

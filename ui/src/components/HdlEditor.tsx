@@ -165,7 +165,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       {/* Editor Multi-Tab Strip */}
       <div
         style={{
-          height: 38,
+          height: 28,
+          minHeight: 28,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
@@ -176,7 +177,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         }}
       >
         {/* Left: Open File Tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4, overflowX: "auto", flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", flex: 1, minWidth: 0 }}>
           {openFiles.length > 0 ? (
             openFiles.map((file) => {
               const isActive = file.id === project?.activeFileId;
@@ -189,8 +190,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    padding: "5px 8px",
+                    gap: 5,
+                    padding: "3px 7px",
                     borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
                     backgroundColor: isActive ? "var(--bg-primary)" : "transparent",
                     borderTop: isActive ? "2px solid var(--accent-blue)" : "2px solid transparent",
@@ -198,18 +199,18 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                     borderRight: isActive ? "1px solid var(--border-subtle)" : "1px solid transparent",
                     cursor: "pointer",
                     userSelect: "none",
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: isActive ? "#fff" : "var(--text-secondary)",
                     fontWeight: isActive ? 600 : 400,
-                    maxWidth: 200,
-                    minWidth: 70,
+                    maxWidth: 180,
+                    minWidth: 60,
                     flexShrink: 0
                   }}
                 >
                   {file.fileType === "xdc" ? (
-                    <FileText size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
+                    <FileText size={12} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
                   ) : (
-                    <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
+                    <FileCode size={12} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
                   )}
 
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>
@@ -219,13 +220,13 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   {isTop && (
                     <span
                       style={{
-                        fontSize: 9.5,
+                        fontSize: 9,
                         fontWeight: 700,
                         color: "var(--accent-cyan)",
                         backgroundColor: "rgba(6, 182, 212, 0.15)",
                         border: "1px solid rgba(6, 182, 212, 0.3)",
-                        padding: "1px 4px",
-                        borderRadius: 3,
+                        padding: "0 3px",
+                        borderRadius: 2,
                         flexShrink: 0
                       }}
                     >
@@ -253,16 +254,16 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                       onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
                       onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                     >
-                      <X size={11} />
+                      <X size={10} />
                     </button>
                   )}
                 </div>
               );
             })
           ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 8px" }}>
-              <Code2 size={13} color="var(--accent-cyan)" />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "0 6px" }}>
+              <Code2 size={12} color="var(--accent-cyan)" />
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-primary)" }}>
                 {topModule}.v
               </span>
             </div>
@@ -274,7 +275,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               onClick={onAddFileClick}
               title="Add New Source File"
               style={{
-                padding: "4px 6px",
+                padding: "2px 4px",
                 color: "var(--text-muted)",
                 cursor: "pointer",
                 borderRadius: "var(--radius-sm)",
@@ -286,13 +287,13 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              <Plus size={14} />
+              <Plus size={13} />
             </button>
           )}
         </div>
 
         {/* Right: Actions Strip (Linter status, JIT Ready, Elaborate button, Maximize) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 6 }}>
           {/* Linter Diagnostic Pill */}
           <button
             type="button"
@@ -301,10 +302,10 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
-              fontSize: 11,
+              gap: 3,
+              fontSize: 10.5,
               fontWeight: 600,
-              padding: "3px 8px",
+              padding: "2px 6px",
               borderRadius: "var(--radius-sm)",
               backgroundColor:
                 errorCount > 0
@@ -330,17 +331,17 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           >
             {errorCount > 0 ? (
               <>
-                <AlertCircle size={11} />
+                <AlertCircle size={10} />
                 <span>{errorCount} {errorCount === 1 ? "Error" : "Errors"}</span>
               </>
             ) : warningCount > 0 ? (
               <>
-                <AlertTriangle size={11} />
+                <AlertTriangle size={10} />
                 <span>{warningCount} {warningCount === 1 ? "Warning" : "Warnings"}</span>
               </>
             ) : (
               <>
-                <CheckCircle size={11} />
+                <CheckCircle size={10} />
                 <span>Clean</span>
               </>
             )}
@@ -351,9 +352,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             variant="primary"
             size="xs"
             onClick={onCompile}
-            icon={<Play size={11} fill="#fff" />}
+            icon={<Play size={10} fill="#fff" />}
             title="Elaborate & JIT Compile Active HDL Project"
-            style={{ padding: "4px 7px", fontSize: 11 }}
+            style={{ padding: "2px 6px", fontSize: 10.5 }}
           >
             Elab
           </Button>
@@ -364,7 +365,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               onClick={onToggleMaximize}
               title={isMaximized ? "Restore Split View" : "Maximize Code Editor (100%)"}
               style={{
-                padding: "4px 6px",
+                padding: "2px 4px",
                 color: "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 cursor: "pointer",
@@ -376,7 +377,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              {isMaximized ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
             </button>
           )}
         </div>
