@@ -837,6 +837,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     setIsPanning(false);
   };
 
+  const handleMouseLeave = () => {
+    setIsPanning(false);
+    setHoveredNodeId(null);
+    setHoveredEdgeId(null);
+  };
+
   // Mouse wheel smooth zoom centered on pointer
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -860,16 +866,24 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
   // Active hover/selected node metadata for tooltip
   const activeHoverNode = useMemo(() => {
-    const targetId = hoveredNodeId || selectedNodeId;
-    if (!targetId) return null;
-    return graph.nodes.find((n) => n.id === targetId) ?? null;
-  }, [hoveredNodeId, selectedNodeId, graph.nodes]);
+    if (hoveredNodeId) {
+      return graph.nodes.find((n) => n.id === hoveredNodeId) ?? null;
+    }
+    // If hovering an edge, yield to wire hover tooltip
+    if (hoveredEdgeId) {
+      return null;
+    }
+    if (selectedNodeId) {
+      return graph.nodes.find((n) => n.id === selectedNodeId) ?? null;
+    }
+    return null;
+  }, [hoveredNodeId, hoveredEdgeId, selectedNodeId, graph.nodes]);
 
   // Active hover edge metadata for tooltip
   const activeHoverEdge = useMemo(() => {
-    if (!hoveredEdgeId || hoveredNodeId || selectedNodeId) return null;
+    if (!hoveredEdgeId || hoveredNodeId) return null;
     return graph.edges.find((e) => e.id === hoveredEdgeId) ?? null;
-  }, [hoveredEdgeId, hoveredNodeId, selectedNodeId, graph.edges]);
+  }, [hoveredEdgeId, hoveredNodeId, graph.edges]);
 
   // Detailed Gate Information for Vivado Inspector Card
   const activeGateDetails = useMemo(() => {
@@ -877,8 +891,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     return getGateDetailedInfo(activeHoverNode, graph, liveValuesMap);
   }, [activeHoverNode, graph, liveValuesMap]);
 
-  // Viewport bounds calculation for floating tooltip
-  const tooltipPos = useMemo(() => {
+  // Viewport bounds calculation for floating gate inspector tooltip
+  const nodeTooltipPos = useMemo(() => {
     const maxX = typeof window !== "undefined" ? window.innerWidth - 350 : 800;
     const maxY = typeof window !== "undefined" ? window.innerHeight - 340 : 600;
 
@@ -902,8 +916,23 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       }
     }
 
-    return { x: 20, y: 50 };
+    return {
+      x: mousePos.x > maxX ? Math.max(12, mousePos.x - 330) : mousePos.x + 16,
+      y: mousePos.y > maxY ? Math.max(12, mousePos.y - 280) : mousePos.y + 16
+    };
   }, [mousePos, hoveredNodeId, selectedNodeId, graph.nodes, scale, offsetX, offsetY]);
+
+  // Viewport bounds calculation for floating wire / edge hover tooltip
+  const edgeTooltipPos = useMemo(() => {
+    const maxX = typeof window !== "undefined" ? window.innerWidth - 270 : 800;
+    const maxY = typeof window !== "undefined" ? window.innerHeight - 160 : 600;
+
+    return {
+      x: mousePos.x > maxX ? Math.max(12, mousePos.x - 260) : mousePos.x + 16,
+      y: mousePos.y > maxY ? Math.max(12, mousePos.y - 130) : mousePos.y + 16
+    };
+  }, [mousePos]);
+
 
   return (
     <div
@@ -1151,7 +1180,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -1262,8 +1291,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         <div
           style={{
             position: "fixed",
-            left: tooltipPos.x,
-            top: tooltipPos.y,
+            left: nodeTooltipPos.x,
+            top: nodeTooltipPos.y,
             backgroundColor: "rgba(15, 23, 42, 0.96)",
             border: "1px solid var(--accent-cyan)",
             borderRadius: 6,
@@ -1474,8 +1503,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         <div
           style={{
             position: "fixed",
-            left: tooltipPos.x,
-            top: tooltipPos.y,
+            left: edgeTooltipPos.x,
+            top: edgeTooltipPos.y,
             backgroundColor: "rgba(15, 23, 42, 0.96)",
             border: "1px solid #00f0ff",
             borderRadius: 6,
