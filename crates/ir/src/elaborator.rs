@@ -130,26 +130,27 @@ impl<'a> Elaborator<'a> {
                     self.elaborate_procedural_block(proc, scope_prefix, &local_nets)?;
                 }
                 ModuleItem::Instance(inst) => {
-                    let child_module = self.modules.get(inst.module_name.as_str())
-                        .ok_or_else(|| ElaborationError::ModuleNotFound(inst.module_name.clone(), inst.instance_name.clone()))?;
+                    if let Some(child_module) = self.modules.get(inst.module_name.as_str()).copied() {
+                        let mut child_param_overrides = HashMap::new();
+                        for (pname, pexpr) in &inst.param_bindings {
+                            let pval = self.eval_const_expr(pexpr, &resolved_params)?;
+                            child_param_overrides.insert(pname.clone(), pval);
+                        }
 
-                    let mut child_param_overrides = HashMap::new();
-                    for (pname, pexpr) in &inst.param_bindings {
-                        let pval = self.eval_const_expr(pexpr, &resolved_params)?;
-                        child_param_overrides.insert(pname.clone(), pval);
-                    }
-
-                    let mut child_port_conns = Vec::new();
-                    for (pname, expr) in &inst.port_bindings {
-                        if let Expr::Ident(net_name, _) = expr {
-                            if let Some(&net_id) = local_nets.get(net_name) {
+                        let mut child_port_conns = Vec::new();
+                        for (pname, expr) in &inst.port_bindings {
+                            if let Some(net_id) = self.resolve_port_expr_to_net(expr, &local_nets, scope_prefix)? {
                                 child_port_conns.push((pname.clone(), net_id));
                             }
                         }
-                    }
 
-                    let child_prefix = format!("{scope_prefix}.{}", inst.instance_name);
-                    self.elaborate_instance(child_module, &child_prefix, &child_param_overrides, &child_port_conns)?;
+                        let child_prefix = format!("{scope_prefix}.{}", inst.instance_name);
+                        self.elaborate_instance(child_module, &child_prefix, &child_param_overrides, &child_port_conns)?;
+                    } else if let Some(prim_kind) = crate::primitives::PrimitiveCatalog::lookup(&inst.module_name) {
+                        self.elaborate_primitive_instance(prim_kind, inst, scope_prefix, &local_nets, &resolved_params)?;
+                    } else {
+                        return Err(ElaborationError::ModuleNotFound(inst.module_name.clone(), inst.instance_name.clone()));
+                    }
                 }
                 ModuleItem::GenerateBlock(gen) => {
                     // For now, inline generate items
@@ -454,6 +455,146 @@ impl<'a> Elaborator<'a> {
                 }
             }
             _ => Ok(0),
+        }
+    }
+
+    fn elaborate_primitive_instance(
+        &mut self,
+        kind: PrimitiveKind,
+        inst: &'a InstanceDef,
+        scope_prefix: &str,
+        local_nets: &HashMap<String, NetId>,
+        resolved_params: &HashMap<String, u64>,
+    ) -> Result<(), ElaborationError> {
+        let mut prim_params = HashMap::new();
+        for (pname, pexpr) in &inst.param_bindings {
+            let pval = self.eval_const_expr(pexpr, resolved_params)?;
+            prim_params.insert(pname.clone(), pval);
+        }
+
+        let mut port_nets = HashMap::new();
+        for (pname, expr) in &inst.port_bindings {
+            if let Some(net_id) = self.resolve_port_expr_to_net(expr, local_nets, scope_prefix)? {
+                port_nets.insert(pname.clone(), net_id);
+            }
+        }
+
+        self.circuit.primitive_instances.push(BirPrimitiveInstance {
+            name: inst.instance_name.clone(),
+            primitive_kind: kind,
+            scope: scope_prefix.to_string(),
+            ports: port_nets.clone(),
+            params: prim_params.clone(),
+        });
+
+        match kind {
+            PrimitiveKind::Lut6_2
+            | PrimitiveKind::Lut6
+            | PrimitiveKind::Lut5
+            | PrimitiveKind::Lut4
+            | PrimitiveKind::Lut3
+            | PrimitiveKind::Lut2
+            | PrimitiveKind::Lut1 => {
+                crate::primitives::elaborate_lut(
+                    kind,
+                    &inst.instance_name,
+                    scope_prefix,
+                    &mut self.circuit,
+                    &port_nets,
+                    &prim_params,
+                );
+            }
+            PrimitiveKind::Bufg | PrimitiveKind::Bufgce | PrimitiveKind::Ibuf | PrimitiveKind::Obuf => {
+                crate::primitives::elaborate_clock(
+                    kind,
+                    &inst.instance_name,
+                    scope_prefix,
+                    &mut self.circuit,
+                    &port_nets,
+                    &prim_params,
+                );
+            }
+            PrimitiveKind::Fdre
+            | PrimitiveKind::Fdse
+            | PrimitiveKind::Fdce
+            | PrimitiveKind::Fdpe
+            | PrimitiveKind::Carry4
+            | PrimitiveKind::Carry8 => {
+                crate::primitives::elaborate_seq(
+                    kind,
+                    &inst.instance_name,
+                    scope_prefix,
+                    &mut self.circuit,
+                    &port_nets,
+                    &prim_params,
+                );
+            }
+            PrimitiveKind::Dsp48e2 | PrimitiveKind::Dsp48e1 => {
+                crate::primitives::elaborate_dsp48(
+                    kind,
+                    &inst.instance_name,
+                    scope_prefix,
+                    &mut self.circuit,
+                    &port_nets,
+                    &prim_params,
+                );
+            }
+            PrimitiveKind::Ramb36e2 | PrimitiveKind::Ramb18e2 => {
+                crate::primitives::elaborate_ramb36(
+                    kind,
+                    &inst.instance_name,
+                    scope_prefix,
+                    &mut self.circuit,
+                    &port_nets,
+                    &prim_params,
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    fn resolve_port_expr_to_net(
+        &mut self,
+        expr: &Expr,
+        local_nets: &HashMap<String, NetId>,
+        scope_prefix: &str,
+    ) -> Result<Option<NetId>, ElaborationError> {
+        match expr {
+            Expr::Ident(name, _) => Ok(local_nets.get(name).copied()),
+            Expr::Number(vec, _) => {
+                let width = vec.width();
+                let net_name = format!("{scope_prefix}._const_w{}_{}", width, self.circuit.nets.len());
+                let net_id = self.circuit.add_net(net_name, width, vec.clone());
+                Ok(Some(net_id))
+            }
+            Expr::UnsizedInt(val, _) => {
+                let net_name = format!("{scope_prefix}._const_u_{}", self.circuit.nets.len());
+                let net_id = self.circuit.add_net(net_name, 1, LogicVector::from_u64(*val, 1));
+                Ok(Some(net_id))
+            }
+            Expr::Slice { target, msb, lsb, .. } => {
+                if let Expr::Ident(ref name, _) = **target {
+                    if let Some(&src_id) = local_nets.get(name) {
+                        let msb_v = self.eval_const_expr(msb, &HashMap::new())? as u32;
+                        let lsb_v = self.eval_const_expr(lsb, &HashMap::new())? as u32;
+                        let width = (msb_v.max(lsb_v) - msb_v.min(lsb_v)) + 1;
+                        let slice_name = format!("{scope_prefix}.{name}_{msb_v}_{lsb_v}");
+                        let slice_id = self.circuit.add_net(slice_name, width, LogicVector::zeros(width));
+                        self.circuit.add_continuous_assign(
+                            slice_id,
+                            BirExpr::Slice {
+                                target: Box::new(BirExpr::Net(src_id)),
+                                lsb: lsb_v.min(msb_v),
+                                width,
+                            },
+                        );
+                        return Ok(Some(slice_id));
+                    }
+                }
+                Ok(None)
+            }
+            _ => Ok(None),
         }
     }
 }

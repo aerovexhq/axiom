@@ -1693,6 +1693,41 @@ function getGateVisuals(
     bgColor = "#1b1938";
     borderColor = "#4f46e5";
     accentColor = "#818cf8";
+  } else if (labelUpper.includes("DSP48") || labelUpper.includes("DSP")) {
+    gateType = "operator";
+    badge = "DSP SLICE (DSP48E2)";
+    ieeeSymbol = "DSP48E2";
+    bgColor = "#26191b";
+    borderColor = "#e11d48";
+    accentColor = "#fb7185";
+  } else if (labelUpper.includes("RAMB") || labelUpper.includes("BRAM")) {
+    gateType = "operator";
+    badge = "BLOCK RAM (RAMB36E2)";
+    ieeeSymbol = "RAMB36";
+    bgColor = "#141f2e";
+    borderColor = "#0284c7";
+    accentColor = "#38bdf8";
+  } else if (labelUpper.includes("LUT6") || labelUpper.includes("LUT")) {
+    gateType = "operator";
+    badge = "LOOK-UP TABLE (LUT6_2)";
+    ieeeSymbol = "LUT6_2";
+    bgColor = "#1e182e";
+    borderColor = "#7c3aed";
+    accentColor = "#c084fc";
+  } else if (labelUpper.includes("BUFG")) {
+    gateType = "buf";
+    badge = "GLOBAL CLOCK BUFFER (BUFG)";
+    ieeeSymbol = "BUFG";
+    bgColor = "#132328";
+    borderColor = "#0d9488";
+    accentColor = "#2dd4bf";
+  } else if (labelUpper.includes("CARRY")) {
+    gateType = "operator";
+    badge = "CARRY CHAIN (CARRY4)";
+    ieeeSymbol = "CARRY4";
+    bgColor = "#262016";
+    borderColor = "#d97706";
+    accentColor = "#fbbf24";
   } else if (kind === "mux" || labelUpper.includes("MUX")) {
     gateType = "mux";
     badge = "MULTIPLEXER (MUX)";

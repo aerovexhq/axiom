@@ -111,4 +111,114 @@ endmodule
         assert_eq!(child_din.width, 8);
         assert_eq!(child_dout.width, 8);
     }
+
+    #[test]
+    fn test_elaborate_lut6_2_and_bufg() {
+        let src = r#"
+module lut_bufg_top (
+    input wire clk_in,
+    input wire i0, i1, i2, i3, i4, i5,
+    output wire clk_out,
+    output wire o5, o6
+);
+    BUFG u_bufg (
+        .I(clk_in),
+        .O(clk_out)
+    );
+
+    LUT6_2 #(.INIT(64'h8000000000000001)) u_lut (
+        .I0(i0), .I1(i1), .I2(i2), .I3(i3), .I4(i4), .I5(i5),
+        .O5(o5),
+        .O6(o6)
+    );
+endmodule
+"#;
+        let (ast, diags) = parse_hdl(FileId(2), src);
+        assert!(diags.is_empty(), "Parsing diagnostics: {diags:?}");
+
+        let circuit = elaborate(&ast, "lut_bufg_top").expect("Elaboration failed");
+        assert_eq!(circuit.primitive_instances.len(), 2);
+        assert_eq!(circuit.primitive_instances[0].primitive_kind, PrimitiveKind::Bufg);
+        assert_eq!(circuit.primitive_instances[1].primitive_kind, PrimitiveKind::Lut6_2);
+
+        assert!(circuit.get_net_by_name("lut_bufg_top.clk_out").is_some());
+        assert!(circuit.get_net_by_name("lut_bufg_top.o6").is_some());
+        assert!(circuit.get_net_by_name("lut_bufg_top.o5").is_some());
+    }
+
+    #[test]
+    fn test_elaborate_fdre_and_dsp48e2() {
+        let src = r#"
+module dsp_top (
+    input wire clk,
+    input wire rst,
+    input wire [29:0] a,
+    input wire [17:0] b,
+    output wire [47:0] p,
+    output wire valid_out
+);
+    wire [47:0] p_internal;
+    wire valid_reg;
+
+    DSP48E2 #(.PREG(1), .MREG(1)) u_dsp (
+        .CLK(clk),
+        .RSTP(rst),
+        .CEP(1'b1),
+        .A(a),
+        .B(b),
+        .P(p_internal)
+    );
+
+    FDRE #(.INIT(1'b0)) u_valid (
+        .C(clk),
+        .R(rst),
+        .CE(1'b1),
+        .D(1'b1),
+        .Q(valid_reg)
+    );
+
+    assign p = p_internal;
+    assign valid_out = valid_reg;
+endmodule
+"#;
+        let (ast, diags) = parse_hdl(FileId(3), src);
+        assert!(diags.is_empty(), "Parsing diagnostics: {diags:?}");
+
+        let circuit = elaborate(&ast, "dsp_top").expect("Elaboration failed");
+        assert_eq!(circuit.primitive_instances.len(), 2);
+        assert_eq!(circuit.primitive_instances[0].primitive_kind, PrimitiveKind::Dsp48e2);
+        assert_eq!(circuit.primitive_instances[1].primitive_kind, PrimitiveKind::Fdre);
+
+        assert!(circuit.get_net_by_name("dsp_top.p").is_some());
+        assert!(circuit.get_net_by_name("dsp_top.valid_out").is_some());
+    }
+
+    #[test]
+    fn test_elaborate_ramb36e2() {
+        let src = r#"
+module bram_top (
+    input wire clk,
+    input wire we,
+    input wire [14:0] addr,
+    input wire [31:0] din,
+    output wire [31:0] dout
+);
+    RAMB36E2 #(.DOA_REG(1)) u_bram (
+        .CLKARDCLK(clk),
+        .ENARDEN(1'b1),
+        .WEA(we),
+        .ADDRARDADDR(addr),
+        .DINADIN(din),
+        .DOUTADOUT(dout)
+    );
+endmodule
+"#;
+        let (ast, diags) = parse_hdl(FileId(4), src);
+        assert!(diags.is_empty(), "Parsing diagnostics: {diags:?}");
+
+        let circuit = elaborate(&ast, "bram_top").expect("Elaboration failed");
+        assert_eq!(circuit.primitive_instances.len(), 1);
+        assert_eq!(circuit.primitive_instances[0].primitive_kind, PrimitiveKind::Ramb36e2);
+        assert!(circuit.get_net_by_name("bram_top.dout").is_some());
+    }
 }

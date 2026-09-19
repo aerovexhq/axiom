@@ -1,6 +1,7 @@
 pub mod completion;
 pub mod hover;
 pub mod linter;
+pub mod primitives_doc;
 pub mod server;
 pub mod types;
 pub mod xdc;
@@ -1010,6 +1011,66 @@ set_property PACKAGE_PIN C12 [get_ports rst_n]
 set_property IOSTANDARD LVCMOS33 [get_ports rst_n]
 "#;
         assert!(XdcLinter::lint(add_source_xdc).is_empty());
+    }
+
+    #[test]
+    fn test_primitive_hover_and_completion() {
+        let src = "module test; LUT6_2 u_lut(); DSP48E2 u_dsp(); BUFG u_bufg(); endmodule";
+        // Hover on LUT6_2 (line 1, col 15)
+        let hover_lut = VerilogHover::hover(src, 1, 15).expect("Should hover LUT6_2");
+        assert!(hover_lut.contents.contains("LUT6_2"));
+        assert!(hover_lut.contents.contains("Look-Up Table"));
+
+        // Hover on DSP48E2 (line 1, col 31)
+        let hover_dsp = VerilogHover::hover(src, 1, 31).expect("Should hover DSP48E2");
+        assert!(hover_dsp.contents.contains("DSP48E2"));
+        assert!(hover_dsp.contents.contains("Digital Signal Processing"));
+
+        // Completions
+        let completions = VerilogCompletion::complete(src, 1, 1);
+        assert!(completions.iter().any(|c| c.label == "LUT6_2 instance"));
+        assert!(completions.iter().any(|c| c.label == "DSP48E2 instance"));
+        assert!(completions.iter().any(|c| c.label == "RAMB36E2 instance"));
+        assert!(completions.iter().any(|c| c.label == "BUFG instance"));
+        assert!(completions.iter().any(|c| c.label == "FDRE instance"));
+    }
+
+    #[test]
+    fn test_primitive_lint_clean() {
+        let code = r#"
+module prim_system (
+    input  wire        clk,
+    input  wire        rst,
+    input  wire [5:0]  lut_in,
+    output wire        lut_out6,
+    output wire        lut_out5,
+    input  wire        d_in,
+    output wire        q_out
+);
+    wire clk_g;
+    BUFG u_bufg (
+        .I(clk),
+        .O(clk_g)
+    );
+
+    LUT6_2 #(.INIT(64'h8000000000000001)) u_lut (
+        .I0(lut_in[0]), .I1(lut_in[1]), .I2(lut_in[2]),
+        .I3(lut_in[3]), .I4(lut_in[4]), .I5(lut_in[5]),
+        .O5(lut_out5),
+        .O6(lut_out6)
+    );
+
+    FDRE #(.INIT(1'b0)) u_dff (
+        .C(clk_g),
+        .CE(1'b1),
+        .R(rst),
+        .D(d_in),
+        .Q(q_out)
+    );
+endmodule
+"#;
+        let diags = VerilogLinter::lint(code);
+        assert!(diags.is_empty(), "Should have 0 diagnostics for clean primitive design, got: {diags:?}");
     }
 }
 

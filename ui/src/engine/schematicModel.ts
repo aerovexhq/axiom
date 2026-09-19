@@ -412,8 +412,218 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
     return generateRiscvGraph();
   } else if (sampleDesignId === "alu" || sampleDesignId.includes("alu")) {
     return generateAluGraph();
+  } else if (sampleDesignId === "dsp_bram_mac" || sampleDesignId.includes("dsp") || sampleDesignId.includes("bram")) {
+    return generateDspBramMacGraph();
   }
   return generateLogicCircuitGraph();
+}
+
+/**
+ * Xilinx UltraScale+ DSP48E2 & RAMB36E2 MAC Accelerator DAG
+ */
+function generateDspBramMacGraph(): SchematicGraph {
+  const nodes: SchematicNode[] = [
+    // Layer 0: Primary Inputs
+    {
+      id: "in_clk",
+      label: "clk",
+      kind: "port_in",
+      scope: "top",
+      inputs: [],
+      outputs: [{ id: "out", name: "clk", width: 1, direction: "out", isClock: true }],
+      x: 0, y: 0, width: 70, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05,
+      sourceSpan: { lineStart: 6, lineEnd: 6 }
+    },
+    {
+      id: "in_rst",
+      label: "rst",
+      kind: "port_in",
+      scope: "top",
+      inputs: [],
+      outputs: [{ id: "out", name: "rst", width: 1, direction: "out", isReset: true }],
+      x: 0, y: 0, width: 70, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02,
+      sourceSpan: { lineStart: 7, lineEnd: 7 }
+    },
+    {
+      id: "in_en",
+      label: "en",
+      kind: "port_in",
+      scope: "top",
+      inputs: [],
+      outputs: [{ id: "out", name: "en", width: 1, direction: "out" }],
+      x: 0, y: 0, width: 70, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02,
+      sourceSpan: { lineStart: 8, lineEnd: 8 }
+    },
+    {
+      id: "in_addr",
+      label: "addr[9:0]",
+      kind: "port_in",
+      scope: "top",
+      inputs: [],
+      outputs: [{ id: "out", name: "addr", width: 10, direction: "out" }],
+      x: 0, y: 0, width: 85, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05,
+      sourceSpan: { lineStart: 9, lineEnd: 9 }
+    },
+    {
+      id: "in_din_coeff",
+      label: "din_coeff[15:0]",
+      kind: "port_in",
+      scope: "top",
+      inputs: [],
+      outputs: [{ id: "out", name: "din_coeff", width: 16, direction: "out" }],
+      x: 0, y: 0, width: 105, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.08,
+      sourceSpan: { lineStart: 10, lineEnd: 10 }
+    },
+
+    // Layer 1: Clock Distribution BUFG
+    {
+      id: "prim_bufg",
+      label: "BUFG",
+      sublabel: "Global Clock Buffer",
+      kind: "operator",
+      scope: "top",
+      inputs: [{ id: "I", name: "I", width: 1, direction: "in", isClock: true }],
+      outputs: [{ id: "O", name: "clk_g", width: 1, direction: "out", isClock: true }],
+      x: 0, y: 0, width: 85, height: 44, layer: 1, delayPs: 45, dynamicPowerMw: 0.85,
+      sourceSpan: { lineStart: 17, lineEnd: 20 }
+    },
+
+    // Layer 2: Control Decode LUT6_2
+    {
+      id: "prim_lut6",
+      label: "LUT6_2",
+      sublabel: "Control Decode (INIT=80..01)",
+      kind: "operator",
+      scope: "top",
+      inputs: [
+        { id: "I0", name: "en", width: 1, direction: "in" },
+        { id: "I1", name: "addr[0]", width: 1, direction: "in" },
+        { id: "I2", name: "addr[1]", width: 1, direction: "in" },
+        { id: "I3", name: "addr[2]", width: 1, direction: "in" },
+        { id: "I4", name: "addr[3]", width: 1, direction: "in" },
+        { id: "I5", name: "addr[4]", width: 1, direction: "in" }
+      ],
+      outputs: [
+        { id: "O5", name: "run_step", width: 1, direction: "out" },
+        { id: "O6", name: "mac_active", width: 1, direction: "out" }
+      ],
+      x: 0, y: 0, width: 110, height: 78, layer: 2, delayPs: 120, dynamicPowerMw: 0.15,
+      sourceSpan: { lineStart: 25, lineEnd: 36 }
+    },
+
+    // Layer 3: Synchronous True Dual-Port Block RAM
+    {
+      id: "prim_bram",
+      label: "RAMB36E2",
+      sublabel: "36Kb True Dual-Port RAM",
+      kind: "operator",
+      scope: "top",
+      inputs: [
+        { id: "CLKARDCLK", name: "clk_g", width: 1, direction: "in", isClock: true },
+        { id: "ADDRARDADDR", name: "addr", width: 15, direction: "in" },
+        { id: "CLKBWRCLK", name: "clk_g", width: 1, direction: "in", isClock: true },
+        { id: "ADDRBWRADDR", name: "addr", width: 15, direction: "in" },
+        { id: "DINBDIN", name: "din_coeff", width: 32, direction: "in" }
+      ],
+      outputs: [
+        { id: "DOUTADOUT", name: "dout_a", width: 32, direction: "out" },
+        { id: "DOUTBDOUT", name: "dout_b", width: 32, direction: "out" }
+      ],
+      x: 0, y: 0, width: 140, height: 95, layer: 3, delayPs: 850, dynamicPowerMw: 2.45,
+      sourceSpan: { lineStart: 41, lineEnd: 58 }
+    },
+
+    // Layer 4: UltraScale+ DSP48E2 Multiply-Accumulator Slice
+    {
+      id: "prim_dsp48",
+      label: "DSP48E2",
+      sublabel: "27x18 Multiplier-Accumulator",
+      kind: "operator",
+      scope: "top",
+      inputs: [
+        { id: "CLK", name: "clk_g", width: 1, direction: "in", isClock: true },
+        { id: "CE", name: "run_step", width: 1, direction: "in" },
+        { id: "RST", name: "rst", width: 1, direction: "in", isReset: true },
+        { id: "A", name: "dout_a", width: 30, direction: "in" },
+        { id: "B", name: "dout_b", width: 18, direction: "in" }
+      ],
+      outputs: [
+        { id: "P", name: "p_out", width: 48, direction: "out" }
+      ],
+      x: 0, y: 0, width: 135, height: 90, layer: 4, delayPs: 580, dynamicPowerMw: 3.80,
+      sourceSpan: { lineStart: 67, lineEnd: 85 }
+    },
+
+    // Layer 5: Output Pipeline Register FDRE
+    {
+      id: "prim_fdre",
+      label: "FDRE",
+      sublabel: "Pipeline Valid DFF",
+      kind: "register",
+      scope: "top",
+      inputs: [
+        { id: "C", name: "clk_g", width: 1, direction: "in", isClock: true },
+        { id: "CE", name: "1'b1", width: 1, direction: "in" },
+        { id: "R", name: "rst", width: 1, direction: "in", isReset: true },
+        { id: "D", name: "mac_active", width: 1, direction: "in" }
+      ],
+      outputs: [
+        { id: "Q", name: "valid_out", width: 1, direction: "out" }
+      ],
+      x: 0, y: 0, width: 90, height: 60, layer: 5, delayPs: 140, dynamicPowerMw: 0.12,
+      sourceSpan: { lineStart: 90, lineEnd: 97 }
+    },
+
+    // Layer 6: Primary Outputs
+    {
+      id: "out_p_out",
+      label: "p_out[47:0]",
+      kind: "port_out",
+      scope: "top",
+      inputs: [{ id: "in", name: "p_out", width: 48, direction: "in" }],
+      outputs: [],
+      x: 0, y: 0, width: 95, height: 28, layer: 6, delayPs: 20, dynamicPowerMw: 0.25,
+      sourceSpan: { lineStart: 11, lineEnd: 11 }
+    },
+    {
+      id: "out_valid_out",
+      label: "valid_out",
+      kind: "port_out",
+      scope: "top",
+      inputs: [{ id: "in", name: "valid_out", width: 1, direction: "in" }],
+      outputs: [],
+      x: 0, y: 0, width: 85, height: 28, layer: 6, delayPs: 10, dynamicPowerMw: 0.05,
+      sourceSpan: { lineStart: 12, lineEnd: 12 }
+    }
+  ];
+
+  const edges: SchematicEdge[] = [
+    { id: "e_clk_bufg", netName: "clk", sourceNodeId: "in_clk", sourcePortId: "out", targetNodeId: "prim_bufg", targetPortId: "I", width: 1, isBus: false, wirePoints: [], delayPs: 25, signalId: "dsp_bram_mac.clk", fanout: 1 },
+    { id: "e_bufg_bram", netName: "clk_g", sourceNodeId: "prim_bufg", sourcePortId: "O", targetNodeId: "prim_bram", targetPortId: "CLKARDCLK", width: 1, isBus: false, wirePoints: [], delayPs: 35, signalId: "dsp_bram_mac.clk_g", fanout: 3 },
+    { id: "e_bufg_dsp", netName: "clk_g", sourceNodeId: "prim_bufg", sourcePortId: "O", targetNodeId: "prim_dsp48", targetPortId: "CLK", width: 1, isBus: false, wirePoints: [], delayPs: 35, signalId: "dsp_bram_mac.clk_g", fanout: 3 },
+    { id: "e_bufg_fdre", netName: "clk_g", sourceNodeId: "prim_bufg", sourcePortId: "O", targetNodeId: "prim_fdre", targetPortId: "C", width: 1, isBus: false, wirePoints: [], delayPs: 35, signalId: "dsp_bram_mac.clk_g", fanout: 3 },
+    { id: "e_en_lut", netName: "en", sourceNodeId: "in_en", sourcePortId: "out", targetNodeId: "prim_lut6", targetPortId: "I0", width: 1, isBus: false, wirePoints: [], delayPs: 20, signalId: "dsp_bram_mac.en", fanout: 1 },
+    { id: "e_addr_lut", netName: "addr", sourceNodeId: "in_addr", sourcePortId: "out", targetNodeId: "prim_lut6", targetPortId: "I1", width: 10, isBus: true, wirePoints: [], delayPs: 20, signalId: "dsp_bram_mac.addr", fanout: 2 },
+    { id: "e_addr_bram", netName: "addr", sourceNodeId: "in_addr", sourcePortId: "out", targetNodeId: "prim_bram", targetPortId: "ADDRARDADDR", width: 10, isBus: true, wirePoints: [], delayPs: 30, signalId: "dsp_bram_mac.addr", fanout: 2 },
+    { id: "e_din_bram", netName: "din_coeff", sourceNodeId: "in_din_coeff", sourcePortId: "out", targetNodeId: "prim_bram", targetPortId: "DINBDIN", width: 16, isBus: true, wirePoints: [], delayPs: 25, signalId: "dsp_bram_mac.din_coeff", fanout: 1 },
+    { id: "e_lut_dsp_run", netName: "run_step", sourceNodeId: "prim_lut6", sourcePortId: "O5", targetNodeId: "prim_dsp48", targetPortId: "CE", width: 1, isBus: false, wirePoints: [], delayPs: 40, signalId: "dsp_bram_mac.run_step", fanout: 1 },
+    { id: "e_lut_fdre", netName: "mac_active", sourceNodeId: "prim_lut6", sourcePortId: "O6", targetNodeId: "prim_fdre", targetPortId: "D", width: 1, isBus: false, wirePoints: [], delayPs: 45, signalId: "dsp_bram_mac.mac_active", fanout: 1 },
+    { id: "e_bram_dsp_a", netName: "dout_a", sourceNodeId: "prim_bram", sourcePortId: "DOUTADOUT", targetNodeId: "prim_dsp48", targetPortId: "A", width: 32, isBus: true, wirePoints: [], delayPs: 45, signalId: "dsp_bram_mac.dout_a", fanout: 1 },
+    { id: "e_bram_dsp_b", netName: "dout_b", sourceNodeId: "prim_bram", sourcePortId: "DOUTBDOUT", targetNodeId: "prim_dsp48", targetPortId: "B", width: 32, isBus: true, wirePoints: [], delayPs: 45, signalId: "dsp_bram_mac.dout_b", fanout: 1 },
+    { id: "e_rst_dsp", netName: "rst", sourceNodeId: "in_rst", sourcePortId: "out", targetNodeId: "prim_dsp48", targetPortId: "RST", width: 1, isBus: false, wirePoints: [], delayPs: 30, signalId: "dsp_bram_mac.rst", fanout: 2 },
+    { id: "e_rst_fdre", netName: "rst", sourceNodeId: "in_rst", sourcePortId: "out", targetNodeId: "prim_fdre", targetPortId: "R", width: 1, isBus: false, wirePoints: [], delayPs: 30, signalId: "dsp_bram_mac.rst", fanout: 2 },
+    { id: "e_dsp_out", netName: "p_out", sourceNodeId: "prim_dsp48", sourcePortId: "P", targetNodeId: "out_p_out", targetPortId: "in", width: 48, isBus: true, wirePoints: [], delayPs: 35, signalId: "dsp_bram_mac.p_out", fanout: 1 },
+    { id: "e_fdre_out", netName: "valid_out", sourceNodeId: "prim_fdre", sourcePortId: "Q", targetNodeId: "out_valid_out", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 20, signalId: "dsp_bram_mac.valid_out", fanout: 1 }
+  ];
+
+  const graph: SchematicGraph = {
+    id: "dsp_bram_mac_graph",
+    topModule: "dsp_bram_mac",
+    nodes,
+    edges,
+    bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+  };
+  return layoutAndRouteGraph(graph);
 }
 
 /**

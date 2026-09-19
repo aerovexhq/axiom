@@ -17,7 +17,15 @@ impl VerilogHover {
             });
         }
 
-        // 2. Parse AST to locate signal, port, parameter, or module
+        // 2. Check Xilinx primitive documentation
+        if let Some(doc) = crate::primitives_doc::primitive_doc(&word) {
+            return Some(HoverResult {
+                contents: doc.to_string(),
+                range: Some(word_range),
+            });
+        }
+
+        // 3. Parse AST to locate signal, port, parameter, or module
         let file_id = FileId(1);
         let (ast, _) = parse_hdl(file_id, source);
 

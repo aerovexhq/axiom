@@ -223,16 +223,47 @@ impl CraneliftJit {
                     }
                 }
             }
-            BirExpr::Slice { target, lsb, width: _ } => {
+            BirExpr::Slice { target, lsb, width } => {
                 let (v, m) = Self::compile_expr(builder, target, circuit, values_ptr, masks_ptr)?;
                 let lsb_val = builder.ins().iconst(types::I64, *lsb as i64);
                 let shifted_v = builder.ins().ushr(v, lsb_val);
                 let shifted_m = builder.ins().ushr(m, lsb_val);
-                Ok((shifted_v, shifted_m))
+                if *width < 64 {
+                    let slice_mask = builder.ins().iconst(types::I64, ((1u64 << *width) - 1) as i64);
+                    let res_v = builder.ins().band(shifted_v, slice_mask);
+                    let res_m = builder.ins().band(shifted_m, slice_mask);
+                    Ok((res_v, res_m))
+                } else {
+                    Ok((shifted_v, shifted_m))
+                }
             }
-            _ => {
-                let zero = builder.ins().iconst(types::I64, 0);
-                Ok((zero, zero))
+            BirExpr::Concat(items) => {
+                if items.is_empty() {
+                    let zero = builder.ins().iconst(types::I64, 0);
+                    return Ok((zero, zero));
+                }
+                let mut acc_v = builder.ins().iconst(types::I64, 0);
+                let mut acc_m = builder.ins().iconst(types::I64, 0);
+
+                for item in items {
+                    let (vi, mi) = Self::compile_expr(builder, item, circuit, values_ptr, masks_ptr)?;
+                    let wi = circuit.expr_width(item).max(1);
+                    let shift_amt = builder.ins().iconst(types::I64, wi as i64);
+                    acc_v = builder.ins().ishl(acc_v, shift_amt);
+                    acc_m = builder.ins().ishl(acc_m, shift_amt);
+
+                    let (masked_vi, masked_mi) = if wi < 64 {
+                        let mask_const = builder.ins().iconst(types::I64, ((1u64 << wi) - 1) as i64);
+                        (builder.ins().band(vi, mask_const), builder.ins().band(mi, mask_const))
+                    } else {
+                        (vi, mi)
+                    };
+
+                    acc_v = builder.ins().bor(acc_v, masked_vi);
+                    acc_m = builder.ins().bor(acc_m, masked_mi);
+                }
+
+                Ok((acc_v, acc_m))
             }
         }
     }

@@ -901,6 +901,165 @@ endmodule
     ]
   },
   {
+    id: "dsp_bram_mac_project",
+    name: "Xilinx UltraScale+ DSP48E2 & RAMB36E2 MAC Accelerator",
+    category: "processors",
+    description: "High-performance MAC engine demonstrating direct emulation of Xilinx UltraScale+ DSP48E2, RAMB36E2 36Kb True Dual-Port Block RAM, LUT6_2, and BUFG primitives.",
+    defaultTopModule: "dsp_bram_mac",
+    defaultDevice: "Kintex UltraScale+ xcku5p-ffvb676-2-e",
+    files: [
+      {
+        name: "dsp_bram_mac.v",
+        fileType: "verilog",
+        fileSet: "sources_1",
+        isTop: true,
+        content: `// Vivado Design Source: dsp_bram_mac.v
+// Axiom Primitive Emulation: Xilinx UltraScale+ DSP48E2 & RAMB36E2
+\`timescale 1ns / 1ps
+
+module dsp_bram_mac (
+    input  wire        clk,
+    input  wire        rst,
+    input  wire        en,
+    input  wire [9:0]  addr,
+    input  wire [15:0] din_coeff,
+    output wire [47:0] p_out,
+    output wire        valid_out
+);
+
+  // 1. Global Clock Buffer
+  wire clk_g;
+  BUFG u_bufg (
+      .I(clk),
+      .O(clk_g)
+  );
+
+  // 2. Dual-Output 6-Input Look-Up Table for control decoding
+  wire run_step;
+  wire mac_active;
+  LUT6_2 #(
+      .INIT(64'h8000000000000001)
+  ) u_lut_ctrl (
+      .I0(en),
+      .I1(addr[0]),
+      .I2(addr[1]),
+      .I3(addr[2]),
+      .I4(addr[3]),
+      .I5(addr[4]),
+      .O5(run_step),
+      .O6(mac_active)
+  );
+
+  // 3. 36 Kbit Synchronous True Dual-Port Block RAM
+  wire [31:0] dout_a;
+  wire [31:0] dout_b;
+  RAMB36E2 #(
+      .READ_WIDTH_A(36),
+      .WRITE_WIDTH_A(36),
+      .READ_WIDTH_B(36),
+      .WRITE_WIDTH_B(36)
+  ) u_bram (
+      .CLKARDCLK(clk_g),
+      .ENARDEN(1'b1),
+      .WEA(4'b0000),
+      .ADDRARDADDR({1'b0, addr, 4'b0000}),
+      .DINADIN(32'h0),
+      .DOUTADOUT(dout_a),
+      .CLKBWRCLK(clk_g),
+      .ENBWREN(1'b1),
+      .WEB(4'b1111),
+      .ADDRBWRADDR({1'b0, addr, 4'b0000}),
+      .DINBDIN({16'h0000, din_coeff}),
+      .DOUTBDOUT(dout_b)
+  );
+
+  // 4. UltraScale+ High-Speed DSP48E2 Multiply-Accumulator Slice
+  DSP48E2 #(
+      .USE_MULT("MULTIPLY"),
+      .CREG(1),
+      .MREG(1),
+      .PREG(1)
+  ) u_dsp48 (
+      .CLK(clk_g),
+      .CEA2(run_step),
+      .CEB2(run_step),
+      .CEM(run_step),
+      .CEP(run_step),
+      .RSTA(rst),
+      .RSTB(rst),
+      .RSTM(rst),
+      .RSTP(rst),
+      .ALUMODE(4'b0000),
+      .OPMODE(9'b000000101),
+      .A({14'h0, dout_a[15:0]}),
+      .B(dout_b[17:0]),
+      .C(48'h0),
+      .D(27'h0),
+      .P(p_out)
+  );
+
+  // 5. Output pipeline status register
+  FDRE #(
+      .INIT(1'b0)
+  ) u_valid_ff (
+      .C(clk_g),
+      .CE(1'b1),
+      .R(rst),
+      .D(mac_active),
+      .Q(valid_out)
+  );
+
+endmodule
+`
+      },
+      {
+        name: "tb_dsp_bram_mac.sv",
+        fileType: "systemverilog",
+        fileSet: "sim_1",
+        content: `// Vivado Testbench: tb_dsp_bram_mac.sv
+\`timescale 1ns / 1ps
+
+module tb_dsp_bram_mac;
+  reg clk = 0;
+  reg rst = 1;
+  reg en = 0;
+  reg [9:0] addr = 10'd0;
+  reg [15:0] din_coeff = 16'd0;
+  wire [47:0] p_out;
+  wire valid_out;
+
+  dsp_bram_mac dut (
+      .clk(clk),
+      .rst(rst),
+      .en(en),
+      .addr(addr),
+      .din_coeff(din_coeff),
+      .p_out(p_out),
+      .valid_out(valid_out)
+  );
+
+  always #5 clk = ~clk;
+
+  initial begin
+    #20 rst = 0;
+    #10 en = 1; addr = 10'd1; din_coeff = 16'd42;
+    #20 addr = 10'd2; din_coeff = 16'd100;
+    #50 $finish;
+  end
+endmodule
+`
+      },
+      {
+        name: "dsp_timing.xdc",
+        fileType: "xdc",
+        fileSet: "constrs_1",
+        content: `## Timing Constraints for DSP & BRAM MAC Accelerator
+create_clock -period 5.000 -name sys_clk [get_ports clk]
+`
+      }
+    ]
+  },
+  {
     id: "empty_rtl_project",
     name: "Empty RTL Project",
     category: "standard",

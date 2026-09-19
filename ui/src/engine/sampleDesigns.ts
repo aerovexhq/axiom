@@ -645,5 +645,110 @@ module riscv_mini_core (
 
 endmodule
 `
+  },
+  {
+    id: "dsp_bram_mac",
+    name: "Xilinx UltraScale+ DSP48E2 & RAMB36E2 MAC Accelerator",
+    category: "processors",
+    description: "Hardware MAC engine emulating direct Xilinx UltraScale+ DSP48E2, RAMB36E2 True Dual-Port BRAM, LUT6_2, and BUFG primitives.",
+    topModule: "dsp_bram_mac",
+    code: `// Axiom Sample: Xilinx UltraScale+ DSP48E2 & RAMB36E2 MAC Accelerator
+// Direct hardware emulation of Xilinx primitives without external Verilog files.
+\`timescale 1ns / 1ps
+
+module dsp_bram_mac (
+    input  wire        clk,
+    input  wire        rst,
+    input  wire        en,
+    input  wire [9:0]  addr,
+    input  wire [15:0] din_coeff,
+    output wire [47:0] p_out,
+    output wire        valid_out
+);
+
+  // 1. Global Clock Buffer
+  wire clk_g;
+  BUFG u_bufg (
+      .I(clk),
+      .O(clk_g)
+  );
+
+  // 2. Dual-Output 6-Input Look-Up Table for control decoding
+  wire run_step;
+  wire mac_active;
+  LUT6_2 #(
+      .INIT(64'h8000000000000001)
+  ) u_lut_ctrl (
+      .I0(en),
+      .I1(addr[0]),
+      .I2(addr[1]),
+      .I3(addr[2]),
+      .I4(addr[3]),
+      .I5(addr[4]),
+      .O5(run_step),
+      .O6(mac_active)
+  );
+
+  // 3. 36 Kbit Synchronous True Dual-Port Block RAM for coefficient streaming
+  wire [31:0] dout_a;
+  wire [31:0] dout_b;
+  RAMB36E2 #(
+      .READ_WIDTH_A(36),
+      .WRITE_WIDTH_A(36),
+      .READ_WIDTH_B(36),
+      .WRITE_WIDTH_B(36)
+  ) u_bram (
+      .CLKARDCLK(clk_g),
+      .ENARDEN(1'b1),
+      .WEA(4'b0000),
+      .ADDRARDADDR({1'b0, addr, 4'b0000}),
+      .DINADIN(32'h0),
+      .DOUTADOUT(dout_a),
+      .CLKBWRCLK(clk_g),
+      .ENBWREN(1'b1),
+      .WEB(4'b1111),
+      .ADDRBWRADDR({1'b0, addr, 4'b0000}),
+      .DINBDIN({16'h0000, din_coeff}),
+      .DOUTBDOUT(dout_b)
+  );
+
+  // 4. UltraScale+ High-Speed DSP48E2 Multiply-Accumulator Slice
+  DSP48E2 #(
+      .USE_MULT("MULTIPLY"),
+      .CREG(1),
+      .MREG(1),
+      .PREG(1)
+  ) u_dsp48 (
+      .CLK(clk_g),
+      .CEA2(run_step),
+      .CEB2(run_step),
+      .CEM(run_step),
+      .CEP(run_step),
+      .RSTA(rst),
+      .RSTB(rst),
+      .RSTM(rst),
+      .RSTP(rst),
+      .ALUMODE(4'b0000),
+      .OPMODE(9'b000000101),
+      .A({14'h0, dout_a[15:0]}),
+      .B(dout_b[17:0]),
+      .C(48'h0),
+      .D(27'h0),
+      .P(p_out)
+  );
+
+  // 5. Output pipeline status register
+  FDRE #(
+      .INIT(1'b0)
+  ) u_valid_ff (
+      .C(clk_g),
+      .CE(1'b1),
+      .R(rst),
+      .D(mac_active),
+      .Q(valid_out)
+  );
+
+endmodule
+`
   }
 ];

@@ -144,10 +144,19 @@ impl VerilogLinter {
         let mut instance_connected_signals = HashSet::new();
         for item in &module.items {
             if let ModuleItem::Instance(inst) = item {
-                for (_, expr) in &inst.port_bindings {
-                    Self::collect_expr_reads(expr, &mut read_signals);
-                    for sig in Self::collect_expr_targets(expr) {
-                        instance_connected_signals.insert(sig);
+                let is_prim = crate::primitives_doc::primitive_doc(&inst.module_name).is_some();
+                for (port_name, expr) in &inst.port_bindings {
+                    let is_output = is_prim && crate::primitives_doc::is_primitive_output_port(&inst.module_name, port_name);
+                    if is_output {
+                        for sig in Self::collect_expr_targets(expr) {
+                            assigned_signals.entry(sig.clone()).or_default().push(inst.span);
+                            instance_connected_signals.insert(sig);
+                        }
+                    } else {
+                        Self::collect_expr_reads(expr, &mut read_signals);
+                        for sig in Self::collect_expr_targets(expr) {
+                            instance_connected_signals.insert(sig);
+                        }
                     }
                 }
                 for (_, expr) in &inst.param_bindings {

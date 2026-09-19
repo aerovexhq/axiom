@@ -101,6 +101,40 @@ pub struct BirProcess {
     pub body: Vec<BirStatement>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PrimitiveKind {
+    Lut6_2,
+    Lut6,
+    Lut5,
+    Lut4,
+    Lut3,
+    Lut2,
+    Lut1,
+    Bufg,
+    Bufgce,
+    Ibuf,
+    Obuf,
+    Fdre,
+    Fdse,
+    Fdce,
+    Fdpe,
+    Dsp48e2,
+    Dsp48e1,
+    Ramb36e2,
+    Ramb18e2,
+    Carry4,
+    Carry8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BirPrimitiveInstance {
+    pub name: String,
+    pub primitive_kind: PrimitiveKind,
+    pub scope: String,
+    pub ports: HashMap<String, NetId>,
+    pub params: HashMap<String, u64>,
+}
+
 /// Fully elaborated circuit graph ready for JIT compilation or event-driven simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BirCircuit {
@@ -109,6 +143,7 @@ pub struct BirCircuit {
     pub net_name_to_id: HashMap<String, NetId>,
     pub continuous_assigns: Vec<BirContinuousAssign>,
     pub processes: Vec<BirProcess>,
+    pub primitive_instances: Vec<BirPrimitiveInstance>,
     /// Maps each NetId to the list of processes sensitive to changes on this net
     pub sensitivity_map: HashMap<NetId, Vec<ProcessId>>,
     pub total_state_words: usize,
@@ -122,6 +157,7 @@ impl BirCircuit {
             net_name_to_id: HashMap::new(),
             continuous_assigns: Vec::new(),
             processes: Vec::new(),
+            primitive_instances: Vec::new(),
             sensitivity_map: HashMap::new(),
             total_state_words: 0,
         }
@@ -205,6 +241,25 @@ impl BirCircuit {
                 }
             }
             _ => {}
+        }
+    }
+
+    pub fn expr_width(&self, expr: &BirExpr) -> u32 {
+        match expr {
+            BirExpr::Net(id) => self.get_net(*id).map(|n| n.width).unwrap_or(1),
+            BirExpr::Const(vec) => vec.width(),
+            BirExpr::Slice { width, .. } => *width,
+            BirExpr::Unary { expr, op } => match op {
+                UnaryOp::LogicNot | UnaryOp::And | UnaryOp::Or | UnaryOp::Xor => 1,
+                _ => self.expr_width(expr),
+            },
+            BirExpr::Binary { op, lhs, rhs } => match op {
+                BinaryOp::Eq | BinaryOp::Neq | BinaryOp::CaseEq | BinaryOp::CaseNeq
+                | BinaryOp::Lt | BinaryOp::LtEq | BinaryOp::Gt | BinaryOp::GtEq
+                | BinaryOp::LogicAnd | BinaryOp::LogicOr => 1,
+                _ => self.expr_width(lhs).max(self.expr_width(rhs)).max(1),
+            },
+            BirExpr::Concat(items) => items.iter().map(|it| self.expr_width(it)).sum(),
         }
     }
 

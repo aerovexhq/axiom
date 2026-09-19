@@ -58,7 +58,10 @@ impl VerilogCompletion {
             documentation: Some("Complete self-contained simulation testbench harness with clock oscillator.".to_string()),
         });
 
-        // 2. Standard Keywords
+        // 2. Xilinx Hardware Primitives
+        items.extend(crate::primitives_doc::primitive_completions());
+
+        // 3. Standard Keywords
         let keywords = [
             ("always", "Procedural execution block"),
             ("always_comb", "SystemVerilog combinational block"),
