@@ -13,14 +13,11 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
-  Sparkles,
   X
 } from "lucide-react";
 import {
   AxiomProject,
   ProjectFile,
-  PROJECT_TEMPLATES,
-  createProjectFromTemplate,
   deleteFileFromProject,
   setProjectTopModule
 } from "../engine/projectModel";
@@ -43,7 +40,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   onOpenNewProject,
   onSelectFile,
   onCloseProject,
-  onSelectTemplate
+  onSelectTemplate: _onSelectTemplate
 }) => {
   const { t } = useTranslation();
   const [sourcesOpen, setSourcesOpen] = useState<boolean>(true);
@@ -57,12 +54,11 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         <div
           className="axiom-card"
           style={{
-            padding: "20px 16px",
+            padding: "24px 16px",
             textAlign: "center",
             backgroundColor: "var(--bg-primary)",
             borderRadius: "var(--radius-md)",
-            border: "1px dashed var(--border-subtle)",
-            marginBottom: 16
+            border: "1px dashed var(--border-subtle)"
           }}
         >
           <FolderPlus size={32} color="var(--accent-blue)" style={{ margin: "0 auto 12px", opacity: 0.85 }} />
@@ -80,57 +76,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             <Plus size={15} />
             <span>{t("sidebar.newProjectAction")}</span>
           </button>
-        </div>
-
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "var(--text-muted)",
-            textTransform: "uppercase",
-            padding: "0 4px 8px",
-            letterSpacing: 0.5,
-            display: "flex",
-            alignItems: "center",
-            gap: 5
-          }}
-        >
-          <Sparkles size={12} color="var(--accent-cyan)" />
-          <span>{t("sidebar.templatesTitle")}</span>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {PROJECT_TEMPLATES.map((tmpl) => (
-            <button
-              key={tmpl.id}
-              onClick={() => {
-                if (onSelectTemplate) {
-                  onSelectTemplate(tmpl.id);
-                } else {
-                  const newProj = createProjectFromTemplate(tmpl.id);
-                  onUpdateProject(newProj);
-                }
-              }}
-              className="axiom-card axiom-card-hover"
-              style={{
-                textAlign: "left",
-                padding: "10px 12px",
-                borderRadius: "var(--radius-sm)",
-                backgroundColor: "var(--bg-tertiary)",
-                border: "1px solid var(--border-subtle)",
-                color: "var(--text-primary)",
-                cursor: "pointer",
-                transition: "border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease"
-              }}
-            >
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
-                {tmpl.name}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>
-                {tmpl.defaultDevice.split(" ")[0]} • {tmpl.files.length} files
-              </div>
-            </button>
-          ))}
         </div>
       </div>
     );
