@@ -135,9 +135,9 @@ function routeOrthogonalEdge(
 }
 
 function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
-  // Layer spacing constants
-  const layerSpacingX = 105;
-  const nodeSpacingY = 26;
+  // Layer spacing constants (calibrated for ergonomic, readable gate-level layouts without excessive empty wire stretches)
+  const layerSpacingX = 64;
+  const nodeSpacingY = 28;
   const startX = 36;
   const startY = 36;
 
@@ -163,8 +163,6 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   }
 
   let currentX = startX;
-  let maxGlobalY = 0;
-  let maxGlobalX = 0;
 
   for (const layer of sortedLayers) {
     const nodesInLayer = layerMap.get(layer)!;
@@ -212,11 +210,9 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
       });
 
       currentY += node.height + nodeSpacingY;
-      if (currentY > maxGlobalY) maxGlobalY = currentY;
     }
 
     currentX += maxLayerWidth + layerSpacingX;
-    if (currentX > maxGlobalX) maxGlobalX = currentX;
   }
 
   // Route edges
@@ -238,19 +234,48 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
     const dstPtX = dstNode.x + (dstPort?.offsetX ?? 0);
     const dstPtY = dstNode.y + (dstPort?.offsetY ?? dstNode.height / 2);
 
-    const channelOffset = ((channelCounter % 5) - 2) * 6;
+    const channelOffset = ((channelCounter % 5) - 2) * 5;
     channelCounter++;
 
     edge.wirePoints = routeOrthogonalEdge(srcPtX, srcPtY, dstPtX, dstPtY, channelOffset);
   }
 
+  // Calculate tight, exact geometric bounding box across all nodes and routed wires
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const node of graph.nodes) {
+    if (node.x < minX) minX = node.x;
+    if (node.y < minY) minY = node.y;
+    if (node.x + node.width > maxX) maxX = node.x + node.width;
+    if (node.y + node.height > maxY) maxY = node.y + node.height;
+  }
+
+  for (const edge of graph.edges) {
+    for (const pt of edge.wirePoints) {
+      if (pt.x < minX) minX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y > maxY) maxY = pt.y;
+    }
+  }
+
+  if (minX === Infinity) {
+    minX = 0;
+    minY = 0;
+    maxX = 800;
+    maxY = 400;
+  }
+
   graph.bounds = {
-    minX: 0,
-    minY: 0,
-    maxX: maxGlobalX + 60,
-    maxY: maxGlobalY + 60,
-    width: maxGlobalX + 60,
-    height: maxGlobalY + 60
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: Math.max(maxX - minX, 10),
+    height: Math.max(maxY - minY, 10)
   };
 
   return graph;

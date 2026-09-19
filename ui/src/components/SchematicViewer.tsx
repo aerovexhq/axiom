@@ -65,7 +65,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   }, [activeDesignId]);
 
   // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale)
-  const [scale, setScale] = useState<number>(0.85);
+  const [scale, setScale] = useState<number>(1.0);
   const [offsetX, setOffsetX] = useState<number>(60);
   const [offsetY, setOffsetY] = useState<number>(50);
 
@@ -84,8 +84,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // View Options
-  const [showLiveValues, setShowLiveValues] = useState<boolean>(true);
+  // View Options (Live Values is OFF by default for clean schematic readability)
+  const [showLiveValues, setShowLiveValues] = useState<boolean>(false);
   const [hideClockNets, setHideClockNets] = useState<boolean>(false);
   const [showMinimap, setShowMinimap] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -117,31 +117,49 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     return "structural";
   }, [scale]);
 
-  // Auto-focus camera on graph bounds initially or when design changes
+  // Auto-focus camera on graph bounds: zooms in to comfortably fit the viewport with symmetrical centering
   const fitToScreen = useCallback(() => {
     if (!containerRef.current || !graph) return;
     const width = containerRef.current.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 800);
     const height = containerRef.current.clientHeight || (typeof window !== "undefined" ? window.innerHeight - 100 : 600);
 
     const isMobileViewport = width <= 768;
-    const graphWidth = graph.bounds.width || 1000;
-    const graphHeight = graph.bounds.height || 220;
+    const graphWidth = Math.max(graph.bounds.width, 10);
+    const graphHeight = Math.max(graph.bounds.height, 10);
+
+    // True center of the circuit in world space
+    const centerX = graph.bounds.minX + graphWidth / 2;
+    const centerY = graph.bounds.minY + graphHeight / 2;
 
     if (isMobileViewport) {
       // Mobile portrait: comfortable scale so gate shapes and wire probes are legible and clear
-      const targetScale = Math.min(Math.max((height - 140) / (graphHeight * 1.8), 0.68), 0.85);
+      const targetScale = Math.min(Math.max((height - 140) / (graphHeight * 1.5), 0.72), 0.95);
       setScale(targetScale);
-      setOffsetX(24); // Start cleanly from left with padding, never negative
-      const visibleH = height - 42;
+      setOffsetX(16); // Start cleanly from left with padding, never negative
+      const visibleH = height - 36;
       setOffsetY(Math.max(16, (visibleH - graphHeight * targetScale) / 2 + 10));
     } else {
-      const scaleX = (width - 120) / graphWidth;
-      const scaleY = (height - 120) / graphHeight;
-      const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.2);
+      // Desktop: calculate scale to fill the available canvas area cleanly with comfortable margins
+      const toolbarHeight = 26;
+      const paddingX = 40;
+      const paddingY = 36;
 
-      setScale(newScale);
-      setOffsetX(Math.max(24, (width - graphWidth * newScale) / 2));
-      setOffsetY(Math.max(24, (height - graphHeight * newScale) / 2));
+      const availWidth = Math.max(width - paddingX * 2, 200);
+      const availHeight = Math.max(height - toolbarHeight - paddingY * 2, 150);
+
+      const scaleX = availWidth / graphWidth;
+      const scaleY = availHeight / graphHeight;
+
+      // Fit both dimensions, zooming in nicely up to 1.35x for compact circuits
+      const targetScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.45), 1.35);
+
+      // Symmetrically center the circuit on screen
+      const screenCenterX = width / 2;
+      const screenCenterY = toolbarHeight + (height - toolbarHeight) / 2;
+
+      setScale(targetScale);
+      setOffsetX(screenCenterX - centerX * targetScale);
+      setOffsetY(screenCenterY - centerY * targetScale);
     }
   }, [graph]);
 
@@ -501,8 +519,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
       // Draw mini nodes
       for (const node of graph.nodes) {
-        const nx = mapX + 8 + node.x * miniScale;
-        const ny = mapY + 8 + node.y * miniScale;
+        const nx = mapX + 8 + (node.x - graph.bounds.minX) * miniScale;
+        const ny = mapY + 8 + (node.y - graph.bounds.minY) * miniScale;
         const nw = Math.max(2, node.width * miniScale);
         const nh = Math.max(2, node.height * miniScale);
         ctx.fillStyle = node.id === selectedNodeId ? "#00f0ff" : "rgba(255, 255, 255, 0.3)";
@@ -510,8 +528,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       }
 
       // Draw mini camera viewport box
-      const camX = mapX + 8 + (-offsetX / scale) * miniScale;
-      const camY = mapY + 8 + (-offsetY / scale) * miniScale;
+      const camX = mapX + 8 + (-offsetX / scale - graph.bounds.minX) * miniScale;
+      const camY = mapY + 8 + (-offsetY / scale - graph.bounds.minY) * miniScale;
       const camW = (width / scale) * miniScale;
       const camH = (height / scale) * miniScale;
 
@@ -553,6 +571,28 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [renderCanvas]);
+
+  // Keep camera fitted on initial container layout & design switch
+  const hasFittedRef = useRef<boolean>(false);
+  useEffect(() => {
+    hasFittedRef.current = false;
+  }, [activeDesignId]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 50 && entry.contentRect.height > 50) {
+          if (!hasFittedRef.current) {
+            hasFittedRef.current = true;
+            fitToScreen();
+          }
+        }
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [fitToScreen]);
 
   useEffect(() => {
     renderCanvas();
