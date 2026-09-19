@@ -3,6 +3,7 @@
 
 import { openDB, IDBPDatabase } from "idb";
 import { FileSystem, FileEntry } from "./fileSystem";
+import { withLock } from "../sessionSync";
 
 interface StoredFileRecord {
   path: string;
@@ -62,30 +63,34 @@ export class BrowserIndexedDbFileSystem extends FileSystem {
 
   async writeFile(path: string, content: string): Promise<void> {
     const norm = this.normalizePath(path);
-    const { parentDir, name } = this.splitPath(norm);
+    return withLock(`vfs_file_${norm}`, async () => {
+      const { parentDir, name } = this.splitPath(norm);
 
-    if (parentDir !== "/" && parentDir !== "") {
-      await this.mkdir(parentDir);
-    }
+      if (parentDir !== "/" && parentDir !== "") {
+        await this.mkdir(parentDir);
+      }
 
-    const db = await this.getDB();
-    const record: StoredFileRecord = {
-      path: norm,
-      name,
-      parentDir,
-      content,
-      isDirectory: false,
-      size: new Blob([content]).size,
-      updatedAt: Date.now()
-    };
+      const db = await this.getDB();
+      const record: StoredFileRecord = {
+        path: norm,
+        name,
+        parentDir,
+        content,
+        isDirectory: false,
+        size: new Blob([content]).size,
+        updatedAt: Date.now()
+      };
 
-    await db.put(STORE_NAME, record);
+      await db.put(STORE_NAME, record);
+    });
   }
 
   async deleteFile(path: string): Promise<void> {
     const norm = this.normalizePath(path);
-    const db = await this.getDB();
-    await db.delete(STORE_NAME, norm);
+    return withLock(`vfs_file_${norm}`, async () => {
+      const db = await this.getDB();
+      await db.delete(STORE_NAME, norm);
+    });
   }
 
   async exists(path: string): Promise<boolean> {
@@ -150,16 +155,18 @@ export class BrowserIndexedDbFileSystem extends FileSystem {
 
   async rmdir(path: string): Promise<void> {
     const norm = this.normalizePath(path);
-    const db = await this.getDB();
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const allRecords: StoredFileRecord[] = await tx.store.getAll();
+    return withLock(`vfs_dir_${norm}`, async () => {
+      const db = await this.getDB();
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const allRecords: StoredFileRecord[] = await tx.store.getAll();
 
-    const prefix = `${norm}/`;
-    for (const rec of allRecords) {
-      if (rec.path === norm || rec.path.startsWith(prefix)) {
-        await tx.store.delete(rec.path);
+      const prefix = `${norm}/`;
+      for (const rec of allRecords) {
+        if (rec.path === norm || rec.path.startsWith(prefix)) {
+          await tx.store.delete(rec.path);
+        }
       }
-    }
-    await tx.done;
+      await tx.done;
+    });
   }
 }

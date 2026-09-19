@@ -332,7 +332,18 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
               {activeProjects.map((p) => (
-                <div key={p.id} className="axiom-card axiom-card-hover" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div
+                  key={p.id}
+                  onClick={() => onOpenProject?.(p.id)}
+                  className="axiom-card axiom-card-hover"
+                  style={{
+                    padding: 14,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    cursor: "pointer"
+                  }}
+                >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
                       <Folder size={16} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
@@ -371,12 +382,23 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                     </span>
                     {onOpenProject && (
                       <button
-                        onClick={() => onOpenProject(p.id)}
-                        className="axiom-btn axiom-btn-primary"
-                        style={{ padding: "3px 10px", fontSize: 11, gap: 5 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenProject(p.id);
+                        }}
+                        className="btn btn-primary"
+                        style={{
+                          height: 26,
+                          padding: "2px 10px",
+                          fontSize: 11,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 5
+                        }}
                       >
-                        <FolderOpen size={12} />
-                        <span>{t("launchpad.openProject")}</span>
+                        <FolderOpen size={12} style={{ display: "inline-block", verticalAlign: "middle" }} />
+                        <span style={{ lineHeight: 1 }}>{t("launchpad.openProject")}</span>
                       </button>
                     )}
                   </div>
@@ -399,13 +421,14 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                         onEmptyTrash();
                       }
                     }}
-                    className="axiom-btn"
+                    className="btn btn-danger"
                     style={{
-                      padding: "4px 10px",
+                      height: 26,
+                      padding: "2px 10px",
                       fontSize: 11,
-                      color: "var(--accent-rose)",
-                      backgroundColor: "rgba(244, 63, 94, 0.1)",
-                      border: "1px solid rgba(244, 63, 94, 0.3)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       gap: 5
                     }}
                   >
@@ -435,11 +458,19 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                       {onRestoreProject && (
                         <button
                           onClick={() => onRestoreProject(p.id)}
-                          className="axiom-btn"
-                          style={{ padding: "3px 9px", fontSize: 11, color: "var(--accent-cyan)", border: "1px solid rgba(6, 182, 212, 0.3)", gap: 4 }}
+                          className="btn btn-cyan"
+                          style={{
+                            height: 24,
+                            padding: "2px 8px",
+                            fontSize: 11,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 4
+                          }}
                         >
-                          <RotateCcw size={12} />
-                          <span>{t("launchpad.restoreProject")}</span>
+                          <RotateCcw size={11} style={{ display: "inline-block", verticalAlign: "middle" }} />
+                          <span style={{ lineHeight: 1 }}>{t("launchpad.restoreProject")}</span>
                         </button>
                       )}
                       {onPermanentDeleteProject && (
@@ -449,11 +480,19 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                               onPermanentDeleteProject(p.id);
                             }
                           }}
-                          className="axiom-btn"
-                          style={{ padding: "3px 9px", fontSize: 11, color: "var(--accent-rose)", backgroundColor: "rgba(244, 63, 94, 0.12)", border: "1px solid rgba(244, 63, 94, 0.3)", gap: 4 }}
+                          className="btn btn-danger"
+                          style={{
+                            height: 24,
+                            padding: "2px 8px",
+                            fontSize: 11,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 4
+                          }}
                         >
-                          <Trash2 size={12} />
-                          <span>{t("launchpad.deletePermanently")}</span>
+                          <Trash2 size={11} style={{ display: "inline-block", verticalAlign: "middle" }} />
+                          <span style={{ lineHeight: 1 }}>{t("launchpad.deletePermanently")}</span>
                         </button>
                       )}
                     </div>

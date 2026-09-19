@@ -38,6 +38,7 @@ import {
   permanentDeleteProject,
   emptyTrash
 } from "./engine/projectRegistry";
+import { sessionBroadcaster } from "./engine/sessionSync";
 import { SampleDesign } from "./engine/sampleDesigns";
 
 // URL Project Query Parameter Routing (?project=unique_name)
@@ -119,12 +120,42 @@ export const App: React.FC = () => {
   const [isAddSourceOpen, setIsAddSourceOpen] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(true);
 
-  // Background sync registry from FileSystem
+  // Multi-session cross-tab / cross-window real-time synchronization
   useEffect(() => {
+    // Initial sync from filesystem
     syncRegistryFromFs().then((list) => {
       setProjects(list);
     });
-  }, []);
+
+    const unsubscribe = sessionBroadcaster.subscribe((event) => {
+      if (
+        event.type === "REGISTRY_UPDATED" ||
+        event.type === "PROJECT_TRASHED" ||
+        event.type === "PROJECT_DELETED"
+      ) {
+        syncRegistryFromFs().then((list) => {
+          setProjects(list);
+        });
+      }
+
+      if (
+        event.type === "PROJECT_SAVED" &&
+        event.projectId &&
+        project &&
+        project.id === event.projectId
+      ) {
+        // Current project was updated from another window/tab, sync latest state
+        loadProjectById(project.id).then((updated) => {
+          if (updated) {
+            setProject(updated);
+            setIsSaved(true);
+          }
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [project]);
 
   // Manual save handler
   const handleSaveProject = useCallback(() => {

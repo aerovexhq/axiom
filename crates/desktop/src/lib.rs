@@ -4,48 +4,110 @@ use axiom_sim::{AxiomSimulator, DeltaSummary, TickSummary};
 use axiom_syntax::parse_hdl;
 use axiom_telemetry::{SaifWriter, TelemetryCollector, TelemetryFrame, VcdWriter};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-type EngineState = Arc<Mutex<DesktopEngine>>;
+static FS_MUTEX: Mutex<()> = Mutex::new(());
+
+/// Multi-session engine manager isolating simulation states per window label.
+#[derive(Default)]
+pub struct MultiEngineManager {
+    pub engines: HashMap<String, DesktopEngine>,
+}
+
+impl MultiEngineManager {
+    pub fn new() -> Self {
+        Self {
+            engines: HashMap::new(),
+        }
+    }
+
+    pub fn get_or_create(&mut self, label: &str) -> &mut DesktopEngine {
+        self.engines.entry(label.to_string()).or_default()
+    }
+
+    pub fn remove(&mut self, label: &str) {
+        self.engines.remove(label);
+    }
+}
+
+pub type EngineState = Arc<Mutex<MultiEngineManager>>;
 
 #[tauri::command]
-fn compile_design(source: String, top_module: String, state: State<'_, EngineState>) -> CompileResponse {
-    state.lock().unwrap().compile(&source, &top_module)
+fn compile_design(
+    window: WebviewWindow,
+    source: String,
+    top_module: String,
+    state: State<'_, EngineState>,
+) -> CompileResponse {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.compile(&source, &top_module)
 }
 
 #[tauri::command]
-fn step_time(dt_ps: u64, state: State<'_, EngineState>) -> Result<StepResponse, String> {
-    state.lock().unwrap().step_time(dt_ps)
+fn step_time(
+    window: WebviewWindow,
+    dt_ps: u64,
+    state: State<'_, EngineState>,
+) -> Result<StepResponse, String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.step_time(dt_ps)
 }
 
 #[tauri::command]
-fn step_delta(state: State<'_, EngineState>) -> Result<StepResponse, String> {
-    state.lock().unwrap().step_delta()
+fn step_delta(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<StepResponse, String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.step_delta()
 }
 
 #[tauri::command]
-fn force_signal(net_name: String, value: String, state: State<'_, EngineState>) -> Result<(), String> {
-    state.lock().unwrap().force_signal(&net_name, &value)
+fn force_signal(
+    window: WebviewWindow,
+    net_name: String,
+    value: String,
+    state: State<'_, EngineState>,
+) -> Result<(), String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.force_signal(&net_name, &value)
 }
 
 #[tauri::command]
-fn export_vcd(state: State<'_, EngineState>) -> Result<String, String> {
-    state.lock().unwrap().export_vcd()
+fn export_vcd(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<String, String> {
+    let mgr = state.lock().unwrap();
+    let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
+    engine.export_vcd()
 }
 
 #[tauri::command]
-fn export_saif(state: State<'_, EngineState>) -> Result<String, String> {
-    state.lock().unwrap().export_saif()
+fn export_saif(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<String, String> {
+    let mgr = state.lock().unwrap();
+    let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
+    engine.export_saif()
 }
 
 #[tauri::command]
 fn fs_read_file(path: String) -> Result<String, String> {
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn fs_write_file(path: String, content: String) -> Result<(), String> {
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     if let Some(parent) = std::path::Path::new(&path).parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -54,6 +116,7 @@ fn fs_write_file(path: String, content: String) -> Result<(), String> {
 
 #[tauri::command]
 fn fs_remove_file(path: String) -> Result<(), String> {
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     let p = std::path::Path::new(&path);
     if p.is_dir() {
         std::fs::remove_dir_all(p).map_err(|e| e.to_string())
@@ -64,6 +127,7 @@ fn fs_remove_file(path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn fs_list_dir(path: String) -> Result<Vec<String>, String> {
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
     let read_dir = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
     for entry in read_dir {
@@ -78,19 +142,53 @@ fn fs_list_dir(path: String) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 fn fs_create_dir(path: String) -> Result<(), String> {
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn fs_exists(path: String) -> Result<bool, String> {
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     Ok(std::path::Path::new(&path).exists())
 }
 
 pub fn run_desktop_app() {
-    let engine: EngineState = Arc::new(Mutex::new(DesktopEngine::new()));
+    let engine: EngineState = Arc::new(Mutex::new(MultiEngineManager::new()));
+    static WINDOW_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(2);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let id = WINDOW_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let label = format!("axiom_window_{id}");
+            let url = if let Some(arg) = argv.get(1) {
+                if arg.starts_with("http://") || arg.starts_with("https://") {
+                    WebviewUrl::External(arg.parse().unwrap_or_else(|_| "http://localhost:3000".parse().unwrap()))
+                } else {
+                    WebviewUrl::default()
+                }
+            } else {
+                WebviewUrl::default()
+            };
+
+            if let Ok(window) = WebviewWindowBuilder::new(app, &label, url)
+                .title(format!("Axiom EDA Studio - Window {id}"))
+                .inner_size(1366.0, 850.0)
+                .build()
+            {
+                let _ = window.set_focus();
+            }
+        }))
         .manage(engine)
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                let label = window.label();
+                if let Some(state) = window.app_handle().try_state::<EngineState>() {
+                    if let Ok(mut mgr) = state.lock() {
+                        mgr.remove(label);
+                    }
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             compile_design,
             step_time,

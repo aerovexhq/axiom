@@ -3,6 +3,7 @@
 
 import { AxiomProject } from "./projectModel";
 import { getFileSystem } from "./fs";
+import { withLock, sessionBroadcaster } from "./sessionSync";
 
 export interface ProjectMetadata {
   id: string;             // Unique slug: [a-zA-Z0-9_.-]+, exactly matches filesystem folder name
@@ -100,21 +101,23 @@ export function loadProjectRegistry(): ProjectMetadata[] {
  * Persists the project metadata list to localStorage and mirrors to FileSystem.
  */
 export async function saveProjectRegistry(projects: ProjectMetadata[]): Promise<void> {
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(REGISTRY_STORAGE_KEY, JSON.stringify(projects));
-    } catch (err) {
-      console.warn("[ProjectRegistry] Failed to persist registry to localStorage:", err);
+  return withLock("axiom_registry_lock", async () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(REGISTRY_STORAGE_KEY, JSON.stringify(projects));
+      } catch (err) {
+        console.warn("[ProjectRegistry] Failed to persist registry to localStorage:", err);
+      }
     }
-  }
 
-  try {
-    const fs = getFileSystem();
-    await fs.mkdir("/projects");
-    await fs.writeFile(REGISTRY_FS_PATH, JSON.stringify({ version: 1, projects }, null, 2));
-  } catch (err) {
-    console.warn("[ProjectRegistry] Failed to write registry to FileSystem:", err);
-  }
+    try {
+      const fs = getFileSystem();
+      await fs.mkdir("/projects");
+      await fs.writeFile(REGISTRY_FS_PATH, JSON.stringify({ version: 1, projects }, null, 2));
+    } catch (err) {
+      console.warn("[ProjectRegistry] Failed to write registry to FileSystem:", err);
+    }
+  });
 }
 
 /**
@@ -145,52 +148,64 @@ export async function syncRegistryFromFs(): Promise<ProjectMetadata[]> {
  * and updates the project registry entry.
  */
 export async function createAndPersistProject(project: AxiomProject): Promise<void> {
-  const fs = getFileSystem();
-  const projDir = `/projects/${project.id}`;
+  return withLock(`axiom_project_lock_${project.id}`, async () => {
+    const fs = getFileSystem();
+    const projDir = `/projects/${project.id}`;
 
-  // Ensure directories exist
-  await fs.mkdir(`${projDir}/sources_1`);
-  await fs.mkdir(`${projDir}/sim_1`);
-  await fs.mkdir(`${projDir}/constrs_1`);
+    // Ensure directories exist
+    await fs.mkdir(`${projDir}/sources_1`);
+    await fs.mkdir(`${projDir}/sim_1`);
+    await fs.mkdir(`${projDir}/constrs_1`);
 
-  // Write manifest and source files
-  await fs.writeFile(`${projDir}/project.json`, JSON.stringify(project, null, 2));
-  for (const f of project.files) {
-    await fs.writeFile(`${projDir}/${f.fileSet}/${f.name}`, f.content);
-  }
-
-  // Update localStorage copy
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(`axiom_project_${project.id}`, JSON.stringify(project));
-      localStorage.setItem("axiom_current_project", JSON.stringify(project));
-    } catch (err) {
-      console.warn("[ProjectRegistry] LocalStorage quota exceeded:", err);
+    // Write manifest and source files
+    await fs.writeFile(`${projDir}/project.json`, JSON.stringify(project, null, 2));
+    for (const f of project.files) {
+      await fs.writeFile(`${projDir}/${f.fileSet}/${f.name}`, f.content);
     }
-  }
 
-  // Update registry
-  const registry = loadProjectRegistry();
-  const existingIdx = registry.findIndex((p) => p.id === project.id);
-  const meta: ProjectMetadata = {
-    id: project.id,
-    name: project.id,
-    targetDevice: project.targetDevice,
-    topModule: project.topModule,
-    fileCount: project.files.length,
-    templateId: project.templateId,
-    createdAt: project.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    isTrashed: false
-  };
+    // Update localStorage copy
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`axiom_project_${project.id}`, JSON.stringify(project));
+        localStorage.setItem("axiom_current_project", JSON.stringify(project));
+      } catch (err) {
+        console.warn("[ProjectRegistry] LocalStorage quota exceeded:", err);
+      }
+    }
 
-  if (existingIdx >= 0) {
-    registry[existingIdx] = meta;
-  } else {
-    registry.unshift(meta);
-  }
+    // Update registry under registry lock
+    const registry = loadProjectRegistry();
+    const existingIdx = registry.findIndex((p) => p.id === project.id);
+    const meta: ProjectMetadata = {
+      id: project.id,
+      name: project.id,
+      targetDevice: project.targetDevice,
+      topModule: project.topModule,
+      fileCount: project.files.length,
+      templateId: project.templateId,
+      createdAt: project.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isTrashed: false
+    };
 
-  await saveProjectRegistry(registry);
+    if (existingIdx >= 0) {
+      registry[existingIdx] = meta;
+    } else {
+      registry.unshift(meta);
+    }
+
+    await saveProjectRegistry(registry);
+
+    // Broadcast change across all other sessions/tabs
+    sessionBroadcaster.broadcast({
+      type: "PROJECT_SAVED",
+      projectId: project.id,
+      updatedAt: new Date().toISOString()
+    });
+    sessionBroadcaster.broadcast({
+      type: "REGISTRY_UPDATED"
+    });
+  });
 }
 
 /**
@@ -237,59 +252,73 @@ export async function loadProjectById(id: string): Promise<AxiomProject | null> 
  * Moves a project to Trash (Soft Delete).
  */
 export async function trashProject(id: string): Promise<void> {
-  const registry = loadProjectRegistry();
-  const target = registry.find((p) => p.id === id);
-  if (target) {
-    target.isTrashed = true;
-    target.trashedAt = new Date().toISOString();
-    await saveProjectRegistry(registry);
-  }
+  await withLock("axiom_registry_lock", async () => {
+    const registry = loadProjectRegistry();
+    const target = registry.find((p) => p.id === id);
+    if (target) {
+      target.isTrashed = true;
+      target.trashedAt = new Date().toISOString();
+      await saveProjectRegistry(registry);
+    }
+  });
+  sessionBroadcaster.broadcast({ type: "PROJECT_TRASHED", projectId: id });
+  sessionBroadcaster.broadcast({ type: "REGISTRY_UPDATED" });
 }
 
 /**
  * Restores a project from Trash back to Active.
  */
 export async function restoreProject(id: string): Promise<void> {
-  const registry = loadProjectRegistry();
-  const target = registry.find((p) => p.id === id);
-  if (target) {
-    target.isTrashed = false;
-    delete target.trashedAt;
-    await saveProjectRegistry(registry);
-  }
+  await withLock("axiom_registry_lock", async () => {
+    const registry = loadProjectRegistry();
+    const target = registry.find((p) => p.id === id);
+    if (target) {
+      target.isTrashed = false;
+      delete target.trashedAt;
+      await saveProjectRegistry(registry);
+    }
+  });
+  sessionBroadcaster.broadcast({ type: "REGISTRY_UPDATED" });
 }
 
 /**
  * Permanently deletes a project (Hard Delete) from FileSystem and Registry.
  */
 export async function permanentDeleteProject(id: string): Promise<void> {
-  // 1. Delete from FileSystem
-  try {
-    const fs = getFileSystem();
-    await fs.rmdir(`/projects/${id}`);
-  } catch (err) {
-    console.warn(`[ProjectRegistry] Error deleting directory /projects/${id}:`, err);
-  }
-
-  // 2. Clear local storage cache
-  if (typeof window !== "undefined") {
+  await withLock(`axiom_project_lock_${id}`, async () => {
+    // 1. Delete from FileSystem
     try {
-      localStorage.removeItem(`axiom_project_${id}`);
-      const cur = localStorage.getItem("axiom_current_project");
-      if (cur) {
-        const parsed = JSON.parse(cur);
-        if (parsed.id === id) {
-          localStorage.removeItem("axiom_current_project");
-        }
-      }
-    } catch {
-      // Ignore
+      const fs = getFileSystem();
+      await fs.rmdir(`/projects/${id}`);
+    } catch (err) {
+      console.warn(`[ProjectRegistry] Error deleting directory /projects/${id}:`, err);
     }
-  }
 
-  // 3. Remove from registry
-  const registry = loadProjectRegistry().filter((p) => p.id !== id);
-  await saveProjectRegistry(registry);
+    // 2. Clear local storage cache
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`axiom_project_${id}`);
+        const cur = localStorage.getItem("axiom_current_project");
+        if (cur) {
+          const parsed = JSON.parse(cur);
+          if (parsed.id === id) {
+            localStorage.removeItem("axiom_current_project");
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    // 3. Remove from registry under registry lock
+    await withLock("axiom_registry_lock", async () => {
+      const registry = loadProjectRegistry().filter((p) => p.id !== id);
+      await saveProjectRegistry(registry);
+    });
+  });
+
+  sessionBroadcaster.broadcast({ type: "PROJECT_DELETED", projectId: id });
+  sessionBroadcaster.broadcast({ type: "REGISTRY_UPDATED" });
 }
 
 /**
