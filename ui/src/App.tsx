@@ -39,6 +39,8 @@ import {
   emptyTrash
 } from "./engine/projectRegistry";
 import { sessionBroadcaster } from "./engine/sessionSync";
+import { toast } from "./engine/toast";
+import { ToastContainer, ConfirmDialogContainer } from "./components/ui";
 import { SampleDesign } from "./engine/sampleDesigns";
 
 // URL Project Query Parameter Routing (?project=unique_name)
@@ -415,11 +417,12 @@ export const App: React.FC = () => {
       const parsed = JSON.parse(jsonStr) as AxiomProject;
       if (parsed && parsed.files && Array.isArray(parsed.files) && parsed.files.length > 0) {
         handleCreateProject(parsed);
+        toast.success(`Imported project "${parsed.name}" successfully`);
       } else {
-        alert("Invalid project JSON: Missing valid files array.");
+        toast.error("Invalid project JSON: Missing valid files array.");
       }
     } catch (err) {
-      alert("Failed to parse project JSON: " + String(err));
+      toast.error("Failed to parse project JSON: " + String(err));
     }
   };
 
@@ -490,7 +493,6 @@ export const App: React.FC = () => {
         project={project}
         onOpenNewProject={() => handleOpenNewProject()}
         onCloseProject={handleCloseProject}
-        onTrashProject={project ? () => handleTrashProject(project.id) : undefined}
         onSaveProject={handleSaveProject}
         onExportProjectJson={handleExportProjectJson}
         onOpenAddSource={() => setIsAddSourceOpen(true)}
@@ -1119,6 +1121,10 @@ export const App: React.FC = () => {
         onClose={() => setIsAddSourceOpen(false)}
         onAddSource={handleAddSource}
       />
+
+      {/* Global Aerospace Toast & Confirmation Dialog Containers */}
+      <ToastContainer />
+      <ConfirmDialogContainer />
     </div>
   );
 };

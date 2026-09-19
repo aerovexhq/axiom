@@ -91,9 +91,9 @@ export const zh: Translations = {
   sidebar: {
     sourcesTab: "源文件",
     netlistTab: "网表",
-    designSources: "设计源码 (sources_1)",
-    simSources: "仿真源码 (sim_1)",
-    constraints: "约束文件 (constrs_1)",
+    designSources: "设计源码",
+    simSources: "仿真源码",
+    constraints: "约束文件",
     addSources: "+ 添加源文件",
     setAsTop: "设为顶层模块 (Top)",
     topBadge: "TOP",

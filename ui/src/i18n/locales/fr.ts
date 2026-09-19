@@ -91,9 +91,9 @@ export const fr: Translations = {
   sidebar: {
     sourcesTab: "Sources",
     netlistTab: "Netlist",
-    designSources: "Sources de Conception (sources_1)",
-    simSources: "Sources de Simulation (sim_1)",
-    constraints: "Contraintes (constrs_1)",
+    designSources: "Sources de Conception",
+    simSources: "Sources de Simulation",
+    constraints: "Contraintes",
     addSources: "+ Ajouter des Sources",
     setAsTop: "Définir comme Module Racine (Top)",
     topBadge: "TOP",

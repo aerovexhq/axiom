@@ -91,9 +91,9 @@ export const ja: Translations = {
   sidebar: {
     sourcesTab: "ソース",
     netlistTab: "ネットリスト",
-    designSources: "設計ソース (sources_1)",
-    simSources: "シミュレーションソース (sim_1)",
-    constraints: "制約 (constrs_1)",
+    designSources: "設計ソース",
+    simSources: "シミュレーションソース",
+    constraints: "制約",
     addSources: "+ ソース追加",
     setAsTop: "トップモジュールに設定",
     topBadge: "TOP",

@@ -91,9 +91,9 @@ export const tr: Translations = {
   sidebar: {
     sourcesTab: "Kaynaklar",
     netlistTab: "Netlist",
-    designSources: "Tasarım Kaynakları (sources_1)",
-    simSources: "Benzetim Kaynakları (sim_1)",
-    constraints: "Kısıtlar (constrs_1)",
+    designSources: "Tasarım Kaynakları",
+    simSources: "Benzetim Kaynakları",
+    constraints: "Kısıtlar",
     addSources: "+ Kaynak Ekle",
     setAsTop: "Tepe (Top) Modülü Olarak Ayarla",
     topBadge: "TOP",

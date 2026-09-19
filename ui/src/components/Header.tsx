@@ -26,7 +26,6 @@ interface HeaderProps {
   project?: AxiomProject | null;
   onOpenNewProject?: () => void;
   onCloseProject?: () => void;
-  onTrashProject?: () => void;
   onSaveProject?: () => void;
   onExportProjectJson?: () => void;
   onOpenAddSource?: () => void;
@@ -49,7 +48,6 @@ export const Header: React.FC<HeaderProps> = ({
   project,
   onOpenNewProject,
   onCloseProject,
-  onTrashProject,
   onSaveProject,
   onExportProjectJson,
   onOpenAddSource,
@@ -335,7 +333,6 @@ export const Header: React.FC<HeaderProps> = ({
             <ProjectDropdown
               project={project}
               onCloseProject={onCloseProject ?? (() => {})}
-              onTrashProject={onTrashProject}
               onOpenNewProject={onOpenNewProject ?? (() => {})}
               onOpenAddSource={onOpenAddSource ?? (() => {})}
               onExportProjectJson={onExportProjectJson ?? (() => {})}

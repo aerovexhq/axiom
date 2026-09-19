@@ -21,6 +21,8 @@ import {
   setProjectTopModule
 } from "../engine/projectModel";
 import { useTranslation } from "../i18n";
+import { confirmDialog } from "./ui";
+import { toast } from "../engine/toast";
 
 interface ProjectManagerProps {
   project: AxiomProject | null;
@@ -71,12 +73,21 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     onUpdateProject(updated);
   };
 
-  const handleDeleteFile = (fileId: string, e: React.MouseEvent) => {
+  const handleDeleteFile = async (fileId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (project.files.length <= 1) return;
-    if (confirm("Are you sure you want to remove this file from the project?")) {
+    const file = project.files.find((f) => f.id === fileId);
+    const fileName = file ? file.name : "this file";
+    const confirmed = await confirmDialog({
+      title: t("common.delete"),
+      message: `Are you sure you want to remove "${fileName}" from the project?`,
+      confirmText: t("common.delete"),
+      variant: "danger"
+    });
+    if (confirmed) {
       const updated = deleteFileFromProject(project, fileId);
       onUpdateProject(updated);
+      toast.info(`Removed "${fileName}" from project`);
     }
   };
 
@@ -89,6 +100,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     a.download = `${project.name}_vivado_project.json`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success(`Exported bundle "${project.name}_vivado_project.json"`);
   };
 
   const renderFileItem = (file: ProjectFile) => {
@@ -327,7 +339,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           >
             {sourcesOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
             {sourcesOpen ? <FolderOpen size={13} color="var(--accent-amber)" /> : <Folder size={13} color="var(--accent-amber)" />}
-            <span>Design Sources</span>
+            <span>{t("sidebar.designSources")}</span>
             <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({designSources.length})
             </span>

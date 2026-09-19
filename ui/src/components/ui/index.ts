@@ -7,3 +7,5 @@ export * from "./Card";
 export * from "./Breadcrumbs";
 export * from "./Tabs";
 export * from "./GithubIcon";
+export * from "./ToastContainer";
+export * from "./ConfirmModal";

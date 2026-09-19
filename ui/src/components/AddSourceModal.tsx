@@ -136,9 +136,9 @@ endmodule
   };
 
   const fileSetOptions = [
-    { value: "sources_1", label: "Design Sources (sources_1)", sublabel: "Verilog / SystemVerilog RTL modules" },
-    { value: "sim_1", label: "Simulation Sources (sim_1)", sublabel: "Testbenches with stimulus" },
-    { value: "constrs_1", label: "Constraints (constrs_1)", sublabel: "Timing & pin constraints (XDC)" }
+    { value: "sources_1", label: "Design Sources", sublabel: "sources_1 • Verilog / SystemVerilog RTL modules" },
+    { value: "sim_1", label: "Simulation Sources", sublabel: "sim_1 • Testbenches with stimulus" },
+    { value: "constrs_1", label: "Constraints", sublabel: "constrs_1 • Timing & pin constraints (XDC)" }
   ];
 
   return (
