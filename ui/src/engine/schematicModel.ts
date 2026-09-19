@@ -41,6 +41,7 @@ export interface SchematicNode {
   width: number;
   height: number;
   layer: number;
+  gridRow?: number; // Vivado-grade datapath alignment row (e.g. 0, 1, 2, ...)
   delayPs: number; // Cell propagation delay in ps
   dynamicPowerMw: number; // Static/dynamic estimated dissipation
   expressionText?: string;
@@ -97,12 +98,45 @@ export interface LogicCone {
 // 1. Sugiyama Layered Layout & Manhattan Orthogonal Routing
 // --------------------------------------------------------------------------
 
+export interface KeepOutBox {
+  id: string;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+function assignPortOffsets(node: SchematicNode): void {
+  const numIn = node.inputs.length;
+  node.inputs.forEach((port, idx) => {
+    port.offsetX = 0;
+    if (port.isClock) {
+      port.offsetX = node.width * 0.2;
+      port.offsetY = node.height;
+    } else if (port.isReset) {
+      port.offsetX = node.width * 0.5;
+      port.offsetY = node.height;
+    } else {
+      const step = node.height / (numIn + 1);
+      port.offsetY = step * (idx + 1);
+    }
+  });
+
+  const numOut = node.outputs.length;
+  node.outputs.forEach((port, idx) => {
+    port.offsetX = node.width;
+    const step = node.height / (numOut + 1);
+    port.offsetY = step * (idx + 1);
+  });
+}
+
 function routeOrthogonalEdge(
   srcX: number,
   srcY: number,
   dstX: number,
   dstY: number,
-  channelOffset = 0
+  channelOffset = 0,
+  obstacles: KeepOutBox[] = []
 ): WirePoint[] {
   const points: WirePoint[] = [];
   points.push({ x: srcX, y: srcY });
@@ -110,15 +144,66 @@ function routeOrthogonalEdge(
   const dx = dstX - srcX;
   const dy = dstY - srcY;
 
-  if (Math.abs(dy) < 4) {
-    // Almost straight horizontal
+  // Collision detection helpers
+  const getHCollision = (x1: number, x2: number, y: number): KeepOutBox | undefined => {
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    return obstacles.find((b) => minX < b.right && maxX > b.left && y >= b.top && y <= b.bottom);
+  };
+
+  const getVCollision = (x: number, y1: number, y2: number): KeepOutBox | undefined => {
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+    return obstacles.find((b) => minY < b.bottom && maxY > b.top && x >= b.left && x <= b.right);
+  };
+
+  if (Math.abs(dy) < 4 && !getHCollision(srcX, dstX, srcY)) {
+    // Almost straight horizontal with zero collisions
     points.push({ x: dstX, y: dstY });
-  } else if (dx > 30) {
+  } else if (dx > 20) {
     // Normal forward flow with midpoint Manhattan channel
-    const midX = srcX + Math.max(20, dx * 0.5) + channelOffset;
-    points.push({ x: midX, y: srcY });
-    points.push({ x: midX, y: dstY });
-    points.push({ x: dstX, y: dstY });
+    let midX = srcX + Math.max(16, dx * 0.5) + channelOffset;
+
+    // Check if vertical trunk at midX collides with any intermediate obstacle
+    const vObs = getVCollision(midX, srcY, dstY);
+    if (vObs) {
+      // Shift trunk into open inter-layer channel before or after the obstacle
+      const beforeX = vObs.left - 10 + channelOffset;
+      const afterX = vObs.right + 10 + channelOffset;
+      if (beforeX > srcX + 8 && !getVCollision(beforeX, srcY, dstY)) {
+        midX = beforeX;
+      } else if (afterX < dstX - 8 && !getVCollision(afterX, srcY, dstY)) {
+        midX = afterX;
+      }
+    }
+
+    const hObs1 = getHCollision(srcX, midX, srcY);
+    const hObs2 = getHCollision(midX, dstX, dstY);
+
+    if (!hObs1 && !hObs2) {
+      // Clean 2-corner Manhattan path
+      points.push({ x: midX, y: srcY });
+      points.push({ x: midX, y: dstY });
+      points.push({ x: dstX, y: dstY });
+    } else if (hObs1) {
+      // Avoid obstacle directly in front of src: step vertically early
+      const detourX = Math.max(srcX + 10, hObs1.left - 10);
+      const detourY = srcY <= (hObs1.top + hObs1.bottom) / 2 ? hObs1.top - 12 : hObs1.bottom + 12;
+      points.push({ x: detourX, y: srcY });
+      points.push({ x: detourX, y: detourY });
+      points.push({ x: midX, y: detourY });
+      points.push({ x: midX, y: dstY });
+      points.push({ x: dstX, y: dstY });
+    } else if (hObs2) {
+      // Avoid obstacle before dst: route around and step down late
+      const detourX = Math.min(dstX - 10, hObs2.right + 10);
+      const detourY = dstY <= (hObs2.top + hObs2.bottom) / 2 ? hObs2.top - 12 : hObs2.bottom + 12;
+      points.push({ x: midX, y: srcY });
+      points.push({ x: midX, y: detourY });
+      points.push({ x: detourX, y: detourY });
+      points.push({ x: detourX, y: dstY });
+      points.push({ x: dstX, y: dstY });
+    }
   } else {
     // Feedback or close nodes: Route around
     const outX = srcX + 16 + channelOffset;
@@ -135,9 +220,10 @@ function routeOrthogonalEdge(
 }
 
 function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
-  // Layer spacing constants (calibrated for ergonomic, readable gate-level layouts without excessive empty wire stretches)
-  const layerSpacingX = 64;
+  // Layer spacing constants (calibrated for ergonomic, collision-free gate-level layouts)
+  const layerSpacingX = 72;
   const nodeSpacingY = 28;
+  const rowHeight = 62;
   const startX = 36;
   const startY = 36;
 
@@ -151,7 +237,7 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
 
   const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
 
-  // Determine the max layer height across all layers to vertically center each layer
+  // Determine the max layer height across all layers to vertically center each layer (when not using gridRow)
   let maxLayerHeight = 0;
   for (const layer of sortedLayers) {
     const nodesInLayer = layerMap.get(layer)!;
@@ -167,55 +253,52 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   for (const layer of sortedLayers) {
     const nodesInLayer = layerMap.get(layer)!;
 
-    // Calculate total height of this specific layer
-    let layerHeight = 0;
-    for (let i = 0; i < nodesInLayer.length; i++) {
-      layerHeight += nodesInLayer[i].height + (i > 0 ? nodeSpacingY : 0);
-    }
-
-    // Vertically center this layer relative to the tallest layer
-    let currentY = startY + Math.max(0, (maxLayerHeight - layerHeight) / 2);
-
     // Determine max width in this layer
     let maxLayerWidth = 0;
     for (const n of nodesInLayer) {
       if (n.width > maxLayerWidth) maxLayerWidth = n.width;
     }
 
-    for (const node of nodesInLayer) {
-      node.x = currentX;
-      node.y = currentY;
+    const layerUsesGridRow = nodesInLayer.some((n) => n.gridRow !== undefined);
 
-      // Assign port anchor offsets
-      const numIn = node.inputs.length;
-      node.inputs.forEach((port, idx) => {
-        port.offsetX = 0;
-        if (port.isClock) {
-          port.offsetX = node.width * 0.2;
-          port.offsetY = node.height;
-        } else if (port.isReset) {
-          port.offsetX = node.width * 0.5;
-          port.offsetY = node.height;
-        } else {
-          const step = node.height / (numIn + 1);
-          port.offsetY = step * (idx + 1);
-        }
-      });
+    if (layerUsesGridRow) {
+      // Vivado-grade datapath grid row alignment
+      for (const node of nodesInLayer) {
+        node.x = currentX;
+        const row = node.gridRow ?? 0;
+        node.y = startY + row * rowHeight;
+        assignPortOffsets(node);
+      }
+    } else {
+      // Standard vertical centering
+      let layerHeight = 0;
+      for (let i = 0; i < nodesInLayer.length; i++) {
+        layerHeight += nodesInLayer[i].height + (i > 0 ? nodeSpacingY : 0);
+      }
+      let currentY = startY + Math.max(0, (maxLayerHeight - layerHeight) / 2);
 
-      const numOut = node.outputs.length;
-      node.outputs.forEach((port, idx) => {
-        port.offsetX = node.width;
-        const step = node.height / (numOut + 1);
-        port.offsetY = step * (idx + 1);
-      });
-
-      currentY += node.height + nodeSpacingY;
+      for (const node of nodesInLayer) {
+        node.x = currentX;
+        node.y = currentY;
+        assignPortOffsets(node);
+        currentY += node.height + nodeSpacingY;
+      }
     }
 
     currentX += maxLayerWidth + layerSpacingX;
   }
 
-  // Route edges
+  // Pre-calculate keep-out boxes for obstacle-aware edge routing
+  // Instance label is rendered at y - 6 with font size 10px, so top margin protects labels
+  const keepOutBoxes: KeepOutBox[] = graph.nodes.map((n) => ({
+    id: n.id,
+    left: n.x - 4,
+    right: n.x + n.width + 4,
+    top: n.y - 18,
+    bottom: n.y + n.height + 4
+  }));
+
+  // Route edges with obstacle clearance
   const nodeMap = new Map<string, SchematicNode>();
   for (const n of graph.nodes) nodeMap.set(n.id, n);
 
@@ -234,10 +317,21 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
     const dstPtX = dstNode.x + (dstPort?.offsetX ?? 0);
     const dstPtY = dstNode.y + (dstPort?.offsetY ?? dstNode.height / 2);
 
-    const channelOffset = ((channelCounter % 5) - 2) * 5;
+    const channelOffset = ((channelCounter % 5) - 2) * 4;
     channelCounter++;
 
-    edge.wirePoints = routeOrthogonalEdge(srcPtX, srcPtY, dstPtX, dstPtY, channelOffset);
+    const obstacles = keepOutBoxes.filter(
+      (b) => b.id !== edge.sourceNodeId && b.id !== edge.targetNodeId
+    );
+
+    edge.wirePoints = routeOrthogonalEdge(
+      srcPtX,
+      srcPtY,
+      dstPtX,
+      dstPtY,
+      channelOffset,
+      obstacles
+    );
   }
 
   // Calculate tight, exact geometric bounding box across all nodes and routed wires
@@ -320,7 +414,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "A", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, gridRow: 0, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 12, lineEnd: 12 }
     },
     {
@@ -330,7 +424,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "B", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, gridRow: 1, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 13, lineEnd: 13 }
     },
     {
@@ -340,7 +434,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "C", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, gridRow: 2, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 14, lineEnd: 14 }
     },
 
@@ -355,7 +449,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w1", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~A",
-      x: 0, y: 0, width: 68, height: 38, layer: 1, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, gridRow: 0, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 25, lineEnd: 25 }
     },
     {
@@ -368,7 +462,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w4", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~B",
-      x: 0, y: 0, width: 68, height: 38, layer: 1, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, gridRow: 2.8, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 28, lineEnd: 28 }
     },
 
@@ -386,7 +480,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w2", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w1 & B",
-      x: 0, y: 0, width: 78, height: 48, layer: 2, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 2, gridRow: 0.55, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 26, lineEnd: 26 }
     },
 
@@ -404,7 +498,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w3", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w2 & C",
-      x: 0, y: 0, width: 78, height: 48, layer: 3, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 3, gridRow: 0.75, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 27, lineEnd: 27 }
     },
 
@@ -422,7 +516,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "F", width: 1, direction: "out" }],
       craneliftOp: "bor",
       expressionText: "w3 | w4",
-      x: 0, y: 0, width: 78, height: 48, layer: 4, delayPs: 65, dynamicPowerMw: 0.20,
+      x: 0, y: 0, width: 78, height: 48, layer: 4, gridRow: 0.95, delayPs: 65, dynamicPowerMw: 0.20,
       sourceSpan: { lineStart: 29, lineEnd: 29 }
     },
 
@@ -434,7 +528,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [{ id: "in", name: "F", width: 1, direction: "in" }],
       outputs: [],
-      x: 0, y: 0, width: 76, height: 28, layer: 5, delayPs: 10, dynamicPowerMw: 0.05,
+      x: 0, y: 0, width: 76, height: 28, layer: 5, gridRow: 1.15, delayPs: 10, dynamicPowerMw: 0.05,
       sourceSpan: { lineStart: 15, lineEnd: 15 }
     }
   ];

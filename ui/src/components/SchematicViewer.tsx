@@ -424,9 +424,19 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       // 1. Instance Name printed above the gate (Vivado style: inv1, and1, or1)
       if (visuals.gateType !== "port_in" && visuals.gateType !== "port_out") {
         ctx.font = "bold 10px JetBrains Mono, monospace";
+        const textMetrics = ctx.measureText(visuals.instanceName);
+        const textWidth = textMetrics.width;
+        const textX = node.x + node.width / 2;
+        const textY = node.y - 6;
+
+        // Solid background knockout plate matching canvas background (#0c1017)
+        // Completely isolates text from any background grid lines or passing wire paths
+        ctx.fillStyle = "#0c1017";
+        ctx.fillRect(textX - textWidth / 2 - 4, textY - 10, textWidth + 8, 14);
+
         ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
         ctx.textAlign = "center";
-        ctx.fillText(visuals.instanceName, node.x + node.width / 2, node.y - 6);
+        ctx.fillText(visuals.instanceName, textX, textY);
       }
 
       // 2. Interior Symbol / Port Name
