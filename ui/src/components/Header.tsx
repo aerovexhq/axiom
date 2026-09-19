@@ -17,7 +17,7 @@ import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
 import { MobilePanelType } from "./MobileDrawer";
 import { useTranslation, SupportedLanguage } from "../i18n";
-import { Select, SelectOption, GithubIcon } from "./ui";
+import { Select, SelectOption } from "./ui";
 import { ProjectDropdown } from "./ProjectDropdown";
 
 interface HeaderProps {
@@ -178,19 +178,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Right: Simulation Clock & Quick Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {/* GitHub Repository Link */}
-          <a
-            href="https://github.com/larvance/axiom"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="GitHub: larvance/axiom (Open Source & Collaboration)"
-            aria-label="GitHub Repository"
-            className="btn btn-secondary btn-icon"
-            style={{ width: 28, height: 28, padding: 0, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <GithubIcon size={14} color="var(--text-secondary)" />
-          </a>
-
           {/* Custom Mobile Language Selector (Flag Only) */}
           <Select
             size="xs"
@@ -615,20 +602,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </>
         )}
-
-        {/* GitHub Repository Link */}
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-        <a
-          href="https://github.com/larvance/axiom"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="GitHub: larvance/axiom (Open Source & Collaboration)"
-          aria-label="GitHub Repository"
-          className="btn btn-secondary btn-icon"
-          style={{ width: 28, height: 28, padding: 0, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-        >
-          <GithubIcon size={14} color="var(--text-secondary)" />
-        </a>
 
         {/* Global Language Selector Dropdown (Flag Only) */}
         <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
