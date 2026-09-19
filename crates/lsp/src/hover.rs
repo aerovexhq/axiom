@@ -306,6 +306,36 @@ fn keyword_doc(kw: &str) -> Option<&'static str> {
         "generate" => Some(
             "### `generate` ... `endgenerate`\n\nElaboration-time conditional or iterative hardware instantiation block."
         ),
+        "$dumpfile" => Some(
+            "### `$dumpfile(\"filename.vcd\")`\n\nSystem task that designates the target Value Change Dump (VCD) waveform trace file for simulation logging."
+        ),
+        "$dumpvars" => Some(
+            "### `$dumpvars(level, module_instance)`\n\nSystem task that specifies which hierarchy levels and module signals to log into the active VCD waveform trace."
+        ),
+        "$finish" => Some(
+            "### `$finish`\n\nSystem task that terminates the active simulation run and closes waveform dump files."
+        ),
+        "$stop" => Some(
+            "### `$stop`\n\nSystem task that suspends simulation execution and returns control to interactive simulation mode or debugger."
+        ),
+        "$display" => Some(
+            "### `$display(format_string, args...)`\n\nSystem task that prints formatted diagnostic text and signal values to the simulation console."
+        ),
+        "$monitor" => Some(
+            "### `$monitor(format_string, args...)`\n\nSystem task that monitors argument signals and prints a line whenever any of the listed signals change value."
+        ),
+        "$time" => Some(
+            "### `$time`\n\nSystem function that returns the current 64-bit integer simulation time scaled to the active timescale unit."
+        ),
+        "$realtime" => Some(
+            "### `$realtime`\n\nSystem function that returns the current real (floating-point) simulation time scaled to the active timescale unit."
+        ),
+        "$random" => Some(
+            "### `$random`\n\nSystem function that returns a 32-bit signed pseudo-random integer."
+        ),
+        "$clog2" => Some(
+            "### `$clog2(value)`\n\nSystem function that computes the ceiling of the base-2 logarithm of an integer, commonly used to compute address bus and counter widths."
+        ),
         _ => None,
     }
 }

@@ -107,6 +107,17 @@ impl<'a> Elaborator<'a> {
                             local_nets.insert(name.clone(), id);
                         }
                     }
+
+                    if let Some(init_expr) = &decl.init {
+                        for name in &decl.names {
+                            let assign = AssignStmt {
+                                lhs: Expr::Ident(name.clone(), decl.span),
+                                rhs: init_expr.clone(),
+                                span: decl.span,
+                            };
+                            self.elaborate_continuous_assign(&assign, &local_nets, &resolved_params)?;
+                        }
+                    }
                 }
                 ModuleItem::ParamDecl(decl) => {
                     let val = self.eval_const_expr(&decl.value, &resolved_params)?;
@@ -281,6 +292,12 @@ impl<'a> Elaborator<'a> {
                 }
                 stmts.extend(current_else);
             }
+            Statement::Delay { stmt, .. } => {
+                if let Some(inner) = stmt {
+                    stmts.extend(self.lower_statement(inner, nets)?);
+                }
+            }
+            Statement::TaskCall { .. } => {}
             _ => {}
         }
         Ok(stmts)
@@ -317,6 +334,15 @@ impl<'a> Elaborator<'a> {
                 }
                 Ok(BirExpr::Concat(lowered))
             }
+            Expr::Replication { count, expr, .. } => {
+                let c = self.eval_const_expr(count, &HashMap::new()).unwrap_or(1) as usize;
+                let inner = self.lower_expr(expr, nets)?;
+                let mut items = Vec::new();
+                for _ in 0..c {
+                    items.push(inner.clone());
+                }
+                Ok(BirExpr::Concat(items))
+            }
             _ => Ok(BirExpr::Const(LogicVector::zeros(1))),
         }
     }
@@ -336,6 +362,16 @@ impl<'a> Elaborator<'a> {
                 self.collect_read_nets(then_branch, nets, out);
                 if let Some(eb) = else_branch {
                     self.collect_read_nets(eb, nets, out);
+                }
+            }
+            Statement::Delay { stmt, .. } => {
+                if let Some(inner) = stmt {
+                    self.collect_read_nets(inner, nets, out);
+                }
+            }
+            Statement::TaskCall { args, .. } => {
+                for a in args {
+                    self.collect_expr_read_nets(a, nets, out);
                 }
             }
             _ => {}
@@ -364,6 +400,15 @@ impl<'a> Elaborator<'a> {
             Expr::Concat(items, _) => {
                 for it in items {
                     self.collect_expr_read_nets(it, nets, out);
+                }
+            }
+            Expr::Replication { count, expr, .. } => {
+                self.collect_expr_read_nets(count, nets, out);
+                self.collect_expr_read_nets(expr, nets, out);
+            }
+            Expr::Call { args, .. } => {
+                for a in args {
+                    self.collect_expr_read_nets(a, nets, out);
                 }
             }
             _ => {}

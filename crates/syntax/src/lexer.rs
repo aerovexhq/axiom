@@ -116,8 +116,8 @@ impl<'a> Lexer<'a> {
             return Token::new(kind, span);
         }
 
-        // Identifiers or Keywords
-        if c.is_ascii_alphabetic() || c == b'_' {
+        // Identifiers, Keywords, or System Identifiers ($dumpfile, $finish, etc.)
+        if c.is_ascii_alphabetic() || c == b'_' || c == b'$' {
             return self.scan_identifier_or_keyword(start_offset);
         }
 

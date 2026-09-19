@@ -104,6 +104,8 @@ impl VerilogCompletion {
             ("xnor", "XNOR gate primitive"),
             ("xor", "XOR gate primitive"),
             ("$display", "Console formatting display system task"),
+            ("$dumpfile", "Designate VCD waveform dump output file"),
+            ("$dumpvars", "Specify hierarchy and signals for VCD trace dump"),
             ("$finish", "Terminate simulation run"),
             ("$stop", "Pause simulation for debugging"),
             ("$time", "Current physical simulation time in ticks"),

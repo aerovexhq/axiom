@@ -66,6 +66,10 @@ impl VerilogLinter {
             if let ModuleItem::NetDecl(net) = item {
                 for name in &net.names {
                     declared_signals.insert(name.clone(), (net.data_type, net.range.clone(), net.span));
+                    if let Some(ref init_expr) = net.init {
+                        assigned_signals.entry(name.clone()).or_default().push(net.span);
+                        Self::collect_expr_reads(init_expr, &mut read_signals);
+                    }
                 }
             }
         }
@@ -137,10 +141,14 @@ impl VerilogLinter {
         }
 
         // Inspect Submodule Instances
+        let mut instance_connected_signals = HashSet::new();
         for item in &module.items {
             if let ModuleItem::Instance(inst) = item {
                 for (_, expr) in &inst.port_bindings {
                     Self::collect_expr_reads(expr, &mut read_signals);
+                    for sig in Self::collect_expr_targets(expr) {
+                        instance_connected_signals.insert(sig);
+                    }
                 }
                 for (_, expr) in &inst.param_bindings {
                     Self::collect_expr_reads(expr, &mut read_signals);
@@ -148,11 +156,12 @@ impl VerilogLinter {
             }
         }
 
-        // Rule AXIOM_W003_UNDRIVEN_NET: Declared & read, but never driven (and not an input port)
+        // Rule AXIOM_W003_UNDRIVEN_NET: Declared & read, but never driven (and not an input port or instance output)
         for (sig_name, (_, _, decl_span)) in &declared_signals {
             if !input_ports.contains(sig_name)
                 && read_signals.contains(sig_name)
                 && !assigned_signals.contains_key(sig_name)
+                && !instance_connected_signals.contains(sig_name)
             {
                 let (s_line, s_col, e_line, e_col) = Self::span_to_coords(source, *decl_span);
                 diags.push(
@@ -420,6 +429,26 @@ impl VerilogLinter {
                 Self::lint_statement(source, body, is_clocked, is_combinational, assigned_signals, read_signals, diags);
             }
 
+            Statement::Delay { stmt, .. } => {
+                if let Some(inner) = stmt {
+                    Self::lint_statement(
+                        source,
+                        inner,
+                        is_clocked,
+                        is_combinational,
+                        assigned_signals,
+                        read_signals,
+                        diags,
+                    );
+                }
+            }
+
+            Statement::TaskCall { args, .. } => {
+                for arg in args {
+                    Self::collect_expr_reads(arg, read_signals);
+                }
+            }
+
             Statement::Null => {}
         }
     }
@@ -451,6 +480,15 @@ impl VerilogLinter {
                 Self::collect_expr_reads(target, reads);
                 Self::collect_expr_reads(msb, reads);
                 Self::collect_expr_reads(lsb, reads);
+            }
+            Expr::Call { args, .. } => {
+                for arg in args {
+                    Self::collect_expr_reads(arg, reads);
+                }
+            }
+            Expr::Replication { count, expr, .. } => {
+                Self::collect_expr_reads(count, reads);
+                Self::collect_expr_reads(expr, reads);
             }
             _ => {}
         }

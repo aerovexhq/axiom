@@ -301,6 +301,9 @@ module uart_transceiver (
             tx_state  <= TX_IDLE;
           end
         end
+        default: begin
+          tx_state <= TX_IDLE;
+        end
       endcase
     end
   end
@@ -363,6 +366,9 @@ module uart_transceiver (
             end
             rx_state <= RX_IDLE;
           end
+        end
+        default: begin
+          rx_state <= RX_IDLE;
         end
       endcase
     end
@@ -462,6 +468,9 @@ module spi_master (
           done    <= 1'b1;
           rx_byte <= shift_rx;
           state   <= STATE_IDLE;
+        end
+        default: begin
+          state <= STATE_IDLE;
         end
       endcase
     end

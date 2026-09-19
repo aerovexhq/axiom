@@ -70,6 +70,7 @@ pub struct NetDecl {
     pub data_type: DataType,
     pub range: Option<Range>,
     pub names: Vec<String>,
+    pub init: Option<Expr>,
     pub span: Span,
 }
 
@@ -119,7 +120,31 @@ pub enum Statement {
     If { cond: Expr, then_branch: Box<Statement>, else_branch: Option<Box<Statement>>, span: Span },
     Case { expr: Expr, items: Vec<CaseItem>, span: Span },
     For { init: Box<Statement>, cond: Expr, step: Box<Statement>, body: Box<Statement>, span: Span },
+    Delay { amount: Expr, stmt: Option<Box<Statement>>, span: Span },
+    TaskCall { name: String, args: Vec<Expr>, span: Span },
     Null,
+}
+
+impl Statement {
+    pub fn span(&self) -> Span {
+        match self {
+            Statement::Block(stmts) => {
+                if let (Some(first), Some(last)) = (stmts.first(), stmts.last()) {
+                    first.span().merge(last.span())
+                } else {
+                    Span::new(axiom_core::FileId(0), 0, 0)
+                }
+            }
+            Statement::BlockingAssign { span, .. } => *span,
+            Statement::NonBlockingAssign { span, .. } => *span,
+            Statement::If { span, .. } => *span,
+            Statement::Case { span, .. } => *span,
+            Statement::For { span, .. } => *span,
+            Statement::Delay { span, .. } => *span,
+            Statement::TaskCall { span, .. } => *span,
+            Statement::Null => Span::new(axiom_core::FileId(0), 0, 0),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,6 +181,8 @@ pub enum Expr {
     Ternary { cond: Box<Expr>, then_expr: Box<Expr>, else_expr: Box<Expr>, span: Span },
     Slice { target: Box<Expr>, msb: Box<Expr>, lsb: Box<Expr>, span: Span },
     Concat(Vec<Expr>, Span),
+    Call { name: String, args: Vec<Expr>, span: Span },
+    Replication { count: Box<Expr>, expr: Box<Expr>, span: Span },
 }
 
 impl Expr {
@@ -170,6 +197,8 @@ impl Expr {
             Expr::Ternary { span, .. } => *span,
             Expr::Slice { span, .. } => *span,
             Expr::Concat(_, s) => *s,
+            Expr::Call { span, .. } => *span,
+            Expr::Replication { span, .. } => *span,
         }
     }
 }

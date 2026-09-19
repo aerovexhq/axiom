@@ -110,7 +110,7 @@ module ${rawName};
     #20 rst_n = 1;
 
     #500;
-    $display("Simulation completed successfully at %0t ps", $time);
+    $display("Simulation completed successfully at %0t ps (rst_n=%b)", $time, rst_n);
     $finish;
   end
 endmodule

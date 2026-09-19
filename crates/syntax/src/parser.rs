@@ -378,9 +378,22 @@ impl<'a> Parser<'a> {
         };
 
         let mut names = Vec::new();
+        let mut init = None;
+
         while let TokenKind::Ident(name) = self.peek().clone() {
             self.advance();
             names.push(name);
+
+            // Optional unpacked dimensions: reg [31:0] regfile [0:7];
+            if self.check(&TokenKind::LBracket) {
+                let _ = self.parse_range();
+            }
+
+            // Optional initial / continuous assignment: wire [6:0] opcode = instr[6:0];
+            if self.match_token(&TokenKind::AssignEq) {
+                init = self.parse_expr();
+            }
+
             if !self.match_token(&TokenKind::Comma) {
                 break;
             }
@@ -392,6 +405,7 @@ impl<'a> Parser<'a> {
             data_type,
             range,
             names,
+            init,
             span: start_span.merge(end_span),
         }))
     }
@@ -401,19 +415,43 @@ impl<'a> Parser<'a> {
         let start_span = tok.span;
         let is_local = tok.kind == TokenKind::LocalParam;
 
+        // Optional range: localparam [1:0] ...
+        if self.check(&TokenKind::LBracket) {
+            let _ = self.parse_range();
+        }
+
         // Optional type (int, integer, bit, byte, logic, wire, reg, etc.)
         if let TokenKind::Ident(s) = self.peek() {
             if matches!(s.as_str(), "int" | "integer" | "bit" | "byte" | "shortint" | "longint" | "real" | "logic" | "wire" | "reg") {
                 self.advance();
+                if self.check(&TokenKind::LBracket) {
+                    let _ = self.parse_range();
+                }
             }
         } else if self.check(&TokenKind::Integer) {
             self.advance();
+            if self.check(&TokenKind::LBracket) {
+                let _ = self.parse_range();
+            }
         }
 
         if let TokenKind::Ident(name) = self.peek().clone() {
             self.advance();
             self.expect(&TokenKind::AssignEq, "parameter '='")?;
             let value = self.parse_expr()?;
+
+            // Support comma-separated parameter lists: localparam A = 1, B = 2;
+            while self.match_token(&TokenKind::Comma) {
+                if let TokenKind::Ident(_) = self.peek().clone() {
+                    self.advance();
+                    if self.expect(&TokenKind::AssignEq, "parameter '='").is_some() {
+                        let _ = self.parse_expr();
+                    }
+                } else {
+                    break;
+                }
+            }
+
             let end_span = self.expect(&TokenKind::Semicolon, "parameter ';'")?;
             Some(ModuleItem::ParamDecl(ParamDecl {
                 is_local,
@@ -584,27 +622,65 @@ impl<'a> Parser<'a> {
                 self.advance();
                 Some(Statement::Null)
             }
+            TokenKind::At => {
+                // Event control: @(posedge clk); or @(posedge clk) q <= d;
+                self.advance();
+                let _ = self.parse_sensitivity_list();
+                if self.match_token(&TokenKind::Semicolon) {
+                    Some(Statement::Null)
+                } else {
+                    self.parse_statement()
+                }
+            }
+            TokenKind::Hash => {
+                // Procedural delay: #10; or #20 rst_n = 1;
+                let hash_span = self.advance().span;
+                let amount = self.parse_expr()?;
+                if self.match_token(&TokenKind::Semicolon) {
+                    Some(Statement::Delay {
+                        amount,
+                        stmt: None,
+                        span: hash_span.merge(self.current_span()),
+                    })
+                } else {
+                    let inner = self.parse_statement()?;
+                    let span = hash_span.merge(inner.span());
+                    Some(Statement::Delay {
+                        amount,
+                        stmt: Some(Box::new(inner)),
+                        span,
+                    })
+                }
+            }
             _ => {
-                // Assignments: lhs = rhs; or lhs <= rhs;
-                let lhs = self.parse_expr_precedence(Precedence::Shift)?;
+                // System task call, user task call, or assignment:
+                let expr = self.parse_expr_precedence(Precedence::Shift)?;
                 if self.match_token(&TokenKind::LtEq) || self.match_token(&TokenKind::AssignLe) {
                     let rhs = self.parse_expr()?;
                     let end_span = self.expect(&TokenKind::Semicolon, "non-blocking assignment ';'")?;
                     Some(Statement::NonBlockingAssign {
-                        span: lhs.span().merge(end_span),
-                        lhs,
+                        span: expr.span().merge(end_span),
+                        lhs: expr,
                         rhs,
                     })
                 } else if self.match_token(&TokenKind::AssignEq) {
                     let rhs = self.parse_expr()?;
                     let end_span = self.expect(&TokenKind::Semicolon, "assignment ';'")?;
                     Some(Statement::BlockingAssign {
-                        span: lhs.span().merge(end_span),
-                        lhs,
+                        span: expr.span().merge(end_span),
+                        lhs: expr,
                         rhs,
                     })
+                } else if self.match_token(&TokenKind::Semicolon) {
+                    // Expression statement or void task call: e.g. $finish; or my_task(a, b);
+                    let span = expr.span().merge(self.current_span());
+                    match expr {
+                        Expr::Call { name, args, .. } => Some(Statement::TaskCall { name, args, span }),
+                        Expr::Ident(name, _) => Some(Statement::TaskCall { name, args: Vec::new(), span }),
+                        _ => Some(Statement::Null),
+                    }
                 } else {
-                    self.diagnostics.push(Diagnostic::error("Expected assignment operator", self.current_span()));
+                    self.diagnostics.push(Diagnostic::error("Expected assignment operator or ';'", self.current_span()));
                     None
                 }
             }
@@ -705,30 +781,53 @@ impl<'a> Parser<'a> {
         let tok = self.advance().clone();
         match tok.kind {
             TokenKind::Ident(name) => {
-                let mut expr = Expr::Ident(name, tok.span);
-                // Check for bit-slice [msb:lsb] or [idx]
-                if self.match_token(&TokenKind::LBracket) {
-                    let msb = self.parse_expr()?;
-                    if self.match_token(&TokenKind::Colon) {
-                        let lsb = self.parse_expr()?;
-                        let end_span = self.expect(&TokenKind::RBracket, "slice ']'")?;
-                        expr = Expr::Slice {
-                            target: Box::new(expr),
-                            msb: Box::new(msb),
-                            lsb: Box::new(lsb),
-                            span: tok.span.merge(end_span),
-                        };
-                    } else {
-                        let end_span = self.expect(&TokenKind::RBracket, "index ']'")?;
-                        expr = Expr::Slice {
-                            target: Box::new(expr),
-                            msb: Box::new(msb.clone()),
-                            lsb: Box::new(msb),
-                            span: tok.span.merge(end_span),
-                        };
+                let start_span = tok.span;
+                // Check for function or system task call in expression: $time or func(a, b)
+                if self.match_token(&TokenKind::LParen) {
+                    let mut args = Vec::new();
+                    while !self.check(&TokenKind::RParen) && !self.check(&TokenKind::Eof) {
+                        if let Some(arg) = self.parse_expr() {
+                            args.push(arg);
+                        } else {
+                            break;
+                        }
+                        if !self.match_token(&TokenKind::Comma) {
+                            break;
+                        }
                     }
+                    let end_span = self.expect(&TokenKind::RParen, "function call ')'")
+                        .unwrap_or(start_span);
+                    Some(Expr::Call {
+                        name,
+                        args,
+                        span: start_span.merge(end_span),
+                    })
+                } else {
+                    let mut expr = Expr::Ident(name, tok.span);
+                    // Check for bit-slice [msb:lsb] or [idx]
+                    if self.match_token(&TokenKind::LBracket) {
+                        let msb = self.parse_expr()?;
+                        if self.match_token(&TokenKind::Colon) {
+                            let lsb = self.parse_expr()?;
+                            let end_span = self.expect(&TokenKind::RBracket, "slice ']'")?;
+                            expr = Expr::Slice {
+                                target: Box::new(expr),
+                                msb: Box::new(msb),
+                                lsb: Box::new(lsb),
+                                span: tok.span.merge(end_span),
+                            };
+                        } else {
+                            let end_span = self.expect(&TokenKind::RBracket, "index ']'")?;
+                            expr = Expr::Slice {
+                                target: Box::new(expr),
+                                msb: Box::new(msb.clone()),
+                                lsb: Box::new(msb),
+                                span: tok.span.merge(end_span),
+                            };
+                        }
+                    }
+                    Some(expr)
                 }
-                Some(expr)
             }
             TokenKind::Number(vec) => Some(Expr::Number(vec, tok.span)),
             TokenKind::UnsizedInt(val) => Some(Expr::UnsizedInt(val, tok.span)),
@@ -739,16 +838,30 @@ impl<'a> Parser<'a> {
                 Some(expr)
             }
             TokenKind::LBrace => {
-                // Concatenation {a, b, c}
-                let mut exprs = Vec::new();
-                while !self.check(&TokenKind::RBrace) && !self.check(&TokenKind::Eof) {
-                    exprs.push(self.parse_expr()?);
-                    if !self.match_token(&TokenKind::Comma) {
-                        break;
+                // Concatenation {a, b, c} or replication {count {pattern}}
+                let first = self.parse_expr()?;
+                if self.match_token(&TokenKind::LBrace) {
+                    // Replication: { 20 { instr[31] } }
+                    let inner = self.parse_expr()?;
+                    self.expect(&TokenKind::RBrace, "closing '}' of replication pattern")?;
+                    let end_span = self.expect(&TokenKind::RBrace, "closing '}' of replication")?;
+                    Some(Expr::Replication {
+                        count: Box::new(first),
+                        expr: Box::new(inner),
+                        span: tok.span.merge(end_span),
+                    })
+                } else {
+                    let mut exprs = vec![first];
+                    while self.match_token(&TokenKind::Comma) {
+                        if let Some(e) = self.parse_expr() {
+                            exprs.push(e);
+                        } else {
+                            break;
+                        }
                     }
+                    let end_span = self.expect(&TokenKind::RBrace, "closing '}'")?;
+                    Some(Expr::Concat(exprs, tok.span.merge(end_span)))
                 }
-                let end_span = self.expect(&TokenKind::RBrace, "closing '}'")?;
-                Some(Expr::Concat(exprs, tok.span.merge(end_span)))
             }
             TokenKind::Tilde => {
                 let sub = self.parse_expr_precedence(Precedence::Unary)?;
