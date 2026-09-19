@@ -1,6 +1,8 @@
 // Axiom Engine Bridge — Universal IPC & In-RAM Simulation Engine
 import initWasm, { WasmEngine } from "../wasm/axiom_wasm.js";
 import wasmUrl from "../wasm/axiom_wasm_bg.wasm?url";
+import { simWorkerClient } from "./worker/simWorkerClient";
+import type { WorkerEventBatchMessage } from "./worker/simWorkerProtocol";
 
 export type LogicValue = "0" | "1" | "x" | "z";
 
@@ -124,6 +126,11 @@ export class AxiomEngineBridge {
     this.isTauri = typeof window !== "undefined" && !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     this.state = this.getInitialState("alu_8bit");
     if (!this.isTauri) {
+      if (simWorkerClient.isSupported()) {
+        simWorkerClient.onEventBatch((batch) => this.applyWorkerEventBatch(batch));
+        simWorkerClient.onLog((msg, level) => this.log(msg, level));
+        simWorkerClient.init().catch((e) => console.warn("simWorkerClient init fallback:", e));
+      }
       this.initWasm();
     }
   }
@@ -158,6 +165,13 @@ export class AxiomEngineBridge {
     if (fileType === "xdc" || fileType?.endsWith(".xdc") || fileType?.endsWith(".sdc")) {
       return this.lintXdc(source);
     }
+    if (!this.isTauri && simWorkerClient.isSupported()) {
+      try {
+        return await simWorkerClient.lint(source);
+      } catch (e) {
+        console.warn("[engineBridge] Worker lint fallback to main thread:", e);
+      }
+    }
     try {
       const wasm = await this.initWasm();
       if (wasm) {
@@ -170,6 +184,13 @@ export class AxiomEngineBridge {
   }
 
   public async lintXdc(source: string): Promise<LspDiagnostic[]> {
+    if (!this.isTauri && simWorkerClient.isSupported()) {
+      try {
+        return await simWorkerClient.lintXdc(source);
+      } catch (e) {
+        console.warn("[engineBridge] Worker XDC lint fallback to main thread:", e);
+      }
+    }
     try {
       const wasm = await this.initWasm();
       if (wasm && typeof (wasm as any).lint_xdc === "function") {
@@ -182,6 +203,13 @@ export class AxiomEngineBridge {
   }
 
   public async hover(source: string, line: number, column: number): Promise<HoverResult | null> {
+    if (!this.isTauri && simWorkerClient.isSupported()) {
+      try {
+        return await simWorkerClient.hover(source, line, column);
+      } catch (e) {
+        console.warn("[engineBridge] Worker hover fallback to main thread:", e);
+      }
+    }
     try {
       const wasm = await this.initWasm();
       if (wasm) {
@@ -206,6 +234,13 @@ export class AxiomEngineBridge {
   }
 
   public async complete(source: string, line: number, column: number): Promise<CompletionItem[]> {
+    if (!this.isTauri && simWorkerClient.isSupported()) {
+      try {
+        return await simWorkerClient.complete(source, line, column);
+      } catch (e) {
+        console.warn("[engineBridge] Worker complete fallback to main thread:", e);
+      }
+    }
     try {
       const wasm = await this.initWasm();
       if (wasm) {
@@ -475,13 +510,81 @@ export class AxiomEngineBridge {
   }
 
   public getState(): SimulationState {
+    if (!this.isTauri && simWorkerClient.isInitialized()) {
+      const snapshot = simWorkerClient.readSharedSnapshot();
+      if (snapshot) {
+        this.state.currentSimTimePs = snapshot.timePs;
+        this.state.currentDeltaCycle = snapshot.delta;
+        this.state.isRunning = snapshot.isRunning;
+        this.state.glitchCount = snapshot.glitchCount;
+      }
+    }
     return { ...this.state };
+  }
+
+  private applyWorkerEventBatch(batch: WorkerEventBatchMessage) {
+    this.state.currentSimTimePs = batch.timePs;
+    this.state.currentDeltaCycle = batch.delta;
+    if (batch.isRunning !== undefined) {
+      this.state.isRunning = batch.isRunning;
+    }
+    if (batch.eventsExecuted !== undefined) {
+      this.state.totalEventsExecuted = batch.eventsExecuted;
+      this.state.totalEventsScheduled = batch.eventsExecuted;
+    }
+    if (batch.glitchCount !== undefined) {
+      this.state.glitchCount = batch.glitchCount;
+    }
+    if (batch.peakCurrentMa !== undefined && batch.peakCurrentMa > this.state.peakCurrentMa) {
+      this.state.peakCurrentMa = batch.peakCurrentMa;
+    }
+    if (batch.maxSagMv !== undefined && batch.maxSagMv > this.state.maxSagMv) {
+      this.state.maxSagMv = batch.maxSagMv;
+    }
+
+    if (Array.isArray(batch.signalValues)) {
+      for (const item of batch.signalValues) {
+        const netName = Array.isArray(item) ? item[0] : (item as any).name;
+        const valStr = Array.isArray(item) ? item[1] : (item as any).value;
+        let sig = this.state.signals.find(s => s.fullName === netName || s.name === netName || s.id === netName);
+        if (sig) {
+          const prev = sig.samples[sig.samples.length - 1];
+          if (!prev || prev.timePs !== batch.timePs || prev.delta !== batch.delta || prev.value !== valStr) {
+            sig.samples.push({
+              timePs: batch.timePs,
+              delta: batch.delta,
+              value: valStr
+            });
+          }
+        }
+      }
+    }
+
+    if (batch.telemetry) {
+      this.state.telemetry.push(batch.telemetry);
+      if (this.state.telemetry.length > 2000) {
+        this.state.telemetry.shift();
+      }
+    }
+
+    if (batch.glitches && batch.glitches.length > 0) {
+      for (const g of batch.glitches) {
+        this.state.glitches.push(g);
+      }
+    }
+
+    this.notify();
   }
 
   public compile(code: string, topModule: string) {
     this.activeSourceCode = code;
     if (this.isTauri) {
       this.compileTauri(code, topModule);
+      return;
+    }
+
+    if (simWorkerClient.isSupported()) {
+      this.compileWorker(code, topModule);
       return;
     }
 
@@ -497,6 +600,36 @@ export class AxiomEngineBridge {
         this.compileFallback(topModule);
       }
     });
+  }
+
+  private async compileWorker(code: string, topModule: string) {
+    this.log(`Compiling '${topModule}' with dedicated WebWorker WebAssembly sandbox...`, "info");
+    const t0 = performance.now();
+    try {
+      const res = await simWorkerClient.compile(code, topModule);
+      if (res && res.success) {
+        this.updateCompiledNets(res.nets, topModule);
+        const elapsed = (performance.now() - t0).toFixed(2);
+        this.log(`[WebWorker WASM] Elaboration & 4-State Arena compilation completed in ${elapsed} ms. Dedicated thread isolation active.`, "info");
+        this.log(`Stratified Event Queue initialized. 4-State Arena ready. PDN 1.2V rail attached.`, "info");
+        this.notify();
+      } else {
+        this.compileFallback(topModule);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[Worker Compilation Error]: ${msg} - falling back to main-thread WASM...`, "warn");
+      if (this.wasmEngine) {
+        this.compileWasm(code, topModule);
+      } else {
+        const wasm = await this.initWasm();
+        if (wasm) {
+          this.compileWasm(code, topModule);
+        } else {
+          this.compileFallback(topModule);
+        }
+      }
+    }
   }
 
   private compileWasm(code: string, topModule: string) {
@@ -653,12 +786,31 @@ export class AxiomEngineBridge {
       return;
     }
 
+    if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      this.tickWorker(deltaPs);
+      return;
+    }
+
     if (this.wasmEngine) {
       this.tickWasm(deltaPs);
       return;
     }
 
     this.tickFallback(deltaPs);
+  }
+
+  private async tickWorker(deltaPs: number) {
+    try {
+      const res = await simWorkerClient.stepTime(deltaPs);
+      if (res) {
+        this.applyStepResponse(res);
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[Worker Sim Error]: ${msg}`, "error");
+      this.tickFallback(deltaPs);
+    }
   }
 
   private tickWasm(deltaPs: number) {
@@ -732,12 +884,32 @@ export class AxiomEngineBridge {
       return;
     }
 
+    if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      this.stepDeltaWorker();
+      return;
+    }
+
     if (this.wasmEngine) {
       this.stepDeltaWasm();
       return;
     }
 
     this.stepDeltaFallback();
+  }
+
+  private async stepDeltaWorker() {
+    try {
+      const res = await simWorkerClient.stepDelta();
+      if (res) {
+        this.applyStepResponse(res);
+        this.log(`Stepped single delta-cycle (Worker WASM): delta=${this.state.currentDeltaCycle} at t=${this.state.currentSimTimePs}ps`, "event");
+        this.notify();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log(`[Worker Delta Error]: ${msg}`, "error");
+      this.stepDeltaFallback();
+    }
   }
 
   private stepDeltaWasm() {
@@ -1309,6 +1481,13 @@ export class AxiomEngineBridge {
     this.log("Simulation running continuous clock ticks...", "info");
     this.notify();
 
+    if (!this.isTauri && simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      simWorkerClient.startPlay(30, 1000).catch(err => {
+        console.warn("[SimWorkerClient] startPlay error:", err);
+      });
+      return;
+    }
+
     this.timerId = window.setInterval(() => {
       this.tick(1000); // 1 ns advance per tick
     }, 40);
@@ -1321,6 +1500,11 @@ export class AxiomEngineBridge {
       clearInterval(this.timerId);
       this.timerId = null;
     }
+    if (!this.isTauri && simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      simWorkerClient.pause().catch(err => {
+        console.warn("[SimWorkerClient] pause error:", err);
+      });
+    }
     this.log(`Simulation paused at t=${this.state.currentSimTimePs}ps (delta ${this.state.currentDeltaCycle})`, "info");
     this.notify();
   }
@@ -1332,12 +1516,17 @@ export class AxiomEngineBridge {
     if (wasCompiled && this.activeSourceCode) {
       if (this.isTauri) {
         this.compileTauri(this.activeSourceCode, top);
+      } else if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+        this.compileWorker(this.activeSourceCode, top);
       } else if (this.wasmEngine) {
         this.compileWasm(this.activeSourceCode, top);
       } else {
         this.compileFallback(top);
       }
     } else {
+      if (!this.isTauri && simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+        simWorkerClient.reset(top).catch(err => console.warn("Worker reset error:", err));
+      }
       const init = this.getInitialState(top);
       init.compiled = true;
       this.state = init;
@@ -1439,6 +1628,10 @@ export class AxiomEngineBridge {
           this.log(`[Tauri Force Error]: ${err}`, "error");
         });
       });
+    } else if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      simWorkerClient.forceSignal(signalId, value).catch(err => {
+        this.log(`[Worker Force Error]: ${err}`, "error");
+      });
     } else if (this.wasmEngine) {
       try {
         this.wasmEngine.force_signal(signalId, value);
@@ -1487,6 +1680,24 @@ export class AxiomEngineBridge {
   }
 
   public releaseForce(signalId: string) {
+    if (this.isTauri) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("release_force", { netName: signalId }).catch((err) => {
+          this.log(`[Tauri Release Force Error]: ${err}`, "error");
+        });
+      });
+    } else if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      simWorkerClient.releaseForce(signalId).catch(err => {
+        this.log(`[Worker Release Force Error]: ${err}`, "error");
+      });
+    } else if (this.wasmEngine && typeof (this.wasmEngine as any).release_force === "function") {
+      try {
+        (this.wasmEngine as any).release_force(signalId);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.log(`[WASM Release Force Error]: ${msg}`, "error");
+      }
+    }
     this.state.forcedSignalIds = this.state.forcedSignalIds.filter(id => id !== signalId);
     this.log(`[RELEASE] Released force on signal '${signalId}'. Re-evaluating circuit...`, "info");
     this.notify();
