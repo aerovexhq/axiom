@@ -30,9 +30,52 @@ import {
 } from "./engine/projectModel";
 import { SampleDesign } from "./engine/sampleDesigns";
 
+// URL Project Query Parameter Routing (?project=unique_name)
+function getUrlProjectSlug(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("project");
+}
+
+function setUrlProjectSlug(slug: string | null) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (slug) {
+    url.searchParams.set("project", slug);
+  } else {
+    url.searchParams.delete("project");
+  }
+  window.history.pushState({}, "", url.toString());
+}
+
+function getInitialProject(): AxiomProject | null {
+  const slug = getUrlProjectSlug();
+  if (!slug) {
+    // When visiting without ?project=... (e.g. fresh http://localhost:3000/ or /studio/), start cleanly in Main Menu
+    return null;
+  }
+  const saved = loadSavedProject();
+  if (saved && (saved.name === slug || saved.id === slug || saved.templateId === slug)) {
+    return saved;
+  }
+  // Check if slug matches a known template
+  const tmpl = PROJECT_TEMPLATES.find(
+    (t) =>
+      t.id === slug ||
+      t.defaultTopModule === slug ||
+      t.name.toLowerCase().replace(/[^a-z0-9]/g, "_").includes(slug.toLowerCase())
+  );
+  if (tmpl) {
+    const newProj = createProjectFromTemplate(tmpl.id);
+    saveProjectToStorage(newProj);
+    return newProj;
+  }
+  return saved;
+}
+
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
-  const [project, setProject] = useState<AxiomProject | null>(() => loadSavedProject());
+  const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
   const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "split">("split");
   const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | "timing" | null>(null);
 
@@ -200,10 +243,36 @@ export const App: React.FC = () => {
   };
 
   const handleCloseProject = () => {
+    setUrlProjectSlug(null);
     setProject(null);
     clearSavedProject();
     engineBridge.reset();
   };
+
+  // Browser back/forward navigation sync
+  useEffect(() => {
+    const handlePopState = () => {
+      const slug = getUrlProjectSlug();
+      if (!slug) {
+        setProject(null);
+        engineBridge.reset();
+      } else {
+        const saved = loadSavedProject();
+        if (saved && (saved.name === slug || saved.id === slug || saved.templateId === slug)) {
+          setProject(saved);
+        } else {
+          const tmpl = PROJECT_TEMPLATES.find((t) => t.id === slug || t.defaultTopModule === slug);
+          if (tmpl) {
+            const newProj = createProjectFromTemplate(tmpl.id);
+            setProject(newProj);
+            saveProjectToStorage(newProj);
+          }
+        }
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const handleSelectTemplate = (templateId: string) => {
     const newProj = createProjectFromTemplate(templateId);
@@ -224,6 +293,8 @@ export const App: React.FC = () => {
   };
 
   const handleCreateProject = (newProj: AxiomProject) => {
+    const slug = newProj.name || newProj.id;
+    setUrlProjectSlug(slug);
     setProject(newProj);
     saveProjectToStorage(newProj);
     const bundled = bundleProjectSources(newProj);

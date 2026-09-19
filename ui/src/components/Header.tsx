@@ -120,7 +120,17 @@ export const Header: React.FC<HeaderProps> = ({
             <Menu size={18} />
           </button>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <div
+            onClick={project ? onCloseProject : undefined}
+            title={project ? "Return to Main Menu" : undefined}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexShrink: 0,
+              cursor: project ? "pointer" : "default"
+            }}
+          >
             <img
               src="/logo.svg"
               alt="Axiom Logo"
@@ -254,7 +264,26 @@ export const Header: React.FC<HeaderProps> = ({
     >
       {/* Left: Brand & Project Identity */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexShrink: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
+        <div
+          onClick={project ? onCloseProject : undefined}
+          role={project ? "button" : undefined}
+          tabIndex={project ? 0 : undefined}
+          title={project ? "Return to Main Menu (Close Project)" : "Axiom EDA Studio"}
+          onKeyDown={(e) => {
+            if (project && (e.key === "Enter" || e.key === " ")) {
+              onCloseProject?.();
+            }
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            flexShrink: 0,
+            cursor: project ? "pointer" : "default",
+            userSelect: "none",
+            transition: "opacity 0.15s ease"
+          }}
+        >
           <img
             src="/logo.svg"
             alt="Axiom Logo"
