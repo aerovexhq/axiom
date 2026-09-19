@@ -16,8 +16,8 @@ import {
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
 import { MobilePanelType } from "./MobileDrawer";
-import { useTranslation, SupportedLanguage } from "../i18n";
-import { Select, SelectOption } from "./ui";
+import { useTranslation } from "../i18n";
+import { LanguageDropdown } from "./LanguageDropdown";
 import { ProjectDropdown } from "./ProjectDropdown";
 
 interface HeaderProps {
@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOmnibar,
   isSplitView = true
 }) => {
-  const { t, language, setLanguage, languages } = useTranslation();
+  const { t } = useTranslation();
 
   const formatTime = (timePs: number) => {
     if (timePs >= 1_000_000) {
@@ -75,26 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const currentLanguageInfo = React.useMemo(() => {
-    return languages.find((l) => l.code === language);
-  }, [languages, language]);
 
-  const desktopLanguageOptions: SelectOption[] = React.useMemo(() => {
-    return languages.map((l) => ({
-      value: l.code,
-      label: `${l.flag}  ${l.nativeName}`,
-      sublabel: l.name !== l.nativeName ? l.name : undefined,
-      badge: l.code.toUpperCase()
-    }));
-  }, [languages]);
-
-  const mobileLanguageOptions: SelectOption[] = React.useMemo(() => {
-    return languages.map((l) => ({
-      value: l.code,
-      label: `${l.flag}  ${l.nativeName}`,
-      badge: l.code.toUpperCase()
-    }));
-  }, [languages]);
 
   if (isMobile) {
     return (
@@ -177,28 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Mobile Right: Simulation Clock & Quick Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           {/* Custom Mobile Language Selector (Flag Only) */}
-          <Select
-            size="xs"
-            align="right"
-            value={language}
-            onChange={(val) => setLanguage(val as SupportedLanguage)}
-            options={mobileLanguageOptions}
-            title={t("header.language")}
-            hideChevron
-            buttonClassName="btn btn-secondary btn-icon"
-            buttonStyle={{
-              width: 28,
-              height: 28,
-              padding: 0,
-              justifyContent: "center"
-            }}
-            menuStyle={{ minWidth: 165 }}
-            renderTrigger={() => (
-              <span style={{ fontSize: 16, lineHeight: 1, userSelect: "none" }} aria-label={t("header.language")}>
-                {currentLanguageInfo?.flag || "🇺🇸"}
-              </span>
-            )}
-          />
+          <LanguageDropdown align="right" />
 
           {project && (
             <span
@@ -602,28 +562,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Global Language Selector Dropdown (Flag Only) */}
         <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-        <Select
-          size="xs"
-          align="right"
-          value={language}
-          onChange={(val) => setLanguage(val as SupportedLanguage)}
-          options={desktopLanguageOptions}
-          title={t("header.language")}
-          hideChevron
-          buttonClassName="btn btn-secondary btn-icon"
-          buttonStyle={{
-            width: 28,
-            height: 28,
-            padding: 0,
-            justifyContent: "center"
-          }}
-          menuStyle={{ minWidth: 165 }}
-          renderTrigger={() => (
-            <span style={{ fontSize: 16, lineHeight: 1, userSelect: "none" }} aria-label={t("header.language")}>
-              {currentLanguageInfo?.flag || "🇺🇸"}
-            </span>
-          )}
-        />
+        <LanguageDropdown align="right" />
 
         {/* Cross Probe Active Signal */}
         {project && activeCrossProbeSignal && (

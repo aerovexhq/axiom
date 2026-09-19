@@ -109,7 +109,7 @@ export const en: Translations = {
     targetPart: "Target Part:",
     topModule: "Top Module:",
     loadTemplate: "Load Template Project",
-    projectFileSets: "Project File Sets",
+    projectFileSets: "Project Files",
     netlistTree: "Elaborated Netlist Tree",
     noDesignSources: "No design sources added",
     noSimSources: "No testbench sources",

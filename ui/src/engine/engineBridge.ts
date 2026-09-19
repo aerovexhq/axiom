@@ -268,7 +268,73 @@ export class AxiomEngineBridge {
     let signals: SignalDef[] = [];
     let hierarchy: HierarchyNode[] = [];
 
-    if (topModule === "uart_transceiver" || topModule === "uart") {
+    if (topModule === "logic_circuit" || topModule.includes("logic_circuit")) {
+      signals = [
+        { id: "A", name: "A", scope: topModule, fullName: `${topModule}.A`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "B", name: "B", scope: topModule, fullName: `${topModule}.B`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "C", name: "C", scope: topModule, fullName: `${topModule}.C`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "w1", name: "w1", scope: topModule, fullName: `${topModule}.w1`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "w2", name: "w2", scope: topModule, fullName: `${topModule}.w2`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "w3", name: "w3", scope: topModule, fullName: `${topModule}.w3`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "w4", name: "w4", scope: topModule, fullName: `${topModule}.w4`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "F", name: "F", scope: topModule, fullName: `${topModule}.F`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.A`, name: "A", kind: "net", width: 1 },
+          { id: `${topModule}.B`, name: "B", kind: "net", width: 1 },
+          { id: `${topModule}.C`, name: "C", kind: "net", width: 1 },
+          { id: `${topModule}.w1`, name: "w1", kind: "wire", width: 1 },
+          { id: `${topModule}.w2`, name: "w2", kind: "wire", width: 1 },
+          { id: `${topModule}.w3`, name: "w3", kind: "wire", width: 1 },
+          { id: `${topModule}.w4`, name: "w4", kind: "wire", width: 1 },
+          { id: `${topModule}.F`, name: "F", kind: "net", width: 1 },
+          { id: `${topModule}.gate_inv1`, name: "inv1", kind: "process" },
+          { id: `${topModule}.gate_inv2`, name: "inv2", kind: "process" },
+          { id: `${topModule}.gate_and1`, name: "and1", kind: "process" },
+          { id: `${topModule}.gate_and2`, name: "and2", kind: "process" },
+          { id: `${topModule}.gate_or1`, name: "or1", kind: "process" }
+        ]
+      }];
+    } else if (topModule === "dsp_bram_mac" || topModule.includes("dsp_bram") || topModule.includes("dsp")) {
+      signals = [
+        { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "rst", name: "rst", scope: topModule, fullName: `${topModule}.rst`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "en", name: "en", scope: topModule, fullName: `${topModule}.en`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "addr", name: "addr[9:0]", scope: topModule, fullName: `${topModule}.addr`, width: 10, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x000" }] },
+        { id: "din_coeff", name: "din_coeff[15:0]", scope: topModule, fullName: `${topModule}.din_coeff`, width: 16, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x0000" }] },
+        { id: "clk_g", name: "clk_g", scope: topModule, fullName: `${topModule}.clk_g`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
+        { id: "run_step", name: "run_step", scope: topModule, fullName: `${topModule}.run_step`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "mac_active", name: "mac_active", scope: topModule, fullName: `${topModule}.mac_active`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "1" }] },
+        { id: "dout_a", name: "dout_a[31:0]", scope: topModule, fullName: `${topModule}.dout_a`, width: 32, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00000000" }] },
+        { id: "dout_b", name: "dout_b[31:0]", scope: topModule, fullName: `${topModule}.dout_b`, width: 32, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x00000000" }] },
+        { id: "p_out", name: "p_out[47:0]", scope: topModule, fullName: `${topModule}.p_out`, width: 48, isBus: true, radix: "hex", samples: [{ timePs: 0, delta: 0, value: "0x000000000000" }] },
+        { id: "valid_out", name: "valid_out", scope: topModule, fullName: `${topModule}.valid_out`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] }
+      ];
+      hierarchy = [{
+        id: topModule, name: topModule, kind: "module",
+        children: [
+          { id: `${topModule}.clk`, name: "clk", kind: "net", width: 1 },
+          { id: `${topModule}.rst`, name: "rst", kind: "net", width: 1 },
+          { id: `${topModule}.en`, name: "en", kind: "net", width: 1 },
+          { id: `${topModule}.addr`, name: "addr[9:0]", kind: "net", width: 10 },
+          { id: `${topModule}.din_coeff`, name: "din_coeff[15:0]", kind: "net", width: 16 },
+          { id: `${topModule}.clk_g`, name: "clk_g", kind: "wire", width: 1 },
+          { id: `${topModule}.run_step`, name: "run_step", kind: "wire", width: 1 },
+          { id: `${topModule}.mac_active`, name: "mac_active", kind: "wire", width: 1 },
+          { id: `${topModule}.dout_a`, name: "dout_a[31:0]", kind: "wire", width: 32 },
+          { id: `${topModule}.dout_b`, name: "dout_b[31:0]", kind: "wire", width: 32 },
+          { id: `${topModule}.p_out`, name: "p_out[47:0]", kind: "net", width: 48 },
+          { id: `${topModule}.valid_out`, name: "valid_out", kind: "net", width: 1 },
+          { id: `${topModule}.prim_bufg`, name: "u_bufg", kind: "module" },
+          { id: `${topModule}.prim_lut6`, name: "u_lut", kind: "module" },
+          { id: `${topModule}.prim_bram`, name: "u_bram", kind: "module" },
+          { id: `${topModule}.prim_dsp48`, name: "u_dsp", kind: "module" },
+          { id: `${topModule}.prim_fdre`, name: "u_valid", kind: "module" }
+        ]
+      }];
+    } else if (topModule === "uart_transceiver" || topModule === "uart") {
       signals = [
         { id: "clk", name: "clk", scope: topModule, fullName: `${topModule}.clk`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },
         { id: "rst_n", name: "rst_n", scope: topModule, fullName: `${topModule}.rst_n`, width: 1, isBus: false, radix: "bin", samples: [{ timePs: 0, delta: 0, value: "0" }] },

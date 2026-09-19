@@ -176,6 +176,11 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       <div
         key={file.id}
         onClick={() => onSelectFile(file.id)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setActiveMenuFileId((prev) => (prev === file.id ? null : file.id));
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -450,13 +455,18 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             letterSpacing: 0.5
           }}
         >
-          Project File Sets
+          {t("sidebar.projectFileSets")}
         </div>
 
         {/* 1. Design Sources */}
         <div style={{ marginBottom: 3 }}>
           <div
             onClick={() => setSourcesOpen((prev) => !prev)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenAddSource("sources_1");
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -527,6 +537,11 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         <div style={{ marginBottom: 4 }}>
           <div
             onClick={() => setSimOpen((prev) => !prev)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenAddSource("sim_1");
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -598,6 +613,11 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         <div style={{ marginBottom: 6 }}>
           <div
             onClick={() => setConstrsOpen((prev) => !prev)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenAddSource("constrs_1");
+            }}
             style={{
               display: "flex",
               alignItems: "center",

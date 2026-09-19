@@ -128,8 +128,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           backdropFilter: "blur(6px)",
           zIndex: 998,
           opacity: isOpen ? 1 : 0,
+          visibility: isOpen ? "visible" : "hidden",
           pointerEvents: isOpen ? "auto" : "none",
-          transition: "opacity 0.25s ease"
+          transition: "opacity 0.25s ease, visibility 0.25s ease"
         }}
       />
 
@@ -143,15 +144,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           width: "min(320px, 86vw)",
           backgroundColor: "#11151c",
           borderRight: "1px solid var(--border-subtle)",
-          boxShadow: "10px 0 35px rgba(0, 0, 0, 0.8)",
+          boxShadow: isOpen ? "10px 0 35px rgba(0, 0, 0, 0.8)" : "none",
           zIndex: 999,
           display: "flex",
           flexDirection: "column",
           transform: isOpen ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
+          transition: "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease, visibility 0.28s ease",
           fontFamily: "var(--font-sans)",
           overflowY: "auto",
-          userSelect: "none"
+          userSelect: "none",
+          visibility: isOpen ? "visible" : "hidden",
+          pointerEvents: isOpen ? "auto" : "none"
         }}
       >
         {/* Drawer Header */}

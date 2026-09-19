@@ -109,7 +109,7 @@ export const de: Translations = {
     targetPart: "Ziel-Baustein:",
     topModule: "Top-Modul:",
     loadTemplate: "Vorlage laden",
-    projectFileSets: "Projekt-Dateigruppen",
+    projectFileSets: "Projektdateien",
     netlistTree: "Ausgearbeiteter Netzlisten-Baum",
     noDesignSources: "Keine Entwurfsquellen hinzugefügt",
     noSimSources: "Keine Testbench-Quellen",

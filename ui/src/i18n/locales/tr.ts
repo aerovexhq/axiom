@@ -109,7 +109,7 @@ export const tr: Translations = {
     targetPart: "Hedef Parça:",
     topModule: "Tepe Modülü:",
     loadTemplate: "Şablon Projesini Yükle",
-    projectFileSets: "Proje Dosya Kümeleri",
+    projectFileSets: "Proje Dosyaları",
     netlistTree: "İşlenmiş Netlist Ağacı",
     noDesignSources: "Tasarım kaynağı eklenmedi",
     noSimSources: "Test tezgahı kaynağı yok",

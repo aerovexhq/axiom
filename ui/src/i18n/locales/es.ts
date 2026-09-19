@@ -109,7 +109,7 @@ export const es: Translations = {
     targetPart: "Dispositivo Objetivo:",
     topModule: "Módulo Superior:",
     loadTemplate: "Cargar Plantilla de Proyecto",
-    projectFileSets: "Conjuntos de Archivos de Proyecto",
+    projectFileSets: "Archivos del Proyecto",
     netlistTree: "Árbol de Netlist Elaborado",
     noDesignSources: "No se añadieron fuentes de diseño",
     noSimSources: "Sin fuentes de testbench",

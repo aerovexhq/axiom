@@ -109,7 +109,7 @@ export const ja: Translations = {
     targetPart: "ターゲットFPGA:",
     topModule: "トップモジュール:",
     loadTemplate: "テンプレートプロジェクト読込",
-    projectFileSets: "プロジェクトファイルセット",
+    projectFileSets: "プロジェクトファイル",
     netlistTree: "精緻化ネットリストツリー",
     noDesignSources: "設計ソースがありません",
     noSimSources: "テストベンチがありません",

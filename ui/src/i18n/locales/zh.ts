@@ -109,7 +109,7 @@ export const zh: Translations = {
     targetPart: "目标器件:",
     topModule: "顶层模块:",
     loadTemplate: "加载模板项目",
-    projectFileSets: "工程文件集",
+    projectFileSets: "工程文件",
     netlistTree: "展开的网表树",
     noDesignSources: "未添加设计源文件",
     noSimSources: "未添加仿真平台",

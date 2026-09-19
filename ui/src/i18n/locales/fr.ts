@@ -109,7 +109,7 @@ export const fr: Translations = {
     targetPart: "Composant Cible :",
     topModule: "Module Racine :",
     loadTemplate: "Charger le Projet Modèle",
-    projectFileSets: "Jeux de Fichiers du Projet",
+    projectFileSets: "Fichiers du Projet",
     netlistTree: "Arborescence Netlist Élaborée",
     noDesignSources: "Aucune source de conception ajoutée",
     noSimSources: "Aucun banc d'essai",

@@ -529,40 +529,42 @@ export const App: React.FC = () => {
       />
 
       {/* Mobile Off-Canvas Left Drawer */}
-      <MobileDrawer
-        isOpen={isMobileDrawerOpen}
-        onClose={() => setIsMobileDrawerOpen(false)}
-        project={project}
-        activePanel={activeMobilePanel}
-        onSelectPanel={(panel) => {
-          setActiveMobilePanel(panel);
-          setIsMobileDrawerOpen(false);
-        }}
-        state={state}
-        onCompile={handleCompile}
-        onOpenNewProject={() => {
-          setIsMobileDrawerOpen(false);
-          setIsNewProjectOpen(true);
-        }}
-        onOpenAddSource={() => {
-          setIsMobileDrawerOpen(false);
-          handleOpenAddSource();
-        }}
-        onCloseProject={() => {
-          setIsMobileDrawerOpen(false);
-          handleCloseProject();
-        }}
-        onSelectFile={(fileId) => {
-          handleSelectFile(fileId);
-          setActiveMobilePanel("editor");
-          setIsMobileDrawerOpen(false);
-        }}
-        onSelectTemplate={(templateId) => {
-          handleSelectTemplate(templateId);
-          setActiveMobilePanel("editor");
-          setIsMobileDrawerOpen(false);
-        }}
-      />
+      {isMobile && (
+        <MobileDrawer
+          isOpen={isMobileDrawerOpen}
+          onClose={() => setIsMobileDrawerOpen(false)}
+          project={project}
+          activePanel={activeMobilePanel}
+          onSelectPanel={(panel) => {
+            setActiveMobilePanel(panel);
+            setIsMobileDrawerOpen(false);
+          }}
+          state={state}
+          onCompile={handleCompile}
+          onOpenNewProject={() => {
+            setIsMobileDrawerOpen(false);
+            setIsNewProjectOpen(true);
+          }}
+          onOpenAddSource={() => {
+            setIsMobileDrawerOpen(false);
+            handleOpenAddSource();
+          }}
+          onCloseProject={() => {
+            setIsMobileDrawerOpen(false);
+            handleCloseProject();
+          }}
+          onSelectFile={(fileId) => {
+            handleSelectFile(fileId);
+            setActiveMobilePanel("editor");
+            setIsMobileDrawerOpen(false);
+          }}
+          onSelectTemplate={(templateId) => {
+            handleSelectTemplate(templateId);
+            setActiveMobilePanel("editor");
+            setIsMobileDrawerOpen(false);
+          }}
+        />
+      )}
 
       {/* Main Workspace Body */}
       {isMobile ? (
@@ -681,6 +683,8 @@ export const App: React.FC = () => {
           onSelectFile={handleSelectFile}
           selectedSignalIds={selectedSignalIds}
           onToggleSignal={handleToggleSignal}
+          activeCrossProbeSignal={activeCrossProbeSignal}
+          onSelectCrossProbeSignal={handleSchematicSelectSignal}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
           width={sidebarWidth}
