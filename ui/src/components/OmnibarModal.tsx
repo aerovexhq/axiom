@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { SAMPLE_DESIGNS, SampleDesign } from "../engine/sampleDesigns";
+import { useTranslation } from "../i18n/i18nContext";
 
 interface OmnibarModalProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
   onSelectSignal,
   onCompile
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState<string>("");
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -355,7 +357,7 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
           <input
             ref={inputRef}
             type="text"
-            placeholder="Type a command, signal name, or jump to view... (Ctrl+K)"
+            placeholder={t.modals.omnibarPlaceholder}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);

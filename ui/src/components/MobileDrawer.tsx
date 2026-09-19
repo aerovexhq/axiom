@@ -20,6 +20,7 @@ import {
 import { AxiomProject } from "../engine/projectModel";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { Badge, Button } from "./ui";
+import { useTranslation } from "../i18n/i18nContext";
 
 export type MobilePanelType = "editor" | "schematic" | "virtuallab" | "waveform" | "timing" | "dock";
 
@@ -52,6 +53,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onSelectFile,
   onSelectTemplate: _onSelectTemplate
 }) => {
+  const { t } = useTranslation();
+
   const formatTime = (timePs: number) => {
     if (timePs >= 1_000_000) {
       return `${(timePs / 1_000_000).toFixed(3)} μs`;
@@ -71,42 +74,42 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   }> = [
     {
       id: "editor",
-      label: "HDL Code Editor",
+      label: t.mobile.code,
       sublabel: project ? (project.files.find((f) => f.id === project.activeFileId)?.name ?? "Verilog RTL") : "Verilog Editor",
       icon: <FileCode size={18} />,
       color: "var(--accent-blue)"
     },
     {
       id: "schematic",
-      label: "Schematic DAG",
+      label: t.mobile.schematic,
       sublabel: "IEEE gate symbols & netlist",
       icon: <Cpu size={18} />,
       color: "var(--accent-cyan)"
     },
     {
       id: "virtuallab",
-      label: "Virtual Lab Rack",
+      label: t.mobile.lab,
       sublabel: "Switches, LEDs, probes",
       icon: <Sliders size={18} />,
       color: "var(--accent-amber)"
     },
     {
       id: "waveform",
-      label: "Waveforms Viewer",
+      label: t.mobile.waves,
       sublabel: "Digital multi-radix timeline",
       icon: <Activity size={18} />,
       color: "var(--accent-blue)"
     },
     {
       id: "timing",
-      label: "Timing & Energy",
+      label: t.mobile.timing,
       sublabel: "Slack radar & dynamic power",
       icon: <Clock size={18} />,
       color: "var(--accent-purple)"
     },
     {
       id: "dock",
-      label: "Console & Problems",
+      label: t.mobile.console,
       sublabel: "Interactive REPL & linter",
       icon: <Terminal size={18} />,
       color: "var(--accent-emerald)"
@@ -170,27 +173,25 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             />
             <div>
               <div style={{ fontWeight: 700, fontSize: 15, color: "#fff", letterSpacing: "-0.02em" }}>
-                Axiom Studio
+                {t.mobile.studioTitle}
               </div>
               <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 1 }}>
-                Vivado Mobile Engine
+                {t.mobile.mobileSubtitle}
               </div>
             </div>
           </div>
 
           <button
             onClick={onClose}
+            className="btn btn-ghost btn-icon"
             style={{
               padding: 6,
               borderRadius: "var(--radius-sm)",
               color: "var(--text-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              backgroundColor: "transparent"
+              width: 30,
+              height: 30
             }}
+            title={t.mobile.closeMenu}
           >
             <X size={18} />
           </button>
@@ -209,7 +210,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               paddingLeft: 4
             }}
           >
-            Studio Panels (View 1 at once)
+            {t.mobile.panelsTitle}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -291,7 +292,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               paddingLeft: 4
             }}
           >
-            Vivado Project Files
+            {t.mobile.projectFilesTitle}
           </div>
 
           {project ? (
@@ -332,7 +333,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   }}
                   icon={<Plus size={12} />}
                 >
-                  Add Source
+                  {t.mobile.addSource}
                 </Button>
                 <Button
                   variant="secondary"
@@ -343,7 +344,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   }}
                   icon={<FolderPlus size={12} />}
                 >
-                  New Project
+                  {t.mobile.newProject}
                 </Button>
               </div>
 
@@ -410,7 +411,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                     }}
                     icon={<LogOut size={12} />}
                   >
-                    Close Project
+                    {t.mobile.closeProject}
                   </Button>
                 </div>
               )}
@@ -426,10 +427,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               }}
             >
               <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-                No Project Open
+                {t.mobile.noProjectOpen}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
-                Create or open a Vivado HDL project
+                {t.mobile.noProjectDesc}
               </div>
               <Button
                 variant="primary"
@@ -441,7 +442,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 }}
                 icon={<FolderPlus size={13} />}
               >
-                Create Project
+                {t.mobile.newProject}
               </Button>
             </div>
           )}
@@ -451,7 +452,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         <div style={{ padding: "14px 16px", backgroundColor: "var(--bg-primary)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontSize: 10.5, color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>
-              Simulation Clock
+              {t.mobile.simClock}
             </span>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
               {formatTime(state.currentSimTimePs)}
@@ -465,7 +466,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               onClick={() => (state.isRunning ? engineBridge.pause() : engineBridge.play())}
               icon={state.isRunning ? <Pause size={12} /> : <Play size={12} fill="#fff" />}
             >
-              {state.isRunning ? "Pause" : "Run"}
+              {state.isRunning ? t.mobile.pause : t.mobile.run}
             </Button>
             <Button
               variant="secondary"
@@ -481,7 +482,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               onClick={() => engineBridge.reset()}
               icon={<RotateCcw size={12} />}
             >
-              Reset
+              {t.mobile.reset}
             </Button>
           </div>
         </div>

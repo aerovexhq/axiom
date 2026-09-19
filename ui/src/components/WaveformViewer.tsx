@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { DisplayRadix, formatValueWithRadix, extractBitValue } from "../engine/radixUtils";
+import { useTranslation } from "../i18n/i18nContext";
 
 interface WaveformViewerProps {
   state: SimulationState;
@@ -22,6 +23,7 @@ interface DisplaySignalRow {
 }
 
 export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedSignalIds }) => {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -717,19 +719,22 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Axiom Waveforms ({displayRows.length} traces)
+            {t.waveforms.title} ({displayRows.length} {t.waveforms.traces})
           </span>
 
           {/* Radix Switcher Pill */}
           <div style={{ display: "flex", alignItems: "center", gap: 2, backgroundColor: "var(--bg-tertiary)", padding: "2px 4px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-            <span style={{ fontSize: 10, color: "var(--text-muted)", marginRight: 4 }}>Radix:</span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)", marginRight: 4 }}>{t.waveforms.radix}:</span>
             {(["hex", "bin", "u_dec", "s_dec", "ascii"] as DisplayRadix[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setGlobalRadix(r)}
+                className="btn btn-ghost"
                 style={{
                   fontSize: 10,
                   padding: "1px 5px",
+                  height: "auto",
+                  minHeight: 18,
                   borderRadius: 2,
                   backgroundColor: globalRadix === r ? "var(--accent-blue)" : "transparent",
                   color: globalRadix === r ? "#ffffff" : "var(--text-muted)",
@@ -744,21 +749,24 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           {/* Delta Glitches Filter */}
           <button
             onClick={() => setShowDeltaGlitches(!showDeltaGlitches)}
+            className="btn btn-ghost"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 4,
               fontSize: 11,
               padding: "2px 8px",
+              height: "auto",
+              minHeight: 22,
               borderRadius: "var(--radius-sm)",
               backgroundColor: showDeltaGlitches ? "rgba(236, 72, 153, 0.15)" : "var(--bg-tertiary)",
               color: showDeltaGlitches ? "var(--signal-glitch)" : "var(--text-muted)",
               border: `1px solid ${showDeltaGlitches ? "var(--signal-glitch)" : "var(--border-subtle)"}`
             }}
-            title="Highlight zero-time delta cycle glitches"
+            title={t.waveforms.glitchRadarTooltip}
           >
             <Bug size={12} />
-            <span>Glitch Radar</span>
+            <span>{t.waveforms.glitchRadar}</span>
           </button>
         </div>
 
@@ -788,8 +796,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                   setCursorAPrivate(null);
                   setCursorBPrivate(null);
                 }}
-                style={{ fontSize: 10, color: "var(--text-muted)", padding: "0 2px" }}
-                title="Clear Cursors"
+                className="btn btn-ghost btn-icon"
+                style={{ fontSize: 10, color: "var(--text-muted)", padding: "0 2px", width: 16, height: 16 }}
+                title={t.waveforms.clearCursors}
               >
                 ✕
               </button>
@@ -800,36 +809,39 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <button
               onClick={() => handleZoom(1.3)}
-              title="Zoom In"
+              title={t.waveforms.zoomIn}
+              className="btn btn-secondary btn-icon"
               style={{
                 padding: 4,
-                backgroundColor: "var(--bg-tertiary)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--text-secondary)"
+                width: 24,
+                height: 24,
+                borderRadius: "var(--radius-sm)"
               }}
             >
               <ZoomIn size={14} />
             </button>
             <button
               onClick={() => handleZoom(0.7)}
-              title="Zoom Out"
+              title={t.waveforms.zoomOut}
+              className="btn btn-secondary btn-icon"
               style={{
                 padding: 4,
-                backgroundColor: "var(--bg-tertiary)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--text-secondary)"
+                width: 24,
+                height: 24,
+                borderRadius: "var(--radius-sm)"
               }}
             >
               <ZoomOut size={14} />
             </button>
             <button
               onClick={handleZoomFit}
-              title="Fit to Simulation Extent"
+              title={t.waveforms.zoomFit}
+              className="btn btn-secondary btn-icon"
               style={{
                 padding: 4,
-                backgroundColor: "var(--bg-tertiary)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--text-secondary)"
+                width: 24,
+                height: 24,
+                borderRadius: "var(--radius-sm)"
               }}
             >
               <Maximize2 size={14} />
@@ -882,12 +894,13 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Layers size={14} color="#00f2fe" />
               <span style={{ fontSize: 11, fontWeight: 700, color: "#f1f5f9" }}>
-                Zero-Time Delta Accordion: t = {expandedDeltaTimePs} ps ({activeDeltaEvents.length} transition steps)
+                {t.waveforms.deltaAccordion}: t = {expandedDeltaTimePs} ps ({activeDeltaEvents.length} transition steps)
               </span>
             </div>
             <button
               onClick={() => setExpandedDeltaTimePs(null)}
-              style={{ color: "var(--text-muted)", fontSize: 11 }}
+              className="btn btn-ghost btn-icon"
+              style={{ color: "var(--text-muted)", width: 20, height: 20 }}
             >
               <X size={12} />
             </button>
@@ -943,18 +956,19 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Sliders size={16} color="var(--accent-blue)" />
-              <span style={{ fontWeight: 600, fontSize: 13 }}>Force Net Stimulus</span>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>{t.waveforms.forceSignal}</span>
             </div>
             <button
               onClick={() => setForcingSignal(null)}
-              style={{ color: "var(--text-muted)", fontSize: 12 }}
+              className="btn btn-ghost btn-icon"
+              style={{ color: "var(--text-muted)", width: 22, height: 22 }}
             >
               ✕
             </button>
           </div>
 
           <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
-            Target Net: <strong style={{ color: "#f1f5f9" }}>{forcingSignal.name}</strong> ({forcingSignal.width}-bit {forcingSignal.isBus ? "Bus" : "Wire"})
+            {t.waveforms.targetNet}: <strong style={{ color: "#f1f5f9" }}>{forcingSignal.name}</strong> ({forcingSignal.width}-bit {forcingSignal.isBus ? "Bus" : "Wire"})
           </div>
 
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
@@ -963,6 +977,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 <button
                   key={val}
                   onClick={() => setForceInputVal(val)}
+                  className="btn btn-ghost"
                   style={{
                     flex: 1,
                     padding: "6px 0",
@@ -1003,13 +1018,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 engineBridge.forceSignal(forcingSignal.id, forceInputVal);
                 setForcingSignal(null);
               }}
+              className="btn btn-primary"
               style={{
                 flex: 1,
-                padding: "6px 10px",
-                backgroundColor: "var(--accent-blue)",
-                color: "#ffffff",
-                borderRadius: "var(--radius-sm)",
-                fontWeight: 600,
                 fontSize: 12,
                 display: "flex",
                 alignItems: "center",
@@ -1018,7 +1029,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
               }}
             >
               <Lock size={12} />
-              <span>Apply Force</span>
+              <span>{t.waveforms.applyForce}</span>
             </button>
 
             {state.forcedSignalIds.includes(forcingSignal.id) && (
@@ -1027,13 +1038,10 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                   engineBridge.releaseForce(forcingSignal.id);
                   setForcingSignal(null);
                 }}
+                className="btn btn-secondary"
                 style={{
-                  padding: "6px 10px",
-                  backgroundColor: "var(--bg-tertiary)",
                   color: "#f59e0b",
-                  border: "1px solid #f59e0b",
-                  borderRadius: "var(--radius-sm)",
-                  fontWeight: 600,
+                  borderColor: "#f59e0b",
                   fontSize: 12,
                   display: "flex",
                   alignItems: "center",
@@ -1041,7 +1049,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 }}
               >
                 <Unlock size={12} />
-                <span>Release</span>
+                <span>{t.waveforms.release}</span>
               </button>
             )}
           </div>

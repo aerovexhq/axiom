@@ -7,6 +7,7 @@ import {
   createProjectFromTemplate
 } from "../engine/projectModel";
 import { Modal, Input, Select, Button, Card, Badge } from "./ui";
+import { useTranslation } from "../i18n/i18nContext";
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   onClose,
   onCreateProject
 }) => {
+  const { t } = useTranslation();
   const [projectName, setProjectName] = useState<string>("axi_system_top");
   const [selectedDevice, setSelectedDevice] = useState<string>(FPGA_TARGET_DEVICES[0].name);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("logic_circuit_project");
@@ -46,14 +48,14 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create New Vivado HDL Project"
-      subtitle="Configure target FPGA silicon and select hardware starter RTL architecture"
+      title={t.modals.newProjectTitle}
+      subtitle={t.modals.newProjectSubtitle}
       icon={<Sparkles size={18} />}
       width={680}
       footer={
         <>
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t.modals.cancel}
           </Button>
           <Button
             variant="primary"
@@ -61,7 +63,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             onClick={handleSubmit}
             iconRight={<ArrowRight size={14} />}
           >
-            Create Project
+            {t.modals.createProjectBtn}
           </Button>
         </>
       }
@@ -69,7 +71,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {/* Project Name */}
         <Input
-          label="Project Name"
+          label={t.modals.projectName}
           value={projectName}
           onChange={(e) => setProjectName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, "_"))}
           placeholder="e.g. axi_system_top"
@@ -78,7 +80,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
         {/* Target FPGA Silicon Part (Custom Dark Select) */}
         <Select
-          label="Target FPGA Silicon Part"
+          label={t.modals.targetDevice}
           value={selectedDevice}
           onChange={setSelectedDevice}
           options={deviceOptions}
@@ -97,7 +99,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
               letterSpacing: "0.03em"
             }}
           >
-            Choose Project Starter Template
+            {t.modals.starterTemplate}
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {PROJECT_TEMPLATES.map((tmpl) => {

@@ -13,11 +13,13 @@ import {
   Menu,
   Search,
   Columns,
-  Minimize2
+  Minimize2,
+  Globe
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
 import { MobilePanelType } from "./MobileDrawer";
+import { useTranslation, SupportedLanguage } from "../i18n";
 
 interface HeaderProps {
   state: SimulationState;
@@ -54,6 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOmnibar,
   isSplitView = true
 }) => {
+  const { t, language, setLanguage, languages } = useTranslation();
+
   const formatTime = (timePs: number) => {
     if (timePs >= 1_000_000) {
       return `${(timePs / 1_000_000).toFixed(3)}\u00A0μs`;
@@ -81,30 +85,18 @@ export const Header: React.FC<HeaderProps> = ({
         }}
       >
         {/* Mobile Left: Hamburger + Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flexShrink: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 1 }}>
           <button
             onClick={onToggleMobileDrawer}
-            aria-label="Open Navigation Menu"
-            title="Open Project & View Menu"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 34,
-              height: 34,
-              borderRadius: "var(--radius-sm)",
-              backgroundColor: "var(--bg-tertiary)",
-              border: "1px solid var(--border-subtle)",
-              color: "var(--text-primary)",
-              cursor: "pointer",
-              padding: 0,
-              flexShrink: 0
-            }}
+            aria-label={t("mobile.menu")}
+            title={t("mobile.menu")}
+            className="btn btn-secondary btn-icon"
+            style={{ width: 32, height: 32 }}
           >
             <Menu size={18} />
           </button>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             <img
               src="/logo.svg"
               alt="Axiom Logo"
@@ -123,20 +115,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {project ? (
             <span
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: "var(--accent-cyan)",
-                backgroundColor: "rgba(6, 182, 212, 0.1)",
-                border: "1px solid rgba(6, 182, 212, 0.25)",
-                padding: "2px 6px",
-                borderRadius: "var(--radius-sm)",
-                maxWidth: 90,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flexShrink: 1
-              }}
+              className="badge badge-cyan"
+              style={{ maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis" }}
               title={project.name}
             >
               {project.name}
@@ -151,18 +131,40 @@ export const Header: React.FC<HeaderProps> = ({
                 borderRadius: "var(--radius-sm)"
               }}
             >
-              No Project
+              {t("header.noProject")}
             </span>
           )}
         </div>
 
         {/* Mobile Right: Simulation Clock & Quick Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {/* Language Selector */}
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
+            title={t("header.language")}
+            style={{
+              height: 26,
+              fontSize: 10.5,
+              padding: "2px 20px 2px 4px",
+              backgroundColor: "var(--bg-tertiary)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--text-primary)"
+            }}
+          >
+            {languages.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.flag} {l.code.toUpperCase()}
+              </option>
+            ))}
+          </select>
+
           {project && (
             <span
+              className="mono-num"
               style={{
                 fontSize: 10.5,
-                fontFamily: "var(--font-mono)",
                 fontWeight: 700,
                 color: "var(--accent-cyan)",
                 backgroundColor: "var(--bg-tertiary)",
@@ -171,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
                 border: "1px solid var(--border-subtle)",
                 whiteSpace: "nowrap"
               }}
-              title={`Current sim time: ${state.currentSimTimePs} ps (δ=${state.currentDeltaCycle})`}
+              title={`${t("header.simClock")}: ${state.currentSimTimePs} ps (δ=${state.currentDeltaCycle})`}
             >
               {formatTime(state.currentSimTimePs)}
             </span>
@@ -182,21 +184,10 @@ export const Header: React.FC<HeaderProps> = ({
               {state.isRunning ? (
                 <button
                   onClick={() => engineBridge.pause()}
-                  aria-label="Pause"
-                  title="Pause Simulation"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 30,
-                    height: 30,
-                    backgroundColor: "var(--accent-rose)",
-                    color: "#fff",
-                    borderRadius: "var(--radius-sm)",
-                    border: "none",
-                    cursor: "pointer",
-                    flexShrink: 0
-                  }}
+                  aria-label={t("header.pause")}
+                  title={t("header.pause")}
+                  className="btn btn-danger"
+                  style={{ width: 28, height: 28, padding: 0 }}
                 >
                   <Pause size={14} />
                 </button>
@@ -204,21 +195,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={() => engineBridge.play()}
                   disabled={!state.compiled}
-                  aria-label="Run"
-                  title="Run Simulation"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 30,
-                    height: 30,
-                    backgroundColor: state.compiled ? "var(--accent-emerald)" : "var(--bg-tertiary)",
-                    color: state.compiled ? "#fff" : "var(--text-muted)",
-                    borderRadius: "var(--radius-sm)",
-                    border: "none",
-                    cursor: state.compiled ? "pointer" : "not-allowed",
-                    flexShrink: 0
-                  }}
+                  aria-label={t("header.run")}
+                  title={t("header.run")}
+                  className={state.compiled ? "btn btn-success" : "btn btn-secondary"}
+                  style={{ width: 28, height: 28, padding: 0 }}
                 >
                   <Play size={14} />
                 </button>
@@ -226,21 +206,10 @@ export const Header: React.FC<HeaderProps> = ({
 
               <button
                 onClick={onCompile}
-                title="Re-Compile JIT"
-                aria-label="Compile JIT"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 30,
-                  height: 30,
-                  backgroundColor: state.compiled ? "var(--bg-tertiary)" : "var(--accent-blue)",
-                  color: state.compiled ? "var(--text-secondary)" : "#fff",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border-subtle)",
-                  cursor: "pointer",
-                  flexShrink: 0
-                }}
+                title={t("header.recompile")}
+                aria-label={t("header.compile")}
+                className="btn btn-secondary btn-icon"
+                style={{ width: 28, height: 28 }}
               >
                 <Cpu size={14} />
               </button>
@@ -254,8 +223,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       style={{
-        height: 40,
-        minHeight: 40,
+        height: 42,
+        minHeight: 42,
         backgroundColor: "var(--bg-secondary)",
         borderBottom: "1px solid var(--border-subtle)",
         display: "flex",
@@ -267,21 +236,22 @@ export const Header: React.FC<HeaderProps> = ({
       }}
     >
       {/* Left: Brand & Project Identity */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexShrink: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
           <img
             src="/logo.svg"
             alt="Axiom Logo"
             style={{
-              width: 18,
-              height: 18,
+              width: 20,
+              height: 20,
               borderRadius: "var(--radius-sm)"
             }}
           />
           <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>
-            Axiom EDA
+            {t("header.title")}
           </span>
           <span
+            className="mono-num"
             style={{
               fontSize: 10,
               backgroundColor: "var(--bg-tertiary)",
@@ -300,23 +270,13 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Project Context & Controls */}
         {project ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flexShrink: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 1 }}>
             <span
+              className="badge badge-cyan"
               style={{
-                fontSize: 11.5,
-                fontWeight: 600,
-                color: "var(--accent-cyan)",
-                backgroundColor: "rgba(6, 182, 212, 0.08)",
-                border: "1px solid rgba(6, 182, 212, 0.22)",
-                padding: "2px 7px",
-                borderRadius: "var(--radius-sm)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                maxWidth: "clamp(90px, 12vw, 160px)",
-                minWidth: 0,
-                flexShrink: 1,
-                overflow: "hidden"
+                maxWidth: "clamp(100px, 14vw, 180px)",
+                padding: "3px 8px",
+                fontSize: 11.5
               }}
               title={`${project.name} (${project.targetDevice})`}
             >
@@ -331,94 +291,52 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Compile Button */}
             <button
               onClick={onCompile}
-              title="Elaborate HDL & JIT compile machine code in RAM"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 8px",
-                backgroundColor: state.compiled ? "var(--bg-tertiary)" : "var(--accent-blue)",
-                color: state.compiled ? "var(--text-primary)" : "#fff",
-                borderRadius: "var(--radius-sm)",
-                border: `1px solid ${state.compiled ? "var(--border-subtle)" : "var(--accent-blue)"}`,
-                fontWeight: 600,
-                fontSize: 11.5,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-                transition: "all 0.15s ease"
-              }}
+              title={t("header.recompile")}
+              className={state.compiled ? "btn btn-secondary" : "btn btn-primary"}
+              style={{ height: 28 }}
             >
-              <Cpu size={12} />
-              <span>{state.compiled ? "Re-Compile" : "Compile JIT"}</span>
+              <Cpu size={13} />
+              <span>{state.compiled ? t("header.recompile") : t("header.compile")}</span>
             </button>
 
             {onCloseProject && (
               <button
                 onClick={onCloseProject}
-                title="Close active project and return to launchpad"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  padding: "3px 6px",
-                  backgroundColor: "transparent",
-                  color: "var(--text-muted)",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border-subtle)",
-                  fontSize: 11.5,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                title={t("header.closeProject")}
+                className="btn btn-ghost btn-icon"
+                style={{ width: 26, height: 26 }}
               >
-                <X size={12} />
-                <span>Close</span>
+                <X size={13} />
               </button>
             )}
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontStyle: "italic", whiteSpace: "nowrap" }}>
-              No Project Open
+              {t("header.noProject")}
             </span>
             {onOpenNewProject && (
               <button
                 onClick={onOpenNewProject}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "3px 8px",
-                  backgroundColor: "var(--accent-blue)",
-                  color: "#fff",
-                  borderRadius: "var(--radius-sm)",
-                  border: "none",
-                  fontWeight: 600,
-                  fontSize: 11.5,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0
-                }}
+                className="btn btn-primary"
+                style={{ height: 28 }}
               >
                 <FolderPlus size={13} />
-                <span>New Project</span>
+                <span>{t("header.newProject")}</span>
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Center: Unified Vivado-style Simulation Control Segment */}
+      {/* Center: Unified Simulation Control Ribbon */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 2,
+          gap: 4,
           backgroundColor: "var(--bg-tertiary)",
-          padding: "2px 4px",
+          padding: "3px 6px",
           borderRadius: "var(--radius-sm)",
           border: "1px solid var(--border-subtle)",
           flexShrink: 0,
@@ -428,149 +346,84 @@ export const Header: React.FC<HeaderProps> = ({
         {state.isRunning ? (
           <button
             onClick={() => engineBridge.pause()}
-            title="Pause Simulation"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "2px 8px",
-              backgroundColor: "var(--accent-rose)",
-              color: "#fff",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: 600,
-              fontSize: 11.5,
-              whiteSpace: "nowrap",
-              flexShrink: 0
-            }}
+            title={t("header.pause")}
+            className="btn btn-danger"
+            style={{ height: 26, padding: "2px 9px" }}
           >
             <Pause size={12} />
-            <span>Pause</span>
+            <span>{t("header.pause")}</span>
           </button>
         ) : (
           <button
             onClick={() => engineBridge.play()}
             disabled={!state.compiled}
-            title={state.compiled ? "Run Free Simulation" : "Compile HDL project to simulate"}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "2px 8px",
-              backgroundColor: state.compiled ? "var(--accent-emerald)" : "transparent",
-              color: state.compiled ? "#fff" : "var(--text-muted)",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: 600,
-              fontSize: 11.5,
-              cursor: state.compiled ? "pointer" : "not-allowed",
-              whiteSpace: "nowrap",
-              flexShrink: 0
-            }}
+            title={state.compiled ? t("header.run") : t("launchpad.inRamJitDesc")}
+            className={state.compiled ? "btn btn-success" : "btn btn-ghost"}
+            style={{ height: 26, padding: "2px 9px" }}
           >
             <Play size={12} />
-            <span>Run</span>
+            <span>{t("header.run")}</span>
           </button>
         )}
 
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
+        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
 
         <button
           onClick={() => engineBridge.tick(1000)}
           disabled={!state.compiled || state.isRunning}
-          title="Advance simulation by 1 ns (Physical Time Step)"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 3,
-            padding: "2px 6px",
-            backgroundColor: "transparent",
-            color: "var(--text-primary)",
-            borderRadius: "var(--radius-sm)",
-            fontSize: 11.5,
-            opacity: state.compiled ? 1 : 0.4,
-            whiteSpace: "nowrap",
-            flexShrink: 0
-          }}
+          title={`${t("header.step1ns")} (Physical Time Step)`}
+          className="btn btn-ghost"
+          style={{ height: 26, padding: "2px 7px" }}
         >
           <FastForward size={12} />
-          <span>+1ns</span>
+          <span>{t("header.step1ns")}</span>
         </button>
 
         <button
           onClick={() => engineBridge.tick(100)}
           disabled={!state.compiled || state.isRunning}
-          title="Advance simulation by 100 ps"
-          style={{
-            padding: "2px 5px",
-            backgroundColor: "transparent",
-            color: "var(--text-secondary)",
-            borderRadius: "var(--radius-sm)",
-            fontSize: 11,
-            opacity: state.compiled ? 1 : 0.4,
-            whiteSpace: "nowrap",
-            flexShrink: 0
-          }}
+          title={`${t("header.step100ps")} (Physical Time Step)`}
+          className="btn btn-ghost"
+          style={{ height: 26, padding: "2px 6px" }}
         >
-          +100ps
+          <span>{t("header.step100ps")}</span>
         </button>
 
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
+        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
 
         <button
           onClick={() => engineBridge.stepDelta()}
           disabled={!state.compiled || state.isRunning}
-          title="Step single discrete delta-cycle (δ-step) in zero simulation time"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 3,
-            padding: "2px 7px",
-            backgroundColor: "rgba(139, 92, 246, 0.15)",
-            color: "var(--accent-purple)",
-            borderRadius: "var(--radius-sm)",
-            fontWeight: 600,
-            fontSize: 11,
-            opacity: state.compiled ? 1 : 0.4,
-            whiteSpace: "nowrap",
-            flexShrink: 0
-          }}
+          title={`${t("header.stepDelta")} (Zero-Time Combinational Cycle)`}
+          className="badge badge-purple btn"
+          style={{ height: 26, padding: "2px 8px", cursor: state.compiled ? "pointer" : "not-allowed" }}
         >
-          <span>Step δ</span>
+          <span>{t("header.stepDelta")}</span>
         </button>
 
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
+        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
 
         <button
           onClick={() => engineBridge.reset()}
-          title="Reset Simulation (t=0 ps)"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "2px 5px",
-            backgroundColor: "transparent",
-            color: "var(--text-muted)",
-            borderRadius: "var(--radius-sm)",
-            flexShrink: 0
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+          title={t("header.resetSim")}
+          className="btn btn-ghost btn-icon"
+          style={{ width: 26, height: 26 }}
         >
           <RotateCcw size={12} />
         </button>
       </div>
 
-      {/* Right: Telemetry, Presets & Omnibar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, whiteSpace: "nowrap" }}>
+      {/* Right: Telemetry, Language, Presets & Omnibar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0, whiteSpace: "nowrap" }}>
         {/* Simulation Clock & Delta */}
         <div
+          className="mono-num"
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 5,
-            fontFamily: "var(--font-mono)",
+            gap: 6,
             fontSize: 11.5,
-            flexShrink: 0,
-            whiteSpace: "nowrap"
+            flexShrink: 0
           }}
         >
           <span style={{ fontWeight: 700, color: "var(--accent-cyan)", whiteSpace: "nowrap" }}>
@@ -584,39 +437,27 @@ export const Header: React.FC<HeaderProps> = ({
         <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
 
         {/* Dynamic Telemetry (Power & Sag) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, flexShrink: 0, whiteSpace: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexShrink: 0, whiteSpace: "nowrap" }}>
           <div
-            style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-amber)", flexShrink: 0, whiteSpace: "nowrap" }}
+            style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-amber)" }}
             title="Peak Dynamic Current"
           >
             <Zap size={11} />
-            <span style={{ fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>{state.peakCurrentMa.toFixed(1)} mA</span>
+            <span className="mono-num">{state.peakCurrentMa.toFixed(1)} mA</span>
           </div>
 
           <div
-            style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-rose)", flexShrink: 0, whiteSpace: "nowrap" }}
+            style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent-rose)" }}
             title="Max Voltage Sag"
           >
             <Activity size={11} />
-            <span style={{ fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>-{state.maxSagMv.toFixed(1)} mV</span>
+            <span className="mono-num">-{state.maxSagMv.toFixed(1)} mV</span>
           </div>
 
           {state.glitchCount > 0 && (
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                color: "var(--signal-glitch)",
-                backgroundColor: "rgba(236, 72, 153, 0.12)",
-                padding: "1px 5px",
-                borderRadius: "var(--radius-sm)",
-                fontWeight: 600,
-                fontSize: 10.5,
-                flexShrink: 0,
-                whiteSpace: "nowrap"
-              }}
-              title="Glitches Detected"
+              className="badge badge-rose pulse-alert"
+              title="Zero-Time Glitches Detected"
             >
               <Bug size={11} />
               <span>{state.glitchCount}</span>
@@ -630,22 +471,11 @@ export const Header: React.FC<HeaderProps> = ({
             <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
             <button
               onClick={onRestoreMaximizedPanel}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 7px",
-                backgroundColor: "rgba(59, 130, 246, 0.15)",
-                border: "1px solid var(--accent-blue)",
-                color: "var(--accent-blue)",
-                borderRadius: "var(--radius-sm)",
-                fontWeight: 600,
-                fontSize: 11,
-                cursor: "pointer"
-              }}
+              className="btn btn-cyan"
+              style={{ height: 26, fontSize: 11 }}
             >
               <Minimize2 size={11} />
-              <span>Restore {maximizedPanel.toUpperCase()} (🗗)</span>
+              <span>{t("header.restore")} {maximizedPanel.toUpperCase()} (🗗)</span>
             </button>
           </>
         )}
@@ -668,55 +498,86 @@ export const Header: React.FC<HeaderProps> = ({
               <Columns size={11} color="var(--text-muted)" style={{ margin: "0 2px" }} />
               <button
                 onClick={() => onSetEditorWidthPercent(42)}
-                title="Balanced Layout (42% Code / 58% Visuals)"
+                title={`${t("header.balanced")} (42% / 58%)`}
                 style={{
                   fontSize: 10.5,
                   fontWeight: Math.abs(editorWidthPercent - 42) < 2 ? 700 : 500,
-                  padding: "1px 5px",
+                  padding: "1px 6px",
                   borderRadius: 2,
                   border: "none",
                   cursor: "pointer",
                   backgroundColor: Math.abs(editorWidthPercent - 42) < 2 ? "var(--bg-elevated)" : "transparent",
-                  color: Math.abs(editorWidthPercent - 42) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
+                  color: Math.abs(editorWidthPercent - 42) < 2 ? "var(--accent-blue)" : "var(--text-muted)",
+                  transition: "all var(--transition-fast)"
                 }}
               >
-                Balanced
+                {t("header.balanced")}
               </button>
               <button
                 onClick={() => onSetEditorWidthPercent(55)}
-                title="Code Focus (55% Code / 45% Visuals)"
+                title={`${t("header.codeFocus")} (55% / 45%)`}
                 style={{
                   fontSize: 10.5,
                   fontWeight: Math.abs(editorWidthPercent - 55) < 2 ? 700 : 500,
-                  padding: "1px 5px",
+                  padding: "1px 6px",
                   borderRadius: 2,
                   border: "none",
                   cursor: "pointer",
                   backgroundColor: Math.abs(editorWidthPercent - 55) < 2 ? "var(--bg-elevated)" : "transparent",
-                  color: Math.abs(editorWidthPercent - 55) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
+                  color: Math.abs(editorWidthPercent - 55) < 2 ? "var(--accent-blue)" : "var(--text-muted)",
+                  transition: "all var(--transition-fast)"
                 }}
               >
-                Code
+                {t("header.codeFocus")}
               </button>
               <button
                 onClick={() => onSetEditorWidthPercent(25)}
-                title="Visualizer Focus (25% Code / 75% Visuals)"
+                title={`${t("header.visualFocus")} (25% / 75%)`}
                 style={{
                   fontSize: 10.5,
                   fontWeight: Math.abs(editorWidthPercent - 25) < 2 ? 700 : 500,
-                  padding: "1px 5px",
+                  padding: "1px 6px",
                   borderRadius: 2,
                   border: "none",
                   cursor: "pointer",
                   backgroundColor: Math.abs(editorWidthPercent - 25) < 2 ? "var(--bg-elevated)" : "transparent",
-                  color: Math.abs(editorWidthPercent - 25) < 2 ? "var(--accent-blue)" : "var(--text-muted)"
+                  color: Math.abs(editorWidthPercent - 25) < 2 ? "var(--accent-blue)" : "var(--text-muted)",
+                  transition: "all var(--transition-fast)"
                 }}
               >
-                Visual
+                {t("header.visualFocus")}
               </button>
             </div>
           </>
         )}
+
+        {/* Global Language Selector Dropdown */}
+        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <Globe size={12} color="var(--text-muted)" />
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
+            title={t("header.language")}
+            style={{
+              height: 26,
+              fontSize: 11,
+              padding: "2px 22px 2px 6px",
+              backgroundColor: "var(--bg-tertiary)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--text-primary)",
+              cursor: "pointer",
+              fontWeight: 500
+            }}
+          >
+            {languages.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.flag} {l.nativeName}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Cross Probe Active Signal */}
         {project && activeCrossProbeSignal && (
@@ -737,23 +598,9 @@ export const Header: React.FC<HeaderProps> = ({
             <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
             <button
               onClick={onOpenOmnibar}
-              title="Omnibar & Command Palette (Ctrl+K or Cmd+K)"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 7px",
-                backgroundColor: "var(--bg-tertiary)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-                transition: "all 0.15s ease"
-              }}
+              title={t("header.omnibarTooltip")}
+              className="btn btn-secondary"
+              style={{ height: 26, padding: "2px 8px", fontSize: 11 }}
             >
               <Search size={11} color="var(--accent-blue)" />
               <span>Omnibar</span>

@@ -24,6 +24,7 @@ import {
   deleteFileFromProject,
   setProjectTopModule
 } from "../engine/projectModel";
+import { useTranslation } from "../i18n";
 
 interface ProjectManagerProps {
   project: AxiomProject | null;
@@ -44,6 +45,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   onCloseProject,
   onSelectTemplate
 }) => {
+  const { t } = useTranslation();
   const [sourcesOpen, setSourcesOpen] = useState<boolean>(true);
   const [simOpen, setSimOpen] = useState<boolean>(true);
   const [constrsOpen, setConstrsOpen] = useState<boolean>(true);
@@ -54,8 +56,9 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto", padding: 12 }}>
         <div
+          className="axiom-card"
           style={{
-            padding: "18px 14px",
+            padding: "20px 16px",
             textAlign: "center",
             backgroundColor: "var(--bg-primary)",
             borderRadius: "var(--radius-md)",
@@ -63,34 +66,20 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             marginBottom: 16
           }}
         >
-          <FolderPlus size={30} color="var(--accent-blue)" style={{ margin: "0 auto 10px", opacity: 0.85 }} />
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 5 }}>
-            No Project Open
+          <FolderPlus size={32} color="var(--accent-blue)" style={{ margin: "0 auto 12px", opacity: 0.85 }} />
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
+            {t("sidebar.emptyTitle")}
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, lineHeight: 1.45 }}>
-            Create a new Vivado project or choose a hardware starter template.
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.45 }}>
+            {t("sidebar.emptyDesc")}
           </div>
           <button
             onClick={onOpenNewProject}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              padding: "8px 14px",
-              backgroundColor: "var(--accent-blue)",
-              color: "#fff",
-              borderRadius: "var(--radius-sm)",
-              border: "none",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "opacity 0.15s ease"
-            }}
+            className="btn btn-primary"
+            style={{ width: "100%", justifyContent: "center" }}
           >
             <Plus size={15} />
-            <span>Create New Project</span>
+            <span>{t("sidebar.newProjectAction")}</span>
           </button>
         </div>
 
@@ -108,10 +97,10 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           }}
         >
           <Sparkles size={12} color="var(--accent-cyan)" />
-          <span>Starter Templates</span>
+          <span>{t("sidebar.templatesTitle")}</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {PROJECT_TEMPLATES.map((tmpl) => (
             <button
               key={tmpl.id}
@@ -123,29 +112,22 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                   onUpdateProject(newProj);
                 }
               }}
+              className="axiom-card axiom-card-hover"
               style={{
                 textAlign: "left",
-                padding: "8px 11px",
+                padding: "10px 12px",
                 borderRadius: "var(--radius-sm)",
                 backgroundColor: "var(--bg-tertiary)",
                 border: "1px solid var(--border-subtle)",
                 color: "var(--text-primary)",
                 cursor: "pointer",
-                transition: "all 0.12s ease"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent-blue)";
-                e.currentTarget.style.backgroundColor = "var(--bg-elevated)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-subtle)";
-                e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
+                transition: "border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease"
               }}
             >
               <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
                 {tmpl.name}
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>
                 {tmpl.defaultDevice.split(" ")[0]} • {tmpl.files.length} files
               </div>
             </button>
@@ -206,13 +188,13 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "3px 6px 3px 20px",
+          padding: "5px 8px 5px 22px",
           margin: "1px 0",
           borderRadius: "var(--radius-sm)",
           backgroundColor: isActive ? "var(--bg-active)" : "transparent",
           cursor: "pointer",
           userSelect: "none",
-          transition: "background-color 0.12s ease"
+          transition: "background-color 0.15s ease, color 0.15s ease"
         }}
         onMouseEnter={(e) => {
           if (!isActive) e.currentTarget.style.backgroundColor = "var(--bg-hover)";
@@ -221,7 +203,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           if (!isActive) e.currentTarget.style.backgroundColor = "transparent";
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
           {file.fileType === "xdc" ? (
             <FileText size={13} color="var(--accent-purple)" />
           ) : (
@@ -230,7 +212,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
 
           <span
             style={{
-              fontSize: 11.5,
+              fontSize: 12,
               fontFamily: "var(--font-mono)",
               color: isActive ? "#fff" : "var(--text-primary)",
               fontWeight: isActive ? 600 : 400,
@@ -244,7 +226,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
 
           {isTop && (
             <span
-              title="Top Module for Elaboration"
+              title={t("sidebar.setAsTop")}
               style={{
                 fontSize: 9,
                 fontWeight: 700,
@@ -255,7 +237,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                 borderRadius: 2
               }}
             >
-              TOP
+              {t("sidebar.topBadge")}
             </span>
           )}
         </div>
@@ -265,15 +247,14 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {file.fileSet === "sources_1" && !isTop && (
             <button
               onClick={(e) => handleSetTop(file, e)}
-              title="Set as Top Module"
+              title={t("sidebar.setAsTop")}
+              className="btn-icon"
               style={{
                 padding: "2px 5px",
                 color: "var(--text-muted)",
                 borderRadius: 3,
                 fontSize: 11
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-cyan)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
               <Star size={13} />
             </button>
@@ -282,14 +263,13 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {project.files.length > 1 && (
             <button
               onClick={(e) => handleDeleteFile(file.id, e)}
-              title="Remove file from project"
+              title={t("common.delete")}
+              className="btn-icon"
               style={{
                 padding: "2px 5px",
                 color: "var(--text-muted)",
                 borderRadius: 3
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
               <Trash2 size={13} />
             </button>
@@ -304,13 +284,13 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       {/* Project Meta Card */}
       <div
         style={{
-          padding: "6px 8px",
+          padding: "8px 10px",
           borderBottom: "1px solid var(--border-subtle)",
           backgroundColor: "var(--bg-primary)"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, flex: 1, overflow: "hidden", marginRight: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1, overflow: "hidden", marginRight: 6 }}>
             <Cpu size={14} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
             <span
               style={{
@@ -331,82 +311,45 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
             <button
               onClick={onOpenNewProject}
-              title="Create or Switch Project"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                fontSize: 11,
-                fontWeight: 600,
-                padding: "3px 7px",
-                backgroundColor: "var(--bg-tertiary)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--accent-blue)"
-              }}
+              title={t("header.newProject")}
+              className="btn btn-ghost"
+              style={{ padding: "3px 8px", fontSize: 11, color: "var(--accent-blue)" }}
             >
               <Plus size={12} />
-              <span>New</span>
+              <span>{t("common.create")}</span>
             </button>
 
             {onCloseProject && (
               <button
                 onClick={onCloseProject}
-                title="Close active project"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "3px 7px",
-                  backgroundColor: "transparent",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-muted)",
-                  cursor: "pointer"
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                title={t("header.closeProject")}
+                className="btn btn-ghost"
+                style={{ padding: "3px 7px", fontSize: 11 }}
               >
                 <X size={12} />
-                <span>Close</span>
+                <span>{t("common.close")}</span>
               </button>
             )}
           </div>
         </div>
 
         {/* Silicon Part & Top Module Badges */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11 }}>
-            <span style={{ color: "var(--text-muted)" }}>Target Part:</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
+            <span style={{ color: "var(--text-muted)" }}>{t("sidebar.targetPart")}</span>
             <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                color: "var(--accent-emerald)",
-                backgroundColor: "rgba(16, 185, 129, 0.12)",
-                padding: "2px 6px",
-                borderRadius: 3,
-                border: "1px solid rgba(16, 185, 129, 0.25)",
-                fontSize: 11
-              }}
+              className="badge badge-cyan mono-num"
+              style={{ fontSize: 11 }}
             >
               {project.targetDevice.split(" ")[0]}
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11 }}>
-            <span style={{ color: "var(--text-muted)" }}>Top Module:</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
+            <span style={{ color: "var(--text-muted)" }}>{t("sidebar.topModule")}</span>
             <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                color: "var(--accent-cyan)",
-                backgroundColor: "rgba(6, 182, 212, 0.12)",
-                padding: "2px 6px",
-                borderRadius: 3,
-                border: "1px solid rgba(6, 182, 212, 0.25)",
-                fontSize: 11
-              }}
+              className="badge badge-emerald mono-num"
+              style={{ fontSize: 11 }}
             >
               {project.topModule}
             </span>
@@ -414,41 +357,21 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* Action Toolbar */}
-        <div style={{ display: "flex", gap: 5, marginTop: 9 }}>
+        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
           <button
             onClick={onOpenAddSource}
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              fontSize: 11.5,
-              fontWeight: 600,
-              padding: "5px 8px",
-              backgroundColor: "var(--accent-blue)",
-              color: "#fff",
-              borderRadius: "var(--radius-sm)",
-              transition: "opacity 0.15s ease"
-            }}
+            className="btn btn-primary"
+            style={{ flex: 1, justifyContent: "center", padding: "5px 8px", fontSize: 11.5 }}
           >
             <FilePlus size={13} />
-            <span>+ Add Sources</span>
+            <span>{t("sidebar.addSources")}</span>
           </button>
 
           <button
             onClick={handleExportProjectJson}
-            title="Export Project Configuration & HDL sources as JSON"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "5px 9px",
-              backgroundColor: "var(--bg-tertiary)",
-              border: "1px solid var(--border-subtle)",
-              color: "var(--text-secondary)",
-              borderRadius: "var(--radius-sm)"
-            }}
+            title={t("sidebar.exportJson")}
+            className="btn btn-secondary"
+            style={{ padding: "5px 9px" }}
           >
             <Download size={13} />
           </button>
@@ -498,8 +421,8 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {sourcesOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {designSources.length === 0 ? (
-                <div style={{ fontSize: 10.5, color: "var(--text-muted)", padding: "3px 20px" }}>
-                  No design sources added
+                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 22px" }}>
+                  {t("sidebar.noDesignSources")}
                 </div>
               ) : (
                 designSources.map(renderFileItem)
@@ -509,26 +432,27 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 2. Simulation Sources (sim_1) */}
-        <div style={{ marginBottom: 3 }}>
+        <div style={{ marginBottom: 4 }}>
           <div
             onClick={() => setSimOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "3px 6px",
-              fontSize: 11.5,
+              gap: 6,
+              padding: "5px 8px",
+              fontSize: 12,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
               borderRadius: "var(--radius-sm)",
-              backgroundColor: "rgba(255, 255, 255, 0.02)"
+              backgroundColor: "rgba(255, 255, 255, 0.02)",
+              transition: "background-color 0.15s ease"
             }}
           >
             {simOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
             {simOpen ? <FolderOpen size={13} color="var(--accent-cyan)" /> : <Folder size={13} color="var(--accent-cyan)" />}
-            <span>Simulation Sources</span>
-            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span>{t("sidebar.simSources")}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({simSources.length})
             </span>
           </div>
@@ -536,8 +460,8 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {simOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {simSources.length === 0 ? (
-                <div style={{ fontSize: 10.5, color: "var(--text-muted)", padding: "3px 20px" }}>
-                  No testbench sources
+                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 22px" }}>
+                  {t("sidebar.noSimSources")}
                 </div>
               ) : (
                 simSources.map(renderFileItem)
@@ -547,26 +471,27 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 3. Constraints (constrs_1) */}
-        <div style={{ marginBottom: 5 }}>
+        <div style={{ marginBottom: 6 }}>
           <div
             onClick={() => setConstrsOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
-              padding: "3px 6px",
-              fontSize: 11.5,
+              gap: 6,
+              padding: "5px 8px",
+              fontSize: 12,
               fontWeight: 600,
               color: "var(--text-primary)",
               cursor: "pointer",
               borderRadius: "var(--radius-sm)",
-              backgroundColor: "rgba(255, 255, 255, 0.02)"
+              backgroundColor: "rgba(255, 255, 255, 0.02)",
+              transition: "background-color 0.15s ease"
             }}
           >
             {constrsOpen ? <ChevronDown size={13} color="var(--text-muted)" /> : <ChevronRight size={13} color="var(--text-muted)" />}
             {constrsOpen ? <FolderOpen size={13} color="var(--accent-purple)" /> : <Folder size={13} color="var(--accent-purple)" />}
-            <span>Constraints</span>
-            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span>{t("sidebar.constraints")}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
               ({constrSources.length})
             </span>
           </div>
@@ -574,8 +499,8 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           {constrsOpen && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               {constrSources.length === 0 ? (
-                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 24px" }}>
-                  No constraints (.xdc)
+                <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "5px 22px" }}>
+                  {t("sidebar.noConstraints")}
                 </div>
               ) : (
                 constrSources.map(renderFileItem)
@@ -585,14 +510,14 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
 
         {/* 4. Project Templates Section */}
-        <div style={{ marginTop: 12, borderTop: "1px solid var(--border-subtle)", paddingTop: 10 }}>
+        <div style={{ marginTop: 14, borderTop: "1px solid var(--border-subtle)", paddingTop: 12 }}>
           <div
             onClick={() => setTemplatesOpen((prev) => !prev)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "5px 8px",
+              padding: "6px 8px",
               fontSize: 11,
               fontWeight: 700,
               color: "var(--accent-blue)",
@@ -603,25 +528,27 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           >
             {templatesOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             <Sparkles size={13} />
-            <span>Load Template Project</span>
+            <span>{t("sidebar.loadTemplate")}</span>
           </div>
 
           {templatesOpen && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 5, padding: "6px 8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "6px 8px" }}>
               {PROJECT_TEMPLATES.map((tmpl) => {
                 const isCurrent = project.templateId === tmpl.id;
                 return (
                   <button
                     key={tmpl.id}
                     onClick={() => handleSelectTemplate(tmpl.id)}
+                    className="axiom-card axiom-card-hover"
                     style={{
                       textAlign: "left",
-                      padding: "7px 9px",
+                      padding: "8px 10px",
                       borderRadius: "var(--radius-sm)",
                       backgroundColor: isCurrent ? "var(--bg-elevated)" : "var(--bg-tertiary)",
                       border: `1px solid ${isCurrent ? "var(--accent-blue)" : "var(--border-subtle)"}`,
                       color: isCurrent ? "#fff" : "var(--text-secondary)",
-                      cursor: "pointer"
+                      cursor: "pointer",
+                      transition: "border-color 0.15s ease, background-color 0.15s ease"
                     }}
                   >
                     <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? "var(--accent-cyan)" : "var(--text-primary)" }}>

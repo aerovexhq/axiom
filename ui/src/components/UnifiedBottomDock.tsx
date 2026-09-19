@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { SimulationState, engineBridge, LspDiagnostic } from "../engine/engineBridge";
 import { ResizableSplitter } from "./ResizableSplitter";
+import { useTranslation } from "../i18n";
 
 interface UnifiedBottomDockProps {
   state: SimulationState;
@@ -43,6 +44,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   onNavigateToLine,
   isMobileFullScreen = false
 }) => {
+  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [dockHeight, setDockHeight] = useState<number>(180);
@@ -363,8 +365,8 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
     return (
       <div
         style={{
-          height: 26,
-          minHeight: 26,
+          height: 28,
+          minHeight: 28,
           backgroundColor: "var(--bg-secondary)",
           borderTop: "1px solid var(--border-subtle)",
           display: "flex",
@@ -380,19 +382,20 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
             onClick={() => setIsCollapsed(false)}
-            title="Expand Bottom Dock"
+            title={t("dock.expandDock")}
+            className="btn btn-ghost"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 4,
               color: "var(--accent-blue)",
               fontWeight: 600,
-              cursor: "pointer",
+              padding: "2px 6px",
               fontSize: 11.5
             }}
           >
             <ChevronUp size={13} />
-            <span>Dock</span>
+            <span>{t("dock.dockTitle")}</span>
           </button>
 
           <span style={{ color: "var(--border-strong)" }}>|</span>
@@ -403,17 +406,18 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               setActiveTab("repl");
               setIsCollapsed(false);
             }}
+            className="btn btn-ghost"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 5,
+              padding: "2px 6px",
               color: "var(--text-secondary)",
-              cursor: "pointer",
               fontSize: 12
             }}
           >
             <Terminal size={13} />
-            <span>Console</span>
+            <span>{t("dock.console")}</span>
           </button>
 
           <button
@@ -421,17 +425,18 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               setActiveTab("problems");
               setIsCollapsed(false);
             }}
+            className="btn btn-ghost"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 5,
+              padding: "2px 6px",
               color: errorCount > 0 ? "var(--accent-rose)" : warningCount > 0 ? "var(--accent-amber)" : "var(--text-secondary)",
-              cursor: "pointer",
               fontSize: 12
             }}
           >
             <AlertCircle size={13} />
-            <span>Problems ({diagnostics.length})</span>
+            <span>{t("dock.problems")} ({diagnostics.length})</span>
           </button>
 
           <button
@@ -439,17 +444,18 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               setActiveTab("telemetry");
               setIsCollapsed(false);
             }}
+            className="btn btn-ghost"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 5,
+              padding: "2px 6px",
               color: "var(--accent-amber)",
-              cursor: "pointer",
               fontSize: 12
             }}
           >
             <Zap size={13} />
-            <span>Power ({latestPowerMw.toFixed(1)} mW)</span>
+            <span>{t("dock.telemetry")} ({latestPowerMw.toFixed(1)} mW)</span>
           </button>
 
           {state.glitches.length > 0 && (
@@ -458,28 +464,30 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                 setActiveTab("glitches");
                 setIsCollapsed(false);
               }}
+              className="btn btn-ghost"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 5,
+                padding: "2px 6px",
                 color: "var(--accent-rose)",
-                cursor: "pointer",
                 fontSize: 12
               }}
             >
               <AlertTriangle size={13} />
-              <span>{state.glitches.length} Glitches</span>
+              <span>{state.glitches.length} {t("dock.glitches")}</span>
             </button>
           )}
         </div>
 
         {/* Right: Live Telemetry & Simulation Status Chips */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: "var(--font-mono)" }}>
-          <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
+          <span className="mono-num" style={{ color: "var(--text-muted)", fontSize: 11 }}>
             t = {(state.currentSimTimePs / 1000).toFixed(1)} ns
           </span>
 
           <span
+            className="mono-num"
             style={{
               display: "flex",
               alignItems: "center",
@@ -492,17 +500,10 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </span>
 
           <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              padding: "2px 6px",
-              borderRadius: 3,
-              backgroundColor: state.isRunning ? "rgba(16, 185, 129, 0.2)" : "rgba(100, 116, 139, 0.2)",
-              color: state.isRunning ? "var(--accent-emerald)" : "var(--text-muted)",
-              border: `1px solid ${state.isRunning ? "rgba(16, 185, 129, 0.4)" : "rgba(100, 116, 139, 0.3)"}`
-            }}
+            className={state.isRunning ? "badge badge-emerald mono-num" : "badge badge-slate mono-num"}
+            style={{ fontSize: 10 }}
           >
-            {state.isRunning ? "RUNNING" : "IDLE"}
+            {state.isRunning ? t("dock.running") : t("dock.idle")}
           </span>
         </div>
       </div>
@@ -569,7 +570,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             }}
           >
             <Terminal size={12} />
-            <span style={{ whiteSpace: "nowrap" }}>Console</span>
+            <span style={{ whiteSpace: "nowrap" }}>{t("dock.console")}</span>
           </button>
 
           <button
@@ -591,7 +592,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             }}
           >
             <AlertCircle size={12} />
-            <span style={{ whiteSpace: "nowrap" }}>Problems</span>
+            <span style={{ whiteSpace: "nowrap" }}>{t("dock.problems")}</span>
             <span
               style={{
                 fontSize: 9.5,
@@ -637,7 +638,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             }}
           >
             <Zap size={12} />
-            <span style={{ whiteSpace: "nowrap" }}>Power</span>
+            <span style={{ whiteSpace: "nowrap" }}>{t("dock.telemetry")}</span>
           </button>
 
           <button
@@ -659,7 +660,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             }}
           >
             <AlertTriangle size={12} />
-            <span style={{ whiteSpace: "nowrap" }}>Glitches</span>
+            <span style={{ whiteSpace: "nowrap" }}>{t("dock.glitches")}</span>
             {state.glitches.length > 0 && (
               <span
                 style={{
@@ -697,7 +698,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             }}
           >
             <Clock size={12} />
-            <span style={{ whiteSpace: "nowrap" }}>Timing</span>
+            <span style={{ whiteSpace: "nowrap" }}>{t("dock.timingTab")}</span>
           </button>
         </div>
 
@@ -727,7 +728,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                     fontWeight: replMode === "shell" ? 600 : 400
                   }}
                 >
-                  REPL Shell
+                  {t("dock.shellMode")}
                 </button>
                 <button
                   onClick={() => setReplMode("logs")}
@@ -740,7 +741,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                     fontWeight: replMode === "logs" ? 600 : 400
                   }}
                 >
-                  Kernel Logs
+                  {t("dock.logsMode")}
                 </button>
               </div>
 
@@ -748,16 +749,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               <button
                 onClick={handleExportVcd}
                 title="Export Value Change Dump (.vcd)"
+                className="btn btn-secondary"
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 3,
                   fontSize: 10,
-                  padding: "2px 6px",
-                  backgroundColor: "var(--bg-tertiary)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-secondary)"
+                  padding: "2px 6px"
                 }}
               >
                 <Download size={10} />
@@ -766,17 +764,14 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
 
               <button
                 onClick={handleExportSaif}
-                title="Export Switching Activity Interchange Format (.saif)"
+                title="Export SAIF 2.0 (.saif)"
+                className="btn btn-secondary"
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 3,
                   fontSize: 10,
-                  padding: "2px 6px",
-                  backgroundColor: "var(--bg-tertiary)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-secondary)"
+                  padding: "2px 6px"
                 }}
               >
                 <Download size={10} />
@@ -789,7 +784,8 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           {!isMobileFullScreen && (
             <button
               onClick={() => setIsMaximized((prev) => !prev)}
-              title={isMaximized ? "Restore Height" : "Maximize Dock"}
+              title={isMaximized ? t("header.restore") : t("header.maximize")}
+              className="btn-icon"
               style={{
                 padding: "3px 5px",
                 color: "var(--text-muted)",
@@ -804,7 +800,8 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           {!isMobileFullScreen && (
             <button
               onClick={() => setIsCollapsed(true)}
-              title="Collapse to Status Bar"
+              title={t("dock.collapseDock")}
+              className="btn-icon"
               style={{
                 padding: "3px 5px",
                 color: "var(--text-muted)",
@@ -867,7 +864,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                     type="text"
                     value={replInput}
                     onChange={(e) => setReplInput(e.target.value)}
-                    placeholder="Type 'help' or command (step, tick, inspect, run, stop, reset)..."
+                    placeholder={t("dock.replPlaceholder")}
                     style={{
                       flex: 1,
                       backgroundColor: "transparent",
@@ -880,16 +877,13 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                   />
                   <button
                     type="submit"
+                    className="btn btn-primary"
                     style={{
                       padding: "2px 8px",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      backgroundColor: "var(--accent-blue)",
-                      color: "#fff",
-                      borderRadius: "var(--radius-sm)"
+                      fontSize: 10
                     }}
                   >
-                    Execute
+                    {t("dock.execute")}
                   </button>
                 </form>
               </div>
@@ -961,8 +955,8 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               {diagnostics.length === 0 ? (
                 <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--text-muted)", minHeight: 120 }}>
                   <CheckCircle2 size={32} color="var(--accent-emerald)" />
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
-                    No Problems Detected
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                    {t("dock.noProblems")}
                   </div>
                   <div style={{ fontSize: 11, maxWidth: 360, textAlign: "center", color: "var(--text-muted)" }}>
                     Clean AST. Zero syntax errors, zero driver contention, zero race hazards.
@@ -1054,35 +1048,35 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             {/* Top Stat Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginBottom: 8 }}>
               <div style={{ padding: "6px 8px", backgroundColor: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize: 9, color: "var(--text-muted)" }}>INSTANT POWER</div>
+                <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>{t("dock.powerMw")}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-amber)", fontFamily: "var(--font-mono)" }}>
                   {latestPowerMw.toFixed(2)} mW
                 </div>
               </div>
 
               <div style={{ padding: "6px 8px", backgroundColor: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize: 9, color: "var(--text-muted)" }}>AVERAGE POWER</div>
+                <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>AVG POWER</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
                   {avgPowerMw.toFixed(2)} mW
                 </div>
               </div>
 
               <div style={{ padding: "6px 8px", backgroundColor: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize: 9, color: "var(--text-muted)" }}>DISSIPATED ENERGY</div>
+                <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>{t("dock.energyNj")}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-emerald)", fontFamily: "var(--font-mono)" }}>
                   {totalEnergyNj.toFixed(3)} nJ
                 </div>
               </div>
 
               <div style={{ padding: "6px 8px", backgroundColor: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize: 9, color: "var(--text-muted)" }}>SUPPLY RAIL</div>
+                <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>{t("dock.railVoltage")}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-blue)", fontFamily: "var(--font-mono)" }}>
                   {currentRailV.toFixed(3)} V
                 </div>
               </div>
 
               <div style={{ padding: "6px 8px", backgroundColor: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize: 9, color: "var(--text-muted)" }}>DYNAMIC IR SAG</div>
+                <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>DYNAMIC IR SAG</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: state.maxSagMv > 30 ? "var(--accent-rose)" : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
                   {state.maxSagMv.toFixed(1)} mV
                 </div>
@@ -1102,7 +1096,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             {state.glitches.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)", gap: 6 }}>
                 <CheckCircle size={22} color="var(--accent-emerald)" />
-                <span style={{ fontSize: 12 }}>No combinational glitches or zero-time race hazards detected.</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{t("dock.noGlitches")}</span>
                 <span style={{ fontSize: 10 }}>Axiom tracks all delta cycles between active and non-blocking assignment phases.</span>
               </div>
             ) : (

@@ -1,6 +1,7 @@
 import React from "react";
 import { FileCode, Cpu, Sliders, Activity, Terminal, AlertCircle } from "lucide-react";
 import { MobilePanelType } from "./MobileDrawer";
+import { useTranslation } from "../i18n/i18nContext";
 
 interface MobileBottomBarProps {
   activePanel: MobilePanelType;
@@ -15,6 +16,8 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
   diagnosticCount = 0,
   glitchCount = 0
 }) => {
+  const { t } = useTranslation();
+
   const tabs: Array<{
     id: MobilePanelType;
     label: string;
@@ -25,31 +28,31 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
   }> = [
     {
       id: "editor",
-      label: "Code",
+      label: t.mobile.code,
       icon: <FileCode size={19} />,
       activeColor: "var(--accent-blue)"
     },
     {
       id: "schematic",
-      label: "Schematic",
+      label: t.mobile.schematic,
       icon: <Cpu size={19} />,
       activeColor: "var(--accent-cyan)"
     },
     {
       id: "virtuallab",
-      label: "Lab",
+      label: t.mobile.lab,
       icon: <Sliders size={19} />,
       activeColor: "var(--accent-amber)"
     },
     {
       id: "waveform",
-      label: "Waves",
+      label: t.mobile.waves,
       icon: <Activity size={19} />,
       activeColor: "var(--accent-emerald)"
     },
     {
       id: "dock",
-      label: "Console",
+      label: t.mobile.console,
       icon: diagnosticCount > 0 ? <AlertCircle size={19} /> : <Terminal size={19} />,
       activeColor: diagnosticCount > 0 ? "var(--accent-rose)" : "var(--accent-purple)",
       badge: diagnosticCount > 0 ? diagnosticCount : glitchCount > 0 ? glitchCount : undefined,

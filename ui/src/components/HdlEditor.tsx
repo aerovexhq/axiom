@@ -18,6 +18,7 @@ import { AxiomProject } from "../engine/projectModel";
 import { engineBridge, LspDiagnostic } from "../engine/engineBridge";
 import { registerVerilogLanguage } from "../engine/monacoVerilog";
 import { Breadcrumbs, BreadcrumbItem, Button, Badge } from "./ui";
+import { useTranslation } from "../i18n";
 
 // Configure monaco-editor loader to use bundled package
 loader.config({ monaco: monacoPkg });
@@ -55,6 +56,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   onDiagnosticsChange,
   onOpenProblems
 }) => {
+  const { t } = useTranslation();
   const editorRef = useRef<monacoPkg.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monacoPkg | null>(null);
   const [localDiags, setLocalDiags] = useState<LspDiagnostic[]>([]);
@@ -143,7 +145,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
 
   // Build clean de-cramped breadcrumb items (sources_1 > file.v)
   const breadcrumbItems: BreadcrumbItem[] = [
-    { label: activeFile?.fileSet ?? "sources_1", highlight: false },
+    { label: activeFile?.fileSet ?? t("editor.breadcrumbsSources"), highlight: false },
     { label: activeFile?.name ?? `${topModule}.v`, highlight: true }
   ];
 
@@ -165,8 +167,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       {/* Editor Multi-Tab Strip */}
       <div
         style={{
-          height: 28,
-          minHeight: 28,
+          height: 30,
+          minHeight: 30,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
@@ -190,8 +192,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 5,
-                    padding: "3px 7px",
+                    gap: 6,
+                    padding: "4px 9px",
                     borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
                     backgroundColor: isActive ? "var(--bg-primary)" : "transparent",
                     borderTop: isActive ? "2px solid var(--accent-blue)" : "2px solid transparent",
@@ -199,18 +201,19 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                     borderRight: isActive ? "1px solid var(--border-subtle)" : "1px solid transparent",
                     cursor: "pointer",
                     userSelect: "none",
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: isActive ? "#fff" : "var(--text-secondary)",
                     fontWeight: isActive ? 600 : 400,
-                    maxWidth: 180,
-                    minWidth: 60,
-                    flexShrink: 0
+                    maxWidth: 190,
+                    minWidth: 70,
+                    flexShrink: 0,
+                    transition: "background-color 0.15s ease, color 0.15s ease"
                   }}
                 >
                   {file.fileType === "xdc" ? (
-                    <FileText size={12} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
+                    <FileText size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
                   ) : (
-                    <FileCode size={12} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
+                    <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
                   )}
 
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>
@@ -225,12 +228,12 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                         color: "var(--accent-cyan)",
                         backgroundColor: "rgba(6, 182, 212, 0.15)",
                         border: "1px solid rgba(6, 182, 212, 0.3)",
-                        padding: "0 3px",
+                        padding: "0 4px",
                         borderRadius: 2,
                         flexShrink: 0
                       }}
                     >
-                      TOP
+                      {t("sidebar.topBadge")}
                     </span>
                   )}
 
@@ -241,9 +244,10 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                         e.stopPropagation();
                         onCloseTab?.(file.id);
                       }}
-                      title="Close Tab"
+                      title={t("editor.closeTab")}
+                      className="btn-icon"
                       style={{
-                        padding: "1px 2px",
+                        padding: "1px 3px",
                         color: "var(--text-muted)",
                         borderRadius: 2,
                         marginLeft: 2,
@@ -251,19 +255,17 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                         border: "none",
                         cursor: "pointer"
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-rose)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                     >
-                      <X size={10} />
+                      <X size={11} />
                     </button>
                   )}
                 </div>
               );
             })
           ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "0 6px" }}>
-              <Code2 size={12} color="var(--accent-cyan)" />
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-primary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 6px" }}>
+              <Code2 size={13} color="var(--accent-cyan)" />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
                 {topModule}.v
               </span>
             </div>
@@ -273,9 +275,10 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             <button
               type="button"
               onClick={onAddFileClick}
-              title="Add New Source File"
+              title={t("editor.addSourceFile")}
+              className="btn-icon"
               style={{
-                padding: "2px 4px",
+                padding: "3px 5px",
                 color: "var(--text-muted)",
                 cursor: "pointer",
                 borderRadius: "var(--radius-sm)",
@@ -284,28 +287,26 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                 display: "flex",
                 alignItems: "center"
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              <Plus size={13} />
+              <Plus size={14} />
             </button>
           )}
         </div>
 
         {/* Right: Actions Strip (Linter status, JIT Ready, Elaborate button, Maximize) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 6 }}>
           {/* Linter Diagnostic Pill */}
           <button
             type="button"
             onClick={onOpenProblems}
-            title="Axiom Verilog Linter Status"
+            title={t("dock.problems")}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 3,
-              fontSize: 10.5,
+              gap: 4,
+              fontSize: 11,
               fontWeight: 600,
-              padding: "2px 6px",
+              padding: "2px 7px",
               borderRadius: "var(--radius-sm)",
               backgroundColor:
                 errorCount > 0
@@ -331,18 +332,18 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           >
             {errorCount > 0 ? (
               <>
-                <AlertCircle size={10} />
-                <span>{errorCount} {errorCount === 1 ? "Error" : "Errors"}</span>
+                <AlertCircle size={11} />
+                <span>{errorCount} {t("editor.lintErrors")}</span>
               </>
             ) : warningCount > 0 ? (
               <>
-                <AlertTriangle size={10} />
-                <span>{warningCount} {warningCount === 1 ? "Warning" : "Warnings"}</span>
+                <AlertTriangle size={11} />
+                <span>{warningCount} {t("editor.lintWarnings")}</span>
               </>
             ) : (
               <>
-                <CheckCircle size={10} />
-                <span>Clean</span>
+                <CheckCircle size={11} />
+                <span>{t("editor.lintClean")}</span>
               </>
             )}
           </button>
@@ -353,19 +354,20 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             size="xs"
             onClick={onCompile}
             icon={<Play size={10} fill="#fff" />}
-            title="Elaborate & JIT Compile Active HDL Project"
-            style={{ padding: "2px 6px", fontSize: 10.5 }}
+            title={t("header.compile")}
+            style={{ padding: "3px 8px", fontSize: 11 }}
           >
-            Elab
+            {t("editor.elaborate")}
           </Button>
 
           {onToggleMaximize && (
             <button
               type="button"
               onClick={onToggleMaximize}
-              title={isMaximized ? "Restore Split View" : "Maximize Code Editor (100%)"}
+              title={isMaximized ? t("editor.restoreSplit") : t("editor.maximizeEditor")}
+              className="btn-icon"
               style={{
-                padding: "2px 4px",
+                padding: "3px 5px",
                 color: "var(--text-muted)",
                 borderRadius: "var(--radius-sm)",
                 cursor: "pointer",
@@ -374,10 +376,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                 display: "flex",
                 alignItems: "center"
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              {isMaximized ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+              {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             </button>
           )}
         </div>

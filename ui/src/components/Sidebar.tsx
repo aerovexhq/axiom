@@ -16,6 +16,7 @@ import {
 import { HierarchyNode, SimulationState } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
 import { ProjectManager } from "./ProjectManager";
+import { useTranslation } from "../i18n";
 
 interface SidebarProps {
   state: SimulationState;
@@ -47,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed = false,
   onToggleCollapse
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"project" | "hierarchy">("project");
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set([state.topModule]));
   const [hierarchySearch, setHierarchySearch] = useState<string>("");
@@ -74,13 +76,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           style={{
             display: "flex",
             alignItems: "center",
-            padding: `3px 8px 3px ${8 + depth * 12}px`,
-            fontSize: 11.5,
+            padding: `5px 8px 5px ${8 + depth * 14}px`,
+            fontSize: 12,
             color: isChecked ? "var(--text-primary)" : "var(--text-secondary)",
             cursor: "pointer",
             backgroundColor: isChecked ? "var(--bg-active)" : "transparent",
             borderRadius: "var(--radius-sm)",
-            userSelect: "none"
+            userSelect: "none",
+            transition: "background-color 0.15s ease, color 0.15s ease"
           }}
           onClick={() => {
             if (hasChildren) toggleExpand(node.id);
@@ -145,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <button
           onClick={onToggleCollapse}
-          title="Expand Vivado Project Sidebar"
+          title={t("sidebar.expandSidebar")}
           style={{
             padding: 6,
             color: "var(--accent-blue)",
@@ -163,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             setActiveTab("project");
             onToggleCollapse?.();
           }}
-          title="Vivado Project Sources"
+          title={t("sidebar.sourcesTab")}
           style={{
             padding: 6,
             color: activeTab === "project" ? "var(--accent-blue)" : "var(--text-muted)",
@@ -179,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             setActiveTab("hierarchy");
             onToggleCollapse?.();
           }}
-          title="Elaborated Netlist Hierarchy"
+          title={t("sidebar.netlistTab")}
           style={{
             padding: 6,
             color: activeTab === "hierarchy" ? "var(--accent-blue)" : "var(--text-muted)",
@@ -194,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           onClick={onOpenAddSource}
-          title="Add Source File"
+          title={t("sidebar.addSources")}
           style={{
             padding: 6,
             color: "var(--accent-cyan)",
@@ -207,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           onClick={onOpenNewProject}
-          title="New Vivado Project"
+          title={t("sidebar.newProjectAction")}
           style={{
             padding: 6,
             color: "var(--accent-emerald)",
@@ -265,7 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }}
           >
             <Folder size={12} />
-            <span>Sources</span>
+            <span>{t("sidebar.sourcesTab")}</span>
           </button>
 
           <button
@@ -284,7 +287,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }}
           >
             <GitCommit size={12} />
-            <span>Netlist</span>
+            <span>{t("sidebar.netlistTab")}</span>
           </button>
         </div>
 
@@ -292,7 +295,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            title="Collapse Sidebar (Liberate Workspace Space)"
+            title={t("sidebar.collapseSidebar")}
             style={{
               padding: "4px 6px",
               color: "var(--text-muted)",
@@ -326,7 +329,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="text"
                 value={hierarchySearch}
                 onChange={(e) => setHierarchySearch(e.target.value)}
-                placeholder="Filter nets & instances..."
+                placeholder={t("sidebar.searchSignals")}
                 style={{
                   width: "100%",
                   padding: "6px 8px 6px 28px",
@@ -349,15 +352,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", padding: "4px 8px 6px", letterSpacing: 0.5 }}>
-              Elaborated Netlist Tree
+              {t("sidebar.netlistTree")}
             </div>
 
             {(!project || state.hierarchy.length === 0) ? (
               <div style={{ padding: "28px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>
                 <Box size={26} style={{ margin: "0 auto 8px", opacity: 0.4 }} />
-                <div style={{ fontWeight: 600, color: "var(--text-secondary)" }}>No Netlist Available</div>
+                <div style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{t("sidebar.noNetlist")}</div>
                 <div style={{ fontSize: 10, marginTop: 4, opacity: 0.7 }}>
-                  Create or open a project to elaborate hardware netlist hierarchy.
+                  {t("sidebar.emptyDesc")}
                 </div>
               </div>
             ) : (

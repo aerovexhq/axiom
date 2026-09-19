@@ -17,6 +17,7 @@ import {
   CdcCrossing,
   EnergyTreemapNode
 } from "../engine/timingModel";
+import { useTranslation } from "../i18n/i18nContext";
 
 interface TimingRadarViewerProps {
   state: SimulationState;
@@ -27,6 +28,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
   state,
   activeDesignId: _activeDesignId
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"waterfall" | "cdc" | "treemap">("waterfall");
   const [clockPeriodNs, setClockPeriodNs] = useState<number>(10.0); // 100 MHz default
   const [selectedPathId, setSelectedPathId] = useState<string>("path_1");
@@ -81,7 +83,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Clock size={14} color="var(--accent-cyan)" />
             <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
-              Axiom Timing & Energy Intelligence Suite
+              {t.timing.title}
             </span>
           </div>
 
@@ -89,69 +91,72 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
           <div style={{ display: "flex", gap: 2, backgroundColor: "var(--bg-tertiary)", padding: 2, borderRadius: 4, border: "1px solid var(--border-subtle)" }}>
             <button
               onClick={() => setActiveTab("waterfall")}
+              className="btn btn-ghost"
               style={{
                 fontSize: 11,
                 fontWeight: 600,
                 padding: "2px 8px",
+                height: "auto",
+                minHeight: 22,
                 borderRadius: 3,
                 backgroundColor: activeTab === "waterfall" ? "var(--accent-blue)" : "transparent",
                 color: activeTab === "waterfall" ? "#fff" : "var(--text-muted)",
-                border: "none",
-                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 4
               }}
             >
               <TrendingUp size={11} />
-              <span>Slack Waterfall</span>
+              <span>{t.timing.slackWaterfall}</span>
             </button>
 
             <button
               onClick={() => setActiveTab("cdc")}
+              className="btn btn-ghost"
               style={{
                 fontSize: 11,
                 fontWeight: 600,
                 padding: "2px 8px",
+                height: "auto",
+                minHeight: 22,
                 borderRadius: 3,
                 backgroundColor: activeTab === "cdc" ? "var(--accent-blue)" : "transparent",
                 color: activeTab === "cdc" ? "#fff" : "var(--text-muted)",
-                border: "none",
-                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 4
               }}
             >
               <Share2 size={11} />
-              <span>CDC Matrix ({cdcCrossings.length})</span>
+              <span>{t.timing.cdcMatrix} ({cdcCrossings.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab("treemap")}
+              className="btn btn-ghost"
               style={{
                 fontSize: 11,
                 fontWeight: 600,
                 padding: "2px 8px",
+                height: "auto",
+                minHeight: 22,
                 borderRadius: 3,
                 backgroundColor: activeTab === "treemap" ? "var(--accent-blue)" : "transparent",
                 color: activeTab === "treemap" ? "#fff" : "var(--text-muted)",
-                border: "none",
-                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 4
               }}
             >
               <Flame size={11} />
-              <span>Silicon Energy Treemap</span>
+              <span>{t.timing.energyTreemap}</span>
             </button>
           </div>
         </div>
 
         {/* Clock Constraint Frequency Selector */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-          <span style={{ color: "var(--text-muted)" }}>Target Clock:</span>
+          <span style={{ color: "var(--text-muted)" }}>{t.timing.clockConstraint}</span>
           {[20.0, 10.0, 5.0, 3.33].map((period) => {
             const mhz = Math.round(1000 / period);
             const isSelected = Math.abs(clockPeriodNs - period) < 0.05;
@@ -159,15 +164,17 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
               <button
                 key={period}
                 onClick={() => setClockPeriodNs(period)}
+                className="btn btn-ghost"
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
                   padding: "1px 6px",
+                  height: "auto",
+                  minHeight: 20,
                   borderRadius: 3,
                   backgroundColor: isSelected ? "var(--accent-cyan)" : "var(--bg-tertiary)",
                   color: isSelected ? "#0c1017" : "var(--text-muted)",
-                  border: "1px solid var(--border-subtle)",
-                  cursor: "pointer"
+                  border: "1px solid var(--border-subtle)"
                 }}
               >
                 {mhz} MHz
@@ -196,7 +203,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                 }}
               >
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                  Worst Negative Slack (WNS)
+                  {t.timing.wns}
                 </div>
                 <div
                   style={{
@@ -212,7 +219,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                     : `${(timingSummary.worstNegativeSlackPs / 1000).toFixed(3)} ns`}
                 </div>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                  Status: {timingSummary.worstNegativeSlackPs >= 0 ? "MET (PASS)" : "VIOLATION"}
+                  {t.common.status}: {timingSummary.worstNegativeSlackPs >= 0 ? t.timing.statusMet : t.timing.statusViolation}
                 </div>
               </div>
 
@@ -226,7 +233,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                 }}
               >
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                  Total Negative Slack (TNS)
+                  {t.timing.tns}
                 </div>
                 <div
                   style={{
@@ -240,7 +247,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   {(timingSummary.totalNegativeSlackPs / 1000).toFixed(3)} ns
                 </div>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                  Failing Paths: {timingSummary.failingPathsCount} of {timingSummary.totalPathsCount}
+                  {t.timing.failingPaths}: {timingSummary.failingPathsCount} of {timingSummary.totalPathsCount}
                 </div>
               </div>
 
@@ -254,7 +261,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                 }}
               >
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                  Worst Hold Slack (WHS)
+                  {t.timing.whs}
                 </div>
                 <div
                   style={{
@@ -268,7 +275,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   +{(timingSummary.worstHoldSlackPs / 1000).toFixed(3)} ns
                 </div>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                  Min Hold Margin: Met
+                  {t.common.status}: {t.timing.statusMet}
                 </div>
               </div>
 
@@ -282,7 +289,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                 }}
               >
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                  Max Frequency (Fmax)
+                  {t.timing.fmax}
                 </div>
                 <div
                   style={{
@@ -314,9 +321,9 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                    Slack Distribution Histogram
+                    {t.timing.slackHistogram}
                   </span>
-                  <span style={{ fontSize: 10, color: "var(--accent-emerald)" }}>All Paths Analyzed</span>
+                  <span style={{ fontSize: 10, color: "var(--accent-emerald)" }}>{t.timing.allPathsAnalyzed}</span>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 28, margin: "4px 0" }}>
@@ -358,10 +365,10 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-                    Critical Path Delay Breakdown: <span style={{ color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>{activePath.startPoint} &rarr; {activePath.endPoint}</span>
+                    {t.timing.breakdown}: <span style={{ color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>{activePath.startPoint} &rarr; {activePath.endPoint}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                    Arrival: {activePath.arrivalTimePs} ps | Required: {activePath.requiredTimePs} ps | Slack:{" "}
+                    {t.timing.arrival}: {activePath.arrivalTimePs} ps | {t.timing.required}: {activePath.requiredTimePs} ps | {t.timing.slack}:{" "}
                     <span style={{ color: activePath.slackPs >= 0 ? "var(--accent-emerald)" : "#f43f5e", fontWeight: 700 }}>
                       +{activePath.slackPs} ps
                     </span>
@@ -373,14 +380,16 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                     <button
                       key={p.id}
                       onClick={() => setSelectedPathId(p.id)}
+                      className="btn btn-ghost"
                       style={{
                         fontSize: 10,
                         padding: "2px 8px",
+                        height: "auto",
+                        minHeight: 20,
                         borderRadius: 4,
                         border: selectedPathId === p.id ? "1px solid var(--accent-cyan)" : "1px solid var(--border-subtle)",
                         backgroundColor: selectedPathId === p.id ? "rgba(56, 189, 248, 0.15)" : "var(--bg-tertiary)",
-                        color: selectedPathId === p.id ? "var(--accent-cyan)" : "var(--text-muted)",
-                        cursor: "pointer"
+                        color: selectedPathId === p.id ? "var(--accent-cyan)" : "var(--text-muted)"
                       }}
                     >
                       Path {idx + 1}
@@ -472,13 +481,13 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "var(--bg-tertiary)", padding: "10px 14px", borderRadius: 6 }}>
                 <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
                   <div>
-                    <span style={{ color: "var(--text-muted)" }}>Logic Gate Delay: </span>
+                    <span style={{ color: "var(--text-muted)" }}>{t.timing.logicDelay}: </span>
                     <span style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>
                       {activePath.logicDelayPs} ps ({( (activePath.logicDelayPs / activePath.dataDelayPs) * 100 ).toFixed(0)}%)
                     </span>
                   </div>
                   <div>
-                    <span style={{ color: "var(--text-muted)" }}>Interconnect Wire Delay: </span>
+                    <span style={{ color: "var(--text-muted)" }}>{t.timing.routingDelay}: </span>
                     <span style={{ color: "var(--accent-amber)", fontWeight: 700 }}>
                       {activePath.netDelayPs} ps ({( (activePath.netDelayPs / activePath.dataDelayPs) * 100 ).toFixed(0)}%)
                     </span>
@@ -516,7 +525,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-                  Automated Clock Domain Crossing (CDC) Verification Matrix
+                  {t.timing.cdcMatrix}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
                   Detects metastability hazards and verifies 2-FF synchronizers across asynchronous clock boundaries.
@@ -525,7 +534,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
 
               <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--accent-emerald)" }}>
                 <ShieldCheck size={14} />
-                <span>Zero Metastability Hazards Detected</span>
+                <span>{t.timing.zeroMetastability}</span>
               </div>
             </div>
 
@@ -540,12 +549,12 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
             >
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-medium)", textAlign: "left", color: "var(--text-muted)" }}>
-                  <th style={{ padding: "8px 10px" }}>Source Domain</th>
-                  <th style={{ padding: "8px 10px" }}>Destination Domain</th>
-                  <th style={{ padding: "8px 10px" }}>Signal Transferred</th>
-                  <th style={{ padding: "8px 10px" }}>Freq Ratio</th>
-                  <th style={{ padding: "8px 10px" }}>Protection Scheme</th>
-                  <th style={{ padding: "8px 10px" }}>Verification Status</th>
+                  <th style={{ padding: "8px 10px" }}>{t.timing.sourceDomain}</th>
+                  <th style={{ padding: "8px 10px" }}>{t.timing.destDomain}</th>
+                  <th style={{ padding: "8px 10px" }}>{t.timing.signalTransferred}</th>
+                  <th style={{ padding: "8px 10px" }}>{t.timing.freqRatio}</th>
+                  <th style={{ padding: "8px 10px" }}>{t.timing.protectionScheme}</th>
+                  <th style={{ padding: "8px 10px" }}>{t.timing.verificationStatus}</th>
                 </tr>
               </thead>
               <tbody>
@@ -593,7 +602,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                         }}
                       >
                         <CheckCircle2 size={10} />
-                        <span>VERIFIED (PASS)</span>
+                        <span>{t.timing.verifiedPass}</span>
                       </span>
                     </td>
                   </tr>
@@ -621,7 +630,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>
-                  Hierarchical Silicon Dynamic Energy Treemap (E = &frac12; &Sigma; C V&sup2;)
+                  {t.timing.energyTreemap} (E = &frac12; &Sigma; C V&sup2;)
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
                   Area is proportional to dissipated energy; color intensity tracks instantaneous toggle switching rate (&alpha;).
@@ -641,14 +650,14 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>PDN Voltage Droop</div>
+                  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{t.timing.pdnDroop}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-amber)", fontFamily: "var(--font-mono)" }}>
                     &Delta;V = {energyRoot.pdnDroopMv.toFixed(1)} mV
                   </div>
                 </div>
                 <div style={{ width: 1, height: 20, backgroundColor: "var(--border-subtle)" }} />
                 <div>
-                  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>Total Energy</div>
+                  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{t.timing.totalEnergy}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>
                     {energyRoot.energyUj.toFixed(2)} &mu;J
                   </div>
@@ -693,7 +702,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10, color: "var(--text-muted)" }}>
-                    <span>Switching: &alpha; = {child.switchingRateAlpha.toFixed(2)}</span>
+                    <span>{t.timing.switchingRate}: &alpha; = {child.switchingRateAlpha.toFixed(2)}</span>
                     <span style={{ fontFamily: "var(--font-mono)", color: child.thermalColor }}>
                       Droop: {child.pdnDroopMv} mV
                     </span>

@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   MapPin,
+  Clock,
   X
 } from "lucide-react";
 import { SimulationState } from "../engine/engineBridge";
@@ -21,6 +22,7 @@ import {
   sliceFaninCone,
   sliceFanoutCone
 } from "../engine/schematicModel";
+import { useTranslation } from "../i18n";
 
 interface SchematicViewerProps {
   state: SimulationState;
@@ -53,6 +55,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   onSelectSignal,
   onJumpToCode
 }) => {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -83,6 +86,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
   // View Options
   const [showLiveValues, setShowLiveValues] = useState<boolean>(true);
+  const [hideClockNets, setHideClockNets] = useState<boolean>(false);
   const [showMinimap, setShowMinimap] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return window.innerWidth > 768;
@@ -923,7 +927,30 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             }}
           >
             <Activity size={11} />
-            <span>Values</span>
+            <span>{t("schematic.liveValues")}</span>
+          </button>
+
+          {/* Clock Nets Toggle */}
+          <button
+            onClick={() => setHideClockNets(!hideClockNets)}
+            style={{
+              fontSize: 10.5,
+              padding: "2px 6px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: hideClockNets ? "rgba(245, 158, 11, 0.15)" : "var(--bg-tertiary)",
+              color: hideClockNets ? "var(--accent-amber)" : "var(--text-muted)",
+              border: "1px solid var(--border-subtle)",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              cursor: "pointer",
+              flexShrink: 0,
+              whiteSpace: "nowrap"
+            }}
+            title={hideClockNets ? t("schematic.showClockNets") : t("schematic.hideClockNets")}
+          >
+            <Clock size={11} />
+            <span>{hideClockNets ? "All Nets" : "No Clks"}</span>
           </button>
 
           {/* Minimap Toggle */}
@@ -945,7 +972,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             }}
           >
             <MapPin size={11} />
-            <span>Map</span>
+            <span>{t("schematic.minimap")}</span>
           </button>
         </div>
 
@@ -956,19 +983,11 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             <button
               onClick={handleSliceFanin}
               disabled={!selectedNodeId && !selectedEdgeId}
-              title="Extract combinational fan-in logic cone (HotKey: F)"
+              title={t("schematic.fanin")}
+              className="btn btn-secondary"
               style={{
                 fontSize: 10.5,
-                fontWeight: 600,
                 padding: "2px 6px",
-                borderRadius: "var(--radius-sm)",
-                backgroundColor: activeCone?.isFanin ? "var(--accent-blue)" : "var(--bg-tertiary)",
-                color: activeCone?.isFanin
-                  ? "#fff"
-                  : !selectedNodeId && !selectedEdgeId
-                  ? "var(--text-muted)"
-                  : "var(--text-primary)",
-                border: "1px solid var(--border-subtle)",
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
@@ -988,13 +1007,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             <button
               onClick={handleClearSlice}
               title="Clear active cone slice (Esc)"
+              className="btn btn-danger"
               style={{
                 fontSize: 10.5,
                 padding: "2px 5px",
-                borderRadius: "var(--radius-sm)",
-                backgroundColor: "rgba(244, 63, 94, 0.15)",
-                color: "#f43f5e",
-                border: "1px solid #f43f5e",
                 display: "flex",
                 alignItems: "center",
                 gap: 2,
@@ -1003,7 +1019,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               }}
             >
               <X size={10} />
-              <span>Clear</span>
+              <span>{t("schematic.clearCone")}</span>
             </button>
           )}
 
@@ -1012,6 +1028,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           {/* Zoom Buttons */}
           <button
             onClick={() => setScale((s) => Math.min(s * 1.25, 3.5))}
+            className="btn-icon"
             style={{
               padding: "2px 5px",
               backgroundColor: "var(--bg-tertiary)",
@@ -1023,12 +1040,13 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               alignItems: "center",
               flexShrink: 0
             }}
-            title="Zoom In"
+            title={t("schematic.zoomIn")}
           >
             <ZoomIn size={11} />
           </button>
           <button
             onClick={() => setScale((s) => Math.max(s / 1.25, 0.2))}
+            className="btn-icon"
             style={{
               padding: "2px 5px",
               backgroundColor: "var(--bg-tertiary)",
@@ -1040,30 +1058,27 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               alignItems: "center",
               flexShrink: 0
             }}
-            title="Zoom Out"
+            title={t("schematic.zoomOut")}
           >
             <ZoomOut size={11} />
           </button>
           <button
             onClick={fitToScreen}
+            className="btn btn-secondary"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 3,
               padding: "2px 6px",
-              backgroundColor: "var(--bg-tertiary)",
-              borderRadius: 3,
-              border: "1px solid var(--border-subtle)",
               color: "var(--accent-cyan)",
-              cursor: "pointer",
               fontSize: 10.5,
               fontWeight: 600,
               flexShrink: 0
             }}
-            title="Reset / Fit View to Screen"
+            title={t("schematic.fitScreen")}
           >
             <Maximize2 size={11} />
-            <span>Fit</span>
+            <span>{t("schematic.fitScreen")}</span>
           </button>
         </div>
       </div>

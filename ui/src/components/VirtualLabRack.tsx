@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { StimulusPainterModal } from "./StimulusPainterModal";
+import { useTranslation } from "../i18n";
 
 interface VirtualLabRackProps {
   state: SimulationState;
@@ -40,6 +41,7 @@ const SEVEN_SEG_HEX: Record<string, boolean[]> = {
 };
 
 export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDesignId }) => {
+  const { t } = useTranslation();
   const [isPainterOpen, setIsPainterOpen] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
@@ -250,14 +252,15 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
           <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Zap size={14} color="var(--accent-emerald)" />
-              <span>Inputs (A, B, C)</span>
+              <span>{t("virtualLab.inputsGroup")} (A, B, C)</span>
             </div>
             <button
               onClick={handleCycleAll}
-              style={{ fontSize: 11, padding: "2px 8px", backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, color: "var(--accent-cyan)", cursor: "pointer" }}
+              className="btn btn-secondary"
+              style={{ fontSize: 11, padding: "2px 8px", color: "var(--accent-cyan)" }}
               title="Cycle through truth table 000 -> 111"
             >
-              Cycle +1
+              {t("common.cycle")}
             </button>
           </div>
 
@@ -274,7 +277,8 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  padding: "8px 12px",
+                  padding: isMobile ? "12px 14px" : "8px 12px",
+                  minHeight: isMobile ? 44 : 38,
                   borderRadius: 6,
                   backgroundColor: item.val ? "rgba(59, 130, 246, 0.15)" : "var(--bg-tertiary)",
                   border: `1px solid ${item.val ? item.color : "var(--border-subtle)"}`,
@@ -286,7 +290,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
                   <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: item.val ? "var(--accent-emerald)" : "var(--text-muted)", boxShadow: item.val ? "0 0 8px var(--accent-emerald)" : "none" }} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{item.label}</span>
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)", color: item.val ? "var(--accent-emerald)" : "var(--text-muted)" }}>
+                <span className="mono-num" style={{ fontSize: 13, fontWeight: 700, color: item.val ? "var(--accent-emerald)" : "var(--text-muted)" }}>
                   {item.val ? "1 (HIGH)" : "0 (LOW)"}
                 </span>
               </div>
@@ -296,15 +300,17 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
           <div style={{ display: "flex", gap: 6 }}>
             <button
               onClick={() => { engineBridge.injectStimulus("A", "0"); engineBridge.injectStimulus("B", "0"); engineBridge.injectStimulus("C", "0"); }}
-              style={{ flex: 1, padding: "5px 0", fontSize: 11, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
+              className="btn btn-secondary"
+              style={{ flex: 1, padding: "6px 0", fontSize: 11, justifyContent: "center" }}
             >
-              All 0s
+              {t("common.all0s")}
             </button>
             <button
               onClick={() => { engineBridge.injectStimulus("A", "1"); engineBridge.injectStimulus("B", "1"); engineBridge.injectStimulus("C", "1"); }}
-              style={{ flex: 1, padding: "5px 0", fontSize: 11, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 4, color: "var(--text-secondary)", cursor: "pointer" }}
+              className="btn btn-secondary"
+              style={{ flex: 1, padding: "6px 0", fontSize: 11, justifyContent: "center" }}
             >
-              All 1s
+              {t("common.all1s")}
             </button>
           </div>
         </div>
@@ -313,7 +319,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
         <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
             <Cpu size={14} color="var(--accent-cyan)" />
-            <span>Gate Probes (w1 - w4)</span>
+            <span>{t("virtualLab.gateProbes")}</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
@@ -341,7 +347,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
                   </span>
                   <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{probe.label}</span>
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)", color: probe.val ? "var(--accent-emerald)" : "var(--text-muted)" }}>
+                <span className="mono-num" style={{ fontSize: 12, fontWeight: 700, color: probe.val ? "var(--accent-emerald)" : "var(--text-muted)" }}>
                   {probe.val ? "1" : "0"}
                 </span>
               </div>
@@ -357,7 +363,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
         <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ width: "100%", fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
             <Radio size={14} color="var(--accent-rose)" />
-            <span>Output (F = w3 | w4)</span>
+            <span>{t("virtualLab.circuitOutput")}</span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, margin: "14px 0" }}>
@@ -375,14 +381,14 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
                 transition: "all 0.2s ease"
               }}
             >
-              <span style={{ fontSize: 24, fontWeight: 900, fontFamily: "var(--font-mono)", color: sigF ? "#fff" : "var(--text-muted)" }}>
+              <span className="mono-num" style={{ fontSize: 24, fontWeight: 900, color: sigF ? "#fff" : "var(--text-muted)" }}>
                 {sigF ? "1" : "0"}
               </span>
             </div>
 
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: sigF ? "var(--accent-emerald)" : "var(--text-muted)" }}>
-                {sigF ? "OUTPUT ACTIVE (HIGH)" : "OUTPUT INACTIVE (LOW)"}
+                {sigF ? t("virtualLab.outputActive") : t("virtualLab.outputInactive")}
               </div>
               <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>
                 Pin H17 • LD0
@@ -399,7 +405,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
         <div style={{ backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-medium)", borderRadius: 8, padding: 12, display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
             <Sparkles size={14} color="var(--accent-amber)" />
-            <span>Truth Table (8 States)</span>
+            <span>{t("virtualLab.truthTableTitle")}</span>
           </div>
 
           <div style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>

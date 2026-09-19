@@ -1,36 +1,54 @@
 :root {
   color-scheme: dark;
-  --bg-primary: #0d0f12;
-  --bg-secondary: #13171d;
-  --bg-tertiary: #1a1f26;
-  --bg-elevated: #222933;
-  --bg-active: #2a3340;
-  --bg-hover: #1f2631;
 
-  --border-subtle: #242c38;
-  --border-strong: #364253;
-  --border-focus: #3b82f6;
+  /* -------------------------------------------------------------------------
+     Surface & Background Elevation Hierarchy
+     ------------------------------------------------------------------------- */
+  --bg-primary: #0d0f12;    /* Master canvas, main application backdrop */
+  --bg-secondary: #13171d;  /* Headers, sidebars, toolbars, inactive tabs */
+  --bg-tertiary: #1a1f26;   /* Active cards, input fills, dropdown options */
+  --bg-elevated: #222933;   /* Modals, popovers, floating menus */
+  --bg-hover: #1f2631;      /* Hover states for interactive items */
+  --bg-active: #2a3340;     /* Selected / pressed states */
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverse: #0f172a;
+  /* -------------------------------------------------------------------------
+     Structural Border & Divider Tokens
+     ------------------------------------------------------------------------- */
+  --border-subtle: #242c38; /* 1px standard structural panel borders */
+  --border-strong: #364253; /* Active panel borders, hover dividers */
+  --border-focus: #3b82f6;  /* Keyboard focus rings, selected item outlines */
 
-  --accent-blue: #3b82f6;
-  --accent-cyan: #06b6d4;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-  --accent-purple: #8b5cf6;
+  /* -------------------------------------------------------------------------
+     Text & Typography Color Tokens
+     ------------------------------------------------------------------------- */
+  --text-primary: #f1f5f9;   /* High-emphasis headers, code, active labels */
+  --text-secondary: #94a3b8; /* Normal body text, secondary labels, icons (WCAG AA 7.2:1) */
+  --text-muted: #78889b;     /* Inactive tabs, metadata, line numbers (improved contrast) */
+  --text-inverse: #0f172a;   /* Text on bright saturated badges */
 
-  /* HDL Signal Logic Colors */
-  --signal-0: #64748b;
-  --signal-1: #10b981;
-  --signal-x: #f43f5e;
-  --signal-z: #f59e0b;
-  --signal-bus: #38bdf8;
-  --signal-glitch: #ec4899;
+  /* -------------------------------------------------------------------------
+     Semantic Brand & Action Accents
+     ------------------------------------------------------------------------- */
+  --accent-blue: #3b82f6;    /* Primary actions, active focus, editor cursor */
+  --accent-cyan: #06b6d4;    /* Clock signals, top module badges, Vivado branding */
+  --accent-emerald: #10b981; /* Logic High (1), compile success, positive slack */
+  --accent-amber: #f59e0b;   /* High-Z (Z), warnings, clock domain crossing alerts */
+  --accent-rose: #f43f5e;    /* Unknown (X), timing violations, compile errors */
+  --accent-purple: #8b5cf6;  /* Constraints (XDC), SPI protocol, REPL tokens */
 
+  /* -------------------------------------------------------------------------
+     HDL Electrical Logic Signal Colors (IEEE 1800 Standard)
+     ------------------------------------------------------------------------- */
+  --signal-0: #64748b;       /* Logic Low (GND, 0V) */
+  --signal-1: #10b981;       /* Logic High (Vdd, Active Rail) */
+  --signal-x: #f43f5e;       /* Unknown / Uninitialized / Contention (X) */
+  --signal-z: #f59e0b;       /* High-Impedance / Tri-State Floating (Z) */
+  --signal-bus: #38bdf8;     /* Multi-bit vector envelope */
+  --signal-glitch: #ec4899;  /* Zero-time combinational dynamic hazard */
+
+  /* -------------------------------------------------------------------------
+     Typography Tokens
+     ------------------------------------------------------------------------- */
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace, ui-monospace, SFMono-Regular;
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-size-base: 12px;
@@ -39,16 +57,26 @@
   --font-size-lg: 13.5px;
   --font-size-code: 13px;
 
-  /* Compact Engineering Density Sizing */
-  --density-header-h: 40px;
-  --density-tab-h: 28px;
-  --density-toolbar-h: 26px;
-  --density-breadcrumb-h: 22px;
-  --density-dock-header-h: 28px;
+  /* -------------------------------------------------------------------------
+     Ergonomic De-Cramped Density Sizing
+     ------------------------------------------------------------------------- */
+  --density-header-h: 42px;
+  --density-tab-h: 30px;
+  --density-toolbar-h: 28px;
+  --density-breadcrumb-h: 24px;
+  --density-dock-header-h: 30px;
+  --density-sidebar-item-h: 26px;
 
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+
+  /* -------------------------------------------------------------------------
+     Professional Micro-Interaction Timing & Transitions
+     ------------------------------------------------------------------------- */
+  --transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -80,19 +108,202 @@ html, body, #root {
 ::-webkit-scrollbar-thumb {
   background: var(--border-subtle);
   border-radius: 4px;
+  transition: background var(--transition-base);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
 }
 
+/* ---------------------------------------------------------------------------
+   Unified Button System & Micro-Interactions
+   --------------------------------------------------------------------------- */
 button {
   font-family: inherit;
   cursor: pointer;
   border: none;
   background: none;
   color: inherit;
+  outline: none;
 }
 
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color var(--transition-base),
+              border-color var(--transition-base),
+              color var(--transition-base),
+              box-shadow var(--transition-base),
+              transform var(--transition-fast);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+  border-color: var(--accent-blue);
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+}
+
+.btn-secondary {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: #ffffff;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn-cyan {
+  background-color: rgba(6, 182, 212, 0.1);
+  color: var(--accent-cyan);
+  border-color: rgba(6, 182, 212, 0.28);
+}
+.btn-cyan:hover:not(:disabled) {
+  background-color: rgba(6, 182, 212, 0.18);
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 1px 4px rgba(6, 182, 212, 0.25);
+}
+
+.btn-success {
+  background-color: var(--accent-emerald);
+  color: #ffffff;
+  border-color: var(--accent-emerald);
+}
+.btn-success:hover:not(:disabled) {
+  background-color: #059669;
+  border-color: #059669;
+}
+
+.btn-danger {
+  background-color: var(--accent-rose);
+  color: #ffffff;
+  border-color: var(--accent-rose);
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: #e11d48;
+  border-color: #e11d48;
+}
+
+.btn-icon {
+  padding: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all var(--transition-base);
+}
+.btn-icon:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   Standardized Badges & Semantic Chips
+   --------------------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.badge-cyan {
+  background-color: rgba(6, 182, 212, 0.1);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+.badge-emerald {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.badge-rose {
+  background-color: rgba(244, 63, 94, 0.1);
+  color: var(--accent-rose);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
+
+.badge-amber {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.badge-purple {
+  background-color: rgba(139, 92, 246, 0.1);
+  color: var(--accent-purple);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+/* ---------------------------------------------------------------------------
+   Card & Container Tokens
+   --------------------------------------------------------------------------- */
+.axiom-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-base), background-color var(--transition-base);
+}
+
+.axiom-card-hover:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-tertiary);
+}
+
+/* ---------------------------------------------------------------------------
+   Input, Select & Form Controls
+   --------------------------------------------------------------------------- */
 input, textarea {
   font-family: var(--font-sans);
   color: var(--text-primary);
@@ -103,9 +314,11 @@ input, textarea {
   font-size: var(--font-size-base);
   outline: none;
   color-scheme: dark;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
 input:focus, textarea:focus {
   border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 select {
@@ -115,7 +328,7 @@ select {
   background-color: var(--bg-tertiary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 5px 28px 5px 9px;
+  padding: 5px 26px 5px 9px;
   outline: none;
   cursor: pointer;
   color-scheme: dark;
@@ -126,9 +339,11 @@ select {
   background-repeat: no-repeat;
   background-position: right 8px center;
   background-size: 12px;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
 select:focus {
   border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 select option {
   background-color: #13171d;
@@ -137,6 +352,9 @@ select option {
   font-size: 12px;
 }
 
+/* ---------------------------------------------------------------------------
+   Structural Layout Containers
+   --------------------------------------------------------------------------- */
 .axiom-app, .betterado-app {
   display: flex;
   flex-direction: column;
@@ -164,4 +382,21 @@ select option {
   display: flex;
   flex: 1;
   overflow: hidden;
+}
+
+/* Tabular Monospace Readout Utility */
+.mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Subtle Pulsing Animation for Critical Alerts */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.04); }
+}
+
+.pulse-alert {
+  animation: pulse-subtle 2s infinite ease-in-out;
 }

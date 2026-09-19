@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { FilePlus, Check } from "lucide-react";
 import { FileSetType, FileFormat, ProjectFile } from "../engine/projectModel";
 import { Modal, Input, Select, Button, Card } from "./ui";
+import { useTranslation } from "../i18n/i18nContext";
 
 interface AddSourceModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
   onClose,
   onAddSource
 }) => {
+  const { t } = useTranslation();
   const [fileName, setFileName] = useState<string>("submodule.v");
   const [fileSet, setFileSet] = useState<FileSetType>("sources_1");
   const [fileType, setFileType] = useState<FileFormat>("verilog");
@@ -143,17 +145,17 @@ endmodule
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add or Create Vivado Source File"
-      subtitle="Add design RTL, simulation testbench, or timing constraints to project file sets"
+      title={t.modals.addSourceTitle}
+      subtitle={t.modals.addSourceSubtitle}
       icon={<FilePlus size={18} />}
       width={600}
       footer={
         <>
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t.modals.cancel}
           </Button>
           <Button variant="primary" size="sm" onClick={handleSubmit}>
-            Add Source
+            {t.modals.addSourceBtn}
           </Button>
         </>
       }
@@ -161,7 +163,7 @@ endmodule
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Target File Set */}
         <Select
-          label="Target File Set"
+          label={t.modals.fileSet}
           value={fileSet}
           onChange={handleFileSetChange}
           options={fileSetOptions}
@@ -169,7 +171,7 @@ endmodule
 
         {/* File Name */}
         <Input
-          label="File Name"
+          label={t.modals.fileName}
           value={fileName}
           onChange={(e) => handleFileNameChange(e.target.value)}
           placeholder="e.g. alu_submodule.v"
