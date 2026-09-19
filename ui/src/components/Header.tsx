@@ -11,14 +11,13 @@ import {
   Menu,
   Search,
   Columns,
-  Minimize2,
-  Globe
+  Minimize2
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
 import { MobilePanelType } from "./MobileDrawer";
 import { useTranslation, SupportedLanguage } from "../i18n";
-import { Select, SelectOption } from "./ui";
+import { Select, SelectOption, GithubIcon } from "./ui";
 import { ProjectDropdown } from "./ProjectDropdown";
 
 interface HeaderProps {
@@ -78,10 +77,15 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const currentLanguageInfo = React.useMemo(() => {
+    return languages.find((l) => l.code === language);
+  }, [languages, language]);
+
   const desktopLanguageOptions: SelectOption[] = React.useMemo(() => {
     return languages.map((l) => ({
       value: l.code,
-      label: `${l.flag} ${l.nativeName}`,
+      label: `${l.flag}  ${l.nativeName}`,
+      sublabel: l.name !== l.nativeName ? l.name : undefined,
       badge: l.code.toUpperCase()
     }));
   }, [languages]);
@@ -89,7 +93,8 @@ export const Header: React.FC<HeaderProps> = ({
   const mobileLanguageOptions: SelectOption[] = React.useMemo(() => {
     return languages.map((l) => ({
       value: l.code,
-      label: `${l.flag} ${l.code.toUpperCase()}`
+      label: `${l.flag}  ${l.nativeName}`,
+      badge: l.code.toUpperCase()
     }));
   }, [languages]);
 
@@ -173,7 +178,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Right: Simulation Clock & Quick Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {/* Custom Mobile Language Selector */}
+          {/* GitHub Repository Link */}
+          <a
+            href="https://github.com/larvance/axiom"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="GitHub: larvance/axiom (Open Source & Collaboration)"
+            aria-label="GitHub Repository"
+            className="btn btn-secondary btn-icon"
+            style={{ width: 28, height: 28, padding: 0, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <GithubIcon size={14} color="var(--text-secondary)" />
+          </a>
+
+          {/* Custom Mobile Language Selector (Flag Only) */}
           <Select
             size="xs"
             align="right"
@@ -181,11 +199,20 @@ export const Header: React.FC<HeaderProps> = ({
             onChange={(val) => setLanguage(val as SupportedLanguage)}
             options={mobileLanguageOptions}
             title={t("header.language")}
+            hideChevron
+            buttonClassName="btn btn-secondary btn-icon"
             buttonStyle={{
-              minWidth: 70,
-              height: 26,
-              padding: "2px 5px"
+              width: 28,
+              height: 28,
+              padding: 0,
+              justifyContent: "center"
             }}
+            menuStyle={{ minWidth: 165 }}
+            renderTrigger={() => (
+              <span style={{ fontSize: 16, lineHeight: 1, userSelect: "none" }} aria-label={t("header.language")}>
+                {currentLanguageInfo?.flag || "🇺🇸"}
+              </span>
+            )}
           />
 
           {project && (
@@ -589,24 +616,44 @@ export const Header: React.FC<HeaderProps> = ({
           </>
         )}
 
-        {/* Global Language Selector Custom Dropdown */}
+        {/* GitHub Repository Link */}
         <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Globe size={13} color="var(--text-muted)" />
-          <Select
-            size="xs"
-            align="right"
-            value={language}
-            onChange={(val) => setLanguage(val as SupportedLanguage)}
-            options={desktopLanguageOptions}
-            title={t("header.language")}
-            buttonStyle={{
-              minWidth: 115,
-              height: 26,
-              padding: "2px 8px"
-            }}
-          />
-        </div>
+        <a
+          href="https://github.com/larvance/axiom"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="GitHub: larvance/axiom (Open Source & Collaboration)"
+          aria-label="GitHub Repository"
+          className="btn btn-secondary btn-icon"
+          style={{ width: 28, height: 28, padding: 0, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <GithubIcon size={14} color="var(--text-secondary)" />
+        </a>
+
+        {/* Global Language Selector Dropdown (Flag Only) */}
+        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
+        <Select
+          size="xs"
+          align="right"
+          value={language}
+          onChange={(val) => setLanguage(val as SupportedLanguage)}
+          options={desktopLanguageOptions}
+          title={t("header.language")}
+          hideChevron
+          buttonClassName="btn btn-secondary btn-icon"
+          buttonStyle={{
+            width: 28,
+            height: 28,
+            padding: 0,
+            justifyContent: "center"
+          }}
+          menuStyle={{ minWidth: 165 }}
+          renderTrigger={() => (
+            <span style={{ fontSize: 16, lineHeight: 1, userSelect: "none" }} aria-label={t("header.language")}>
+              {currentLanguageInfo?.flag || "🇺🇸"}
+            </span>
+          )}
+        />
 
         {/* Cross Probe Active Signal */}
         {project && activeCrossProbeSignal && (
@@ -621,31 +668,18 @@ export const Header: React.FC<HeaderProps> = ({
           </>
         )}
 
-        {/* Omnibar & Command Palette */}
+        {/* Omnibar & Command Palette (Single Icon Button) */}
         {onOpenOmnibar && (
           <>
             <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
             <button
               onClick={onOpenOmnibar}
               title={t("header.omnibarTooltip")}
-              className="btn btn-secondary"
-              style={{ height: 26, padding: "2px 8px", fontSize: 11 }}
+              aria-label={t("header.omnibarTooltip")}
+              className="btn btn-secondary btn-icon"
+              style={{ width: 28, height: 28, padding: 0 }}
             >
-              <Search size={11} color="var(--accent-blue)" />
-              <span>Omnibar</span>
-              <kbd
-                style={{
-                  fontSize: 9.5,
-                  padding: "0 4px",
-                  backgroundColor: "var(--bg-secondary)",
-                  borderRadius: 3,
-                  border: "1px solid var(--border-subtle)",
-                  color: "var(--text-muted)",
-                  fontFamily: "var(--font-mono)"
-                }}
-              >
-                ⌘K
-              </kbd>
+              <Search size={14} color="var(--accent-blue)" />
             </button>
           </>
         )}

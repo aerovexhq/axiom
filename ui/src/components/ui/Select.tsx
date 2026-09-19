@@ -29,9 +29,12 @@ export interface SelectProps {
   variant?: "default" | "subtle" | "ghost";
   style?: React.CSSProperties;
   buttonStyle?: React.CSSProperties;
+  buttonClassName?: string;
   menuStyle?: React.CSSProperties;
   className?: string;
   title?: string;
+  hideChevron?: boolean;
+  renderTrigger?: (selectedOption: SelectOption | undefined, isOpen: boolean) => React.ReactNode;
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -48,9 +51,12 @@ export const Select: React.FC<SelectProps> = ({
   variant = "default",
   style,
   buttonStyle,
+  buttonClassName,
   menuStyle,
   className = "",
-  title
+  title,
+  hideChevron = false,
+  renderTrigger
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -310,13 +316,22 @@ export const Select: React.FC<SelectProps> = ({
         title={title}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
+        className={buttonClassName}
         style={{
           width: fullWidth ? "100%" : "auto",
-          minWidth: fullWidth ? "100%" : size === "xs" ? 72 : 110,
+          minWidth: fullWidth
+            ? "100%"
+            : buttonStyle?.minWidth !== undefined
+            ? buttonStyle.minWidth
+            : buttonStyle?.width !== undefined
+            ? buttonStyle.width
+            : size === "xs"
+            ? 72
+            : 110,
           height: sizeConfig.height,
           display: "inline-flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: hideChevron && renderTrigger ? "center" : "space-between",
           padding: sizeConfig.padding,
           backgroundColor: getBackground(),
           color: selectedOption ? "var(--text-primary)" : "var(--text-muted)",
@@ -334,50 +349,56 @@ export const Select: React.FC<SelectProps> = ({
           ...buttonStyle
         }}
       >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            minWidth: 0,
-            flex: 1
-          }}
-        >
-          {selectedOption?.icon && (
-            <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
-              {selectedOption.icon}
-            </span>
-          )}
-          <span
+        {renderTrigger ? (
+          renderTrigger(selectedOption, isOpen)
+        ) : (
+          <div
             style={{
-              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
               overflow: "hidden",
               textOverflow: "ellipsis",
-              whiteSpace: "nowrap"
+              whiteSpace: "nowrap",
+              minWidth: 0,
+              flex: 1
             }}
           >
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          {selectedOption?.sublabel && (
-            <span style={{ color: "var(--text-muted)", fontSize: sizeConfig.fontSize - 1, fontWeight: 400 }}>
-              {selectedOption.sublabel}
+            {selectedOption?.icon && (
+              <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+                {selectedOption.icon}
+              </span>
+            )}
+            <span
+              style={{
+                fontWeight: 500,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap"
+              }}
+            >
+              {selectedOption ? selectedOption.label : placeholder}
             </span>
-          )}
-        </div>
+            {selectedOption?.sublabel && (
+              <span style={{ color: "var(--text-muted)", fontSize: sizeConfig.fontSize - 1, fontWeight: 400 }}>
+                {selectedOption.sublabel}
+              </span>
+            )}
+          </div>
+        )}
 
-        <ChevronDown
-          size={sizeConfig.chevronSize}
-          color="var(--text-muted)"
-          style={{
-            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.15s cubic-bezier(0.16, 1, 0.3, 1)",
-            flexShrink: 0,
-            marginLeft: 2
-          }}
-        />
+        {!hideChevron && (
+          <ChevronDown
+            size={sizeConfig.chevronSize}
+            color="var(--text-muted)"
+            style={{
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.15s cubic-bezier(0.16, 1, 0.3, 1)",
+              flexShrink: 0,
+              marginLeft: 2
+            }}
+          />
+        )}
       </button>
 
       {/* Custom Dropdown Popover Menu */}

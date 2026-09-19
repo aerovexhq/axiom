@@ -17,11 +17,13 @@ import {
   Radio,
   Sliders,
   Activity,
-  Box
+  Box,
+  ExternalLink
 } from "lucide-react";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
 import { useTranslation } from "../i18n";
+import { GithubIcon } from "./ui";
 
 interface WelcomeLaunchpadProps {
   onOpenNewProject: (templateId?: string) => void;
@@ -155,9 +157,96 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
           </div>
         </div>
 
-        <p style={{ fontSize: 13.5, color: "var(--text-secondary)", margin: "0 auto", maxWidth: 620, lineHeight: 1.55 }}>
+        <p style={{ fontSize: 13.5, color: "var(--text-secondary)", margin: "0 auto 16px", maxWidth: 620, lineHeight: 1.55 }}>
           {t("launchpad.heroDescription")}
         </p>
+
+        {/* Open Source Collaboration Badge & Repository Links */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <a
+            href="https://github.com/larvance/axiom"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Axiom on GitHub: Open Source & Collaborative EDA"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "5px 13px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "var(--bg-secondary)",
+              border: "1px solid var(--border-subtle)",
+              textDecoration: "none",
+              color: "var(--text-primary)",
+              fontSize: 12.5,
+              fontWeight: 500,
+              transition: "all var(--transition-fast)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--accent-blue)";
+              e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--border-subtle)";
+              e.currentTarget.style.backgroundColor = "var(--bg-secondary)";
+            }}
+          >
+            <GithubIcon size={15} />
+            <span style={{ fontWeight: 600 }}>larvance/axiom</span>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: "var(--accent-cyan)",
+                backgroundColor: "rgba(6, 182, 212, 0.12)",
+                padding: "1px 6px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid rgba(6, 182, 212, 0.25)"
+              }}
+            >
+              Open Source
+            </span>
+          </a>
+
+          <a
+            href="https://github.com/larvance/axiom"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              fontSize: 12,
+              borderRadius: "var(--radius-sm)",
+              textDecoration: "none",
+              color: "var(--text-secondary)"
+            }}
+          >
+            <Sparkles size={13} color="var(--accent-amber)" />
+            <span>Star & Collaborate</span>
+          </a>
+
+          <a
+            href="https://axiom.aerovex.net"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-ghost"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "5px 10px",
+              fontSize: 12,
+              textDecoration: "none",
+              color: "var(--text-muted)"
+            }}
+          >
+            <span>Docs</span>
+            <ExternalLink size={12} />
+          </a>
+        </div>
       </div>
 
       {/* Main Action Cards: Create New Project vs Import */}
@@ -548,6 +637,46 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
           <Code2 size={15} color="var(--accent-blue)" />
           <span>Vivado File Sets</span>
         </div>
+      </div>
+
+      {/* Open Source Collaboration Footer Note */}
+      <div
+        style={{
+          maxWidth: 840,
+          width: "100%",
+          textAlign: "center",
+          marginTop: 18,
+          paddingTop: 16,
+          borderTop: "1px dashed var(--border-subtle)",
+          fontSize: 11.5,
+          color: "var(--text-muted)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 12,
+          flexWrap: "wrap"
+        }}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <GithubIcon size={14} color="var(--text-secondary)" />
+          <span>Axiom is free, open-source software (MIT & Apache 2.0).</span>
+        </span>
+        <a
+          href="https://github.com/larvance/axiom"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--accent-blue)",
+            textDecoration: "none",
+            fontWeight: 500,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4
+          }}
+        >
+          <span>Contributions & PRs are welcome on GitHub</span>
+          <ChevronRight size={12} />
+        </a>
       </div>
     </div>
   );

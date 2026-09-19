@@ -6,3 +6,4 @@ export * from "./Badge";
 export * from "./Card";
 export * from "./Breadcrumbs";
 export * from "./Tabs";
+export * from "./GithubIcon";
