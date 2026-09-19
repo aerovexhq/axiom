@@ -134,6 +134,8 @@ export interface Translations {
     closeTab: string;
     restoreSplit: string;
     maximizeEditor: string;
+    katanaSlash: string;
+    katanaSlashTooltip: string;
   };
   schematic: {
     title: string;

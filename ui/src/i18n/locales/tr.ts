@@ -117,6 +117,8 @@ export const tr: Translations = {
     closeTab: "Sekmeyi Kapat",
     restoreSplit: "Bölünmüş Görünümü Geri Yükle",
     maximizeEditor: "Kod Düzenleyiciyi Büyüt (%100)",
+    katanaSlash: "Katana Kılıç İmleci",
+    katanaSlashTooltip: "Beyaz Katana Kılıç Kesme İmleç Efektini Aç/Kapat",
   },
   schematic: {
     title: "Şematik DAG",

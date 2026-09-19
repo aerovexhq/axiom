@@ -117,6 +117,8 @@ export const ja: Translations = {
     closeTab: "タブを閉じる",
     restoreSplit: "分割表示に戻す",
     maximizeEditor: "エディタを最大化 (100%)",
+    katanaSlash: "刀スラッシュカーソル",
+    katanaSlashTooltip: "白刃居合斬りカーソルエフェクトの切替",
   },
   schematic: {
     title: "回路図 DAG",

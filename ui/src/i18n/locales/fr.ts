@@ -117,6 +117,8 @@ export const fr: Translations = {
     closeTab: "Fermer l'Onglet",
     restoreSplit: "Restaurer la Vue Scindée",
     maximizeEditor: "Agrandir l'Éditeur de Code (100%)",
+    katanaSlash: "Curseur Katana",
+    katanaSlashTooltip: "Activer/Désactiver l'Effet Tranchant Katana Blanc",
   },
   schematic: {
     title: "DAG Schématique",

@@ -117,6 +117,8 @@ export const zh: Translations = {
     closeTab: "关闭标签",
     restoreSplit: "恢复分屏视图",
     maximizeEditor: "最大化代码编辑器 (100%)",
+    katanaSlash: "武士刀光标斩击",
+    katanaSlashTooltip: "切换白刃居合斩光标移动特效",
   },
   schematic: {
     title: "原理图网表 DAG",

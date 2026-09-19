@@ -12,13 +12,15 @@ import {
   FileText,
   AlertTriangle,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Swords
 } from "lucide-react";
 import { AxiomProject } from "../engine/projectModel";
 import { engineBridge, LspDiagnostic } from "../engine/engineBridge";
 import { registerVerilogLanguage } from "../engine/monacoVerilog";
 import { Breadcrumbs, BreadcrumbItem, Button, Badge } from "./ui";
 import { useTranslation } from "../i18n";
+import { KatanaCursorOverlay } from "./KatanaCursorOverlay";
 
 // Configure monaco-editor loader to use bundled package
 loader.config({ monaco: monacoPkg });
@@ -59,18 +61,38 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   const { t } = useTranslation();
   const editorRef = useRef<monacoPkg.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monacoPkg | null>(null);
+  const [editorInstance, setEditorInstance] = useState<monacoPkg.editor.IStandaloneCodeEditor | null>(null);
+  const [katanaEnabled, setKatanaEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("axiom_katana_cursor");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
   const [localDiags, setLocalDiags] = useState<LspDiagnostic[]>([]);
 
   // Setup Monaco on mount
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    setEditorInstance(editor);
     registerVerilogLanguage(monaco);
 
     if (highlightLineSpan) {
       editor.revealLineInCenter(highlightLineSpan.lineStart);
       editor.setPosition({ lineNumber: highlightLineSpan.lineStart, column: 1 });
     }
+  };
+
+  const toggleKatana = () => {
+    setKatanaEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("axiom_katana_cursor", String(next));
+      } catch {}
+      return next;
+    });
   };
 
   // Debounced live static analysis linting
@@ -348,6 +370,29 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             )}
           </button>
 
+          {/* Katana Slash Cursor Toggle */}
+          <button
+            type="button"
+            onClick={toggleKatana}
+            title={katanaEnabled ? `${t.editor.katanaSlash} (${t.common.active})` : `${t.editor.katanaSlash} (${t.common.inactive})`}
+            className="btn-icon"
+            style={{
+              padding: "3px 6px",
+              color: katanaEnabled ? "#ffffff" : "var(--text-muted)",
+              backgroundColor: katanaEnabled ? "rgba(255, 255, 255, 0.12)" : "transparent",
+              border: katanaEnabled ? "1px solid rgba(255, 255, 255, 0.28)" : "1px solid transparent",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              boxShadow: katanaEnabled ? "0 0 8px rgba(255, 255, 255, 0.2)" : "none",
+              transition: "all 0.15s ease"
+            }}
+          >
+            <Swords size={13} />
+          </button>
+
           {/* Elaborate Button (Componentized) */}
           <Button
             variant="primary"
@@ -431,6 +476,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             padding: { top: 8, bottom: 8 },
           }}
         />
+        <KatanaCursorOverlay editor={editorInstance} enabled={katanaEnabled} />
       </div>
     </div>
   );

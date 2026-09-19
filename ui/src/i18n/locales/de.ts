@@ -117,6 +117,8 @@ export const de: Translations = {
     closeTab: "Reiter schließen",
     restoreSplit: "Geteilte Ansicht wiederherstellen",
     maximizeEditor: "Editor maximieren (100%)",
+    katanaSlash: "Katana-Klingen-Cursor",
+    katanaSlashTooltip: "Weißen Katana-Schnitt-Cursoreffekt umschalten",
   },
   schematic: {
     title: "Schaltplan-DAG",

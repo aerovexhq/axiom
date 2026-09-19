@@ -117,6 +117,8 @@ export const es: Translations = {
     closeTab: "Cerrar Pestaña",
     restoreSplit: "Restaurar Vista Dividida",
     maximizeEditor: "Maximizar Editor de Código (100%)",
+    katanaSlash: "Cursor Katana",
+    katanaSlashTooltip: "Alternar Efecto de Corte Katana Blanca del Cursor",
   },
   schematic: {
     title: "DAG Esquemático",
