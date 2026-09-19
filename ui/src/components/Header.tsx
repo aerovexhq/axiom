@@ -20,6 +20,7 @@ import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
 import { MobilePanelType } from "./MobileDrawer";
 import { useTranslation, SupportedLanguage } from "../i18n";
+import { Select, SelectOption } from "./ui";
 
 interface HeaderProps {
   state: SimulationState;
@@ -67,6 +68,21 @@ export const Header: React.FC<HeaderProps> = ({
       return `${timePs}\u00A0ps`;
     }
   };
+
+  const desktopLanguageOptions: SelectOption[] = React.useMemo(() => {
+    return languages.map((l) => ({
+      value: l.code,
+      label: `${l.flag} ${l.nativeName}`,
+      badge: l.code.toUpperCase()
+    }));
+  }, [languages]);
+
+  const mobileLanguageOptions: SelectOption[] = React.useMemo(() => {
+    return languages.map((l) => ({
+      value: l.code,
+      label: `${l.flag} ${l.code.toUpperCase()}`
+    }));
+  }, [languages]);
 
   if (isMobile) {
     return (
@@ -138,27 +154,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Right: Simulation Clock & Quick Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {/* Language Selector */}
-          <select
+          {/* Custom Mobile Language Selector */}
+          <Select
+            size="xs"
+            align="right"
             value={language}
-            onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
+            onChange={(val) => setLanguage(val as SupportedLanguage)}
+            options={mobileLanguageOptions}
             title={t("header.language")}
-            style={{
+            buttonStyle={{
+              minWidth: 70,
               height: 26,
-              fontSize: 10.5,
-              padding: "2px 20px 2px 4px",
-              backgroundColor: "var(--bg-tertiary)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-primary)"
+              padding: "2px 5px"
             }}
-          >
-            {languages.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.flag} {l.code.toUpperCase()}
-              </option>
-            ))}
-          </select>
+          />
 
           {project && (
             <span
@@ -551,32 +560,23 @@ export const Header: React.FC<HeaderProps> = ({
           </>
         )}
 
-        {/* Global Language Selector Dropdown */}
+        {/* Global Language Selector Custom Dropdown */}
         <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <Globe size={12} color="var(--text-muted)" />
-          <select
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Globe size={13} color="var(--text-muted)" />
+          <Select
+            size="xs"
+            align="right"
             value={language}
-            onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
+            onChange={(val) => setLanguage(val as SupportedLanguage)}
+            options={desktopLanguageOptions}
             title={t("header.language")}
-            style={{
+            buttonStyle={{
+              minWidth: 115,
               height: 26,
-              fontSize: 11,
-              padding: "2px 22px 2px 6px",
-              backgroundColor: "var(--bg-tertiary)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-primary)",
-              cursor: "pointer",
-              fontWeight: 500
+              padding: "2px 8px"
             }}
-          >
-            {languages.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.flag} {l.nativeName}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* Cross Probe Active Signal */}

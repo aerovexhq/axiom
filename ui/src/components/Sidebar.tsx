@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronDown,
   Search,
-  X,
   FilePlus,
   Plus
 } from "lucide-react";
@@ -17,6 +16,7 @@ import { HierarchyNode, SimulationState } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
 import { ProjectManager } from "./ProjectManager";
 import { useTranslation } from "../i18n";
+import { Input } from "./ui";
 
 interface SidebarProps {
   state: SimulationState;
@@ -322,33 +322,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           />
         ) : (
           <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
-            {/* Search Box for Hierarchy */}
-            <div style={{ position: "relative", marginBottom: 10 }}>
-              <Search size={13} color="var(--text-muted)" style={{ position: "absolute", left: 8, top: 9 }} />
-              <input
-                type="text"
+            {/* Search Box for Hierarchy (Componentized Input) */}
+            <div style={{ marginBottom: 10 }}>
+              <Input
+                size="sm"
                 value={hierarchySearch}
                 onChange={(e) => setHierarchySearch(e.target.value)}
                 placeholder={t("sidebar.searchSignals")}
-                style={{
-                  width: "100%",
-                  padding: "6px 8px 6px 28px",
-                  fontSize: 12,
-                  backgroundColor: "var(--bg-tertiary)",
-                  color: "var(--text-primary)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-sm)",
-                  outline: "none"
-                }}
+                icon={<Search size={13} color="var(--text-muted)" />}
+                clearable
+                onClear={() => setHierarchySearch("")}
               />
-              {hierarchySearch && (
-                <button
-                  onClick={() => setHierarchySearch("")}
-                  style={{ position: "absolute", right: 6, top: 7, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
-                >
-                  <X size={13} />
-                </button>
-              )}
             </div>
 
             <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", padding: "4px 8px 6px", letterSpacing: 0.5 }}>

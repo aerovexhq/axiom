@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Play, Download, Copy, Check, Sparkles } from "lucide-react";
 import { engineBridge } from "../engine/engineBridge";
+import { Select } from "./ui";
 
 interface StimulusPainterModalProps {
   topModule: string;
@@ -193,22 +194,21 @@ export const StimulusPainterModal: React.FC<StimulusPainterModalProps> = ({
           <div style={{ display: "flex", gap: 16, alignItems: "center", backgroundColor: "var(--bg-secondary)", padding: "10px 14px", borderRadius: 6, border: "1px solid var(--border-subtle)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Clock Frequency:</span>
-              <select
-                value={clockFreqMhz}
-                onChange={(e) => setClockFreqMhz(Number(e.target.value))}
-                style={{
+              <Select
+                size="sm"
+                value={String(clockFreqMhz)}
+                onChange={(val) => setClockFreqMhz(Number(val))}
+                options={[
+                  { value: "50", label: "50 MHz (20 ns)" },
+                  { value: "100", label: "100 MHz (10 ns)" },
+                  { value: "200", label: "200 MHz (5 ns)" }
+                ]}
+                buttonStyle={{
+                  height: 26,
                   fontSize: 11,
-                  backgroundColor: "var(--bg-tertiary)",
-                  color: "#fff",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: 4,
-                  padding: "3px 8px"
+                  padding: "2px 8px"
                 }}
-              >
-                <option value={50}>50 MHz (20 ns)</option>
-                <option value={100}>100 MHz (10 ns)</option>
-                <option value={200}>200 MHz (5 ns)</option>
-              </select>
+              />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

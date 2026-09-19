@@ -14,6 +14,7 @@ import {
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { StimulusPainterModal } from "./StimulusPainterModal";
 import { useTranslation } from "../i18n";
+import { Select, SelectGroup } from "./ui";
 
 interface VirtualLabRackProps {
   state: SimulationState;
@@ -93,6 +94,52 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
   const availableOutputPorts = useMemo(() => {
     return state.signals.filter((s) => s.name.includes("result") || s.name.includes("count") || s.name.includes("out") || s.name.includes("flag"));
   }, [state.signals]);
+
+  const dipPortGroups: SelectGroup[] = useMemo(() => [
+    {
+      label: "Input Ports",
+      options: availableInputPorts.map((p) => ({
+        value: p.id,
+        label: `Drive: ${p.name}`,
+        badge: `${p.width || 1}b`
+      }))
+    },
+    ...(availableOutputPorts.length > 0
+      ? [
+          {
+            label: "Other Ports",
+            options: availableOutputPorts.map((p) => ({
+              value: p.id,
+              label: `Drive: ${p.name}`,
+              badge: `${p.width || 1}b`
+            }))
+          }
+        ]
+      : [])
+  ], [availableInputPorts, availableOutputPorts]);
+
+  const dispPortGroups: SelectGroup[] = useMemo(() => [
+    {
+      label: "Output Ports",
+      options: availableOutputPorts.map((p) => ({
+        value: p.id,
+        label: `Monitor: ${p.name}`,
+        badge: `${p.width || 1}b`
+      }))
+    },
+    ...(availableInputPorts.length > 0
+      ? [
+          {
+            label: "Other Ports",
+            options: availableInputPorts.map((p) => ({
+              value: p.id,
+              label: `Monitor: ${p.name}`,
+              badge: `${p.width || 1}b`
+            }))
+          }
+        ]
+      : [])
+  ], [availableInputPorts, availableOutputPorts]);
 
   // Convert DIP bits to numerical and hex value
   const dipValue = useMemo(() => {
@@ -1075,25 +1122,21 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
             <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
               8-Bit DIP Switch Array
             </div>
-            {/* Target Port Selector */}
-            <select
+            {/* Target Port Custom Selector */}
+            <Select
+              size="xs"
+              align="right"
               value={dipTargetPort}
-              onChange={(e) => setDipTargetPort(e.target.value)}
-              style={{
+              onChange={setDipTargetPort}
+              groups={dipPortGroups}
+              buttonStyle={{
                 fontSize: 11,
-                backgroundColor: "var(--bg-tertiary)",
                 color: "var(--accent-cyan)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: 4,
-                padding: "2px 6px"
+                borderColor: "rgba(6, 182, 212, 0.3)",
+                height: 24,
+                padding: "2px 7px"
               }}
-            >
-              {availableInputPorts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  Drive: {p.name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Value HUD */}
@@ -1407,25 +1450,21 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
             <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
               7-Segment Hex Display
             </div>
-            {/* Monitor Source Selector */}
-            <select
+            {/* Custom Monitor Source Selector */}
+            <Select
+              size="xs"
+              align="right"
               value={dispSource}
-              onChange={(e) => setDispSource(e.target.value)}
-              style={{
+              onChange={setDispSource}
+              groups={dispPortGroups}
+              buttonStyle={{
                 fontSize: 11,
-                backgroundColor: "var(--bg-tertiary)",
                 color: "var(--accent-emerald)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: 4,
-                padding: "2px 6px"
+                borderColor: "rgba(16, 185, 129, 0.3)",
+                height: 24,
+                padding: "2px 7px"
               }}
-            >
-              {availableOutputPorts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  Monitor: {p.name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Dual 7-Segment Render Frame */}
