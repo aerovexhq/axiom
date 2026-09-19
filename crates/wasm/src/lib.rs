@@ -323,6 +323,13 @@ impl WasmEngine {
         serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    /// Run in-RAM static analysis linter on Vivado XDC constraints.
+    #[wasm_bindgen]
+    pub fn lint_xdc(&self, source: &str) -> Result<JsValue, JsValue> {
+        let diags = axiom_lsp::XdcLinter::lint(source);
+        serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Query hover documentation for identifier/keyword at (line, column).
     #[wasm_bindgen]
     pub fn hover(&self, source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
@@ -330,10 +337,24 @@ impl WasmEngine {
         serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    /// Query hover documentation for XDC constraint keyword at (line, column).
+    #[wasm_bindgen]
+    pub fn hover_xdc(&self, source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+        let result = axiom_lsp::XdcHover::hover(source, line, column);
+        serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Query autocompletions for position at (line, column).
     #[wasm_bindgen]
     pub fn complete(&self, source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
         let items = axiom_lsp::VerilogCompletion::complete(source, line, column);
+        serde_wasm_bindgen::to_value(&items).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Query autocompletions for XDC constraints at (line, column).
+    #[wasm_bindgen]
+    pub fn complete_xdc(&self, source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+        let items = axiom_lsp::XdcCompletion::complete(source, line, column);
         serde_wasm_bindgen::to_value(&items).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 }
@@ -345,6 +366,13 @@ pub fn wasm_lint(source: &str) -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+/// Standalone WebAssembly function to lint XDC constraints source without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_lint_xdc(source: &str) -> Result<JsValue, JsValue> {
+    let diags = axiom_lsp::XdcLinter::lint(source);
+    serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
 /// Standalone WebAssembly function to query hover info without creating an engine instance.
 #[wasm_bindgen]
 pub fn wasm_hover(source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
@@ -352,10 +380,24 @@ pub fn wasm_hover(source: &str, line: u32, column: u32) -> Result<JsValue, JsVal
     serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+/// Standalone WebAssembly function to query XDC hover info without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_hover_xdc(source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+    let result = axiom_lsp::XdcHover::hover(source, line, column);
+    serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
 /// Standalone WebAssembly function to query completions without creating an engine instance.
 #[wasm_bindgen]
 pub fn wasm_complete(source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
     let items = axiom_lsp::VerilogCompletion::complete(source, line, column);
+    serde_wasm_bindgen::to_value(&items).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Standalone WebAssembly function to query XDC completions without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_complete_xdc(source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
+    let items = axiom_lsp::XdcCompletion::complete(source, line, column);
     serde_wasm_bindgen::to_value(&items).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 

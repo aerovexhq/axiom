@@ -18,6 +18,8 @@ import {
 import { AxiomProject } from "../engine/projectModel";
 import { engineBridge, LspDiagnostic } from "../engine/engineBridge";
 import { registerVerilogLanguage } from "../engine/monacoVerilog";
+import { registerXdcLanguage } from "../engine/monacoXdc";
+import { toast } from "../engine/toast";
 import { Breadcrumbs, BreadcrumbItem, Button, Badge } from "./ui";
 import { useTranslation } from "../i18n";
 import { KatanaCursorOverlay } from "./KatanaCursorOverlay";
@@ -72,18 +74,106 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   });
   const [localDiags, setLocalDiags] = useState<LspDiagnostic[]>([]);
 
+  // Per-file Monaco ViewState & Scroll Cache
+  const viewStatesRef = useRef<Map<string, monacoPkg.editor.ICodeEditorViewState>>(new Map());
+  const activeFileIdRef = useRef<string | null>(null);
+  const saveScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Determine active file info from project if available
+  const activeFile = project?.files.find((f) => f.id === project.activeFileId);
+  const isXdc = activeFile?.fileType === "xdc" || Boolean(activeFile?.name.endsWith(".xdc"));
+
   // Setup Monaco on mount
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
     setEditorInstance(editor);
     registerVerilogLanguage(monaco);
+    registerXdcLanguage(monaco);
 
     if (highlightLineSpan) {
       editor.revealLineInCenter(highlightLineSpan.lineStart);
       editor.setPosition({ lineNumber: highlightLineSpan.lineStart, column: 1 });
+    } else if (activeFile?.id) {
+      activeFileIdRef.current = activeFile.id;
+      try {
+        const saved = localStorage.getItem(`axiom_file_scroll_${activeFile.id}`);
+        if (saved) {
+          const { top, left, line, col } = JSON.parse(saved);
+          if (typeof top === "number") editor.setScrollTop(top);
+          if (typeof left === "number") editor.setScrollLeft(left);
+          if (typeof line === "number" && typeof col === "number") {
+            editor.setPosition({ lineNumber: line, column: col });
+          }
+        }
+      } catch {}
     }
+
+    // Debounced scroll listener to persist scroll position
+    editor.onDidScrollChange(() => {
+      if (saveScrollTimerRef.current) clearTimeout(saveScrollTimerRef.current);
+      saveScrollTimerRef.current = setTimeout(() => {
+        const fid = activeFileIdRef.current;
+        if (!fid || !editorRef.current) return;
+        try {
+          const pos = editorRef.current.getPosition();
+          const scrollState = {
+            top: editorRef.current.getScrollTop(),
+            left: editorRef.current.getScrollLeft(),
+            line: pos?.lineNumber ?? 1,
+            col: pos?.column ?? 1
+          };
+          localStorage.setItem(`axiom_file_scroll_${fid}`, JSON.stringify(scrollState));
+        } catch {}
+      }, 250);
+    });
   };
+
+  // Handle tab switching: save view state of old tab, restore view state/scroll of new tab
+  useEffect(() => {
+    const editor = editorRef.current;
+    const currentFileId = activeFile?.id ?? null;
+    const prevFileId = activeFileIdRef.current;
+
+    if (editor && prevFileId && prevFileId !== currentFileId) {
+      const vs = editor.saveViewState();
+      if (vs) {
+        viewStatesRef.current.set(prevFileId, vs);
+      }
+      try {
+        const pos = editor.getPosition();
+        const scrollState = {
+          top: editor.getScrollTop(),
+          left: editor.getScrollLeft(),
+          line: pos?.lineNumber ?? 1,
+          col: pos?.column ?? 1
+        };
+        localStorage.setItem(`axiom_file_scroll_${prevFileId}`, JSON.stringify(scrollState));
+      } catch {}
+    }
+
+    activeFileIdRef.current = currentFileId;
+
+    if (editor && currentFileId) {
+      requestAnimationFrame(() => {
+        if (viewStatesRef.current.has(currentFileId)) {
+          editor.restoreViewState(viewStatesRef.current.get(currentFileId)!);
+        } else {
+          try {
+            const saved = localStorage.getItem(`axiom_file_scroll_${currentFileId}`);
+            if (saved) {
+              const { top, left, line, col } = JSON.parse(saved);
+              if (typeof top === "number") editor.setScrollTop(top);
+              if (typeof left === "number") editor.setScrollLeft(left);
+              if (typeof line === "number" && typeof col === "number") {
+                editor.setPosition({ lineNumber: line, column: col });
+              }
+            }
+          } catch {}
+        }
+      });
+    }
+  }, [activeFile?.id]);
 
   const toggleKatana = () => {
     setKatanaEnabled((prev) => {
@@ -105,7 +195,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         return;
       }
       try {
-        const diags = await engineBridge.lint(code);
+        const diags = await engineBridge.lint(code, isXdc ? "xdc" : "verilog");
         if (cancelled) return;
 
         setLocalDiags(diags);
@@ -128,7 +218,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   : d.severity === 3
                   ? monacoRef.current!.MarkerSeverity.Info
                   : monacoRef.current!.MarkerSeverity.Hint,
-              source: d.source || "axiom-linter",
+              source: d.source || (isXdc ? "axiom-xdc-linter" : "axiom-linter"),
               code: d.code,
             }));
             monacoRef.current.editor.setModelMarkers(model, "axiom-linter", markers);
@@ -143,7 +233,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [code, onDiagnosticsChange]);
+  }, [code, isXdc, onDiagnosticsChange]);
 
   // Jump to highlightLineSpan when updated
   useEffect(() => {
@@ -154,8 +244,6 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
     }
   }, [highlightLineSpan]);
 
-  // Determine active file info from project if available
-  const activeFile = project?.files.find((f) => f.id === project.activeFileId);
   const openFiles = project
     ? project.openFileIds
         .map((id) => project.files.find((f) => f.id === id))
@@ -393,16 +481,28 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             <Swords size={13} />
           </button>
 
-          {/* Elaborate Button (Componentized) */}
+          {/* Elaborate or Check XDC Button */}
           <Button
             variant="primary"
             size="xs"
-            onClick={onCompile}
+            onClick={async () => {
+              if (isXdc) {
+                const diags = await engineBridge.lintXdc(code);
+                const errors = diags.filter((d) => d.severity === 1);
+                if (errors.length === 0) {
+                  toast.success("Vivado XDC constraints verified: 0 errors");
+                } else {
+                  toast.error(`XDC Validation: ${errors.length} error(s) found`);
+                }
+              } else {
+                onCompile();
+              }
+            }}
             icon={<Play size={10} fill="#fff" />}
-            title={t("header.compile")}
+            title={isXdc ? "Validate Constraints" : t("header.compile")}
             style={{ padding: "3px 8px", fontSize: 11 }}
           >
-            {t("editor.elaborate")}
+            {isXdc ? "Check XDC" : t("editor.elaborate")}
           </Button>
 
           {onToggleMaximize && (
@@ -432,7 +532,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       <Breadcrumbs
         items={breadcrumbItems}
         rightContent={
-          <Badge color="cyan" size="sm">Rust JIT</Badge>
+          <Badge color={isXdc ? "purple" : "cyan"} size="sm">
+            {isXdc ? "Vivado XDC" : "Rust JIT"}
+          </Badge>
         }
       />
 
@@ -440,11 +542,14 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <Editor
           height="100%"
-          language="verilog"
+          language={isXdc ? "xdc" : "verilog"}
           theme="axiom-dark"
           value={code}
           onChange={(val) => onChangeCode(val ?? "")}
-          beforeMount={(monaco) => registerVerilogLanguage(monaco)}
+          beforeMount={(monaco) => {
+            registerVerilogLanguage(monaco);
+            registerXdcLanguage(monaco);
+          }}
           onMount={handleEditorDidMount}
           options={{
             fontFamily: "var(--font-mono), 'JetBrains Mono', 'Fira Code', monospace",

@@ -48,6 +48,22 @@ export class WasmEngine {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * Query autocompletions for XDC constraints at (line, column).
+     * @param {string} source
+     * @param {number} line
+     * @param {number} column
+     * @returns {any}
+     */
+    complete_xdc(source, line, column) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_complete_xdc(this.__wbg_ptr, ptr0, len0, line, column);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Export simulation switching activity as SAIF.
      * @returns {string}
      */
@@ -123,6 +139,22 @@ export class WasmEngine {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * Query hover documentation for XDC constraint keyword at (line, column).
+     * @param {string} source
+     * @param {number} line
+     * @param {number} column
+     * @returns {any}
+     */
+    hover_xdc(source, line, column) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_hover_xdc(this.__wbg_ptr, ptr0, len0, line, column);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Run in-RAM static analysis linter on Verilog source code.
      * @param {string} source
      * @returns {any}
@@ -131,6 +163,20 @@ export class WasmEngine {
         const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmengine_lint(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Run in-RAM static analysis linter on Vivado XDC constraints.
+     * @param {string} source
+     * @returns {any}
+     */
+    lint_xdc(source) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_lint_xdc(this.__wbg_ptr, ptr0, len0);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
@@ -186,6 +232,23 @@ export function wasm_complete(source, line, column) {
 }
 
 /**
+ * Standalone WebAssembly function to query XDC completions without creating an engine instance.
+ * @param {string} source
+ * @param {number} line
+ * @param {number} column
+ * @returns {any}
+ */
+export function wasm_complete_xdc(source, line, column) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_complete_xdc(ptr0, len0, line, column);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * Standalone WebAssembly function to query hover info without creating an engine instance.
  * @param {string} source
  * @param {number} line
@@ -203,6 +266,23 @@ export function wasm_hover(source, line, column) {
 }
 
 /**
+ * Standalone WebAssembly function to query XDC hover info without creating an engine instance.
+ * @param {string} source
+ * @param {number} line
+ * @param {number} column
+ * @returns {any}
+ */
+export function wasm_hover_xdc(source, line, column) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_hover_xdc(ptr0, len0, line, column);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * Standalone WebAssembly function to lint Verilog source without creating an engine instance.
  * @param {string} source
  * @returns {any}
@@ -211,6 +291,21 @@ export function wasm_lint(source) {
     const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.wasm_lint(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to lint XDC constraints source without creating an engine instance.
+ * @param {string} source
+ * @returns {any}
+ */
+export function wasm_lint_xdc(source) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_lint_xdc(ptr0, len0);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

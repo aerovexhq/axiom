@@ -1,6 +1,7 @@
 use crate::completion::VerilogCompletion;
 use crate::hover::VerilogHover;
 use crate::linter::VerilogLinter;
+use crate::xdc::{XdcCompletion, XdcHover, XdcLinter};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -128,7 +129,12 @@ impl LspServer {
                     if let Some(doc) = self.documents.get(uri) {
                         let line = pos.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
                         let character = pos.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32 + 1;
-                        if let Some(h) = VerilogHover::hover(doc, line, character) {
+                        let h = if uri.ends_with(".xdc") || uri.ends_with(".sdc") {
+                            XdcHover::hover(doc, line, character)
+                        } else {
+                            VerilogHover::hover(doc, line, character)
+                        };
+                        if let Some(h) = h {
                             hover_val = json!({
                                 "contents": {
                                     "kind": "markdown",
@@ -155,7 +161,11 @@ impl LspServer {
                     if let Some(doc) = self.documents.get(uri) {
                         let line = pos.get("line").and_then(|l| l.as_u64()).unwrap_or(0) as u32 + 1;
                         let character = pos.get("character").and_then(|c| c.as_u64()).unwrap_or(0) as u32 + 1;
-                        let comps = VerilogCompletion::complete(doc, line, character);
+                        let comps = if uri.ends_with(".xdc") || uri.ends_with(".sdc") {
+                            XdcCompletion::complete(doc, line, character)
+                        } else {
+                            VerilogCompletion::complete(doc, line, character)
+                        };
                         for c in comps {
                             items.push(json!({
                                 "label": c.label,
@@ -207,7 +217,11 @@ impl LspServer {
     }
 
     fn publish_diagnostics(&self, uri: &str, text: &str, stdout: &mut io::Stdout) -> io::Result<()> {
-        let diags = VerilogLinter::lint(text);
+        let diags = if uri.ends_with(".xdc") || uri.ends_with(".sdc") {
+            XdcLinter::lint(text)
+        } else {
+            VerilogLinter::lint(text)
+        };
         let mut lsp_diags = Vec::new();
 
         for d in diags {

@@ -19,6 +19,7 @@ import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBri
 import {
   AxiomProject,
   ProjectFile,
+  FileSetType,
   PROJECT_TEMPLATES,
   bundleProjectSources,
   updateFileContent,
@@ -124,7 +125,13 @@ export const App: React.FC = () => {
   const [newProjectInitialTemplateId, setNewProjectInitialTemplateId] = useState<string>("logic_circuit_project");
   const [projects, setProjects] = useState<ProjectMetadata[]>(() => loadProjectRegistry());
   const [isAddSourceOpen, setIsAddSourceOpen] = useState<boolean>(false);
+  const [addSourceInitialFileSet, setAddSourceInitialFileSet] = useState<FileSetType | undefined>(undefined);
   const [isSaved, setIsSaved] = useState<boolean>(true);
+
+  const handleOpenAddSource = (fileSet?: FileSetType) => {
+    setAddSourceInitialFileSet(fileSet);
+    setIsAddSourceOpen(true);
+  };
 
   // Multi-session cross-tab / cross-window real-time synchronization
   useEffect(() => {
@@ -268,28 +275,28 @@ export const App: React.FC = () => {
 
   const handleSelectFile = (fileId: string) => {
     if (!project) return;
-    setProject((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        activeFileId: fileId,
-        openFileIds: prev.openFileIds.includes(fileId) ? prev.openFileIds : [...prev.openFileIds, fileId]
-      };
-    });
+    const updated: AxiomProject = {
+      ...project,
+      activeFileId: fileId,
+      openFileIds: project.openFileIds.includes(fileId) ? project.openFileIds : [...project.openFileIds, fileId],
+      updatedAt: new Date().toISOString()
+    };
+    setProject(updated);
+    saveProjectToStorage(updated);
   };
 
   const handleCloseTab = (fileId: string) => {
     if (!project) return;
-    setProject((prev) => {
-      if (!prev) return prev;
-      const remainingOpenIds = prev.openFileIds.filter((id) => id !== fileId);
-      const fallbackId = remainingOpenIds.length > 0 ? remainingOpenIds[0] : prev.files[0]?.id ?? "";
-      return {
-        ...prev,
-        openFileIds: remainingOpenIds.length > 0 ? remainingOpenIds : [fallbackId],
-        activeFileId: prev.activeFileId === fileId ? fallbackId : prev.activeFileId
-      };
-    });
+    const remainingOpenIds = project.openFileIds.filter((id) => id !== fileId);
+    const fallbackId = remainingOpenIds.length > 0 ? remainingOpenIds[0] : project.files[0]?.id ?? "";
+    const updated: AxiomProject = {
+      ...project,
+      openFileIds: remainingOpenIds.length > 0 ? remainingOpenIds : [fallbackId],
+      activeFileId: project.activeFileId === fileId ? fallbackId : project.activeFileId,
+      updatedAt: new Date().toISOString()
+    };
+    setProject(updated);
+    saveProjectToStorage(updated);
   };
 
   const handleAddSource = (file: Omit<ProjectFile, "id">) => {
@@ -507,7 +514,7 @@ export const App: React.FC = () => {
         onCloseProject={handleCloseProject}
         onSaveProject={handleSaveProject}
         onExportProjectJson={handleExportProjectJson}
-        onOpenAddSource={() => setIsAddSourceOpen(true)}
+        onOpenAddSource={() => handleOpenAddSource()}
         isSaved={isSaved}
         isMobile={isMobile}
         onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
@@ -539,7 +546,7 @@ export const App: React.FC = () => {
         }}
         onOpenAddSource={() => {
           setIsMobileDrawerOpen(false);
-          setIsAddSourceOpen(true);
+          handleOpenAddSource();
         }}
         onCloseProject={() => {
           setIsMobileDrawerOpen(false);
@@ -667,7 +674,7 @@ export const App: React.FC = () => {
           state={state}
           project={project}
           onUpdateProject={handleUpdateProject}
-          onOpenAddSource={() => setIsAddSourceOpen(true)}
+          onOpenAddSource={handleOpenAddSource}
           onOpenNewProject={() => setIsNewProjectOpen(true)}
           onCloseProject={handleCloseProject}
           onSelectTemplate={handleSelectTemplate}
@@ -1145,6 +1152,7 @@ export const App: React.FC = () => {
         isOpen={isAddSourceOpen}
         onClose={() => setIsAddSourceOpen(false)}
         onAddSource={handleAddSource}
+        initialFileSet={addSourceInitialFileSet}
       />
 
       {/* Global Aerospace Toast & Confirmation Dialog Containers */}

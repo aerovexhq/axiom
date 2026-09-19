@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Folder,
   FolderOpen,
@@ -11,11 +11,14 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
-  X
+  X,
+  Plus,
+  MoreVertical
 } from "lucide-react";
 import {
   AxiomProject,
   ProjectFile,
+  FileSetType,
   deleteFileFromProject,
   setProjectTopModule
 } from "../engine/projectModel";
@@ -26,7 +29,7 @@ import { toast } from "../engine/toast";
 interface ProjectManagerProps {
   project: AxiomProject | null;
   onUpdateProject: (updated: AxiomProject) => void;
-  onOpenAddSource: () => void;
+  onOpenAddSource: (fileSet?: FileSetType) => void;
   onOpenNewProject?: () => void;
   onSelectFile: (fileId: string) => void;
   onCloseProject?: () => void;
@@ -43,9 +46,67 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   onSelectTemplate: _onSelectTemplate
 }) => {
   const { t } = useTranslation();
-  const [sourcesOpen, setSourcesOpen] = useState<boolean>(true);
-  const [simOpen, setSimOpen] = useState<boolean>(true);
-  const [constrsOpen, setConstrsOpen] = useState<boolean>(true);
+  const [sourcesOpen, setSourcesOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_folders_${project?.id || "default"}`);
+      if (saved) return JSON.parse(saved).sources !== false;
+    } catch {}
+    return true;
+  });
+  const [simOpen, setSimOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_folders_${project?.id || "default"}`);
+      if (saved) return JSON.parse(saved).sim !== false;
+    } catch {}
+    return true;
+  });
+  const [constrsOpen, setConstrsOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_folders_${project?.id || "default"}`);
+      if (saved) return JSON.parse(saved).constrs !== false;
+    } catch {}
+    return true;
+  });
+
+  const [activeMenuFileId, setActiveMenuFileId] = useState<string | null>(null);
+
+  // Sync folder expansion changes
+  useEffect(() => {
+    if (!project?.id) return;
+    try {
+      localStorage.setItem(
+        `axiom_folders_${project.id}`,
+        JSON.stringify({ sources: sourcesOpen, sim: simOpen, constrs: constrsOpen })
+      );
+    } catch {}
+  }, [project?.id, sourcesOpen, simOpen, constrsOpen]);
+
+  // Reload folder states when switching project
+  useEffect(() => {
+    if (!project?.id) return;
+    try {
+      const saved = localStorage.getItem(`axiom_folders_${project.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setSourcesOpen(parsed.sources !== false);
+        setSimOpen(parsed.sim !== false);
+        setConstrsOpen(parsed.constrs !== false);
+      }
+    } catch {}
+  }, [project?.id]);
+
+  // Click outside to close file kebab context menu
+  useEffect(() => {
+    if (!activeMenuFileId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-file-menu]")) {
+        setActiveMenuFileId(null);
+      }
+    };
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => window.removeEventListener("mousedown", handleClickOutside);
+  }, [activeMenuFileId]);
 
   // Render empty state if no project is currently loaded (matches Netlist panel design)
   if (!project) {
@@ -104,7 +165,12 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
 
   const renderFileItem = (file: ProjectFile) => {
     const isActive = file.id === project.activeFileId;
-    const isTop = file.isTop || file.name.includes(project.topModule);
+    const isTop =
+      file.isTop ||
+      (file.fileSet === "sources_1" &&
+        (file.name === `${project.topModule}.v` ||
+          file.name === `${project.topModule}.sv` ||
+          file.name === project.topModule));
 
     return (
       <div
@@ -121,7 +187,8 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           cursor: "pointer",
           userSelect: "none",
           transition: "background-color 0.15s ease, color 0.15s ease",
-          minWidth: 0
+          minWidth: 0,
+          position: "relative"
         }}
         onMouseEnter={(e) => {
           if (!isActive) e.currentTarget.style.backgroundColor = "var(--bg-hover)";
@@ -172,37 +239,113 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           )}
         </div>
 
-        {/* Action icons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginLeft: 4 }}>
-          {file.fileSet === "sources_1" && !isTop && (
-            <button
-              onClick={(e) => handleSetTop(file, e)}
-              title={t("sidebar.setAsTop")}
-              className="btn-icon"
-              style={{
-                padding: "2px 4px",
-                color: "var(--text-muted)",
-                borderRadius: 3,
-                fontSize: 11
-              }}
-            >
-              <Star size={12} />
-            </button>
-          )}
+        {/* Action icons / Kebab menu */}
+        <div
+          data-file-menu
+          style={{ position: "relative", display: "flex", alignItems: "center", flexShrink: 0, marginLeft: 4 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMenuFileId((prev) => (prev === file.id ? null : file.id));
+            }}
+            title="File actions"
+            className="btn-icon"
+            style={{
+              padding: "2px 4px",
+              color: activeMenuFileId === file.id ? "#fff" : "var(--text-muted)",
+              backgroundColor: activeMenuFileId === file.id ? "rgba(255, 255, 255, 0.12)" : "transparent",
+              borderRadius: 3,
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            <MoreVertical size={13} />
+          </button>
 
-          {project.files.length > 1 && (
-            <button
-              onClick={(e) => handleDeleteFile(file.id, e)}
-              title={t("common.delete")}
-              className="btn-icon"
+          {/* Context menu popup */}
+          {activeMenuFileId === file.id && (
+            <div
               style={{
-                padding: "2px 4px",
-                color: "var(--text-muted)",
-                borderRadius: 3
+                position: "absolute",
+                right: 0,
+                top: "calc(100% + 4px)",
+                minWidth: 155,
+                backgroundColor: "#161b22",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-sm)",
+                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.7)",
+                zIndex: 200,
+                padding: "4px 0",
+                display: "flex",
+                flexDirection: "column"
               }}
             >
-              <Trash2 size={12} />
-            </button>
+              {file.fileSet === "sources_1" && !isTop && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    setActiveMenuFileId(null);
+                    handleSetTop(file, e);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "6px 12px",
+                    fontSize: 11.5,
+                    color: "var(--text-primary)",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer"
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  <Star size={12} color="var(--accent-amber)" />
+                  <span>{t("sidebar.setAsTop")}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={project.files.length <= 1}
+                onClick={(e) => {
+                  setActiveMenuFileId(null);
+                  handleDeleteFile(file.id, e);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  padding: "6px 12px",
+                  fontSize: 11.5,
+                  color: project.files.length <= 1 ? "var(--text-muted)" : "var(--accent-rose)",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  textAlign: "left",
+                  cursor: project.files.length <= 1 ? "not-allowed" : "pointer",
+                  opacity: project.files.length <= 1 ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (project.files.length > 1) e.currentTarget.style.backgroundColor = "rgba(244, 63, 94, 0.12)";
+                }}
+                onMouseLeave={(e) => {
+                  if (project.files.length > 1) e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                <Trash2 size={12} />
+                <span>{t("common.delete")}</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -276,7 +419,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         {/* Action Toolbar */}
         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
           <button
-            onClick={onOpenAddSource}
+            onClick={() => onOpenAddSource()}
             className="btn btn-primary"
             style={{ flex: 1, justifyContent: "center", padding: "5px 8px", fontSize: 11.5 }}
           >
@@ -334,9 +477,37 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {t("sidebar.designSources")}
             </span>
-            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto", flexShrink: 0 }}>
-              ({designSources.length})
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAddSource("sources_1");
+              }}
+              title={t("sidebar.addSources")}
+              style={{
+                marginLeft: "auto",
+                padding: "2px 5px",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-muted)",
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <Plus size={13} />
+            </button>
           </div>
 
           {sourcesOpen && (
@@ -377,9 +548,37 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {t("sidebar.simSources")}
             </span>
-            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto", flexShrink: 0 }}>
-              ({simSources.length})
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAddSource("sim_1");
+              }}
+              title={t("sidebar.addSources")}
+              style={{
+                marginLeft: "auto",
+                padding: "2px 5px",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-muted)",
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <Plus size={13} />
+            </button>
           </div>
 
           {simOpen && (
@@ -420,9 +619,37 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {t("sidebar.constraints")}
             </span>
-            <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginLeft: "auto", flexShrink: 0 }}>
-              ({constrSources.length})
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAddSource("constrs_1");
+              }}
+              title={t("sidebar.addSources")}
+              style={{
+                marginLeft: "auto",
+                padding: "2px 5px",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-muted)",
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <Plus size={13} />
+            </button>
           </div>
 
           {constrsOpen && (

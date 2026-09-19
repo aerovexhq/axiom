@@ -13,7 +13,7 @@ import {
   Plus
 } from "lucide-react";
 import { HierarchyNode, SimulationState } from "../engine/engineBridge";
-import { AxiomProject } from "../engine/projectModel";
+import { AxiomProject, FileSetType } from "../engine/projectModel";
 import { ProjectManager } from "./ProjectManager";
 import { useTranslation } from "../i18n";
 import { Input } from "./ui";
@@ -25,7 +25,7 @@ interface SidebarProps {
   onToggleSignal: (id: string) => void;
   project: AxiomProject | null;
   onUpdateProject: (p: AxiomProject) => void;
-  onOpenAddSource: () => void;
+  onOpenAddSource: (fileSet?: FileSetType) => void;
   onOpenNewProject: () => void;
   onCloseProject?: () => void;
   onSelectTemplate?: (templateId: string) => void;
@@ -198,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div style={{ flex: 1 }} />
 
         <button
-          onClick={onOpenAddSource}
+          onClick={() => onOpenAddSource()}
           title={t("sidebar.addSources")}
           style={{
             padding: 6,

@@ -154,7 +154,10 @@ export class AxiomEngineBridge {
     return this.activeSourceCode;
   }
 
-  public async lint(source: string): Promise<LspDiagnostic[]> {
+  public async lint(source: string, fileType?: string): Promise<LspDiagnostic[]> {
+    if (fileType === "xdc" || fileType?.endsWith(".xdc") || fileType?.endsWith(".sdc")) {
+      return this.lintXdc(source);
+    }
     try {
       const wasm = await this.initWasm();
       if (wasm) {
@@ -162,6 +165,18 @@ export class AxiomEngineBridge {
       }
     } catch (e) {
       console.error("[engineBridge] Lint error:", e);
+    }
+    return [];
+  }
+
+  public async lintXdc(source: string): Promise<LspDiagnostic[]> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm && typeof (wasm as any).lint_xdc === "function") {
+        return (wasm as any).lint_xdc(source) as LspDiagnostic[];
+      }
+    } catch (e) {
+      console.error("[engineBridge] XDC Lint error:", e);
     }
     return [];
   }
@@ -178,6 +193,18 @@ export class AxiomEngineBridge {
     return null;
   }
 
+  public async hoverXdc(source: string, line: number, column: number): Promise<HoverResult | null> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm && typeof (wasm as any).hover_xdc === "function") {
+        return (wasm as any).hover_xdc(source, line, column) as HoverResult | null;
+      }
+    } catch (e) {
+      console.error("[engineBridge] XDC Hover error:", e);
+    }
+    return null;
+  }
+
   public async complete(source: string, line: number, column: number): Promise<CompletionItem[]> {
     try {
       const wasm = await this.initWasm();
@@ -186,6 +213,18 @@ export class AxiomEngineBridge {
       }
     } catch (e) {
       console.error("[engineBridge] Complete error:", e);
+    }
+    return [];
+  }
+
+  public async completeXdc(source: string, line: number, column: number): Promise<CompletionItem[]> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm && typeof (wasm as any).complete_xdc === "function") {
+        return (wasm as any).complete_xdc(source, line, column) as CompletionItem[];
+      }
+    } catch (e) {
+      console.error("[engineBridge] XDC Complete error:", e);
     }
     return [];
   }
@@ -1288,8 +1327,33 @@ export class AxiomEngineBridge {
 
   public reset() {
     this.pause();
-    this.state = this.getInitialState(this.state.topModule);
+    const wasCompiled = this.state.compiled;
+    const top = this.state.topModule;
+    if (wasCompiled && this.activeSourceCode) {
+      if (this.isTauri) {
+        this.compileTauri(this.activeSourceCode, top);
+      } else if (this.wasmEngine) {
+        this.compileWasm(this.activeSourceCode, top);
+      } else {
+        this.compileFallback(top);
+      }
+    } else {
+      const init = this.getInitialState(top);
+      init.compiled = true;
+      this.state = init;
+    }
+    this.state.currentSimTimePs = 0;
+    this.state.currentDeltaCycle = 0;
+    this.state.isRunning = false;
+    this.state.glitchCount = 0;
+    this.state.compiled = true;
     this.log("Simulation reset to initial state t=0ps, delta=0", "info");
+
+    // Dispatch global event for waveform viewer to rewind viewport to t=0
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("axiom_sim_reset"));
+    }
+
     this.notify();
   }
 

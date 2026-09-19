@@ -161,7 +161,11 @@ fn main() {
                     std::process::exit(1);
                 }
             };
-            let diags = axiom_lsp::VerilogLinter::lint(&content);
+            let diags = if file_path.ends_with(".xdc") || file_path.ends_with(".sdc") {
+                axiom_lsp::XdcLinter::lint(&content)
+            } else {
+                axiom_lsp::VerilogLinter::lint(&content)
+            };
             if diags.is_empty() {
                 println!("✓ No issues found in {}", file_path);
             } else {

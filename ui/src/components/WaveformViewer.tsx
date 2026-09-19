@@ -1,8 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X, Search } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { DisplayRadix, formatValueWithRadix, extractBitValue } from "../engine/radixUtils";
 import { useTranslation } from "../i18n/i18nContext";
+
+const formatTimeCompact = (ps: number) => {
+  if (ps >= 1_000_000) return `${(ps / 1_000_000).toFixed(2)}μs`;
+  if (ps >= 1000) return `${(ps / 1000).toFixed(2)}ns`;
+  return `${ps}ps`;
+};
 
 interface WaveformViewerProps {
   state: SimulationState;
@@ -27,15 +33,62 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Viewport time window (in picoseconds)
-  const [timeOffsetPs, setTimeOffsetPs] = useState<number>(0);
-  const [pixelsPerPs, setPixelsPerPs] = useState<number>(0.1); // 100 pixels per 1000 ps (1 ns)
+  // Viewport time window (in picoseconds) with local persistence
+  const [timeOffsetPs, setTimeOffsetPs] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_wave_viewport_${state.topModule || "default"}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.timeOffsetPs === "number" && !isNaN(parsed.timeOffsetPs)) {
+          return parsed.timeOffsetPs;
+        }
+      }
+    } catch {}
+    return 0;
+  });
+  const [pixelsPerPs, setPixelsPerPs] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_wave_viewport_${state.topModule || "default"}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.pixelsPerPs === "number" && !isNaN(parsed.pixelsPerPs) && parsed.pixelsPerPs > 0) {
+          return parsed.pixelsPerPs;
+        }
+      }
+    } catch {}
+    return 0.1; // 100 pixels per 1000 ps (1 ns)
+  });
   const [hoverTimePs, setHoverTimePs] = useState<number | null>(null);
 
-  // Dual-Cursor Measurement System
+  // Debounced persistence for waveform viewport
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `axiom_wave_viewport_${state.topModule || "default"}`,
+          JSON.stringify({ timeOffsetPs, pixelsPerPs })
+        );
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [timeOffsetPs, pixelsPerPs, state.topModule]);
+
+  // Listen for simulation reset to rewind graph to t=0
+  useEffect(() => {
+    const handleSimReset = () => {
+      setTimeOffsetPs(0);
+    };
+    window.addEventListener("axiom_sim_reset", handleSimReset);
+    return () => window.removeEventListener("axiom_sim_reset", handleSimReset);
+  }, []);
+
+  // Modern Drag-to-Measure Window Selection System
   const [cursorAPrivate, setCursorAPrivate] = useState<number | null>(null);
   const [cursorBPrivate, setCursorBPrivate] = useState<number | null>(null);
-  const [activeCursorDrag, setActiveCursorDrag] = useState<"A" | "B" | null>(null);
+  const [activeCursorDrag, setActiveCursorDrag] = useState<"A" | "B" | "window" | "new_selection" | null>(null);
+  const [selectionAnchorPs, setSelectionAnchorPs] = useState<number | null>(null);
+  const [windowDragOffsetPs, setWindowDragOffsetPs] = useState<number>(0);
+  const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Multi-Radix Bus Exploder State
   const [expandedBuses, setExpandedBuses] = useState<Record<string, boolean>>({});
@@ -264,6 +317,25 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       ctx.lineTo(simTimeX, height);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    // Draw Measurement Window Shading between Cursor A and B
+    if (cursorAPrivate !== null && cursorBPrivate !== null && cursorAPrivate !== cursorBPrivate) {
+      const minCur = Math.min(cursorAPrivate, cursorBPrivate);
+      const maxCur = Math.max(cursorAPrivate, cursorBPrivate);
+      const winLeft = Math.max(plotX, plotX + (minCur - startTimePs) * pixelsPerPs);
+      const winRight = Math.min(width, plotX + (maxCur - startTimePs) * pixelsPerPs);
+      if (winRight > winLeft) {
+        ctx.fillStyle = "rgba(6, 182, 212, 0.12)";
+        ctx.fillRect(winLeft, 0, winRight - winLeft, height);
+
+        ctx.fillStyle = "rgba(6, 182, 212, 0.28)";
+        ctx.fillRect(winLeft, 0, winRight - winLeft, headerHeight);
+
+        ctx.strokeStyle = "rgba(6, 182, 212, 0.45)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(winLeft, 0, winRight - winLeft, height);
+      }
     }
 
     // Draw Cursor A (Electric Cyan)
@@ -551,7 +623,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     renderCanvas();
   }, [renderCanvas]);
 
-  // Mouse Interactivity: Pan, Cursor Placement & Dragging
+  // Mouse Interactivity: Pan, Drag-to-Measure Window Selection & Edge Dragging
   const [isPanning, setIsPanning] = useState(false);
   const [panStartX, setPanStartX] = useState(0);
   const [panStartTimeOffset, setPanStartTimeOffset] = useState(0);
@@ -561,51 +633,66 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     if (!rect) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    setMouseDownPos({ x, y });
 
     if (x >= gutterWidth) {
       const clickedPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
 
-      // Click on timeline header: Check if clicked a Delta indicator [δ+]
+      // 1. Click on timeline header: check delta indicators or start horizontal pan
       if (y <= headerHeight) {
         const matchingDelta = deltaTimestamps.find((dT) => Math.abs(dT - clickedPs) * pixelsPerPs < 12);
         if (matchingDelta !== undefined) {
           setExpandedDeltaTimePs(expandedDeltaTimePs === matchingDelta ? null : matchingDelta);
           return;
         }
+        setIsPanning(true);
+        setPanStartX(x);
+        setPanStartTimeOffset(timeOffsetPs);
+        return;
       }
 
-      // Check if clicking close to existing Cursor A or B to drag
+      // 2. Middle click, Alt+click: pan time
+      if (e.button === 1 || e.altKey) {
+        setIsPanning(true);
+        setPanStartX(x);
+        setPanStartTimeOffset(timeOffsetPs);
+        return;
+      }
+
+      // 3. Drag existing Cursor A handle
       if (cursorAPrivate !== null && Math.abs(clickedPs - cursorAPrivate) * pixelsPerPs < 10) {
         setActiveCursorDrag("A");
         return;
       }
+
+      // 4. Drag existing Cursor B handle
       if (cursorBPrivate !== null && Math.abs(clickedPs - cursorBPrivate) * pixelsPerPs < 10) {
         setActiveCursorDrag("B");
         return;
       }
 
-      // Shift+Click: Place Cursor A
-      if (e.shiftKey) {
-        setCursorAPrivate(clickedPs);
-        return;
+      // 5. Click inside measurement window to slide the window
+      if (cursorAPrivate !== null && cursorBPrivate !== null) {
+        const minPs = Math.min(cursorAPrivate, cursorBPrivate);
+        const maxPs = Math.max(cursorAPrivate, cursorBPrivate);
+        if (clickedPs >= minPs && clickedPs <= maxPs && !e.shiftKey) {
+          setActiveCursorDrag("window");
+          setWindowDragOffsetPs(clickedPs - minPs);
+          return;
+        }
       }
 
-      // Alt+Click or Secondary: Place Cursor B
-      if (e.altKey || e.button === 2) {
+      // 6. Shift+Click: Extend or place Cursor B
+      if (e.shiftKey && cursorAPrivate !== null) {
         setCursorBPrivate(clickedPs);
         return;
       }
 
-      // Normal click: Place Cursor A or start Pan
-      if (cursorAPrivate === null) {
-        setCursorAPrivate(clickedPs);
-      } else if (cursorBPrivate === null && clickedPs !== cursorAPrivate) {
-        setCursorBPrivate(clickedPs);
-      } else {
-        setIsPanning(true);
-        setPanStartX(x);
-        setPanStartTimeOffset(timeOffsetPs);
-      }
+      // 7. Otherwise: Start new drag-to-measure window selection!
+      setSelectionAnchorPs(clickedPs);
+      setCursorAPrivate(clickedPs);
+      setCursorBPrivate(clickedPs);
+      setActiveCursorDrag("new_selection");
     } else {
       // Clicked in gutter: Check for Bus expansion toggle or signal force modal
       const rowIndex = Math.floor((y - headerHeight) / signalHeight);
@@ -626,6 +713,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     if (x >= gutterWidth) {
       const calcPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
@@ -635,19 +723,98 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         setCursorAPrivate(calcPs);
       } else if (activeCursorDrag === "B") {
         setCursorBPrivate(calcPs);
+      } else if (activeCursorDrag === "new_selection" && selectionAnchorPs !== null) {
+        setCursorAPrivate(Math.min(selectionAnchorPs, calcPs));
+        setCursorBPrivate(Math.max(selectionAnchorPs, calcPs));
+      } else if (activeCursorDrag === "window" && cursorAPrivate !== null && cursorBPrivate !== null) {
+        const widthPs = Math.abs(cursorBPrivate - cursorAPrivate);
+        const newMin = Math.max(0, calcPs - windowDragOffsetPs);
+        setCursorAPrivate(newMin);
+        setCursorBPrivate(newMin + widthPs);
       } else if (isPanning) {
         const deltaX = x - panStartX;
         const deltaPs = deltaX / pixelsPerPs;
         setTimeOffsetPs(Math.max(0, panStartTimeOffset - deltaPs));
       }
+
+      // Update cursor icon dynamically
+      if (canvasRef.current) {
+        if (isPanning) {
+          canvasRef.current.style.cursor = "grabbing";
+        } else if (y <= headerHeight) {
+          canvasRef.current.style.cursor = "grab";
+        } else if (
+          (cursorAPrivate !== null && Math.abs(calcPs - cursorAPrivate) * pixelsPerPs < 10) ||
+          (cursorBPrivate !== null && Math.abs(calcPs - cursorBPrivate) * pixelsPerPs < 10)
+        ) {
+          canvasRef.current.style.cursor = "ew-resize";
+        } else if (
+          cursorAPrivate !== null &&
+          cursorBPrivate !== null &&
+          calcPs >= Math.min(cursorAPrivate, cursorBPrivate) &&
+          calcPs <= Math.max(cursorAPrivate, cursorBPrivate)
+        ) {
+          canvasRef.current.style.cursor = "move";
+        } else {
+          canvasRef.current.style.cursor = "crosshair";
+        }
+      }
     } else {
       setHoverTimePs(null);
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = "default";
+      }
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect && activeCursorDrag === "new_selection") {
+      const x = e.clientX - rect.left;
+      const movedPx = Math.abs(x - mouseDownPos.x);
+      if (movedPx < 4) {
+        // Single click without drag: keep cursor A only
+        setCursorBPrivate(null);
+      }
+    }
     setIsPanning(false);
     setActiveCursorDrag(null);
+    setSelectionAnchorPs(null);
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mouseX = e.clientX - rect.left;
+
+    if (e.ctrlKey || e.metaKey) {
+      // Zoom centered on mouse
+      const zoomFactor = e.deltaY < 0 ? 1.25 : 0.8;
+      const plotX = gutterWidth;
+      const mousePs = timeOffsetPs + Math.max(0, mouseX - plotX) / pixelsPerPs;
+      const newPixelsPerPs = Math.min(Math.max(pixelsPerPs * zoomFactor, 0.0001), 10);
+      const newTimeOffsetPs = Math.max(0, mousePs - Math.max(0, mouseX - plotX) / newPixelsPerPs);
+      setPixelsPerPs(newPixelsPerPs);
+      setTimeOffsetPs(newTimeOffsetPs);
+    } else {
+      // Horizontal pan with wheel or trackpad
+      const deltaX = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const deltaPs = (deltaX * 3) / pixelsPerPs;
+      setTimeOffsetPs((prev) => Math.max(0, prev + deltaPs));
+    }
+  };
+
+  const handleZoomToWindow = () => {
+    if (cursorAPrivate === null || cursorBPrivate === null) return;
+    const minPs = Math.min(cursorAPrivate, cursorBPrivate);
+    const maxPs = Math.max(cursorAPrivate, cursorBPrivate);
+    const deltaPs = Math.max(maxPs - minPs, 10);
+    const containerWidth = containerRef.current?.clientWidth ?? 800;
+    const plotWidth = containerWidth - gutterWidth;
+    const newPixelsPerPs = Math.min(Math.max(plotWidth / deltaPs, 0.0001), 10);
+    setPixelsPerPs(newPixelsPerPs);
+    setTimeOffsetPs(Math.max(0, minPs - (plotWidth / newPixelsPerPs) * 0.05));
   };
 
   // Delta Time & Frequency Measurement Calculation
@@ -771,7 +938,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         </div>
 
         {/* Measurement HUD & Zoom Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {/* Dual-Cursor Measurement HUD */}
           {measurementDelta && (
             <div
@@ -779,23 +946,63 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                backgroundColor: "rgba(15, 23, 42, 0.8)",
+                backgroundColor: "rgba(15, 23, 42, 0.85)",
                 border: "1px solid #334155",
                 borderRadius: "var(--radius-sm)",
                 padding: "2px 8px",
                 fontSize: 11,
-                fontFamily: "JetBrains Mono, monospace"
+                fontFamily: "JetBrains Mono, monospace",
+                whiteSpace: "nowrap",
+                flexShrink: 0
               }}
             >
-              <span style={{ color: "#00f2fe" }}>A:{cursorAPrivate}ps</span>
-              <span style={{ color: "#a855f7" }}>B:{cursorBPrivate}ps</span>
-              <span style={{ color: "#f1f5f9", fontWeight: 600 }}>Δt: {measurementDelta.timeStr}</span>
-              <span style={{ color: "#10b981", fontWeight: 600 }}>f: {measurementDelta.freqStr}</span>
+              <span style={{ color: "#00f2fe" }}>A:{cursorAPrivate !== null ? formatTimeCompact(cursorAPrivate) : ""}</span>
+              <span style={{ color: "#a855f7" }}>B:{cursorBPrivate !== null ? formatTimeCompact(cursorBPrivate) : ""}</span>
+              <span style={{ color: "#f1f5f9", fontWeight: 600, whiteSpace: "nowrap" }}>Δt: {measurementDelta.timeStr}</span>
+              <span style={{ color: "#10b981", fontWeight: 600, whiteSpace: "nowrap" }}>f: {measurementDelta.freqStr}</span>
+              <button
+                onClick={handleZoomToWindow}
+                className="btn btn-ghost"
+                style={{ fontSize: 10, color: "#38bdf8", padding: "1px 5px", height: "auto", minHeight: 18, borderRadius: 2, display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
+                title="Zoom into measurement window"
+              >
+                <Search size={11} />
+                <span>Zoom</span>
+              </button>
               <button
                 onClick={() => {
                   setCursorAPrivate(null);
                   setCursorBPrivate(null);
                 }}
+                className="btn btn-ghost btn-icon"
+                style={{ fontSize: 10, color: "var(--text-muted)", padding: "0 2px", width: 16, height: 16 }}
+                title={t.waveforms.clearCursors}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {cursorAPrivate !== null && cursorBPrivate === null && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "rgba(15, 23, 42, 0.85)",
+                border: "1px solid #334155",
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 8px",
+                fontSize: 11,
+                fontFamily: "JetBrains Mono, monospace",
+                whiteSpace: "nowrap",
+                flexShrink: 0
+              }}
+            >
+              <span style={{ color: "#00f2fe" }}>A:{formatTimeCompact(cursorAPrivate)}</span>
+              <span style={{ color: "var(--text-muted)", fontSize: 10 }}>Drag to create window</span>
+              <button
+                onClick={() => setCursorAPrivate(null)}
                 className="btn btn-ghost btn-icon"
                 style={{ fontSize: 10, color: "var(--text-muted)", padding: "0 2px", width: 16, height: 16 }}
                 title={t.waveforms.clearCursors}
@@ -853,6 +1060,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       {/* Canvas Area */}
       <canvas
         ref={canvasRef}
+        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

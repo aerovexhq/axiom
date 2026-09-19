@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FilePlus, Check } from "lucide-react";
 import { FileSetType, FileFormat, ProjectFile } from "../engine/projectModel";
 import { Modal, Input, Select, Button, Card } from "./ui";
@@ -8,18 +8,41 @@ interface AddSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddSource: (file: Omit<ProjectFile, "id">) => void;
+  initialFileSet?: FileSetType;
 }
 
 export const AddSourceModal: React.FC<AddSourceModalProps> = ({
   isOpen,
   onClose,
-  onAddSource
+  onAddSource,
+  initialFileSet
 }) => {
   const { t } = useTranslation();
   const [fileName, setFileName] = useState<string>("submodule.v");
   const [fileSet, setFileSet] = useState<FileSetType>("sources_1");
   const [fileType, setFileType] = useState<FileFormat>("verilog");
   const [templateKind, setTemplateKind] = useState<"empty" | "module" | "testbench" | "xdc">("module");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialFileSet === "constrs_1") {
+        setFileSet("constrs_1");
+        setFileType("xdc");
+        setTemplateKind("xdc");
+        setFileName("constraints.xdc");
+      } else if (initialFileSet === "sim_1") {
+        setFileSet("sim_1");
+        setFileType("verilog");
+        setTemplateKind("testbench");
+        setFileName("testbench.v");
+      } else {
+        setFileSet("sources_1");
+        setFileType("verilog");
+        setTemplateKind("module");
+        setFileName("submodule.v");
+      }
+    }
+  }, [isOpen, initialFileSet]);
 
   if (!isOpen) return null;
 

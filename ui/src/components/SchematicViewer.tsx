@@ -64,10 +64,43 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     return generateSchematicGraph(activeDesignId);
   }, [activeDesignId]);
 
-  // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale)
-  const [scale, setScale] = useState<number>(1.0);
-  const [offsetX, setOffsetX] = useState<number>(60);
-  const [offsetY, setOffsetY] = useState<number>(50);
+  // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale) with local persistence
+  const [scale, setScale] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.scale === "number" && !isNaN(parsed.scale) && parsed.scale > 0) {
+          return parsed.scale;
+        }
+      }
+    } catch {}
+    return 1.0;
+  });
+  const [offsetX, setOffsetX] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.offsetX === "number" && !isNaN(parsed.offsetX)) {
+          return parsed.offsetX;
+        }
+      }
+    } catch {}
+    return 60;
+  });
+  const [offsetY, setOffsetY] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.offsetY === "number" && !isNaN(parsed.offsetY)) {
+          return parsed.offsetY;
+        }
+      }
+    } catch {}
+    return 50;
+  });
 
   // Mouse Interaction States
   const [isPanning, setIsPanning] = useState<boolean>(false);
@@ -84,15 +117,53 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // View Options (Live Values is OFF by default for clean schematic readability)
-  const [showLiveValues, setShowLiveValues] = useState<boolean>(false);
-  const [hideClockNets, setHideClockNets] = useState<boolean>(false);
+  // View Options (persisted)
+  const [showLiveValues, setShowLiveValues] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("axiom_schematic_live_values") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [hideClockNets, setHideClockNets] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("axiom_schematic_hide_clocks") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [showMinimap, setShowMinimap] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return window.innerWidth > 768;
     }
     return false;
   });
+
+  // Save view options
+  useEffect(() => {
+    try {
+      localStorage.setItem("axiom_schematic_live_values", String(showLiveValues));
+    } catch {}
+  }, [showLiveValues]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("axiom_schematic_hide_clocks", String(hideClockNets));
+    } catch {}
+  }, [hideClockNets]);
+
+  // Debounced camera state persistence
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `axiom_schematic_cam_${activeDesignId || "default"}`,
+          JSON.stringify({ scale, offsetX, offsetY })
+        );
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [scale, offsetX, offsetY, activeDesignId]);
 
   // Map signal names to live logic values
   const liveValuesMap = useMemo(() => {
@@ -163,9 +234,22 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     }
   }, [graph]);
 
+  // Load saved camera state or fit to screen if no cached camera exists
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.scale === "number" && !isNaN(parsed.scale) && parsed.scale > 0) {
+          setScale(parsed.scale);
+          if (typeof parsed.offsetX === "number" && !isNaN(parsed.offsetX)) setOffsetX(parsed.offsetX);
+          if (typeof parsed.offsetY === "number" && !isNaN(parsed.offsetY)) setOffsetY(parsed.offsetY);
+          return;
+        }
+      }
+    } catch {}
     fitToScreen();
-  }, [fitToScreen]);
+  }, [activeDesignId, fitToScreen]);
 
   // Handle external signal selection (e.g. from Waveform or Sidebar)
   useEffect(() => {

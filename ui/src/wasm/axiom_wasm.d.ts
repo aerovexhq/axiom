@@ -16,6 +16,10 @@ export class WasmEngine {
      */
     complete(source: string, line: number, column: number): any;
     /**
+     * Query autocompletions for XDC constraints at (line, column).
+     */
+    complete_xdc(source: string, line: number, column: number): any;
+    /**
      * Export simulation switching activity as SAIF.
      */
     export_saif(): string;
@@ -32,9 +36,17 @@ export class WasmEngine {
      */
     hover(source: string, line: number, column: number): any;
     /**
+     * Query hover documentation for XDC constraint keyword at (line, column).
+     */
+    hover_xdc(source: string, line: number, column: number): any;
+    /**
      * Run in-RAM static analysis linter on Verilog source code.
      */
     lint(source: string): any;
+    /**
+     * Run in-RAM static analysis linter on Vivado XDC constraints.
+     */
+    lint_xdc(source: string): any;
     constructor();
     /**
      * Step simulation by a single discrete delta cycle (zero time).
@@ -52,14 +64,29 @@ export class WasmEngine {
 export function wasm_complete(source: string, line: number, column: number): any;
 
 /**
+ * Standalone WebAssembly function to query XDC completions without creating an engine instance.
+ */
+export function wasm_complete_xdc(source: string, line: number, column: number): any;
+
+/**
  * Standalone WebAssembly function to query hover info without creating an engine instance.
  */
 export function wasm_hover(source: string, line: number, column: number): any;
 
 /**
+ * Standalone WebAssembly function to query XDC hover info without creating an engine instance.
+ */
+export function wasm_hover_xdc(source: string, line: number, column: number): any;
+
+/**
  * Standalone WebAssembly function to lint Verilog source without creating an engine instance.
  */
 export function wasm_lint(source: string): any;
+
+/**
+ * Standalone WebAssembly function to lint XDC constraints source without creating an engine instance.
+ */
+export function wasm_lint_xdc(source: string): any;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -67,15 +94,21 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_wasmengine_free: (a: number, b: number) => void;
     readonly wasm_complete: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasm_complete_xdc: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasm_hover: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasm_hover_xdc: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasm_lint: (a: number, b: number) => [number, number, number];
+    readonly wasm_lint_xdc: (a: number, b: number) => [number, number, number];
     readonly wasmengine_compile: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_complete: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly wasmengine_complete_xdc: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_export_saif: (a: number) => [number, number, number, number];
     readonly wasmengine_export_vcd: (a: number) => [number, number, number, number];
     readonly wasmengine_force_signal: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmengine_hover: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly wasmengine_hover_xdc: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_lint: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_lint_xdc: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_new: () => number;
     readonly wasmengine_step_delta: (a: number) => [number, number, number];
     readonly wasmengine_step_time: (a: number, b: number) => [number, number, number];

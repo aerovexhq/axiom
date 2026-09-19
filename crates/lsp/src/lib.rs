@@ -3,12 +3,14 @@ pub mod hover;
 pub mod linter;
 pub mod server;
 pub mod types;
+pub mod xdc;
 
 pub use completion::VerilogCompletion;
 pub use hover::VerilogHover;
 pub use linter::VerilogLinter;
 pub use server::LspServer;
 pub use types::*;
+pub use xdc::{XdcCompletion, XdcHover, XdcLinter};
 
 #[cfg(test)]
 mod tests {
@@ -134,4 +136,67 @@ endmodule
         assert!(comps.iter().any(|c| c.label == "opcode"));
         assert!(comps.iter().any(|c| c.label == "result"));
     }
+
+    #[test]
+    fn test_xdc_lint_clean_default_timing_file() {
+        let default_xdc = r#"# Vivado Constraints: timing.xdc
+# Artix-7 xc7a35t-csg324-1 package pin assignments
+
+# Inputs: Switches SW0 (A), SW1 (B), SW2 (C)
+set_property PACKAGE_PIN J15 [get_ports {A}]
+set_property IOSTANDARD LVCMOS33 [get_ports {A}]
+
+set_property PACKAGE_PIN L16 [get_ports {B}]
+set_property IOSTANDARD LVCMOS33 [get_ports {B}]
+
+set_property PACKAGE_PIN M13 [get_ports {C}]
+set_property IOSTANDARD LVCMOS33 [get_ports {C}]
+
+# Output: LED LD0 (F)
+set_property PACKAGE_PIN H17 [get_ports {F}]
+set_property IOSTANDARD LVCMOS33 [get_ports {F}]
+"#;
+        let diags = XdcLinter::lint(default_xdc);
+        assert!(
+            diags.is_empty(),
+            "Default timing.xdc must have 0 errors, found: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn test_xdc_lint_errors_and_warnings() {
+        let bad_xdc = r#"
+set_proprty PACKAGE_PIN J15 [get_ports {A}]
+set_property UNKNOWN_PROP VAL [get_ports {B}]
+set_property IOSTANDARD BOGUS_STD [get_ports {C}]
+set_property PACKAGE_PIN J15 [get_ports {A}
+create_clock -name clk_100mhz
+"#;
+        let diags = XdcLinter::lint(bad_xdc);
+        assert!(diags.iter().any(|d| d.code == "AXIOM_XDC_E001_UNKNOWN_COMMAND"));
+        assert!(diags.iter().any(|d| d.code == "AXIOM_XDC_W001_UNKNOWN_PROPERTY"));
+        assert!(diags.iter().any(|d| d.code == "AXIOM_XDC_W002_UNKNOWN_IOSTANDARD"));
+        assert!(diags.iter().any(|d| d.code == "AXIOM_XDC_E003_UNCLOSED_DELIMITER"));
+        assert!(diags.iter().any(|d| d.code == "AXIOM_XDC_E004_MISSING_CLOCK_PERIOD"));
+    }
+
+    #[test]
+    fn test_xdc_hover_and_completion() {
+        let code = "set_property PACKAGE_PIN J15 [get_ports {A}]\ncreate_clock -period 10 [get_ports clk]";
+        
+        let h_prop = XdcHover::hover(code, 1, 5);
+        assert!(h_prop.is_some());
+        assert!(h_prop.unwrap().contents.contains("`set_property`"));
+
+        let h_pin = XdcHover::hover(code, 1, 16);
+        assert!(h_pin.is_some());
+        assert!(h_pin.unwrap().contents.contains("`PACKAGE_PIN`"));
+
+        let comps = XdcCompletion::complete(code, 1, 1);
+        assert!(comps.iter().any(|c| c.label.contains("PACKAGE_PIN")));
+        assert!(comps.iter().any(|c| c.label == "create_clock"));
+        assert!(comps.iter().any(|c| c.label == "LVCMOS33"));
+    }
 }
+
