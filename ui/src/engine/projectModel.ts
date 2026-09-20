@@ -2,7 +2,7 @@
 // Conforming to IEEE 1800 SystemVerilog & Xilinx Vivado project structures
 
 export type FileSetType = "sources_1" | "sim_1" | "constrs_1";
-export type FileFormat = "verilog" | "systemverilog" | "xdc";
+export type FileFormat = "verilog" | "systemverilog" | "vhdl" | "mem" | "xdc";
 
 export interface ProjectFile {
   id: string;
@@ -1171,7 +1171,7 @@ export function addFileToProject(
   project: AxiomProject,
   file: Omit<ProjectFile, "id">
 ): { project: AxiomProject; newFileId: string } {
-  const newFileId = `file_${Date.now()}`;
+  const newFileId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const newFile: ProjectFile = {
     ...file,
     id: newFileId
@@ -1186,6 +1186,34 @@ export function addFileToProject(
   };
 
   return { project: updatedProject, newFileId };
+}
+
+// Add multiple files to project in batch
+export function addFilesToProject(
+  project: AxiomProject,
+  files: Omit<ProjectFile, "id">[]
+): { project: AxiomProject; newFileIds: string[] } {
+  if (files.length === 0) {
+    return { project, newFileIds: [] };
+  }
+
+  const now = Date.now();
+  const createdFiles: ProjectFile[] = files.map((f, i) => ({
+    ...f,
+    id: `file_${now}_${i}_${Math.random().toString(36).substring(2, 7)}`
+  }));
+  const newFileIds = createdFiles.map((f) => f.id);
+  const lastId = newFileIds[newFileIds.length - 1];
+
+  const updatedProject: AxiomProject = {
+    ...project,
+    files: [...project.files, ...createdFiles],
+    openFileIds: [...new Set([...project.openFileIds, ...newFileIds])],
+    activeFileId: lastId,
+    updatedAt: new Date().toISOString()
+  };
+
+  return { project: updatedProject, newFileIds };
 }
 
 // Delete a file from project

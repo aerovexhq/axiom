@@ -422,6 +422,26 @@ fn pick_folder() -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn pick_files(title: Option<String>, extensions: Option<Vec<String>>) -> Option<Vec<String>> {
+    let mut dialog = rfd::FileDialog::new();
+    if let Some(ref t) = title {
+        dialog = dialog.set_title(t);
+    }
+    if let Some(ref exts) = extensions {
+        let ext_refs: Vec<&str> = exts.iter().map(|s| s.as_str()).collect();
+        dialog = dialog.add_filter("HDL Sources", &ext_refs);
+    } else {
+        dialog = dialog.add_filter(
+            "HDL & Design Sources",
+            &["v", "sv", "vh", "vhd", "vhdl", "xdc", "sdc", "mem", "hex", "coe"],
+        );
+    }
+    dialog
+        .pick_files()
+        .map(|paths| paths.into_iter().map(|p| p.to_string_lossy().to_string()).collect())
+}
+
 pub fn run_desktop_app() {
     let engine: EngineState = Arc::new(Mutex::new(MultiEngineManager::new()));
     static WINDOW_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(2);
@@ -487,6 +507,7 @@ pub fn run_desktop_app() {
             export_lcov,
             export_html_report,
             pick_folder,
+            pick_files,
             get_app_version
         ])
         .run(tauri::generate_context!())

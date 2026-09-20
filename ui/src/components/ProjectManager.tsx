@@ -4,6 +4,7 @@ import {
   FolderOpen,
   FileCode,
   FileText,
+  Database,
   FilePlus,
   Trash2,
   Star,
@@ -203,8 +204,12 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0, flex: 1, overflow: "hidden" }}>
-          {file.fileType === "xdc" ? (
+          {file.fileType === "xdc" || file.name.endsWith(".xdc") || file.name.endsWith(".sdc") ? (
             <FileText size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
+          ) : file.fileType === "vhdl" || file.name.endsWith(".vhd") || file.name.endsWith(".vhdl") ? (
+            <FileCode size={13} color="#10b981" style={{ flexShrink: 0 }} />
+          ) : file.fileType === "mem" || file.name.endsWith(".mem") || file.name.endsWith(".hex") || file.name.endsWith(".coe") ? (
+            <Database size={13} color="#f59e0b" style={{ flexShrink: 0 }} />
           ) : (
             <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
           )}

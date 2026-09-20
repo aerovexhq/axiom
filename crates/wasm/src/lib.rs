@@ -477,6 +477,20 @@ impl WasmEngine {
         serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    /// Run in-RAM static analysis linter on VHDL IEEE 1076 source.
+    #[wasm_bindgen]
+    pub fn lint_vhdl(&self, source: &str) -> Result<JsValue, JsValue> {
+        let diags = axiom_lsp::VhdlLinter::lint(source);
+        serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Run in-RAM static analysis linter on Memory file (.coe, .mem, .hex).
+    #[wasm_bindgen]
+    pub fn lint_mem(&self, source: &str, file_name: &str) -> Result<JsValue, JsValue> {
+        let diags = axiom_lsp::MemLinter::lint(source, file_name);
+        serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Query hover documentation for identifier/keyword at (line, column).
     #[wasm_bindgen]
     pub fn hover(&self, source: &str, line: u32, column: u32) -> Result<JsValue, JsValue> {
@@ -718,6 +732,20 @@ pub fn wasm_lint(source: &str) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn wasm_lint_xdc(source: &str) -> Result<JsValue, JsValue> {
     let diags = axiom_lsp::XdcLinter::lint(source);
+    serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Standalone WebAssembly function to lint VHDL source without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_lint_vhdl(source: &str) -> Result<JsValue, JsValue> {
+    let diags = axiom_lsp::VhdlLinter::lint(source);
+    serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Standalone WebAssembly function to lint Memory initialization file without creating an engine instance.
+#[wasm_bindgen]
+pub fn wasm_lint_mem(source: &str, file_name: &str) -> Result<JsValue, JsValue> {
+    let diags = axiom_lsp::MemLinter::lint(source, file_name);
     serde_wasm_bindgen::to_value(&diags).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 

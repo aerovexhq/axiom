@@ -10,6 +10,7 @@ import {
   Minimize2,
   FileCode,
   FileText,
+  Database,
   AlertTriangle,
   AlertCircle,
   CheckCircle,
@@ -21,6 +22,8 @@ import { AxiomProject } from "../engine/projectModel";
 import { engineBridge, LspDiagnostic, CoverageReport } from "../engine/engineBridge";
 import { registerVerilogLanguage } from "../engine/monacoVerilog";
 import { registerXdcLanguage } from "../engine/monacoXdc";
+import { registerVhdlLanguage } from "../engine/monacoVhdl";
+import { registerMemLanguage } from "../engine/monacoMem";
 import { toast } from "../engine/toast";
 import { Breadcrumbs, BreadcrumbItem, Button, Badge } from "./ui";
 import { useTranslation } from "../i18n";
@@ -109,7 +112,11 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
 
   // Determine active file info from project if available
   const activeFile = project?.files.find((f) => f.id === project.activeFileId);
-  const isXdc = activeFile?.fileType === "xdc" || Boolean(activeFile?.name.endsWith(".xdc"));
+  const fileName = activeFile?.name ?? "";
+  const isXdc = activeFile?.fileType === "xdc" || fileName.endsWith(".xdc") || fileName.endsWith(".sdc");
+  const isVhdl = activeFile?.fileType === "vhdl" || fileName.endsWith(".vhd") || fileName.endsWith(".vhdl");
+  const isMem = activeFile?.fileType === "mem" || fileName.endsWith(".mem") || fileName.endsWith(".hex") || fileName.endsWith(".coe");
+  const editorLanguage = isXdc ? "xdc" : isVhdl ? "vhdl" : isMem ? "mem" : "verilog";
 
   // Setup Monaco on mount
   const handleEditorDidMount: OnMount = (editor, monaco) => {
@@ -118,6 +125,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
     setEditorInstance(editor);
     registerVerilogLanguage(monaco);
     registerXdcLanguage(monaco);
+    registerVhdlLanguage(monaco);
+    registerMemLanguage(monaco);
 
     if (highlightLineSpan) {
       editor.revealLineInCenter(highlightLineSpan.lineStart);
@@ -223,7 +232,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         return;
       }
       try {
-        const diags = await engineBridge.lint(code, isXdc ? "xdc" : "verilog");
+        const diags = await engineBridge.lint(code, editorLanguage);
         if (cancelled) return;
 
         setLocalDiags(diags);
@@ -246,7 +255,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   : d.severity === 3
                   ? monacoRef.current!.MarkerSeverity.Info
                   : monacoRef.current!.MarkerSeverity.Hint,
-              source: d.source || (isXdc ? "axiom-xdc-linter" : "axiom-linter"),
+              source: d.source || (isXdc ? "axiom-xdc-linter" : isVhdl ? "axiom-vhdl-linter" : isMem ? "axiom-mem-linter" : "axiom-linter"),
               code: d.code,
             }));
             monacoRef.current.editor.setModelMarkers(model, "axiom-linter", markers);
@@ -261,7 +270,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [code, isXdc, onDiagnosticsChange]);
+  }, [code, editorLanguage, onDiagnosticsChange]);
 
   // Jump to highlightLineSpan when updated
   useEffect(() => {
@@ -429,8 +438,12 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                     transition: "background-color 0.15s ease, color 0.15s ease"
                   }}
                 >
-                  {file.fileType === "xdc" ? (
+                  {file.fileType === "xdc" || file.name.endsWith(".xdc") || file.name.endsWith(".sdc") ? (
                     <FileText size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
+                  ) : file.fileType === "vhdl" || file.name.endsWith(".vhd") || file.name.endsWith(".vhdl") ? (
+                    <FileCode size={13} color="#10b981" style={{ flexShrink: 0 }} />
+                  ) : file.fileType === "mem" || file.name.endsWith(".mem") || file.name.endsWith(".hex") || file.name.endsWith(".coe") ? (
+                    <Database size={13} color="#f59e0b" style={{ flexShrink: 0 }} />
                   ) : (
                     <FileCode size={13} color={isTop ? "var(--accent-cyan)" : "var(--accent-blue)"} style={{ flexShrink: 0 }} />
                   )}
@@ -651,7 +664,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             <Swords size={13} />
           </button>
 
-          {/* Elaborate or Check XDC Button */}
+          {/* Elaborate or Check Action Button */}
           <Button
             variant="primary"
             size="xs"
@@ -664,15 +677,31 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                 } else {
                   toast.error(`XDC Validation: ${errors.length} error(s) found`);
                 }
+              } else if (isVhdl) {
+                const diags = await engineBridge.lintVhdl(code);
+                const errors = diags.filter((d) => d.severity === 1);
+                if (errors.length === 0) {
+                  toast.success("VHDL module verified: 0 errors");
+                } else {
+                  toast.error(`VHDL Validation: ${errors.length} error(s) found`);
+                }
+              } else if (isMem) {
+                const diags = await engineBridge.lintMem(code, activeFile?.name);
+                const errors = diags.filter((d) => d.severity === 1);
+                if (errors.length === 0) {
+                  toast.success("Memory vectors verified: 0 errors");
+                } else {
+                  toast.error(`Memory File Validation: ${errors.length} error(s) found`);
+                }
               } else {
                 onCompile();
               }
             }}
             icon={<Play size={10} fill="#fff" />}
-            title={isXdc ? "Validate Constraints" : t("header.compile")}
+            title={isXdc ? "Validate Constraints" : isVhdl ? "Validate VHDL" : isMem ? "Validate Memory File" : t("header.compile")}
             style={{ padding: "3px 8px", fontSize: 11 }}
           >
-            {isXdc ? "Check XDC" : t("editor.elaborate")}
+            {isXdc ? "Check XDC" : isVhdl ? "Check VHDL" : isMem ? "Validate MEM" : t("editor.elaborate")}
           </Button>
 
           {onToggleMaximize && (
@@ -702,8 +731,11 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       <Breadcrumbs
         items={breadcrumbItems}
         rightContent={
-          <Badge color={isXdc ? "purple" : "cyan"} size="sm">
-            {isXdc ? "Vivado XDC" : "Rust JIT"}
+          <Badge
+            color={isXdc ? "purple" : isVhdl ? "emerald" : isMem ? "amber" : "cyan"}
+            size="sm"
+          >
+            {isXdc ? "Vivado XDC" : isVhdl ? "VHDL (IEEE 1076)" : isMem ? "Memory Init" : "Rust JIT"}
           </Badge>
         }
       />
@@ -712,13 +744,15 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <Editor
           height="100%"
-          language={isXdc ? "xdc" : "verilog"}
+          language={editorLanguage}
           theme="axiom-dark"
           value={code}
           onChange={(val) => onChangeCode(val ?? "")}
           beforeMount={(monaco) => {
             registerVerilogLanguage(monaco);
             registerXdcLanguage(monaco);
+            registerVhdlLanguage(monaco);
+            registerMemLanguage(monaco);
           }}
           onMount={handleEditorDidMount}
           options={{

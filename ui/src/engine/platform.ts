@@ -48,6 +48,30 @@ export async function openFolderDialog(): Promise<string | null> {
 }
 
 /**
+ * Opens a native OS multi-file selection dialog (on Desktop via Tauri `pick_files` command).
+ * Returns array of selected absolute file paths, or null if cancelled or not on desktop.
+ */
+export async function openFilesDialog(options?: {
+  title?: string;
+  extensions?: string[];
+}): Promise<string[] | null> {
+  if (!isDesktop()) {
+    return null;
+  }
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const paths = await invoke<string[] | null>("pick_files", {
+      title: options?.title,
+      extensions: options?.extensions
+    });
+    return paths ?? null;
+  } catch (err) {
+    console.warn("[Platform] Failed to open native files dialog:", err);
+    return null;
+  }
+}
+
+/**
  * Native OS window minimize.
  */
 export async function minimizeWindow(): Promise<void> {

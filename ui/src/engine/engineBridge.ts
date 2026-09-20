@@ -11,6 +11,8 @@ import type {
 } from "./worker/simWorkerProtocol";
 import { ProtocolDecodeRequest, DecodedTransaction, ProtocolKind, generateSyntheticTransactions } from "./protocolDecoders";
 import { PpaReport, PpaOptions, evaluateClientFallbackPpa } from "./ppaModel";
+import { lintVhdlSource } from "./vhdlLinter";
+import { lintMemSource } from "./memLinter";
 
 export type {
   ProtocolDecodeRequest,
@@ -185,6 +187,12 @@ export class AxiomEngineBridge {
     if (fileType === "xdc" || fileType?.endsWith(".xdc") || fileType?.endsWith(".sdc")) {
       return this.lintXdc(source);
     }
+    if (fileType === "vhdl" || fileType?.endsWith(".vhd") || fileType?.endsWith(".vhdl")) {
+      return this.lintVhdl(source);
+    }
+    if (fileType === "mem" || fileType?.endsWith(".mem") || fileType?.endsWith(".hex") || fileType?.endsWith(".coe")) {
+      return this.lintMem(source, fileType);
+    }
     if (!this.isTauri && simWorkerClient.isSupported()) {
       try {
         return await simWorkerClient.lint(source);
@@ -220,6 +228,38 @@ export class AxiomEngineBridge {
       console.error("[engineBridge] XDC Lint error:", e);
     }
     return [];
+  }
+
+  public async lintVhdl(source: string): Promise<LspDiagnostic[]> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm && typeof (wasm as any).lint_vhdl === "function") {
+        return (wasm as any).lint_vhdl(source) as LspDiagnostic[];
+      }
+    } catch {
+      // Fallback to client-side TypeScript VHDL linter
+    }
+    return lintVhdlSource(source);
+  }
+
+  public async lintMem(source: string, fileName?: string): Promise<LspDiagnostic[]> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm && typeof (wasm as any).lint_mem === "function") {
+        return (wasm as any).lint_mem(source, fileName || "init.coe") as LspDiagnostic[];
+      }
+    } catch {
+      // Fallback to client-side TypeScript Memory linter
+    }
+    return lintMemSource(source, fileName);
+  }
+
+  public async hoverVhdl(_source: string, _line: number, _column: number): Promise<HoverResult | null> {
+    return null;
+  }
+
+  public async hoverMem(_source: string, _line: number, _column: number): Promise<HoverResult | null> {
+    return null;
   }
 
   public async hover(source: string, line: number, column: number): Promise<HoverResult | null> {

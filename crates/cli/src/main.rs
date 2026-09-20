@@ -203,6 +203,10 @@ fn main() {
             };
             let diags = if file_path.ends_with(".xdc") || file_path.ends_with(".sdc") {
                 axiom_lsp::XdcLinter::lint(&content)
+            } else if file_path.ends_with(".vhd") || file_path.ends_with(".vhdl") {
+                axiom_lsp::VhdlLinter::lint(&content)
+            } else if file_path.ends_with(".mem") || file_path.ends_with(".hex") || file_path.ends_with(".coe") {
+                axiom_lsp::MemLinter::lint(&content, file_path)
             } else {
                 axiom_lsp::VerilogLinter::lint(&content)
             };

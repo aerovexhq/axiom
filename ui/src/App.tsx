@@ -39,6 +39,7 @@ import {
   bundleProjectSources,
   updateFileContent,
   addFileToProject,
+  addFilesToProject,
   loadSavedProject,
   saveProjectToStorage,
   clearSavedProject
@@ -367,6 +368,15 @@ export const App: React.FC = () => {
   const handleAddSource = (file: Omit<ProjectFile, "id">) => {
     if (!project) return;
     const { project: updated } = addFileToProject(project, file);
+    setProject(updated);
+    saveProjectToStorage(updated);
+    const bundled = bundleProjectSources(updated);
+    engineBridge.compile(bundled, updated.topModule);
+  };
+
+  const handleAddSources = (files: Omit<ProjectFile, "id">[]) => {
+    if (!project || files.length === 0) return;
+    const { project: updated } = addFilesToProject(project, files);
     setProject(updated);
     saveProjectToStorage(updated);
     const bundled = bundleProjectSources(updated);
@@ -1812,6 +1822,7 @@ export const App: React.FC = () => {
         isOpen={isAddSourceOpen}
         onClose={() => setIsAddSourceOpen(false)}
         onAddSource={handleAddSource}
+        onAddSources={handleAddSources}
         initialFileSet={addSourceInitialFileSet}
       />
 

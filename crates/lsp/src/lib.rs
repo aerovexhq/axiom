@@ -1,16 +1,20 @@
 pub mod completion;
 pub mod hover;
 pub mod linter;
+pub mod mem;
 pub mod primitives_doc;
 pub mod server;
 pub mod types;
+pub mod vhdl;
 pub mod xdc;
 
 pub use completion::VerilogCompletion;
 pub use hover::VerilogHover;
 pub use linter::VerilogLinter;
+pub use mem::{MemCompletion, MemHover, MemLinter};
 pub use server::LspServer;
 pub use types::*;
+pub use vhdl::{VhdlCompletion, VhdlHover, VhdlLinter};
 pub use xdc::{XdcCompletion, XdcHover, XdcLinter};
 
 #[cfg(test)]
