@@ -16,14 +16,14 @@ import {
   Pause,
   FastForward,
   RotateCcw,
-    } from "lucide-react";
+} from "lucide-react";
 import { AxiomProject } from "../engine/projectModel";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { Badge, Button } from "./ui";
 import { useTranslation } from "../i18n/i18nContext";
-import { Boxes, Layers, Gauge } from "lucide-react";
+import { Boxes, Layers, Gauge, Box } from "lucide-react";
 
-export type MobilePanelType = "editor" | "schematic" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "dock";
+export type MobilePanelType = "editor" | "schematic" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "dock";
 
 export interface MobileDrawerProps {
   isOpen: boolean;
@@ -76,7 +76,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     {
       id: "editor",
       label: t.mobile.code,
-      sublabel: project ? (project.files.find((f) => f.id === project.activeFileId)?.name ?? "Verilog RTL") : "Verilog Editor",
+      sublabel: "Verilog & SystemVerilog editor",
       icon: <FileCode size={18} />,
       color: "var(--accent-blue)"
     },
@@ -88,6 +88,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       color: "var(--accent-cyan)"
     },
     {
+      id: "package",
+      label: "Package",
+      sublabel: "BGA pinout & I/O floorplan",
+      icon: <Box size={18} />,
+      color: "var(--accent-cyan)"
+    },
+    {
       id: "microarch",
       label: "Architecture",
       sublabel: "FSM, ALU & Memory block diagram",
@@ -96,14 +103,14 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     },
     {
       id: "multidie",
-      label: "Multi-Die / SLR",
+      label: "Multi-Die",
       sublabel: "2.5D Interposer, SLRs & SLLs",
       icon: <Layers size={18} />,
       color: "var(--accent-cyan)"
     },
     {
       id: "ppa",
-      label: "PPA & Costs",
+      label: "PPA",
       sublabel: "Pareto frontier & silicon cost advisor",
       icon: <Gauge size={18} />,
       color: "var(--accent-purple, #a855f7)"

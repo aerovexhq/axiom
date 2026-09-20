@@ -38,6 +38,7 @@ export interface ProjectTemplate {
 }
 
 export const FPGA_TARGET_DEVICES: { id: string; name: string; family: string; logicCells: string }[] = [
+  { id: "xc7a35tcpg236-1", name: "Artix-7 xc7a35tcpg236-1 (Basys 3)", family: "Artix-7", logicCells: "33,280" },
   { id: "xc7a35t-csg324-1", name: "Artix-7 xc7a35t-csg324-1", family: "Artix-7", logicCells: "33,280" },
   { id: "xc7a100t-csg324-1", name: "Artix-7 xc7a100t-csg324-1", family: "Artix-7", logicCells: "101,440" },
   { id: "xc7z020-clg400-1", name: "Zynq-7000 xc7z020-clg400-1", family: "Zynq-7000 SoC", logicCells: "85,000" },

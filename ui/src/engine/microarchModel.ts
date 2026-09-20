@@ -1168,7 +1168,7 @@ function generateLogicCircuitMicroarchGraph(): MicroarchGraph {
     {
       id: "comb_logic_system",
       name: "logic_circuit",
-      label: "Combinational Logic Network",
+      label: "Combinational Logic",
       sublabel: "F = ((~A & B) & C) | ~B",
       category: "Datapath",
       kind: {
@@ -1181,11 +1181,11 @@ function generateLogicCircuitMicroarchGraph(): MicroarchGraph {
         { id: "in_c", name: "C", width: 1, direction: "In", offset_x: 0, offset_y: 75 }
       ],
       outputs: [
-        { id: "out_f", name: "F", width: 1, direction: "Out", offset_x: 200, offset_y: 50 }
+        { id: "out_f", name: "F", width: 1, direction: "Out", offset_x: 260, offset_y: 50 }
       ],
       x: 120,
       y: 100,
-      width: 200,
+      width: 260,
       height: 100,
       latency_cycles: 0
     }

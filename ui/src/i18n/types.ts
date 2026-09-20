@@ -347,4 +347,34 @@ export interface Translations {
     run: string;
     reset: string;
   };
+  package: {
+    title: string;
+    packageView: string;
+    deviceView: string;
+    ioPorts: string;
+    packagePins: string;
+    allPorts: string;
+    scalarPorts: string;
+    busPorts: string;
+    name: string;
+    direction: string;
+    negDiffPair: string;
+    packagePin: string;
+    fixed: string;
+    bank: string;
+    ioStd: string;
+    vcco: string;
+    vref: string;
+    driveStrength: string;
+    slewType: string;
+    pullType: string;
+    unassigned: string;
+    saveToXdc: string;
+    autoAssign: string;
+    clearAll: string;
+    zoomIn: string;
+    zoomOut: string;
+    zoomFit: string;
+    resetView: string;
+  };
 }

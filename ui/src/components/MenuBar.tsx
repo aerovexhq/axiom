@@ -33,7 +33,8 @@ import {
   Info,
   ExternalLink,
   Layers,
-  Sparkles
+  Sparkles,
+  Box
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -48,7 +49,7 @@ export interface MenuBarProps {
   onExportProjectJson: () => void;
   onToggleSidebar: () => void;
   onToggleBottomDock: () => void;
-  onSwitchVisualizer: (view: "schematic" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa") => void;
+  onSwitchVisualizer: (view: "schematic" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "package") => void;
   onRunSimulation: () => void;
   onPauseSimulation: () => void;
   onStep1ns: () => void;
@@ -509,6 +510,20 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Cpu size={13} color="var(--accent-cyan)" />
                 <span>⚡ Schematic DAG</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSwitchVisualizer("package");
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Box size={13} color="var(--accent-cyan)" />
+                <span>📦 Package & Floorplan</span>
               </div>
             </div>
 

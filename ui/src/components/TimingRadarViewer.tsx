@@ -164,20 +164,24 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
       {/* Timing Radar Header & Sub-Tab Switcher */}
       <div
         style={{
-          height: 36,
+          minHeight: 36,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 14px",
-          zIndex: 5
+          zIndex: 5,
+          whiteSpace: "nowrap",
+          overflowX: "auto",
+          scrollbarWidth: "none",
+          flexShrink: 0
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             <Clock size={14} color="var(--accent-cyan)" />
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase", whiteSpace: "nowrap" }}>
               {t.timing.title}
             </span>
           </div>
@@ -192,7 +196,9 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
               borderRadius: 4,
               backgroundColor: isLiveStaEngine ? "rgba(16, 185, 129, 0.12)" : "rgba(56, 189, 248, 0.12)",
               border: `1px solid ${isLiveStaEngine ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.3)"}`,
-              fontSize: 10
+              fontSize: 10,
+              flexShrink: 0,
+              whiteSpace: "nowrap"
             }}
           >
             {isLoadingSta ? (
@@ -210,7 +216,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
           </div>
 
           {/* Sub-Tab Switcher */}
-          <div style={{ display: "flex", gap: 2, backgroundColor: "var(--bg-tertiary)", padding: 2, borderRadius: 4, border: "1px solid var(--border-subtle)" }}>
+          <div style={{ display: "flex", gap: 2, backgroundColor: "var(--bg-tertiary)", padding: 2, borderRadius: 4, border: "1px solid var(--border-subtle)", flexShrink: 0 }}>
             <button
               onClick={() => setActiveTab("waterfall")}
               className="btn btn-ghost"
@@ -277,8 +283,8 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
         </div>
 
         {/* Clock Constraint Frequency Selector */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-          <span style={{ color: "var(--text-muted)" }}>{t.timing.clockConstraint}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, flexShrink: 0, whiteSpace: "nowrap" }}>
+          <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>{t.timing.clockConstraint}</span>
           {[20.0, 10.0, 5.0, 3.33].map((period) => {
             const mhz = Math.round(1000 / period);
             const isSelected = Math.abs(clockPeriodNs - period) < 0.05;
@@ -296,7 +302,8 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   borderRadius: 3,
                   backgroundColor: isSelected ? "var(--accent-cyan)" : "var(--bg-tertiary)",
                   color: isSelected ? "#0c1017" : "var(--text-muted)",
-                  border: "1px solid var(--border-subtle)"
+                  border: "1px solid var(--border-subtle)",
+                  whiteSpace: "nowrap"
                 }}
               >
                 {mhz} MHz
@@ -324,7 +331,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   padding: "10px 12px"
                 }}
               >
-                <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                <div title="Worst Negative Slack" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {t.timing.wns}
                 </div>
                 <div
@@ -333,14 +340,15 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                     fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     color: timingSummary.worstNegativeSlackPs >= 0 ? "var(--accent-emerald)" : "#f43f5e",
-                    marginTop: 4
+                    marginTop: 4,
+                    whiteSpace: "nowrap"
                   }}
                 >
                   {timingSummary.worstNegativeSlackPs >= 0
                     ? `+${(timingSummary.worstNegativeSlackPs / 1000).toFixed(3)} ns`
                     : `${(timingSummary.worstNegativeSlackPs / 1000).toFixed(3)} ns`}
                 </div>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, whiteSpace: "nowrap" }}>
                   {t.common.status}: {timingSummary.worstNegativeSlackPs >= 0 ? t.timing.statusMet : t.timing.statusViolation}
                 </div>
               </div>
@@ -354,7 +362,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   padding: "10px 12px"
                 }}
               >
-                <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                <div title="Total Negative Slack" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {t.timing.tns}
                 </div>
                 <div
@@ -363,12 +371,13 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                     fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     color: timingSummary.totalNegativeSlackPs === 0 ? "var(--accent-emerald)" : "#f43f5e",
-                    marginTop: 4
+                    marginTop: 4,
+                    whiteSpace: "nowrap"
                   }}
                 >
                   {(timingSummary.totalNegativeSlackPs / 1000).toFixed(3)} ns
                 </div>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, whiteSpace: "nowrap" }}>
                   {t.timing.failingPaths}: {timingSummary.failingPathsCount} of {timingSummary.totalPathsCount}
                 </div>
               </div>
@@ -382,7 +391,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   padding: "10px 12px"
                 }}
               >
-                <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                <div title="Worst Hold Slack" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {t.timing.whs}
                 </div>
                 <div
@@ -391,12 +400,13 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                     fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     color: "var(--accent-emerald)",
-                    marginTop: 4
+                    marginTop: 4,
+                    whiteSpace: "nowrap"
                   }}
                 >
                   +{(timingSummary.worstHoldSlackPs / 1000).toFixed(3)} ns
                 </div>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, whiteSpace: "nowrap" }}>
                   {t.common.status}: {t.timing.statusMet}
                 </div>
               </div>
@@ -410,7 +420,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   padding: "10px 12px"
                 }}
               >
-                <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                <div title="Maximum Operating Frequency" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {t.timing.fmax}
                 </div>
                 <div
@@ -419,12 +429,13 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                     fontWeight: 700,
                     fontFamily: "var(--font-mono)",
                     color: "var(--accent-cyan)",
-                    marginTop: 4
+                    marginTop: 4,
+                    whiteSpace: "nowrap"
                   }}
                 >
                   {timingSummary.maxOperatingFrequencyMhz} MHz
                 </div>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, whiteSpace: "nowrap" }}>
                   Target: {timingSummary.targetFrequencyMhz} MHz
                 </div>
               </div>
@@ -441,11 +452,11 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   justifyContent: "space-between"
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                  <span title="Slack Distribution Histogram" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap" }}>
                     {t.timing.slackHistogram}
                   </span>
-                  <span style={{ fontSize: 10, color: "var(--accent-emerald)" }}>{t.timing.allPathsAnalyzed}</span>
+                  <span style={{ fontSize: 10, color: "var(--accent-emerald)", whiteSpace: "nowrap" }}>{t.timing.allPathsAnalyzed}</span>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 28, margin: "4px 0" }}>
@@ -659,9 +670,9 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   </div>
                 </div>
 
-                <div style={{ fontSize: 11, color: activePath.slackPs >= 0 ? "var(--accent-cyan)" : "#f43f5e", display: "flex", alignItems: "center", gap: 4 }}>
+                <div style={{ fontSize: 11, color: activePath.slackPs >= 0 ? "var(--accent-cyan)" : "#f43f5e", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
                   {activePath.slackPs >= 0 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                  <span>{activePath.slackPs >= 0 ? "Timing Met: Robust Operating Margin" : "CRITICAL TIMING VIOLATION"}</span>
+                  <span>{activePath.slackPs >= 0 ? "Timing Met" : "Timing Violation"}</span>
                 </div>
               </div>
 

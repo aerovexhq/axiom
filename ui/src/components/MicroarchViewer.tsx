@@ -475,14 +475,7 @@ export const MicroarchViewer: React.FC<MicroarchViewerProps> = ({
         ctx.lineTo(block.x + block.width, block.y + headerH);
         ctx.stroke();
 
-        // Block Title & Category Badge
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 11px sans-serif";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(block.label, block.x + 10, block.y + headerH / 2);
-
-        // Category Tag
+        // Category Tag (calculate width first to guard title width)
         ctx.font = "9px sans-serif";
         const catText = block.category.toUpperCase();
         const catW = ctx.measureText(catText).width + 8;
@@ -492,7 +485,23 @@ export const MicroarchViewer: React.FC<MicroarchViewerProps> = ({
         ctx.strokeRect(block.x + block.width - catW - 8, block.y + 5, catW, 16);
         ctx.fillStyle = colorPalette.primary;
         ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
         ctx.fillText(catText, block.x + block.width - 8 - catW / 2, block.y + 13);
+
+        // Block Title with defensive truncation
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const maxTitleW = Math.max(20, block.width - catW - 24);
+        let displayTitle = block.label;
+        if (ctx.measureText(displayTitle).width > maxTitleW) {
+          while (displayTitle.length > 3 && ctx.measureText(displayTitle + "...").width > maxTitleW) {
+            displayTitle = displayTitle.slice(0, -1);
+          }
+          displayTitle += "...";
+        }
+        ctx.fillText(displayTitle, block.x + 10, block.y + headerH / 2);
 
         // Subtitle / Architecture Type
         ctx.font = "10px sans-serif";

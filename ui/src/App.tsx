@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge } from "lucide-react";
+import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
 import { WaveformViewer } from "./components/WaveformViewer";
 import { SchematicViewer } from "./components/SchematicViewer";
+import { PackageVisualizer } from "./components/PackageVisualizer";
 import { MicroarchViewer } from "./components/MicroarchViewer";
 import { MultiDieViewer } from "./components/MultiDieViewer";
 import { PpaParetoViewer } from "./components/PpaParetoViewer";
@@ -109,8 +110,8 @@ function getInitialProject(): AxiomProject | null {
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "split">("split");
-  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | null>(null);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "split">("split");
+  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | null>(null);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -683,7 +684,7 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa">("schematic");
+  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa">("schematic");
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
@@ -710,9 +711,34 @@ export const App: React.FC = () => {
   }, []);
 
   // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa") => {
+  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa") => {
     setMaximizedPanel((prev) => (prev === panel ? null : panel));
   };
+
+  // Synchronize constraints from PackageVisualizer back to project XDC
+  const handleUpdateXdc = useCallback((newXdc: string) => {
+    if (!project) return;
+    const constrFile = project.files.find((f) => f.fileSet === "constrs_1");
+    if (!constrFile) {
+      const newFile: ProjectFile = {
+        id: `file_${Date.now()}`,
+        name: "pins.xdc",
+        fileType: "xdc",
+        fileSet: "constrs_1",
+        content: newXdc
+      };
+      const updated: AxiomProject = {
+        ...project,
+        files: [...project.files, newFile]
+      };
+      setProject(updated);
+      saveProjectToStorage(updated);
+      return;
+    }
+    const updated = updateFileContent(project, constrFile.id, newXdc);
+    setProject(updated);
+    saveProjectToStorage(updated);
+  }, [project]);
 
   return (
     <div className="axiom-app">
@@ -891,6 +917,20 @@ export const App: React.FC = () => {
                 onSelectSignal={handleSchematicSelectSignal}
                 onOpenAutoPipeline={handleOpenAutoPipeline}
                 onJumpToCode={(line) => {
+                  handleJumpToCode(line, line);
+                  setActiveMobilePanel("editor");
+                }}
+              />
+            </div>
+          ) : activeMobilePanel === "package" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <PackageVisualizer
+                project={project}
+                verilogSource={activeFile?.content}
+                xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                onUpdateXdc={handleUpdateXdc}
+                onNavigateToLine={(line) => {
                   handleJumpToCode(line, line);
                   setActiveMobilePanel("editor");
                 }}
@@ -1084,6 +1124,17 @@ export const App: React.FC = () => {
                   onOpenAutoPipeline={handleOpenAutoPipeline}
                 />
               </div>
+            ) : maximizedPanel === "package" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <PackageVisualizer
+                  project={project}
+                  verilogSource={activeFile?.content}
+                  xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  onUpdateXdc={handleUpdateXdc}
+                  onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+                />
+              </div>
             ) : maximizedPanel === "microarch" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <MicroarchViewer
@@ -1207,6 +1258,29 @@ export const App: React.FC = () => {
                       </button>
 
                       <button
+                        onClick={() => setSplitActiveVisualizer("package")}
+                        title="FPGA Package BGA Ball Grid & Device Floorplan (I/O Planning)"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "package" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "package" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "package" ? "var(--accent-cyan)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "package" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Box size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>Package</span>
+                      </button>
+
+                      <button
                         onClick={() => setSplitActiveVisualizer("microarch")}
                         title="Micro-Architectural Block Diagram Synthesis (Macro-clustering for FSMs, ALUs, RegFiles)"
                         style={{
@@ -1318,7 +1392,7 @@ export const App: React.FC = () => {
                         }}
                       >
                         <Layers size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Multi-Die / SLR</span>
+                        <span style={{ whiteSpace: "nowrap" }}>Multi-Die</span>
                       </button>
 
                       <button
@@ -1341,7 +1415,7 @@ export const App: React.FC = () => {
                         }}
                       >
                         <Gauge size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>PPA & Costs</span>
+                        <span style={{ whiteSpace: "nowrap" }}>PPA</span>
                       </button>
                     </div>
 
@@ -1419,6 +1493,16 @@ export const App: React.FC = () => {
                             onOpenAutoPipeline={handleOpenAutoPipeline}
                           />
                         )}
+                        {splitActiveVisualizer === "package" && (
+                          <PackageVisualizer
+                            project={project}
+                            verilogSource={activeFile?.content}
+                            xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            onUpdateXdc={handleUpdateXdc}
+                            onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+                          />
+                        )}
                         {splitActiveVisualizer === "microarch" && (
                           <MicroarchViewer
                             state={state}
@@ -1477,6 +1561,16 @@ export const App: React.FC = () => {
                           onSelectSignal={handleSchematicSelectSignal}
                           onJumpToCode={handleJumpToCode}
                           onOpenAutoPipeline={handleOpenAutoPipeline}
+                        />
+                      )}
+                      {splitActiveVisualizer === "package" && (
+                        <PackageVisualizer
+                          project={project}
+                          verilogSource={activeFile?.content}
+                          xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          onUpdateXdc={handleUpdateXdc}
+                          onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
                         />
                       )}
                       {splitActiveVisualizer === "microarch" && (
@@ -1746,6 +1840,44 @@ export const App: React.FC = () => {
                       setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
                     }}
                     onJumpToCode={handleJumpToCode}
+                  />
+                </div>
+              </div>
+            ) : centerView === "package" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <PackageVisualizer
+                    project={project}
+                    verilogSource={activeFile?.content}
+                    xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    onUpdateXdc={handleUpdateXdc}
+                    onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
                   />
                 </div>
               </div>
