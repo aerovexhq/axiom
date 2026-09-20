@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Minus, Square, X, Maximize } from "lucide-react";
+import { Minus, Square, X, Maximize, Search } from "lucide-react";
 import { MenuBar, MenuBarProps } from "./MenuBar";
+import { LanguageDropdown } from "./LanguageDropdown";
 import {
   isDesktop,
   minimizeWindow,
@@ -120,48 +121,83 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({
         ) : (
           <span
             data-tauri-drag-region
-            style={{ fontSize: 11, color: "var(--text-muted)" }}
+            style={{ fontSize: 11, color: "var(--text-muted)", letterSpacing: "0.02em" }}
           >
-            Axiom EDA Studio — No Project Open
+            Axiom EDA Studio
           </span>
         )}
       </div>
 
-      {/* Right: Auto-Save Status Pill + Window Controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        {/* Auto Save Status Indicator */}
-        <div
-          title={
-            autoSave
-              ? `Auto-Save is active (${isSaved ? "Saved" : "Saving changes..."})`
-              : "Auto-Save is disabled (Ctrl+S to save)"
-          }
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            fontSize: 10.5,
-            padding: "2px 7px",
-            borderRadius: "var(--radius-sm)",
-            backgroundColor: "var(--bg-tertiary)",
-            border: "1px solid var(--border-subtle)",
-            color: autoSave ? "var(--text-secondary)" : "var(--text-muted)"
-          }}
-        >
-          <div
+      {/* Right: Search + Auto-Save Status Pill + Language Dropdown + Window Controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {/* Global Command Palette (Ctrl+K) Trigger */}
+        {menuProps.onOpenOmnibar && (
+          <button
+            onClick={menuProps.onOpenOmnibar}
+            title="Open Command Palette (Ctrl+K)"
+            className="btn btn-ghost"
             style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              backgroundColor: autoSave
-                ? isSaved
-                  ? "var(--accent-emerald)"
-                  : "var(--accent-amber)"
-                : "var(--text-muted)"
+              height: 22,
+              padding: "0 7px",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              color: "var(--text-muted)",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-subtle)",
+              backgroundColor: "var(--bg-tertiary)",
+              cursor: "pointer"
             }}
-          />
-          <span>Auto-Save: {autoSave ? (isSaved ? "ON" : "Saving...") : "OFF"}</span>
-        </div>
+          >
+            <Search size={11} color="var(--accent-blue)" />
+            <span>Search</span>
+            <kbd style={{ fontSize: 9, opacity: 0.7, padding: "1px 4px", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
+              Ctrl+K
+            </kbd>
+          </button>
+        )}
+
+        {/* Auto Save Status Indicator (shown when project is active) */}
+        {project && (
+          <div
+            title={
+              autoSave
+                ? `Auto-Save is active (${isSaved ? "Saved" : "Saving changes..."})`
+                : "Auto-Save is disabled (Ctrl+S to save)"
+            }
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 10.5,
+              padding: "2px 7px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "var(--bg-tertiary)",
+              border: "1px solid var(--border-subtle)",
+              color: autoSave ? "var(--text-secondary)" : "var(--text-muted)"
+            }}
+          >
+            <div
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                backgroundColor: autoSave
+                  ? isSaved
+                    ? "var(--accent-emerald)"
+                    : "var(--accent-amber)"
+                  : "var(--text-muted)"
+              }}
+            />
+            <span>Auto-Save: {autoSave ? (isSaved ? "ON" : "Saving...") : "OFF"}</span>
+          </div>
+        )}
+
+        {/* Global Language Selector */}
+        <LanguageDropdown align="right" buttonStyle={{ width: 22, height: 22 }} />
+
+        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 1px" }} />
 
         {/* Window Controls: Desktop Minimize/Maximize/Close vs Web Fullscreen */}
         {isDesktopApp ? (

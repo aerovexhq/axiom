@@ -36,7 +36,7 @@ export const ja: Translations = {
     compiling: "コンパイル中...",
     compiled: "JIT 準備完了",
     recompile: "JIT 再コンパイル",
-    run: "自由実行",
+    run: "実行",
     pause: "一時停止",
     step1ns: "+1 ns",
     step100ps: "+100 ps",

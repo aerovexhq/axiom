@@ -224,8 +224,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       style={{
-        height: 42,
-        minHeight: 42,
+        height: 38,
+        minHeight: 38,
         backgroundColor: "var(--bg-secondary)",
         borderBottom: "1px solid var(--border-subtle)",
         display: "flex",
@@ -236,61 +236,10 @@ export const Header: React.FC<HeaderProps> = ({
         flexShrink: 0
       }}
     >
-      {/* Left: Brand & Project Identity */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexShrink: 1 }}>
-        <div
-          onClick={project ? onCloseProject : undefined}
-          role={project ? "button" : undefined}
-          tabIndex={project ? 0 : undefined}
-          title={project ? "Return to Main Menu (Close Project)" : "Axiom EDA Studio"}
-          onKeyDown={(e) => {
-            if (project && (e.key === "Enter" || e.key === " ")) {
-              onCloseProject?.();
-            }
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            flexShrink: 0,
-            cursor: project ? "pointer" : "default",
-            userSelect: "none",
-            transition: "opacity 0.15s ease"
-          }}
-        >
-          <img
-            src="/logo.svg"
-            alt="Axiom Logo"
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: "var(--radius-sm)"
-            }}
-          />
-          <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>
-            {t("header.title")}
-          </span>
-          <span
-            className="mono-num"
-            style={{
-              fontSize: 10,
-              backgroundColor: "var(--bg-tertiary)",
-              color: "var(--text-muted)",
-              padding: "1px 5px",
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--border-subtle)",
-              whiteSpace: "nowrap"
-            }}
-          >
-            v0.1.0-jit
-          </span>
-        </div>
-
-        <div style={{ height: 16, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-
-        {/* Project Context & Controls */}
+      {/* Left: Project Context & Compile (Zero duplicate branding) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 0 }}>
         {project ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 1 }}>
+          <>
             <ProjectDropdown
               project={project}
               onCloseProject={onCloseProject ?? (() => {})}
@@ -306,12 +255,12 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onCompile}
               title={t("header.recompile")}
               className={state.compiled ? "btn btn-secondary" : "btn btn-primary"}
-              style={{ height: 28 }}
+              style={{ height: 28, fontSize: 12, padding: "0 10px" }}
             >
               <Cpu size={13} />
               <span>{state.compiled ? t("header.recompile") : t("header.compile")}</span>
             </button>
-          </div>
+          </>
         ) : (
           <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
             <span
@@ -331,17 +280,18 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      {/* Center: Unified Simulation Control Ribbon (Rendered ONLY when a project is active) */}
+      {/* Center: Modern Aerospace Simulation Transport Ribbon */}
       {project ? (
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 4,
-            backgroundColor: "var(--bg-tertiary)",
-            padding: "3px 6px",
-            borderRadius: "var(--radius-sm)",
+            gap: 3,
+            backgroundColor: "var(--bg-primary)",
+            padding: "2px 4px",
+            borderRadius: "var(--radius-md)",
             border: "1px solid var(--border-subtle)",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
             flexShrink: 0,
             whiteSpace: "nowrap"
           }}
@@ -350,10 +300,23 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => engineBridge.pause()}
               title={t("header.pause")}
-              className="btn btn-danger"
-              style={{ height: 26, padding: "2px 9px" }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                height: 26,
+                padding: "0 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#fda4af",
+                background: "linear-gradient(180deg, rgba(244, 63, 94, 0.25) 0%, rgba(244, 63, 94, 0.15) 100%)",
+                border: "1px solid rgba(244, 63, 94, 0.5)",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                boxShadow: "0 0 8px rgba(244, 63, 94, 0.2)"
+              }}
             >
-              <Pause size={12} />
+              <Pause size={12} fill="#fda4af" />
               <span>{t("header.pause")}</span>
             </button>
           ) : (
@@ -361,22 +324,40 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => engineBridge.play()}
               disabled={!state.compiled}
               title={state.compiled ? t("header.run") : t("launchpad.inRamJitDesc")}
-              className={state.compiled ? "btn btn-success" : "btn btn-ghost"}
-              style={{ height: 26, padding: "2px 9px" }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                height: 26,
+                padding: "0 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: state.compiled ? "#6ee7b7" : "var(--text-muted)",
+                background: state.compiled
+                  ? "linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(16, 185, 129, 0.12) 100%)"
+                  : "transparent",
+                border: state.compiled
+                  ? "1px solid rgba(16, 185, 129, 0.45)"
+                  : "1px solid transparent",
+                borderRadius: "var(--radius-sm)",
+                cursor: state.compiled ? "pointer" : "not-allowed",
+                boxShadow: state.compiled ? "0 0 8px rgba(16, 185, 129, 0.15)" : "none",
+                transition: "all 0.15s ease"
+              }}
             >
-              <Play size={12} />
+              <Play size={12} fill={state.compiled ? "#6ee7b7" : "currentColor"} />
               <span>{t("header.run")}</span>
             </button>
           )}
 
-          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
+          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
 
           <button
             onClick={() => engineBridge.tick(1000)}
             disabled={!state.compiled || state.isRunning}
             title={`${t("header.step1ns")} (Physical Time Step)`}
             className="btn btn-ghost"
-            style={{ height: 26, padding: "2px 7px" }}
+            style={{ height: 26, padding: "0 7px", fontSize: 11.5, fontWeight: 500 }}
           >
             <FastForward size={12} />
             <span>{t("header.step1ns")}</span>
@@ -387,19 +368,19 @@ export const Header: React.FC<HeaderProps> = ({
             disabled={!state.compiled || state.isRunning}
             title={`${t("header.step100ps")} (Physical Time Step)`}
             className="btn btn-ghost"
-            style={{ height: 26, padding: "2px 6px" }}
+            style={{ height: 26, padding: "0 6px", fontSize: 11.5, fontWeight: 500 }}
           >
             <span>{t("header.step100ps")}</span>
           </button>
 
-          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
+          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
 
           <button
             onClick={() => engineBridge.stepDelta()}
             disabled={!state.compiled || state.isRunning}
             title={`${t("header.stepDelta")} (Zero-Time Combinational Cycle)`}
             className="badge badge-purple btn"
-            style={{ height: 26, padding: "2px 8px", cursor: state.compiled ? "pointer" : "not-allowed" }}
+            style={{ height: 26, padding: "0 8px", fontSize: 11.5, fontWeight: 600, cursor: state.compiled ? "pointer" : "not-allowed" }}
           >
             <span>{t("header.stepDelta")}</span>
           </button>
@@ -410,7 +391,7 @@ export const Header: React.FC<HeaderProps> = ({
             disabled={!state.compiled || state.isRunning || state.currentSimTimePs === 0}
             title="Step -1 ns (Silicon Time-Machine Replay)"
             className="btn btn-ghost"
-            style={{ height: 26, padding: "2px 6px" }}
+            style={{ height: 26, padding: "0 6px", fontSize: 11.5, fontWeight: 500 }}
           >
             <Rewind size={12} />
             <span>-1ns</span>
@@ -421,7 +402,7 @@ export const Header: React.FC<HeaderProps> = ({
             disabled={!state.compiled || state.isRunning || (state.currentSimTimePs === 0 && state.currentDeltaCycle === 0)}
             title="Step -δ (Rewind Zero-Time Delta Cycle)"
             className="badge badge-purple btn"
-            style={{ height: 26, padding: "2px 6px", cursor: state.compiled ? "pointer" : "not-allowed" }}
+            style={{ height: 26, padding: "0 6px", fontSize: 11, cursor: state.compiled ? "pointer" : "not-allowed" }}
           >
             <span>-δ</span>
           </button>
@@ -582,10 +563,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </>
         )}
-
-        {/* Global Language Selector Dropdown (Flag Only) */}
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-        <LanguageDropdown align="right" />
 
         {/* Cross Probe Active Signal */}
         {project && activeCrossProbeSignal && (

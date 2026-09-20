@@ -36,7 +36,7 @@ export const en: Translations = {
     compiling: "Compiling...",
     compiled: "JIT Ready",
     recompile: "Re-Compile JIT",
-    run: "Run Free",
+    run: "Run",
     pause: "Pause",
     step1ns: "+1 ns",
     step100ps: "+100 ps",

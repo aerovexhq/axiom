@@ -797,28 +797,30 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Simulation Execution & Status Header */}
-      <Header
-        state={state}
-        onCompile={handleCompile}
-        project={project}
-        onOpenNewProject={() => handleOpenNewProject()}
-        onCloseProject={handleCloseProject}
-        onSaveProject={handleSaveProject}
-        onExportProjectJson={handleExportProjectJson}
-        onOpenAddSource={() => handleOpenAddSource()}
-        isSaved={isSaved}
-        isMobile={isMobile}
-        onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
-        activeMobilePanel={activeMobilePanel}
-        editorWidthPercent={editorWidthPercent}
-        onSetEditorWidthPercent={setEditorWidthPercent}
-        maximizedPanel={maximizedPanel}
-        onRestoreMaximizedPanel={() => setMaximizedPanel(null)}
-        activeCrossProbeSignal={activeCrossProbeSignal}
-        onOpenOmnibar={() => setIsOmnibarOpen(true)}
-        isSplitView={centerView === "split"}
-      />
+      {/* Simulation Execution & Status Header (Active project or mobile) */}
+      {(project || isMobile) && (
+        <Header
+          state={state}
+          onCompile={handleCompile}
+          project={project}
+          onOpenNewProject={() => handleOpenNewProject()}
+          onCloseProject={handleCloseProject}
+          onSaveProject={handleSaveProject}
+          onExportProjectJson={handleExportProjectJson}
+          onOpenAddSource={() => handleOpenAddSource()}
+          isSaved={isSaved}
+          isMobile={isMobile}
+          onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
+          activeMobilePanel={activeMobilePanel}
+          editorWidthPercent={editorWidthPercent}
+          onSetEditorWidthPercent={setEditorWidthPercent}
+          maximizedPanel={maximizedPanel}
+          onRestoreMaximizedPanel={() => setMaximizedPanel(null)}
+          activeCrossProbeSignal={activeCrossProbeSignal}
+          onOpenOmnibar={() => setIsOmnibarOpen(true)}
+          isSplitView={centerView === "split"}
+        />
+      )}
 
       {/* Mobile Off-Canvas Left Drawer */}
       {isMobile && (

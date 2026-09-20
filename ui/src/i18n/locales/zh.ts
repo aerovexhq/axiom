@@ -36,7 +36,7 @@ export const zh: Translations = {
     compiling: "正在编译...",
     compiled: "JIT 就绪",
     recompile: "重新 JIT 编译",
-    run: "自由运行",
+    run: "运行",
     pause: "暂停",
     step1ns: "+1 ns",
     step100ps: "+100 ps",

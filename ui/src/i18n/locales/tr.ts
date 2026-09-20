@@ -36,7 +36,7 @@ export const tr: Translations = {
     compiling: "Derleniyor...",
     compiled: "JIT Hazır",
     recompile: "JIT Yeniden Derle",
-    run: "Serbest Çalıştır",
+    run: "Çalıştır",
     pause: "Duraklat",
     step1ns: "+1 ns",
     step100ps: "+100 ps",
