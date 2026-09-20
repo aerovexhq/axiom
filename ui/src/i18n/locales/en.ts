@@ -156,6 +156,10 @@ export const en: Translations = {
     resetSelection: "Reset Selection",
     liveValues: "Live Values",
     clearCone: "Clear",
+    rtlSchematic: "RTL Schematic",
+    synthNetlist: "Synthesized Netlist",
+    exportNetlist: "Export Netlist",
+    lutInspector: "LUT Inspector",
   },
   virtualLab: {
     title: "Virtual Lab Breadboard Rack",
@@ -262,6 +266,7 @@ export const en: Translations = {
     glitches: "Glitches",
     timingTab: "Timing",
     assertionsTab: "Assertions",
+    synthesisTab: "Synthesis",
     clear: "Clear Log",
     execute: "Execute",
     powerMw: "Dynamic Power",

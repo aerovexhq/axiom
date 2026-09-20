@@ -20,6 +20,15 @@ import type {
   AssertionStatus,
   AssertionKind
 } from "./assertionModel";
+import {
+  SynthesizedCircuit,
+  SynthesizedCell,
+  SynthesizedNet,
+  SynthesizedPort,
+  SynthesisStats,
+  SynthOptions,
+  synthesizeClientFallback
+} from "./synthModel";
 
 export type {
   ProtocolDecodeRequest,
@@ -35,7 +44,13 @@ export type {
   AssertionReport,
   AssertionSummary,
   AssertionStatus,
-  AssertionKind
+  AssertionKind,
+  SynthesizedCircuit,
+  SynthesizedCell,
+  SynthesizedNet,
+  SynthesizedPort,
+  SynthesisStats,
+  SynthOptions
 };
 
 export type LogicValue = "0" | "1" | "x" | "z";
@@ -603,6 +618,99 @@ export class AxiomEngineBridge {
       core_voltage_v: options.coreVoltageV,
       pdk: options.pdk,
     });
+  }
+
+  public async synthesizeDesign(options: SynthOptions): Promise<SynthesizedCircuit> {
+    const src = options.source ?? this.activeSourceCode ?? "";
+    const top = options.topModule ?? "top";
+    const dev = options.device ?? "xc7a100t-csg324-1";
+
+    // 1. Desktop Tauri Native IPC
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const res = await invoke<SynthesizedCircuit>("synthesize_netlist", {
+          source: src,
+          topModule: top,
+          device: dev
+        });
+        if (res && res.cells && res.cells.length > 0) {
+          return res;
+        }
+      } catch (e) {
+        console.warn("[engineBridge] Tauri synthesize_netlist fallback:", e);
+      }
+    }
+
+    // 2. Background Web Worker WASM
+    if (simWorkerClient.isSupported()) {
+      try {
+        const res = await simWorkerClient.synthesizeDesign(src, top, dev);
+        if (res && res.cells && res.cells.length > 0) {
+          return res as SynthesizedCircuit;
+        }
+      } catch (e) {
+        console.warn("[engineBridge] Worker synthesizeDesign fallback:", e);
+      }
+    }
+
+    // 3. Main-Thread WASM
+    try {
+      await this.initWasm();
+      const mod = await import("../wasm/axiom_wasm.js");
+      if (typeof (mod as any).wasm_synthesize_netlist === "function") {
+        const res = (mod as any).wasm_synthesize_netlist(src, top, dev);
+        if (res && res.cells && res.cells.length > 0) {
+          return res as SynthesizedCircuit;
+        }
+      }
+    } catch (e) {
+      console.warn("[engineBridge] Main WASM synthesizeDesign fallback:", e);
+    }
+
+    // 4. Deterministic Client Model Fallback
+    return synthesizeClientFallback(options.designId || top, top, dev);
+  }
+
+  public async exportSynthesizedVerilog(options: SynthOptions): Promise<string> {
+    const src = options.source ?? this.activeSourceCode ?? "";
+    const top = options.topModule ?? "top";
+    const dev = options.device ?? "xc7a100t-csg324-1";
+
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const res = await invoke<string>("export_synthesized_verilog", {
+          source: src,
+          topModule: top,
+          device: dev
+        });
+        if (res) return res;
+      } catch (e) {
+        console.warn("[engineBridge] Tauri export_synthesized_verilog fallback:", e);
+      }
+    }
+
+    if (simWorkerClient.isSupported()) {
+      try {
+        const res = await simWorkerClient.exportSynthesizedVerilog(src, top, dev);
+        if (res) return res;
+      } catch (e) {
+        console.warn("[engineBridge] Worker exportSynthesizedVerilog fallback:", e);
+      }
+    }
+
+    try {
+      const mod = await import("../wasm/axiom_wasm.js");
+      if (typeof (mod as any).wasm_export_synthesized_verilog === "function") {
+        const res = (mod as any).wasm_export_synthesized_verilog(src, top, dev);
+        if (res) return res;
+      }
+    } catch {}
+
+    const synth = await this.synthesizeDesign(options);
+    if (synth.verilog_text) return synth.verilog_text;
+    return `// Axiom Synthesized Verilog (${synth.target_device})\nmodule ${synth.top_module} ();\nendmodule\n`;
   }
 
   private getInitialState(topModule: string): SimulationState {

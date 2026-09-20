@@ -393,6 +393,38 @@ fn partition_multidie(
 }
 
 #[tauri::command]
+fn synthesize_netlist(
+    source: String,
+    top_module: Option<String>,
+    device: Option<String>,
+) -> Result<axiom_ir::SynthesizedCircuit, String> {
+    let (ast, diags) = parse_hdl(FileId(1), &source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error: {}", err_msgs.join("; ")));
+    }
+
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+
+    let dev = device.unwrap_or_else(|| "xcku5p-ffvb676-2-e".to_string());
+    let config = axiom_ir::SynthConfig::for_device(&dev);
+    axiom_ir::synthesize_from_ast(&ast, &top, &config)
+        .map_err(|e| format!("Synthesis Error: {e}"))
+}
+
+#[tauri::command]
+fn export_synthesized_verilog(
+    source: String,
+    top_module: Option<String>,
+    device: Option<String>,
+) -> Result<String, String> {
+    let synth = synthesize_netlist(source, top_module, device)?;
+    Ok(synth.to_verilog())
+}
+
+#[tauri::command]
 fn fs_read_file(path: String) -> Result<String, String> {
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
@@ -554,6 +586,8 @@ pub fn run_desktop_app() {
             get_assertion_report,
             get_assertion_violations,
             reset_assertions,
+            synthesize_netlist,
+            export_synthesized_verilog,
             pick_folder,
             pick_files,
             get_app_version

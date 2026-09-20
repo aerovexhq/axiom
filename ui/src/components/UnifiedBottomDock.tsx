@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Terminal,
   Zap,
@@ -19,7 +19,11 @@ import {
   ExternalLink,
   ShieldAlert,
   Play,
-  Plus
+  Plus,
+  Layers,
+  Cpu,
+  Copy,
+  Check
 } from "lucide-react";
 import {
   SimulationState,
@@ -32,6 +36,7 @@ import {
   getViolationTimePs,
   getAssertionStatusBadge
 } from "../engine/assertionModel";
+import { SynthesizedCircuit, synthesizeClientFallback } from "../engine/synthModel";
 import { ResizableSplitter } from "./ResizableSplitter";
 import { useTranslation } from "../i18n";
 
@@ -46,6 +51,8 @@ interface UnifiedBottomDockProps {
   diagnostics?: LspDiagnostic[];
   onNavigateToLine?: (line: number, column?: number) => void;
   isMobileFullScreen?: boolean;
+  activeDesignId?: string;
+  targetDevice?: string;
 }
 
 interface LogEntry {
@@ -65,14 +72,112 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   state,
   diagnostics = [],
   onNavigateToLine,
-  isMobileFullScreen = false
+  isMobileFullScreen = false,
+  activeDesignId = "logic_circuit_project",
+  targetDevice = "xc7a100t-csg324-1"
 }) => {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [dockHeight, setDockHeight] = useState<number>(180);
-  const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage" | "assertions">("repl");
+  const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage" | "assertions" | "synthesis">("repl");
   const [replMode, setReplMode] = useState<"logs" | "shell">("shell");
+
+  // Synthesis Tab State
+  const [synthCircuit, setSynthCircuit] = useState<SynthesizedCircuit | null>(null);
+  const [synthLoading, setSynthLoading] = useState<boolean>(false);
+  const [synthFilter, setSynthFilter] = useState<string>("");
+  const [synthKindFilter, setSynthKindFilter] = useState<string>("all");
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+  const [copiedNetlist, setCopiedNetlist] = useState<boolean>(false);
+
+  const liveValuesMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const sig of state.signals) {
+      const last = sig.samples[sig.samples.length - 1];
+      const val = last?.value ?? "0";
+      map.set(sig.id, val);
+      map.set(sig.name, val);
+      map.set(sig.fullName, val);
+    }
+    return map;
+  }, [state.signals]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (activeTab === "synthesis") {
+      setSynthLoading(true);
+      engineBridge.synthesizeDesign({
+        designId: activeDesignId,
+        device: targetDevice
+      })
+        .then((res) => {
+          if (!isCancelled && res) {
+            setSynthCircuit(res);
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) {
+            setSynthCircuit(synthesizeClientFallback(activeDesignId));
+          }
+        })
+        .finally(() => {
+          if (!isCancelled) setSynthLoading(false);
+        });
+    }
+    return () => { isCancelled = true; };
+  }, [activeTab, activeDesignId, targetDevice]);
+
+  const handleExportNetlist = async () => {
+    try {
+      let code = "";
+      try {
+        code = await engineBridge.exportSynthesizedVerilog({
+          designId: activeDesignId,
+          topModule: activeDesignId,
+          device: synthCircuit?.target_device || targetDevice
+        });
+      } catch {
+        if (synthCircuit?.verilog_text) {
+          code = synthCircuit.verilog_text;
+        } else if (synthCircuit) {
+          const modName = synthCircuit.top_module || activeDesignId || "top";
+          const lines = [
+            `// Axiom In-RAM RTL Logic Synthesizer - FPGA Technology-Mapped Netlist`,
+            `// Target Device: ${synthCircuit.target_device} (${synthCircuit.target_family})`,
+            `// Top Module: ${modName}`,
+            `module ${modName}_synth (`,
+            synthCircuit.ports.map((p) => `  ${p.direction === "Input" ? "input" : "output"} ${p.width > 1 ? `[${p.width - 1}:0] ` : ""}${p.name}`).join(",\n"),
+            `);`,
+            "",
+            synthCircuit.nets.map((n) => `  wire ${n.name};`).join("\n"),
+            "",
+            ...synthCircuit.cells.map((c) => {
+              const portConns = Object.entries(c.ports).map(([pin, net]) => `.${pin}(${net})`).join(", ");
+              const paramStr = c.params.INIT !== undefined ? ` #(.INIT(64'h${c.params.INIT.toString(16).toUpperCase().padStart(16, "0")}))` : "";
+              return `  ${c.kind}${paramStr} ${c.id} (${portConns});`;
+            }),
+            "",
+            `endmodule`
+          ];
+          code = lines.join("\n");
+        }
+      }
+      if (code) {
+        const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${activeDesignId || "design"}_synth.v`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setCopiedNetlist(true);
+        setTimeout(() => setCopiedNetlist(false), 2000);
+      }
+    } catch (err) {
+      console.error("Failed to export netlist:", err);
+    }
+  };
 
   const errorCount = diagnostics.filter((d) => d.severity === 1).length;
   const warningCount = diagnostics.filter((d) => d.severity === 2).length;
@@ -675,6 +780,25 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               )
             </span>
           </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("synthesis");
+              setIsCollapsed(false);
+            }}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "2px 6px",
+              color: "var(--accent-purple, #c084fc)",
+              fontSize: 12
+            }}
+          >
+            <Layers size={13} />
+            <span>Synthesis ({synthCircuit?.cells.length ?? 0} Cells)</span>
+          </button>
         </div>
 
         {/* Right: Live Telemetry & Simulation Status Chips */}
@@ -998,10 +1122,70 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               </span>
             ) : null}
           </button>
+
+          <button
+            onClick={() => setActiveTab("synthesis")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: activeTab === "synthesis" ? 600 : 400,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: activeTab === "synthesis" ? "var(--bg-tertiary)" : "transparent",
+              color: activeTab === "synthesis" ? "var(--accent-purple, #c084fc)" : "var(--text-muted)",
+              border: activeTab === "synthesis" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+              flexShrink: 0
+            }}
+          >
+            <Layers size={12} />
+            <span style={{ whiteSpace: "nowrap" }}>{t("dock.synthesisTab") || "Synthesis"}</span>
+            {synthCircuit && (
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  backgroundColor: "rgba(168, 85, 247, 0.2)",
+                  color: "#c084fc",
+                  padding: "0 4px",
+                  borderRadius: 8,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
+                }}
+              >
+                {synthCircuit.cells.length} cells
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Right: Controls (Mode Toggle, Exporters, Maximize, Collapse) */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {activeTab === "synthesis" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={handleExportNetlist}
+                title="Export Technology-Mapped Structural Verilog Netlist"
+                className="btn btn-secondary"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 10,
+                  padding: "2px 6px",
+                  color: copiedNetlist ? "var(--accent-emerald)" : "#c084fc",
+                  borderColor: "rgba(168, 85, 247, 0.4)"
+                }}
+              >
+                {copiedNetlist ? <Check size={10} /> : <Download size={10} />}
+                <span>{copiedNetlist ? "Exported!" : "Export Netlist"}</span>
+              </button>
+            </div>
+          )}
+
           {activeTab === "assertions" && (
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
@@ -2600,6 +2784,440 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                     })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Synthesis Tab Content */}
+        {activeTab === "synthesis" && (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              overflowY: "auto",
+              backgroundColor: "var(--bg-primary)",
+              color: "var(--text-primary)",
+              padding: "12px 16px",
+              gap: 12
+            }}
+          >
+            {/* Top 5 KPI Summary Cards */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                gap: 10
+              }}
+            >
+              {/* Card 1: Total Mapped Cells */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Total Cells</span>
+                  <Cpu size={14} style={{ color: "var(--accent-purple, #c084fc)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "#f8fafc" }}>
+                  {synthCircuit?.stats.total_cells ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  Target: {synthCircuit?.target_device ?? targetDevice}
+                </span>
+              </div>
+
+              {/* Card 2: LUTs Breakdown */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>LUT Primitives</span>
+                  <Layers size={14} style={{ color: "var(--accent-cyan)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "#38bdf8" }}>
+                  {synthCircuit?.stats.total_luts ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  Util: {(synthCircuit?.stats.lut_utilization_pct ?? 0).toFixed(2)}% of {synthCircuit?.stats.target_lut_capacity ?? 63400}
+                </span>
+              </div>
+
+              {/* Card 3: Registers (FFs) */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Registers (FFs)</span>
+                  <Clock size={14} style={{ color: "var(--accent-emerald)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "#10b981" }}>
+                  {synthCircuit?.stats.total_ffs ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  FDRE: {synthCircuit?.stats.fdre_count ?? 0} • FDCE: {synthCircuit?.stats.fdce_count ?? 0}
+                </span>
+              </div>
+
+              {/* Card 4: Arithmetic Carries */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Carry Chains</span>
+                  <Zap size={14} style={{ color: "var(--accent-amber)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "#fbbf24" }}>
+                  {synthCircuit?.stats.total_carries ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  {synthCircuit?.stats.carry4_count ?? 0} CARRY4 • {synthCircuit?.stats.carry8_count ?? 0} CARRY8
+                </span>
+              </div>
+
+              {/* Card 5: I/O Buffers */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>I/O Buffers</span>
+                  <CheckCircle2 size={14} style={{ color: "var(--accent-rose)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "#f43f5e" }}>
+                  {synthCircuit?.stats.total_iobs ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  {synthCircuit?.stats.ibuf_count ?? 0} IBUF • {synthCircuit?.stats.obuf_count ?? 0} OBUF • {synthCircuit?.stats.bufg_count ?? 0} BUFG
+                </span>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 200, maxWidth: 360, position: "relative" }}>
+                <Search size={13} style={{ position: "absolute", left: 8, color: "var(--text-muted)" }} />
+                <input
+                  type="text"
+                  placeholder="Filter cells by ID, kind, or net..."
+                  value={synthFilter}
+                  onChange={(e) => setSynthFilter(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "4px 8px 4px 26px",
+                    fontSize: 11,
+                    backgroundColor: "var(--bg-secondary)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "var(--radius-sm)",
+                    color: "var(--text-primary)",
+                    outline: "none"
+                  }}
+                />
+              </div>
+
+              {/* Quick Category Filter Pills */}
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {[
+                  { id: "all", label: "All" },
+                  { id: "lut", label: "LUTs" },
+                  { id: "ff", label: "Registers" },
+                  { id: "carry", label: "Carries" },
+                  { id: "io", label: "I/O Buffers" }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSynthKindFilter(item.id)}
+                    style={{
+                      fontSize: 10.5,
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      border: synthKindFilter === item.id ? "1px solid var(--accent-purple, #c084fc)" : "1px solid var(--border-subtle)",
+                      backgroundColor: synthKindFilter === item.id ? "rgba(168, 85, 247, 0.2)" : "var(--bg-secondary)",
+                      color: synthKindFilter === item.id ? "#c084fc" : "var(--text-muted)",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Main Content Split: Cells Table & Inspector */}
+            <div style={{ flex: 1, display: "flex", gap: 12, overflow: "hidden", minHeight: 220 }}>
+              {/* Left: Cells Table */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden", backgroundColor: "var(--bg-secondary)" }}>
+                <div style={{ overflowY: "auto", flex: 1 }}>
+                  <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "rgba(255,255,255,0.03)", borderBottom: "1px solid var(--border-subtle)", position: "sticky", top: 0, zIndex: 2 }}>
+                        <th style={{ padding: "6px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Cell ID</th>
+                        <th style={{ padding: "6px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Primitive Kind</th>
+                        <th style={{ padding: "6px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Equation / Parameter</th>
+                        <th style={{ padding: "6px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Delay</th>
+                        <th style={{ padding: "6px 8px", color: "var(--text-secondary)", fontWeight: 600 }}>Pins</th>
+                        <th style={{ padding: "6px 8px", color: "var(--text-secondary)", fontWeight: 600, textAlign: "right" }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {synthLoading ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>
+                            Running In-RAM FPGA Logic Synthesizer & Technology Mapper...
+                          </td>
+                        </tr>
+                      ) : !synthCircuit || synthCircuit.cells.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: 20, textAlign: "center", color: "var(--text-muted)" }}>
+                            No technology-mapped primitives synthesized.
+                          </td>
+                        </tr>
+                      ) : (
+                        synthCircuit.cells
+                          .filter((c) => {
+                            if (synthKindFilter === "lut" && !c.kind.toLowerCase().startsWith("lut")) return false;
+                            if (synthKindFilter === "ff" && !c.kind.toLowerCase().startsWith("fd")) return false;
+                            if (synthKindFilter === "carry" && !c.kind.toLowerCase().startsWith("carry")) return false;
+                            if (synthKindFilter === "io" && !c.kind.toLowerCase().includes("buf")) return false;
+                            if (!synthFilter) return true;
+                            const query = synthFilter.toLowerCase();
+                            return (
+                              c.id.toLowerCase().includes(query) ||
+                              c.kind.toLowerCase().includes(query) ||
+                              Object.values(c.ports).some((net) => net.toLowerCase().includes(query))
+                            );
+                          })
+                          .map((cell) => {
+                            const isSelected = selectedCellId === cell.id;
+                            return (
+                              <tr
+                                key={cell.id}
+                                onClick={() => setSelectedCellId(cell.id)}
+                                style={{
+                                  borderBottom: "1px solid var(--border-subtle)",
+                                  backgroundColor: isSelected ? "rgba(168, 85, 247, 0.15)" : "transparent",
+                                  cursor: "pointer",
+                                  transition: "background-color 0.15s ease"
+                                }}
+                              >
+                                <td style={{ padding: "5px 8px", fontFamily: "var(--font-mono)", color: "#fff", fontWeight: 600 }}>
+                                  {cell.id}
+                                </td>
+                                <td style={{ padding: "5px 8px" }}>
+                                  <span
+                                    style={{
+                                      fontSize: 9.5,
+                                      padding: "1px 5px",
+                                      borderRadius: 3,
+                                      backgroundColor: cell.kind.toLowerCase().startsWith("lut")
+                                        ? "rgba(168, 85, 247, 0.2)"
+                                        : cell.kind.toLowerCase().startsWith("fd")
+                                        ? "rgba(16, 185, 129, 0.2)"
+                                        : cell.kind.toLowerCase().startsWith("carry")
+                                        ? "rgba(245, 158, 11, 0.2)"
+                                        : "rgba(56, 189, 248, 0.2)",
+                                      color: cell.kind.toLowerCase().startsWith("lut")
+                                        ? "#c084fc"
+                                        : cell.kind.toLowerCase().startsWith("fd")
+                                        ? "#10b981"
+                                        : cell.kind.toLowerCase().startsWith("carry")
+                                        ? "#fbbf24"
+                                        : "#38bdf8",
+                                      fontWeight: 700
+                                    }}
+                                  >
+                                    {cell.kind}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "5px 8px", fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-secondary)", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {cell.equation || (cell.params.INIT !== undefined ? `INIT=64'h${cell.params.INIT.toString(16).toUpperCase()}` : "-")}
+                                </td>
+                                <td style={{ padding: "5px 8px", fontFamily: "var(--font-mono)", color: "var(--accent-cyan)" }}>
+                                  {cell.delay_ps} ps
+                                </td>
+                                <td style={{ padding: "5px 8px", fontSize: 10, color: "var(--text-muted)" }}>
+                                  {Object.keys(cell.ports).length} pins ({Object.entries(cell.ports).slice(0, 2).map(([k, v]) => `.${k}(${v})`).join(", ")}{Object.keys(cell.ports).length > 2 ? "..." : ""})
+                                </td>
+                                <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                                  {cell.source_line && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onNavigateToLine?.(cell.source_line!, 1);
+                                      }}
+                                      className="btn btn-ghost"
+                                      style={{
+                                        fontSize: 9.5,
+                                        padding: "1px 5px",
+                                        height: 18,
+                                        borderRadius: 2,
+                                        color: "var(--accent-blue)",
+                                        border: "1px solid rgba(59, 130, 246, 0.3)"
+                                      }}
+                                      title={`Jump to line ${cell.source_line}`}
+                                    >
+                                      L{cell.source_line}
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Right: Selected Cell Detail & Verilog Netlist Inspector */}
+              <div
+                style={{
+                  width: 320,
+                  flexShrink: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: 10,
+                  overflowY: "auto"
+                }}
+              >
+                {selectedCellId && synthCircuit?.cells.find((c) => c.id === selectedCellId) ? (() => {
+                  const cell = synthCircuit.cells.find((c) => c.id === selectedCellId)!;
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <Layers size={13} color="#c084fc" />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{cell.kind} Details</span>
+                        </div>
+                        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--accent-cyan)" }}>{cell.delay_ps} ps</span>
+                      </div>
+
+                      <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+                        Instance: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{cell.id}</span>
+                      </div>
+
+                      {cell.equation && (
+                        <div style={{ backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 4, padding: "5px 7px" }}>
+                          <div style={{ fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase" }}>Equation</div>
+                          <div style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "#38bdf8", wordBreak: "break-all" }}>{cell.equation}</div>
+                        </div>
+                      )}
+
+                      {cell.params.INIT !== undefined && (
+                        <div style={{ backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 4, padding: "5px 7px" }}>
+                          <div style={{ fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase" }}>INIT Parameter</div>
+                          <div style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "#a855f7" }}>
+                            64'h{cell.params.INIT.toString(16).toUpperCase().padStart(16, "0")}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        <span style={{ fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase" }}>Pin Mappings</span>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
+                          {Object.entries(cell.ports).map(([pin, net]) => {
+                            const val = liveValuesMap.get(net);
+                            return (
+                              <div key={pin} style={{ fontSize: 10, fontFamily: "var(--font-mono)", backgroundColor: "rgba(0,0,0,0.2)", padding: "2px 5px", borderRadius: 3, display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ color: "var(--text-muted)" }}>.{pin}</span>
+                                <span style={{ color: val === "1" ? "#10b981" : "#94a3b8" }}>{net}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Structural Verilog</span>
+                      <button
+                        onClick={() => {
+                          if (synthCircuit?.verilog_text) {
+                            navigator.clipboard.writeText(synthCircuit.verilog_text);
+                            setCopiedNetlist(true);
+                            setTimeout(() => setCopiedNetlist(false), 1500);
+                          }
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: copiedNetlist ? "var(--accent-emerald)" : "var(--accent-cyan)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 3,
+                          fontSize: 10
+                        }}
+                      >
+                        {copiedNetlist ? <Check size={10} /> : <Copy size={10} />}
+                        <span>{copiedNetlist ? "Copied" : "Copy Netlist"}</span>
+                      </button>
+                    </div>
+
+                    <pre
+                      style={{
+                        flex: 1,
+                        margin: 0,
+                        padding: 8,
+                        fontSize: 9.5,
+                        fontFamily: "var(--font-mono)",
+                        backgroundColor: "rgba(0,0,0,0.4)",
+                        borderRadius: 4,
+                        overflowX: "auto",
+                        color: "#94a3b8",
+                        lineHeight: 1.4
+                      }}
+                    >
+                      {synthCircuit?.verilog_text || "// No netlist generated"}
+                    </pre>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

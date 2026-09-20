@@ -437,6 +437,26 @@ export class SimWorkerClient {
     } as any);
   }
 
+  public async synthesizeDesign(source: string, topModule?: string, device?: string): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "SYNTHESIZE_DESIGN",
+      source,
+      topModule,
+      device
+    } as any);
+  }
+
+  public async exportSynthesizedVerilog(source: string, topModule?: string, device?: string): Promise<string> {
+    await this.initWorker();
+    return this.send({
+      type: "EXPORT_SYNTHESIZED_VERILOG",
+      source,
+      topModule,
+      device
+    } as any);
+  }
+
   private send<T = any>(req: Omit<WorkerRequest, "id">, customTimeout?: number): Promise<T> {
     if (!this.worker) {
       return Promise.reject(new Error("Worker is not available"));

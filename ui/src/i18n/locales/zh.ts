@@ -156,6 +156,10 @@ export const zh: Translations = {
     resetSelection: "清除选择",
     liveValues: "实时信号值",
     clearCone: "清除",
+    rtlSchematic: "RTL原理图",
+    synthNetlist: "综合门级网表",
+    exportNetlist: "导出网表",
+    lutInspector: "LUT检查器",
   },
   virtualLab: {
     title: "虚拟硬件实验室机架",
@@ -262,6 +266,7 @@ export const zh: Translations = {
     glitches: "毛刺危害",
     timingTab: "时序",
     assertionsTab: "断言",
+    synthesisTab: "逻辑综合",
     clear: "清空日志",
     execute: "执行",
     powerMw: "动态功耗",

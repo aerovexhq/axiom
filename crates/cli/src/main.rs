@@ -73,6 +73,7 @@ SUBCOMMANDS:
     decode <FILE> -t <TOP> [OPTIONS]     In-engine hardware protocol decoding (UART, SPI, I2C, AXI)
     coverage <FILE> -t <TOP> [OPTIONS]   Run RTL statement, branch, toggle, and FSM code coverage
     verify <FILE> -t <TOP> [OPTIONS]     In-RAM Temporal Logic Assertion Radar (SVA / PSL verification)
+    synth <FILE> -t <TOP> [OPTIONS]      In-RAM FPGA logic synthesis & technology mapping netlist
     lsp                                  Start stdio JSON-RPC Language Server Protocol (LSP) daemon
     help                                 Print this message or the help of the given subcommand(s)
     version                              Print version information
@@ -82,6 +83,12 @@ RUN OPTIONS:
     --ticks <N>              Number of clock ticks to simulate (default: 100)
     --vcd <FILE>             Dump IEEE 1364 Value Change Dump to FILE
     --saif <FILE>            Dump SAIF 2.0 switching activity to FILE
+
+SYNTH OPTIONS:
+    -t, --top <MODULE>       Name of top-level module (required)
+    --device <PART>          Target FPGA device (default: xcku5p-ffvb676-2-e)
+    -o, --out <FILE>         Write structural Verilog netlist to FILE
+    --json                   Output machine-readable JSON netlist and statistics
 
 VERIFY OPTIONS:
     -t, --top <MODULE>       Name of top-level module (required)
@@ -977,6 +984,33 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "synth" => {
+            if args.len() < 3 {
+                eprintln!("Error: 'synth' requires a file path. Usage: axiom synth <FILE> -t <TOP> [--device <PART>] [-o <OUT.v>] [--json]");
+                std::process::exit(1);
+            }
+            let file_path = args[2].clone();
+            let top_module = parse_top_arg(&args).unwrap_or_else(|| {
+                eprintln!("Error: missing -t or --top argument. Usage: axiom synth <FILE> -t <TOP> [OPTIONS]");
+                std::process::exit(1);
+            });
+            let device = parse_string_arg(&args, "--device").unwrap_or_else(|| "xcku5p-ffvb676-2-e".to_string());
+            let out_path = parse_string_arg(&args, "-o").or_else(|| parse_string_arg(&args, "--out"));
+            let json = args.iter().any(|a| a == "--json");
+
+            let cfg = SynthCliConfig {
+                file_path,
+                top_module,
+                device,
+                out_path,
+                json,
+            };
+
+            if let Err(e) = execute_synth(&cfg) {
+                eprintln!("Synthesis Error: {}", e);
+                std::process::exit(1);
+            }
+        }
         other => {
             eprintln!("Unknown subcommand '{}'. Use 'axiom help' for usage.", other);
             std::process::exit(1);
@@ -1632,6 +1666,87 @@ pub fn execute_verify(cfg: &VerifyCliConfig) -> Result<(), String> {
     Ok(())
 }
 
+pub struct SynthCliConfig {
+    pub file_path: String,
+    pub top_module: String,
+    pub device: String,
+    pub out_path: Option<String>,
+    pub json: bool,
+}
+
+pub fn execute_synth(cfg: &SynthCliConfig) -> Result<(), String> {
+    let resolved = resolve_file_path(&cfg.file_path);
+    let source = fs::read_to_string(&resolved)
+        .map_err(|e| format!("Failed to read source file '{}': {}", resolved, e))?;
+
+    let (ast, diags) = parse_hdl(FileId(1), &source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error:\n  - {}", err_msgs.join("\n  - ")));
+    }
+
+    let synth_config = axiom_ir::SynthConfig::for_device(&cfg.device);
+    let synth = axiom_ir::synthesize_from_ast(&ast, &cfg.top_module, &synth_config)
+        .map_err(|e| format!("Synthesis failed: {e}"))?;
+
+    if cfg.json {
+        let json_str = serde_json::to_string_pretty(&synth)
+            .map_err(|e| format!("JSON serialization error: {e}"))?;
+        println!("{}", json_str);
+        if let Some(out_p) = &cfg.out_path {
+            fs::write(out_p, synth.to_verilog())
+                .map_err(|e| format!("Failed to write netlist to '{}': {}", out_p, e))?;
+        }
+        return Ok(());
+    }
+
+    println!("\n\x1b[1;36m======================================================================\x1b[0m");
+    println!("\x1b[1;36m           Axiom EDA — In-RAM FPGA Logic Synthesizer                  \x1b[0m");
+    println!("\x1b[1;36m======================================================================\x1b[0m");
+    println!("  Top Module:        \x1b[1;32m{}\x1b[0m", synth.top_module);
+    println!("  Target FPGA Part:  \x1b[1;33m{}\x1b[0m ({})", synth.target_device, synth.target_family.display_name());
+    println!("  Total Mapped Cells:\x1b[1m{}\x1b[0m", synth.stats.total_cells);
+    println!("  Total Netlist Nets:\x1b[1m{}\x1b[0m", synth.nets.len());
+    println!("----------------------------------------------------------------------\n");
+
+    println!("┌───────────────────────┬────────────────────┬───────────┬──────────────┐");
+    println!("│ Category              │ Primitive Cell     │ Instances │ % Device Cap │");
+    println!("├───────────────────────┼────────────────────┼───────────┼──────────────┤");
+
+    if synth.stats.total_luts > 0 {
+        println!("│ Look-Up Tables (LUT)  │ LUT1..LUT6 / LUT62 │ {:>9} │ {:>11.2}% │", synth.stats.total_luts, synth.stats.lut_utilization_pct);
+    }
+    if synth.stats.total_ffs > 0 {
+        println!("│ Registers / Flops     │ FDRE / FDCE        │ {:>9} │ {:>11.2}% │", synth.stats.total_ffs, synth.stats.ff_utilization_pct);
+    }
+    if synth.stats.total_carries > 0 {
+        let carry_name = if synth.target_family.supports_carry8() { "CARRY8" } else { "CARRY4" };
+        println!("│ Arithmetic Carries    │ {:<18} │ {:>9} │ {:>11} │", carry_name, synth.stats.total_carries, "-");
+    }
+    if synth.stats.total_iobs > 0 {
+        println!("│ I/O Pads & Buffers    │ IBUF / OBUF / BUFG │ {:>9} │ {:>11} │", synth.stats.total_iobs, "-");
+    }
+    if synth.stats.dsp_count > 0 {
+        println!("│ DSP Blocks            │ DSP48E2 / DSP48E1  │ {:>9} │ {:>11} │", synth.stats.dsp_count, "-");
+    }
+    if synth.stats.bram_count > 0 {
+        println!("│ Block RAMs            │ RAMB36E2 / 18E2    │ {:>9} │ {:>11} │", synth.stats.bram_count, "-");
+    }
+    println!("└───────────────────────┴────────────────────┴───────────┴──────────────┘\n");
+
+    println!("  Estimated Logic Depth:  \x1b[1m{} stages\x1b[0m", synth.stats.logic_depth);
+    println!("  Estimated Cell Delay:   \x1b[1m{:.1} ps\x1b[0m\n", synth.stats.estimated_delay_ps);
+
+    if let Some(out_p) = &cfg.out_path {
+        let verilog = synth.to_verilog();
+        fs::write(out_p, verilog)
+            .map_err(|e| format!("Failed to write netlist to '{}': {}", out_p, e))?;
+        println!("\x1b[1;32m✓\x1b[0m Wrote structural Verilog netlist to \x1b[1m{}\x1b[0m\n", out_p);
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1730,6 +1845,19 @@ mod tests {
         };
         let res = execute_verify(&cfg);
         assert!(res.is_ok(), "Counter verify failed: {:?}", res);
+    }
+
+    #[test]
+    fn test_cli_synth_counter() {
+        let cfg = SynthCliConfig {
+            file_path: "tests/fixtures/counter.v".to_string(),
+            top_module: "counter".to_string(),
+            device: "xc7a100tcsg324-1".to_string(),
+            out_path: None,
+            json: false,
+        };
+        let res = execute_synth(&cfg);
+        assert!(res.is_ok(), "Counter synthesis failed: {:?}", res);
     }
 }
 

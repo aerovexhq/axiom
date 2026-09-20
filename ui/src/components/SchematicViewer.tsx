@@ -11,18 +11,23 @@ import {
   MapPin,
   Clock,
   X,
-  Zap
+  Zap,
+  Download,
+  Copy,
+  Check
 } from "lucide-react";
-import { SimulationState } from "../engine/engineBridge";
+import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
   SchematicGraph,
   SchematicNode,
   SchematicEdge,
   LogicCone,
   generateSchematicGraph,
+  generateSynthesizedSchematicGraph,
   sliceFaninCone,
   sliceFanoutCone
 } from "../engine/schematicModel";
+import { SynthesizedCircuit, SynthesizedCell, synthesizeClientFallback } from "../engine/synthModel";
 import { useTranslation } from "../i18n";
 
 interface SchematicViewerProps {
@@ -62,10 +67,111 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // Schematic View Mode: RTL Schematic vs Synthesized Gate Netlist
+  const [schematicMode, setSchematicMode] = useState<"rtl" | "synth">(() => {
+    try {
+      const saved = localStorage.getItem("axiom_schematic_mode");
+      if (saved === "synth" || saved === "rtl") return saved;
+    } catch {}
+    return "rtl";
+  });
+  const [synthCircuit, setSynthCircuit] = useState<SynthesizedCircuit | null>(null);
+  const [synthLoading, setSynthLoading] = useState<boolean>(false);
+  const [copiedInit, setCopiedInit] = useState<boolean>(false);
+  const [exportedVerilog, setExportedVerilog] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("axiom_schematic_mode", schematicMode);
+    } catch {}
+  }, [schematicMode]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (schematicMode === "synth") {
+      setSynthLoading(true);
+      engineBridge.synthesizeDesign({})
+        .then((res) => {
+          if (!isCancelled && res) {
+            setSynthCircuit(res);
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) {
+            setSynthCircuit(synthesizeClientFallback(activeDesignId));
+          }
+        })
+        .finally(() => {
+          if (!isCancelled) setSynthLoading(false);
+        });
+    }
+    return () => { isCancelled = true; };
+  }, [schematicMode, activeDesignId]);
+
   // Synthesize Hardware DAG for active design
-  const graph = useMemo<SchematicGraph>(() => {
+  const rtlGraph = useMemo<SchematicGraph>(() => {
     return generateSchematicGraph(activeDesignId);
   }, [activeDesignId]);
+
+  const synthGraph = useMemo<SchematicGraph | null>(() => {
+    if (synthCircuit) {
+      return generateSynthesizedSchematicGraph(synthCircuit);
+    }
+    return null;
+  }, [synthCircuit]);
+
+  const graph = (schematicMode === "synth" && synthGraph) ? synthGraph : rtlGraph;
+
+  const handleExportSynthesizedVerilog = useCallback(async () => {
+    try {
+      let code = "";
+      try {
+        code = await engineBridge.exportSynthesizedVerilog({
+          designId: activeDesignId,
+          topModule: activeDesignId,
+          device: synthCircuit?.target_device
+        });
+      } catch {
+        if (synthCircuit?.verilog_text) {
+          code = synthCircuit.verilog_text;
+        } else if (synthCircuit) {
+          const modName = synthCircuit.top_module || activeDesignId || "top";
+          const lines = [
+            `// Axiom In-RAM RTL Logic Synthesizer - FPGA Technology-Mapped Netlist`,
+            `// Target Device: ${synthCircuit.target_device} (${synthCircuit.target_family})`,
+            `// Top Module: ${modName}`,
+            `module ${modName}_synth (`,
+            synthCircuit.ports.map((p) => `  ${p.direction === "Input" ? "input" : "output"} ${p.width > 1 ? `[${p.width - 1}:0] ` : ""}${p.name}`).join(",\n"),
+            `);`,
+            "",
+            synthCircuit.nets.map((n) => `  wire ${n.name};`).join("\n"),
+            "",
+            ...synthCircuit.cells.map((c) => {
+              const portConns = Object.entries(c.ports).map(([pin, net]) => `.${pin}(${net})`).join(", ");
+              const paramStr = c.params.INIT !== undefined ? ` #(.INIT(64'h${c.params.INIT.toString(16).toUpperCase().padStart(16, "0")}))` : "";
+              return `  ${c.kind}${paramStr} ${c.id} (${portConns});`;
+            }),
+            "",
+            `endmodule`
+          ];
+          code = lines.join("\n");
+        }
+      }
+      if (code) {
+        const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${activeDesignId || "design"}_synth.v`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setExportedVerilog(true);
+        setTimeout(() => setExportedVerilog(false), 2500);
+      }
+    } catch (err) {
+      console.error("Failed to export synthesized netlist:", err);
+    }
+  }, [activeDesignId, synthCircuit]);
 
   // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale) with local persistence
   const [scale, setScale] = useState<number>(() => {
@@ -114,6 +220,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [activeCone, setActiveCone] = useState<LogicCone | null>(null);
+
+  // Selected synthesized cell (when in synth mode or clicking on mapped cell)
+  const selectedLutCell = useMemo<SynthesizedCell | null>(() => {
+    if (!selectedNodeId || !synthCircuit) return null;
+    return synthCircuit.cells.find((c) => c.id === selectedNodeId) || null;
+  }, [selectedNodeId, synthCircuit]);
 
   // Hover & Tooltip State
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -1107,6 +1219,62 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {/* Dual-Mode Schematic Switcher: RTL vs Synthesized Netlist */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              backgroundColor: "var(--bg-tertiary)",
+              padding: 2,
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-subtle)",
+              gap: 2
+            }}
+          >
+            <button
+              onClick={() => setSchematicMode("rtl")}
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                padding: "2px 7px",
+                borderRadius: 3,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: schematicMode === "rtl" ? "rgba(56, 189, 248, 0.2)" : "transparent",
+                color: schematicMode === "rtl" ? "var(--accent-cyan)" : "var(--text-muted)"
+              }}
+              title="Elaborated RTL Schematic View"
+            >
+              <Zap size={11} />
+              <span>RTL Schematic</span>
+            </button>
+
+            <button
+              onClick={() => setSchematicMode("synth")}
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                padding: "2px 7px",
+                borderRadius: 3,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: schematicMode === "synth" ? "rgba(168, 85, 247, 0.2)" : "transparent",
+                color: schematicMode === "synth" ? "#c084fc" : "var(--text-muted)"
+              }}
+              title="Synthesized Gate Netlist & FPGA Technology Mapping View"
+            >
+              <Layers size={11} />
+              <span>Synthesized Netlist</span>
+              {synthLoading && <span style={{ fontSize: 9, opacity: 0.7 }}>(...)</span>}
+            </button>
+          </div>
+
           <span
             style={{
               fontSize: 10.5,
@@ -1118,6 +1286,41 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           >
             {`${graph.nodes.length} Cells • ${graph.edges.length} Nets`}
           </span>
+
+          {schematicMode === "synth" && synthCircuit && (
+            <div
+              style={{
+                fontSize: 9.5,
+                padding: "1px 6px",
+                borderRadius: 3,
+                backgroundColor: "rgba(168, 85, 247, 0.15)",
+                color: "#c084fc",
+                border: "1px solid rgba(168, 85, 247, 0.3)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0
+              }}
+            >
+              <span>{synthCircuit.target_device.toUpperCase()}</span>
+              <span>•</span>
+              <span>{synthCircuit.stats.total_luts} LUTs</span>
+              <span>•</span>
+              <span>{synthCircuit.stats.total_ffs} FFs</span>
+              {synthCircuit.stats.carry4_count > 0 && (
+                <>
+                  <span>•</span>
+                  <span>{synthCircuit.stats.carry4_count} CARRY4</span>
+                </>
+              )}
+              {synthCircuit.stats.carry8_count > 0 && (
+                <>
+                  <span>•</span>
+                  <span>{synthCircuit.stats.carry8_count} CARRY8</span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* LOD Badge */}
           <div
@@ -1276,6 +1479,29 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             >
               <X size={10} />
               <span>{t("schematic.clearCone")}</span>
+            </button>
+          )}
+
+          {/* Export Synthesized Netlist */}
+          {schematicMode === "synth" && (
+            <button
+              onClick={handleExportSynthesizedVerilog}
+              className="btn btn-secondary"
+              style={{
+                fontSize: 10.5,
+                padding: "2px 6px",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                color: exportedVerilog ? "var(--accent-emerald)" : "#c084fc",
+                border: "1px solid rgba(168, 85, 247, 0.3)",
+                cursor: "pointer",
+                flexShrink: 0
+              }}
+              title="Export Technology-Mapped Structural Verilog Netlist"
+            >
+              {exportedVerilog ? <Check size={11} /> : <Download size={11} />}
+              <span>{exportedVerilog ? "Exported!" : "Export Netlist"}</span>
             </button>
           )}
 
@@ -1474,6 +1700,196 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                 <span>⚡ Silicon Copilot: Auto-Pipeline Path</span>
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Interactive LUT Inspector & Physical Cell Overlay Card */}
+      {selectedLutCell && (
+        <div
+          style={{
+            position: "absolute",
+            top: 48,
+            right: 14,
+            backgroundColor: "rgba(15, 23, 42, 0.95)",
+            border: "1px solid rgba(168, 85, 247, 0.6)",
+            borderRadius: 6,
+            padding: "10px 14px",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(8px)",
+            zIndex: 25,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            width: 320,
+            maxHeight: "calc(100% - 70px)",
+            overflowY: "auto"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Layers size={13} color="#c084fc" />
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+                {selectedLutCell.kind} Inspector
+              </span>
+            </div>
+            <button
+              onClick={() => setSelectedNodeId(null)}
+              style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0 }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}>
+            <span>Instance: <span style={{ color: "#fff", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{selectedLutCell.id}</span></span>
+            <span>Delay: <span style={{ color: "var(--accent-cyan)", fontFamily: "var(--font-mono)" }}>{selectedLutCell.delay_ps} ps</span></span>
+          </div>
+
+          {selectedLutCell.equation && (
+            <div style={{ backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 4, padding: "6px 8px" }}>
+              <div style={{ fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>Boolean Equation</div>
+              <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "#38bdf8", wordBreak: "break-all" }}>
+                {selectedLutCell.equation}
+              </div>
+            </div>
+          )}
+
+          {selectedLutCell.params.INIT !== undefined && (
+            <div style={{ backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 4, padding: "6px 8px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                <span style={{ fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase" }}>64-Bit INIT Mask</span>
+                <button
+                  onClick={() => {
+                    const hexStr = `64'h${selectedLutCell.params.INIT.toString(16).toUpperCase().padStart(16, "0")}`;
+                    navigator.clipboard.writeText(hexStr);
+                    setCopiedInit(true);
+                    setTimeout(() => setCopiedInit(false), 1500);
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: copiedInit ? "var(--accent-emerald)" : "var(--accent-cyan)",
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 3,
+                    fontSize: 9.5
+                  }}
+                >
+                  {copiedInit ? <Check size={10} /> : <Copy size={10} />}
+                  <span>{copiedInit ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+              <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "#a855f7" }}>
+                64'h{selectedLutCell.params.INIT.toString(16).toUpperCase().padStart(16, "0")}
+              </div>
+            </div>
+          )}
+
+          {/* Truth Table for LUT cells */}
+          {selectedLutCell.kind.toLowerCase().startsWith("lut") && selectedLutCell.params.INIT !== undefined && (() => {
+            const inputPins = Object.keys(selectedLutCell.ports).filter((p) => p.startsWith("I")).sort();
+            const k = inputPins.length > 0 ? Math.min(inputPins.length, 6) : Math.min(parseInt(selectedLutCell.kind.replace(/\D/g, "") || "2", 10), 6);
+            const numRows = Math.pow(2, k);
+            const initMask = selectedLutCell.params.INIT;
+
+            let liveRow: number | null = null;
+            let allInputsKnown = true;
+            let computedLiveRow = 0;
+            for (let i = 0; i < k; i++) {
+              const pin = `I${i}`;
+              const net = selectedLutCell.ports[pin] || "";
+              const val = liveValuesMap.get(net);
+              if (val === "1") {
+                computedLiveRow |= (1 << i);
+              } else if (val !== "0") {
+                allInputsKnown = false;
+                break;
+              }
+            }
+            if (allInputsKnown) {
+              liveRow = computedLiveRow;
+            }
+
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    Truth Table (2^{k} = {numRows} States)
+                  </span>
+                  {liveRow !== null && (
+                    <span style={{ fontSize: 9, color: "var(--accent-emerald)", display: "flex", alignItems: "center", gap: 3 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--accent-emerald)" }} />
+                      Active State: Row {liveRow}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid var(--border-subtle)", borderRadius: 4 }}>
+                  <table style={{ width: "100%", fontSize: 10, fontFamily: "var(--font-mono)", borderCollapse: "collapse", textAlign: "center" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "rgba(255,255,255,0.05)", borderBottom: "1px solid var(--border-subtle)" }}>
+                        {Array.from({ length: k }).map((_, i) => (
+                          <th key={i} style={{ padding: "3px 4px", color: "var(--text-secondary)" }}>I{i}</th>
+                        ))}
+                        <th style={{ padding: "3px 4px", color: "var(--accent-cyan)", borderLeft: "1px solid var(--border-subtle)" }}>O</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: numRows }).map((_, rowIdx) => {
+                        const isLive = liveRow === rowIdx;
+                        const outBit = (initMask >> rowIdx) & 1;
+                        return (
+                          <tr
+                            key={rowIdx}
+                            style={{
+                              backgroundColor: isLive ? "rgba(16, 185, 129, 0.2)" : rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
+                              color: isLive ? "#fff" : "var(--text-muted)",
+                              fontWeight: isLive ? 700 : 400
+                            }}
+                          >
+                            {Array.from({ length: k }).map((_, i) => {
+                              const inBit = (rowIdx >> i) & 1;
+                              return (
+                                <td key={i} style={{ padding: "2px 4px" }}>{inBit}</td>
+                              );
+                            })}
+                            <td style={{
+                              padding: "2px 4px",
+                              borderLeft: "1px solid var(--border-subtle)",
+                              color: outBit === 1 ? "var(--accent-emerald)" : "var(--text-muted)",
+                              fontWeight: 700
+                            }}>
+                              {outBit}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Port mappings */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <span style={{ fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase" }}>Pin Connections</span>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, maxHeight: 100, overflowY: "auto" }}>
+              {Object.entries(selectedLutCell.ports).map(([pin, net]) => {
+                const liveVal = liveValuesMap.get(net);
+                return (
+                  <div key={pin} style={{ fontSize: 10, fontFamily: "var(--font-mono)", backgroundColor: "rgba(0,0,0,0.3)", padding: "2px 5px", borderRadius: 3, display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-muted)" }}>.{pin}</span>
+                    <span style={{ color: liveVal === "1" ? "var(--accent-emerald)" : liveVal === "0" ? "#94a3b8" : "var(--accent-cyan)" }}>
+                      {net} {liveVal !== undefined ? `[${liveVal}]` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

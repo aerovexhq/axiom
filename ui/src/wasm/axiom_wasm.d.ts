@@ -210,6 +210,16 @@ export function wasm_synthesize_microarch(source: string, top_module?: string | 
  */
 export function wasm_verify_assertions(source: string, top_module?: string | null, sim_time_ps?: bigint | null): any;
 
+/**
+ * Standalone WebAssembly function to synthesize HDL source into technology-mapped netlist.
+ */
+export function wasm_synthesize_netlist(source: string, top_module?: string | null, device?: string | null): any;
+
+/**
+ * Standalone WebAssembly function to export structural Verilog from synthesized netlist.
+ */
+export function wasm_export_synthesized_verilog(source: string, top_module?: string | null, device?: string | null): string;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {

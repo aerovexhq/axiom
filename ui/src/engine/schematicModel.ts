@@ -1,4 +1,5 @@
 // Axiom EDA — Elaborated BIR Hardware Schematic DAG & Logic Cone Model
+import type { SynthesizedCircuit } from "./synthModel";
 
 export type SchematicNodeKind =
   | "port_in"
@@ -416,6 +417,226 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
     return generateDspBramMacGraph();
   }
   return generateLogicCircuitGraph();
+}
+
+/**
+ * Synthesizes a technology-mapped FPGA gate-level netlist schematic graph.
+ */
+export function generateSynthesizedSchematicGraph(synth: SynthesizedCircuit): SchematicGraph {
+  const nodes: SchematicNode[] = [];
+  const edges: SchematicEdge[] = [];
+  const nodeMap = new Map<string, SchematicNode>();
+
+  // Assign cell levels:
+  const cellLevel = new Map<string, number>();
+  for (const cell of synth.cells) {
+    const kind = cell.kind.toLowerCase();
+    if (kind === "ibuf" || kind === "bufg" || kind === "bufgce") {
+      cellLevel.set(cell.id, 1);
+    } else if (kind.startsWith("lut")) {
+      let maxInLvl = 1;
+      for (const [_, netName] of Object.entries(cell.ports)) {
+        if (netName.includes("w2") || netName.includes("w3") || netName.includes("stage1") || netName.includes("inc_1")) {
+          maxInLvl = Math.max(maxInLvl, 2);
+        } else if (netName.includes("inc_2") || netName.includes("inc_3")) {
+          maxInLvl = Math.max(maxInLvl, 3);
+        }
+      }
+      cellLevel.set(cell.id, maxInLvl + 1);
+    } else if (kind.startsWith("carry")) {
+      cellLevel.set(cell.id, 3);
+    } else if (kind.startsWith("fd")) {
+      cellLevel.set(cell.id, 4);
+    } else if (kind === "obuf") {
+      cellLevel.set(cell.id, 5);
+    } else {
+      cellLevel.set(cell.id, 2);
+    }
+  }
+
+  // 1. Primary input port nodes (Layer 0)
+  for (const port of synth.ports) {
+    if (port.direction === "Input") {
+      const node: SchematicNode = {
+        id: `port_${port.name}`,
+        label: port.name,
+        kind: "port_in",
+        scope: "top",
+        inputs: [],
+        outputs: [{ id: "out", name: port.name, width: port.width, direction: "out", isClock: port.is_clock, isReset: port.is_reset }],
+        x: 0, y: 0, width: 70, height: 28,
+        layer: 0,
+        delayPs: 0,
+        dynamicPowerMw: 0.01,
+        sourceSpan: { lineStart: 1, lineEnd: 1 }
+      };
+      nodes.push(node);
+      nodeMap.set(node.id, node);
+    }
+  }
+
+  // 2. Physical Primitive Cells
+  for (const cell of synth.cells) {
+    const kindLower = cell.kind.toLowerCase();
+    const isLut = kindLower.startsWith("lut");
+    const isFf = kindLower.startsWith("fd");
+    const isCarry = kindLower.startsWith("carry");
+    const isIbuf = kindLower === "ibuf";
+    const isObuf = kindLower === "obuf";
+    const isBufg = kindLower.startsWith("bufg");
+
+    const inputs: PortDef[] = [];
+    const outputs: PortDef[] = [];
+
+    const sortedPortEntries = Object.entries(cell.ports).sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [pin, _] of sortedPortEntries) {
+      const isOut = pin === "O" || pin === "Q" || pin === "P" || pin === "CO" || pin.startsWith("O[") || pin.startsWith("CO[");
+      if (isOut) {
+        outputs.push({ id: pin, name: pin, width: 1, direction: "out" });
+      } else {
+        const isClock = pin === "C" || pin === "CLK" || pin === "CLKARDCLK";
+        const isReset = pin === "R" || pin === "CLR" || pin === "RST";
+        inputs.push({ id: pin, name: pin, width: 1, direction: "in", isClock, isReset });
+      }
+    }
+
+    const nodeKind: SchematicNodeKind = isLut ? "gate" : isFf ? "register" : isCarry ? "operator" : isIbuf ? "port_in" : isObuf ? "port_out" : "gate";
+
+    const width = isLut ? 92 : isFf ? 84 : isCarry ? 110 : isIbuf || isObuf ? 72 : isBufg ? 80 : 100;
+    const height = isLut ? 48 : isFf ? 54 : isCarry ? 76 : isIbuf || isObuf ? 32 : isBufg ? 40 : 60;
+
+    const layer = cellLevel.get(cell.id) ?? 2;
+
+    const node: SchematicNode = {
+      id: cell.id,
+      label: cell.kind.toUpperCase(),
+      sublabel: cell.name,
+      kind: nodeKind,
+      scope: cell.scope,
+      inputs,
+      outputs,
+      x: 0, y: 0, width, height,
+      layer,
+      delayPs: cell.delay_ps,
+      dynamicPowerMw: 0.05,
+      expressionText: cell.equation,
+      sourceSpan: { lineStart: cell.source_line ?? 1, lineEnd: cell.source_line ?? 1 }
+    };
+    nodes.push(node);
+    nodeMap.set(node.id, node);
+  }
+
+  // 3. Primary output port nodes (Layer 6)
+  for (const port of synth.ports) {
+    if (port.direction === "Output") {
+      const node: SchematicNode = {
+        id: `port_${port.name}`,
+        label: port.name,
+        kind: "port_out",
+        scope: "top",
+        inputs: [{ id: "in", name: port.name, width: port.width, direction: "in" }],
+        outputs: [],
+        x: 0, y: 0, width: 70, height: 28,
+        layer: 6,
+        delayPs: 0,
+        dynamicPowerMw: 0.01,
+        sourceSpan: { lineStart: 1, lineEnd: 1 }
+      };
+      nodes.push(node);
+      nodeMap.set(node.id, node);
+    }
+  }
+
+  // 4. Edges: connect I/O ports and cell-to-cell nets
+  let edgeIdCounter = 0;
+
+  // Connect Input ports to IBUFs
+  for (const port of synth.ports) {
+    if (port.direction === "Input") {
+      const portNodeId = `port_${port.name}`;
+      const ibufCell = synth.cells.find(c => c.ports["I"] === port.name || c.ports["I"]?.startsWith(`${port.name}[`));
+      if (ibufCell) {
+        edges.push({
+          id: `edge_${edgeIdCounter++}`,
+          netName: port.name,
+          sourceNodeId: portNodeId,
+          sourcePortId: "out",
+          targetNodeId: ibufCell.id,
+          targetPortId: "I",
+          width: port.width,
+          isBus: port.width > 1,
+          wirePoints: [],
+          delayPs: 15,
+          signalId: port.name,
+          fanout: 1
+        });
+      }
+    }
+  }
+
+  // Connect Output ports from OBUFs
+  for (const port of synth.ports) {
+    if (port.direction === "Output") {
+      const portNodeId = `port_${port.name}`;
+      const obufCell = synth.cells.find(c => c.ports["O"] === port.name || c.ports["O"]?.startsWith(`${port.name}[`));
+      if (obufCell) {
+        edges.push({
+          id: `edge_${edgeIdCounter++}`,
+          netName: port.name,
+          sourceNodeId: obufCell.id,
+          sourcePortId: "O",
+          targetNodeId: portNodeId,
+          targetPortId: "in",
+          width: port.width,
+          isBus: port.width > 1,
+          wirePoints: [],
+          delayPs: 15,
+          signalId: port.name,
+          fanout: 1
+        });
+      }
+    }
+  }
+
+  // Connect internal cell pins
+  for (const srcCell of synth.cells) {
+    for (const [srcPin, srcNet] of Object.entries(srcCell.ports)) {
+      const isSrcOut = srcPin === "O" || srcPin === "Q" || srcPin === "P" || srcPin === "CO";
+      if (!isSrcOut) continue;
+
+      for (const dstCell of synth.cells) {
+        if (dstCell.id === srcCell.id) continue;
+        for (const [dstPin, dstNet] of Object.entries(dstCell.ports)) {
+          if (dstNet === srcNet && dstPin !== "O" && dstPin !== "Q" && dstPin !== "P" && dstPin !== "CO") {
+            edges.push({
+              id: `edge_${edgeIdCounter++}`,
+              netName: srcNet,
+              sourceNodeId: srcCell.id,
+              sourcePortId: srcPin,
+              targetNodeId: dstCell.id,
+              targetPortId: dstPin,
+              width: 1,
+              isBus: false,
+              wirePoints: [],
+              delayPs: 25,
+              signalId: srcNet,
+              fanout: 1
+            });
+          }
+        }
+      }
+    }
+  }
+
+  const rawGraph: SchematicGraph = {
+    id: `synth_${synth.top_module}`,
+    topModule: synth.top_module,
+    nodes,
+    edges,
+    bounds: { minX: 0, minY: 0, maxX: 900, maxY: 500, width: 900, height: 500 }
+  };
+
+  return layoutAndRouteGraph(rawGraph);
 }
 
 /**

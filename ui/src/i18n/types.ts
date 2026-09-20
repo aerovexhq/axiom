@@ -173,6 +173,10 @@ export interface Translations {
     resetSelection: string;
     liveValues: string;
     clearCone: string;
+    rtlSchematic: string;
+    synthNetlist: string;
+    exportNetlist: string;
+    lutInspector: string;
   };
   virtualLab: {
     title: string;
@@ -279,6 +283,7 @@ export interface Translations {
     glitches: string;
     timingTab: string;
     assertionsTab: string;
+    synthesisTab: string;
     clear: string;
     execute: string;
     powerMw: string;

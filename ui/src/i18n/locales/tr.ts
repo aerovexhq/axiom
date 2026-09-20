@@ -156,6 +156,10 @@ export const tr: Translations = {
     resetSelection: "Seçimi Sıfırla",
     liveValues: "Canlı Değerler",
     clearCone: "Temizle",
+    rtlSchematic: "RTL Şematik",
+    synthNetlist: "Sentezlenmiş Devre",
+    exportNetlist: "Netlisti Dışa Aktar",
+    lutInspector: "LUT Denetleyicisi",
   },
   virtualLab: {
     title: "Sanal Laboratuvar Rafı",
@@ -262,6 +266,7 @@ export const tr: Translations = {
     glitches: "Tehlikeler",
     timingTab: "Zamanlama",
     assertionsTab: "Doğrulamalar",
+    synthesisTab: "Sentez",
     clear: "Günlüğü Temizle",
     execute: "Çalıştır",
     powerMw: "Dinamik Güç",

@@ -744,6 +744,32 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         break;
       }
 
+      case "SYNTHESIZE_DESIGN": {
+        let result: any = null;
+        if (typeof (wasmModule as any).wasm_synthesize_netlist === "function") {
+          result = (wasmModule as any).wasm_synthesize_netlist(
+            req.source,
+            req.topModule ?? null,
+            req.device ?? null
+          );
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "EXPORT_SYNTHESIZED_VERILOG": {
+        let result: string = "";
+        if (typeof (wasmModule as any).wasm_export_synthesized_verilog === "function") {
+          result = (wasmModule as any).wasm_export_synthesized_verilog(
+            req.source,
+            req.topModule ?? null,
+            req.device ?? null
+          );
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
       case "PING": {
         self.postMessage({ type: "PONG", id: req.id, timestamp: Date.now() });
         break;

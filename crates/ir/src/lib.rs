@@ -3,6 +3,7 @@ pub mod elaborator;
 pub mod primitives;
 pub mod microarch;
 pub mod multidie;
+pub mod synth;
 
 pub use bir::*;
 pub use elaborator::{ElaborationError, Elaborator};
@@ -12,6 +13,10 @@ pub use multidie::{
     estimate_circuit_modules, get_device_profile, partition_circuit, BoundaryUtilization, CutNet,
     DieBoundary, DieInfo, DieKind, DieResourceBudget, DieUtilization, InterconnectKind,
     ModuleResourceEstimate, MultiDieDevice, PartitionConfig, PartitionResult,
+};
+pub use synth::{
+    synthesize, synthesize_from_ast, FpgaFamily, SynthConfig, SynthError, SynthesisStats,
+    SynthesizedCell, SynthesizedCircuit, SynthesizedNet, SynthesizedPort,
 };
 pub use axiom_syntax::EdgeKind;
 

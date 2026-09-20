@@ -985,6 +985,8 @@ export const App: React.FC = () => {
                   setActiveMobilePanel("editor");
                 }}
                 isMobileFullScreen={true}
+                activeDesignId={project?.templateId ?? "logic_circuit_project"}
+                targetDevice={project?.targetDevice}
               />
             </div>
           )}
@@ -1793,6 +1795,8 @@ export const App: React.FC = () => {
             state={state}
             diagnostics={diagnostics}
             onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+            activeDesignId={project?.templateId ?? "logic_circuit_project"}
+            targetDevice={project?.targetDevice}
           />
         </div>
       </div>

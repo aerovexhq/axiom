@@ -156,6 +156,10 @@ export const es: Translations = {
     resetSelection: "Restablecer Selección",
     liveValues: "Valores en Vivo",
     clearCone: "Limpiar",
+    rtlSchematic: "Esquema RTL",
+    synthNetlist: "Netlist Sintetizada",
+    exportNetlist: "Exportar Netlist",
+    lutInspector: "Inspector LUT",
   },
   virtualLab: {
     title: "Bastidor de Laboratorio Virtual",
@@ -262,6 +266,7 @@ export const es: Translations = {
     glitches: "Glitches",
     timingTab: "Tiempos",
     assertionsTab: "Aserciones",
+    synthesisTab: "Síntesis",
     clear: "Limpiar Registro",
     execute: "Ejecutar",
     powerMw: "Potencia Dinámica",

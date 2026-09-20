@@ -156,6 +156,10 @@ export const ja: Translations = {
     resetSelection: "選択解除",
     liveValues: "リアルタイム信号値",
     clearCone: "クリア",
+    rtlSchematic: "RTL回路図",
+    synthNetlist: "合成済みネットリスト",
+    exportNetlist: "ネットリストのエクスポート",
+    lutInspector: "LUTインスペクタ",
   },
   virtualLab: {
     title: "バーチャル実験ラック",
@@ -262,6 +266,7 @@ export const ja: Translations = {
     glitches: "グリッチ",
     timingTab: "タイミング",
     assertionsTab: "アサーション",
+    synthesisTab: "論理合成",
     clear: "ログクリア",
     execute: "実行",
     powerMw: "動的消費電力",

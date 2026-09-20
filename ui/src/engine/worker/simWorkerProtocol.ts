@@ -40,6 +40,8 @@ export type WorkerCommandType =
   | "GET_ASSERTION_REPORT"
   | "GET_ASSERTION_VIOLATIONS"
   | "RESET_ASSERTIONS"
+  | "SYNTHESIZE_DESIGN"
+  | "EXPORT_SYNTHESIZED_VERILOG"
   | "ATTACH_SHARED_BUFFER"
   | "PING";
 
@@ -235,6 +237,20 @@ export interface ResetAssertionsRequest extends BaseWorkerRequest {
   type: "RESET_ASSERTIONS";
 }
 
+export interface SynthesizeDesignRequest extends BaseWorkerRequest {
+  type: "SYNTHESIZE_DESIGN";
+  source: string;
+  topModule?: string;
+  device?: string;
+}
+
+export interface ExportSynthesizedVerilogRequest extends BaseWorkerRequest {
+  type: "EXPORT_SYNTHESIZED_VERILOG";
+  source: string;
+  topModule?: string;
+  device?: string;
+}
+
 export type LineCoverageStatus = "Covered" | "Partial" | "Uncovered" | "NonExecutable";
 
 export interface LineCoverageInfo {
@@ -319,6 +335,8 @@ export type WorkerRequest =
   | GetAssertionReportRequest
   | GetAssertionViolationsRequest
   | ResetAssertionsRequest
+  | SynthesizeDesignRequest
+  | ExportSynthesizedVerilogRequest
   | AttachSharedBufferRequest
   | PingRequest;
 
