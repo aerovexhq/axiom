@@ -179,3 +179,90 @@ fn test_trace_listener_capture() {
     // Listener was called!
     assert!(!sim.listeners.is_empty());
 }
+
+#[test]
+fn test_time_machine_bidirectional_stepping_and_scrubbing() {
+    let src = include_str!("../../../tests/fixtures/counter.v");
+    let (ast, diags) = parse_hdl(FileId(1), src);
+    assert!(diags.is_empty());
+
+    let circuit = elaborate(&ast, "counter").expect("Elaborating counter failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Creating simulator failed");
+
+    sim.force_signal("counter.rst_n", &LogicVector::from_u64(1, 1)).unwrap();
+    sim.force_signal("counter.enable", &LogicVector::from_u64(1, 1)).unwrap();
+    sim.force_signal("counter.up_down", &LogicVector::from_u64(1, 1)).unwrap();
+    sim.force_signal("counter.clk", &LogicVector::from_u64(0, 1)).unwrap();
+
+    sim.add_clock("counter.clk", SimTime::from_nanoseconds(10)).unwrap();
+
+    // Advance forward 10 cycles (200 ns)
+    sim.tick(SimTime::from_nanoseconds(200)).unwrap();
+    assert_eq!(sim.current_time, SimTime::from_nanoseconds(200));
+    assert_eq!(sim.get_signal("counter.count").unwrap().to_u64(), Some(10));
+
+    // Automated snapshots were created!
+    assert!(sim.time_machine.len() > 1);
+
+    // Test reverse time jump: step back 60 ns (from 200 ns to 140 ns) -> count should be 7
+    sim.step_back_time(SimTime::from_nanoseconds(60)).unwrap();
+    assert_eq!(sim.current_time, SimTime::from_nanoseconds(140));
+    assert_eq!(sim.get_signal("counter.count").unwrap().to_u64(), Some(7));
+
+    // Test scrubbing to arbitrary time: scrub to 80 ns -> count should be 4
+    sim.scrub_to_time(SimTime::from_nanoseconds(80)).unwrap();
+    assert_eq!(sim.current_time, SimTime::from_nanoseconds(80));
+    assert_eq!(sim.get_signal("counter.count").unwrap().to_u64(), Some(4));
+
+    // Test reverse delta stepping
+    let initial_delta = sim.current_delta;
+    let d1 = sim.step_delta().unwrap();
+    assert_eq!(d1.delta, initial_delta);
+    assert_eq!(sim.current_delta, initial_delta + 1);
+
+    let _d_back = sim.step_back_delta().unwrap();
+    assert_eq!(sim.current_delta, initial_delta);
+}
+
+#[test]
+fn test_live_rtl_code_coverage_in_simulator() {
+    use axiom_syntax::coverage::CoveragePointExtractor;
+
+    let src = include_str!("../../../tests/fixtures/counter.v");
+    let (ast, diags) = parse_hdl(FileId(1), src);
+    assert!(diags.is_empty());
+
+    let circuit = elaborate(&ast, "counter").expect("Elaboration failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Sim creation failed");
+
+    // Extract AST points and assign to simulator
+    let points = CoveragePointExtractor::extract(FileId(1), src, &ast);
+    sim.set_coverage_points(points);
+
+    // Initial state
+    let val_one = LogicVector::from_u64(1, 1);
+    let val_zero = LogicVector::from_u64(0, 1);
+    sim.force_signal("counter.rst_n", &val_one).unwrap();
+    sim.force_signal("counter.enable", &val_one).unwrap();
+    sim.force_signal("counter.up_down", &val_one).unwrap();
+    sim.force_signal("counter.clk", &val_zero).unwrap();
+
+    let half_period = SimTime::from_nanoseconds(10);
+    sim.add_clock("counter.clk", half_period).unwrap();
+
+    // Run 10 cycles (200 ns)
+    sim.tick(SimTime::from_nanoseconds(200)).unwrap();
+
+    // Get live coverage report
+    let report = sim.get_coverage_report();
+    assert!(report.statement_pct > 0.0, "Statements should be covered");
+    assert!(report.toggle_pct > 0.0, "Nets should toggle (clk, count)");
+
+    // Test LCOV and HTML generation
+    let lcov = axiom_sim::generate_lcov(&report, "counter.v");
+    assert!(lcov.contains("SF:counter.v"));
+    assert!(lcov.contains("end_of_record"));
+
+    let html = axiom_sim::generate_html(&report, "counter.v", src);
+    assert!(html.contains("Axiom RTL Code Coverage — counter.v"));
+}

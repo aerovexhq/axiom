@@ -20,6 +20,18 @@ export class WasmEngine {
      */
     complete_xdc(source: string, line: number, column: number): any;
     /**
+     * Decode protocol transactions from request JSON payload.
+     */
+    decode_protocol(request_json: string): any;
+    /**
+     * Exports standalone interactive HTML report.
+     */
+    export_html_report(source_name: string, source_code: string): string;
+    /**
+     * Exports standard LCOV (.info) format string.
+     */
+    export_lcov(source_path: string): string;
+    /**
      * Export simulation switching activity as SAIF.
      */
     export_saif(): string;
@@ -31,6 +43,10 @@ export class WasmEngine {
      * Force a logic value onto a net.
      */
     force_signal(net_name: string, value_str: string): void;
+    /**
+     * Queries the live RTL code coverage report.
+     */
+    get_coverage(): any;
     /**
      * Query hover documentation for identifier/keyword at (line, column).
      */
@@ -48,6 +64,30 @@ export class WasmEngine {
      */
     lint_xdc(source: string): any;
     constructor();
+    /**
+     * Resets live RTL code coverage counters.
+     */
+    reset_coverage(): void;
+    /**
+     * Run Static Timing Analysis (STA) on active circuit with XDC constraints.
+     */
+    run_sta(verilog_source: string, xdc_source: string, top_module?: string | null): any;
+    /**
+     * Scrub simulation to a target timestamp in picoseconds.
+     */
+    scrub_to_time(target_time_ps: number): any;
+    /**
+     * Sets static AST coverage points on active simulation.
+     */
+    set_coverage_points(source: string): void;
+    /**
+     * Rewind simulation by one discrete delta cycle.
+     */
+    step_back_delta(): any;
+    /**
+     * Rewind simulation physical time by dt_ps picoseconds.
+     */
+    step_back_time(dt_ps: number): any;
     /**
      * Step simulation by a single discrete delta cycle (zero time).
      */
@@ -69,6 +109,16 @@ export function wasm_complete(source: string, line: number, column: number): any
 export function wasm_complete_xdc(source: string, line: number, column: number): any;
 
 /**
+ * Standalone WebAssembly function to decode protocol transactions from request JSON.
+ */
+export function wasm_decode_protocol(request_json: string): any;
+
+/**
+ * Standalone WebAssembly function to generate coverage report for given source and simulated time.
+ */
+export function wasm_get_coverage(source: string, top_module?: string | null, sim_time_ps?: bigint | null): any;
+
+/**
  * Standalone WebAssembly function to query hover info without creating an engine instance.
  */
 export function wasm_hover(source: string, line: number, column: number): any;
@@ -88,6 +138,26 @@ export function wasm_lint(source: string): any;
  */
 export function wasm_lint_xdc(source: string): any;
 
+/**
+ * Standalone WebAssembly function to perform multi-die netlist partitioning.
+ */
+export function wasm_partition_multidie(source: string, top_module?: string | null, device?: string | null, constraints_json?: string | null, enable_laguna?: boolean | null, tdm_ratio?: number | null): any;
+
+/**
+ * Standalone WebAssembly function to evaluate Live PPA (Power-Performance-Area) Pareto Frontier & Silicon Cost.
+ */
+export function wasm_evaluate_ppa(verilog_source: string, xdc_source?: string | null, top_module?: string | null, target_device?: string | null, target_clock_freq_mhz?: number | null, junction_temp_c?: number | null, core_voltage_v?: number | null, pdk?: string | null): any;
+
+/**
+ * Standalone WebAssembly function to run Static Timing Analysis (STA).
+ */
+export function wasm_run_sta(verilog_source: string, xdc_source: string, top_module?: string | null): any;
+
+/**
+ * Standalone WebAssembly function to synthesize micro-architectural block diagram from Verilog source.
+ */
+export function wasm_synthesize_microarch(source: string, top_module?: string | null): any;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -95,21 +165,36 @@ export interface InitOutput {
     readonly __wbg_wasmengine_free: (a: number, b: number) => void;
     readonly wasm_complete: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasm_complete_xdc: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasm_decode_protocol: (a: number, b: number) => [number, number, number];
+    readonly wasm_get_coverage: (a: number, b: number, c: number, d: number, e: number, f: bigint) => [number, number, number];
     readonly wasm_hover: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasm_hover_xdc: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasm_lint: (a: number, b: number) => [number, number, number];
     readonly wasm_lint_xdc: (a: number, b: number) => [number, number, number];
+    readonly wasm_partition_multidie: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number];
+    readonly wasm_run_sta: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+    readonly wasm_synthesize_microarch: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasmengine_compile: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_complete: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_complete_xdc: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly wasmengine_decode_protocol: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_export_html_report: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
+    readonly wasmengine_export_lcov: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_export_saif: (a: number) => [number, number, number, number];
     readonly wasmengine_export_vcd: (a: number) => [number, number, number, number];
     readonly wasmengine_force_signal: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly wasmengine_get_coverage: (a: number) => [number, number, number];
     readonly wasmengine_hover: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_hover_xdc: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_lint: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_lint_xdc: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_new: () => number;
+    readonly wasmengine_reset_coverage: (a: number) => [number, number];
+    readonly wasmengine_run_sta: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
+    readonly wasmengine_scrub_to_time: (a: number, b: number) => [number, number, number];
+    readonly wasmengine_set_coverage_points: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_step_back_delta: (a: number) => [number, number, number];
+    readonly wasmengine_step_back_time: (a: number, b: number) => [number, number, number];
     readonly wasmengine_step_delta: (a: number) => [number, number, number];
     readonly wasmengine_step_time: (a: number, b: number) => [number, number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;

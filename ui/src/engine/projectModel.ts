@@ -43,6 +43,9 @@ export const FPGA_TARGET_DEVICES: { id: string; name: string; family: string; lo
   { id: "xc7z020-clg400-1", name: "Zynq-7000 xc7z020-clg400-1", family: "Zynq-7000 SoC", logicCells: "85,000" },
   { id: "xc7k325t-ffg900-2", name: "Kintex-7 xc7k325t-ffg900-2", family: "Kintex-7", logicCells: "326,080" },
   { id: "xcku5p-ffvb676-2-e", name: "Kintex UltraScale+ xcku5p", family: "UltraScale+", logicCells: "474,600" },
+  { id: "xcvu9p-flgb2104-2-e", name: "Virtex UltraScale+ VU9P (3 SLRs)", family: "UltraScale+ SSIT", logicCells: "2,586,000" },
+  { id: "xcvu13p-fhgb2104-2-e", name: "Virtex UltraScale+ VU13P (4 SLRs)", family: "UltraScale+ SSIT", logicCells: "3,780,000" },
+  { id: "dual-vu9p-prototyping", name: "Dual-VU9P Prototyping Board (2 FPGAs)", family: "Multi-FPGA Prototyping", logicCells: "5,172,000" },
   { id: "axiom-virtual-silicon", name: "Axiom Virtual Silicon (Native JIT)", family: "Axiom In-RAM", logicCells: "Unlimited" }
 ];
 

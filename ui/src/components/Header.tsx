@@ -3,6 +3,7 @@ import {
   Play,
   Pause,
   FastForward,
+  Rewind,
   RotateCcw,
   Cpu,
   Zap,
@@ -403,7 +404,29 @@ export const Header: React.FC<HeaderProps> = ({
             <span>{t("header.stepDelta")}</span>
           </button>
 
-          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 3px" }} />
+          {/* Time Machine Reverse Controls */}
+          <button
+            onClick={() => engineBridge.stepBackTime(1000)}
+            disabled={!state.compiled || state.isRunning || state.currentSimTimePs === 0}
+            title="Step -1 ns (Silicon Time-Machine Replay)"
+            className="btn btn-ghost"
+            style={{ height: 26, padding: "2px 6px" }}
+          >
+            <Rewind size={12} />
+            <span>-1ns</span>
+          </button>
+
+          <button
+            onClick={() => engineBridge.stepBackDelta()}
+            disabled={!state.compiled || state.isRunning || (state.currentSimTimePs === 0 && state.currentDeltaCycle === 0)}
+            title="Step -δ (Rewind Zero-Time Delta Cycle)"
+            className="badge badge-purple btn"
+            style={{ height: 26, padding: "2px 6px", cursor: state.compiled ? "pointer" : "not-allowed" }}
+          >
+            <span>-δ</span>
+          </button>
+
+          <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
 
           <button
             onClick={() => engineBridge.reset()}

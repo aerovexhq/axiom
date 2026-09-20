@@ -1,21 +1,30 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, Sliders, Clock, Maximize2 } from "lucide-react";
+import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
 import { WaveformViewer } from "./components/WaveformViewer";
 import { SchematicViewer } from "./components/SchematicViewer";
+import { MicroarchViewer } from "./components/MicroarchViewer";
+import { MultiDieViewer } from "./components/MultiDieViewer";
+import { PpaParetoViewer } from "./components/PpaParetoViewer";
 import { VirtualLabRack } from "./components/VirtualLabRack";
 import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { UnifiedBottomDock } from "./components/UnifiedBottomDock";
 import { OmnibarModal } from "./components/OmnibarModal";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { AddSourceModal } from "./components/AddSourceModal";
+import { AutoPipelineModal } from "./components/AutoPipelineModal";
 import { WelcomeLaunchpad } from "./components/WelcomeLaunchpad";
 import { ResizableSplitter } from "./components/ResizableSplitter";
 import { MobileDrawer, MobilePanelType } from "./components/MobileDrawer";
 import { MobileBottomBar } from "./components/MobileBottomBar";
 import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBridge";
+import {
+  AutoPipelineRecommendation,
+  evaluateAutoPipelineFromPath
+} from "./engine/autoPipelineModel";
+import { TimingPath } from "./engine/timingModel";
 import {
   AxiomProject,
   ProjectFile,
@@ -93,8 +102,8 @@ function getInitialProject(): AxiomProject | null {
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "split">("split");
-  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | "timing" | null>(null);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "split">("split");
+  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | null>(null);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -127,6 +136,10 @@ export const App: React.FC = () => {
   const [isAddSourceOpen, setIsAddSourceOpen] = useState<boolean>(false);
   const [addSourceInitialFileSet, setAddSourceInitialFileSet] = useState<FileSetType | undefined>(undefined);
   const [isSaved, setIsSaved] = useState<boolean>(true);
+  const [isAutoPipelineOpen, setIsAutoPipelineOpen] = useState<boolean>(false);
+  const [autoPipelineRec, setAutoPipelineRec] = useState<AutoPipelineRecommendation | null>(null);
+  const [timingSlackPs, setTimingSlackPs] = useState<number | null>(null);
+  const [predictedFmaxGainMhz, setPredictedFmaxGainMhz] = useState<number | null>(null);
 
   const handleOpenAddSource = (fileSet?: FileSetType) => {
     setAddSourceInitialFileSet(fileSet);
@@ -308,6 +321,132 @@ export const App: React.FC = () => {
     engineBridge.compile(bundled, updated.topModule);
   };
 
+  // Evaluate timing slack for Silicon Copilot recommendation banner
+  useEffect(() => {
+    if (!project) {
+      setTimingSlackPs(null);
+      setPredictedFmaxGainMhz(null);
+      return;
+    }
+    const designFiles = project.files.filter((f) => f.fileSet === "sources_1");
+    const constrFiles = project.files.filter((f) => f.fileSet === "constrs_1");
+    const verilogCode = designFiles.map((f) => f.content).join("\n\n");
+    const xdcCode = constrFiles.map((f) => f.content).join("\n\n");
+    if (!verilogCode.trim()) return;
+
+    let cancelled = false;
+    engineBridge
+      .runSta(verilogCode, xdcCode, project.topModule)
+      .then((res) => {
+        if (cancelled || !res) return;
+        const wns = typeof res.worst_negative_slack_ps === "number" ? res.worst_negative_slack_ps : 0;
+        setTimingSlackPs(wns);
+        if (wns < 0) {
+          engineBridge
+            .recommendPipeline(verilogCode, xdcCode, project.topModule)
+            .then((rec) => {
+              if (cancelled || !rec) return;
+              setAutoPipelineRec(rec);
+              if (rec.optimal_cut) {
+                setPredictedFmaxGainMhz(rec.optimal_cut.fmax_gain_mhz);
+              }
+            })
+            .catch(() => {});
+        } else {
+          setPredictedFmaxGainMhz(null);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.files, project?.topModule]);
+
+  const handleOpenAutoPipeline = useCallback(
+    async (pathOrCone?: any) => {
+      if (!project) return;
+      const designFiles = project.files.filter((f) => f.fileSet === "sources_1");
+      const constrFiles = project.files.filter((f) => f.fileSet === "constrs_1");
+      const verilogCode = designFiles.map((f) => f.content).join("\n\n");
+      const xdcCode = constrFiles.map((f) => f.content).join("\n\n");
+      const topModule = project.topModule || state.topModule;
+
+      try {
+        const rec = await engineBridge.recommendPipeline(verilogCode, xdcCode, topModule);
+        if (rec) {
+          setAutoPipelineRec(rec);
+          setIsAutoPipelineOpen(true);
+          return;
+        }
+      } catch (e) {
+        console.warn("[App] recommendPipeline fallback to model:", e);
+      }
+
+      const currentCode = activeFile?.content || verilogCode;
+      const targetPath: TimingPath =
+        pathOrCone && pathOrCone.slackPs !== undefined
+          ? {
+              id: "critical_path",
+              startPoint: pathOrCone.targetId || "launch_ff",
+              endPoint: pathOrCone.targetId ? `${pathOrCone.targetId}_out` : "capture_ff",
+              clockDomain: "clk",
+              slackPs: pathOrCone.slackPs ?? -850,
+              requiredTimePs: 10000,
+              arrivalTimePs: 10850,
+              dataDelayPs: pathOrCone.totalDelayPs ?? 1850,
+              logicDelayPs: 1100,
+              netDelayPs: 750,
+              logicLevels: pathOrCone.maxDepth ?? 3,
+              segments: [],
+              status: "violated"
+            }
+          : {
+              id: "critical_path",
+              startPoint: "data_reg",
+              endPoint: "result_reg",
+              clockDomain: "clk",
+              slackPs: -850,
+              requiredTimePs: 10000,
+              arrivalTimePs: 10850,
+              dataDelayPs: 1850,
+              logicDelayPs: 1100,
+              netDelayPs: 750,
+              logicLevels: 3,
+              segments: [],
+              status: "violated"
+            };
+
+      const fallbackRec = evaluateAutoPipelineFromPath(targetPath, 10.0, currentCode);
+      setAutoPipelineRec(fallbackRec);
+      setIsAutoPipelineOpen(true);
+    },
+    [project, state.topModule, activeFile]
+  );
+
+  const handleApplyPipeline = useCallback(
+    async (cutNet: string, clockName: string, resetName?: string) => {
+      if (!project || !activeFile) return;
+      try {
+        const res = await engineBridge.applyPipeline(
+          activeFile.content,
+          project.topModule,
+          cutNet,
+          clockName,
+          resetName
+        );
+        if (res && res.refactored_code) {
+          handleCodeChange(res.refactored_code);
+          toast.success(`✨ Silicon Copilot: Inserted pipeline register stage at '${cutNet}' (+1 cycle)`);
+          handleCompile();
+        }
+      } catch (e) {
+        toast.error(`Auto-pipeline failed: ${e}`);
+      }
+    },
+    [project, activeFile, handleCodeChange, handleCompile]
+  );
+
   const handleCloseProject = useCallback(() => {
     setUrlProjectSlug(null);
     setProject(null);
@@ -472,7 +611,7 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "virtuallab" | "waveform" | "timing">("schematic");
+  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa">("schematic");
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
@@ -499,7 +638,7 @@ export const App: React.FC = () => {
   }, []);
 
   // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "virtuallab" | "timing") => {
+  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa") => {
     setMaximizedPanel((prev) => (prev === panel ? null : panel));
   };
 
@@ -611,6 +750,9 @@ export const App: React.FC = () => {
                 onAddFileClick={() => setIsAddSourceOpen(true)}
                 isMaximized={false}
                 onDiagnosticsChange={setDiagnostics}
+                onOpenAutoPipeline={() => handleOpenAutoPipeline()}
+                timingSlackPs={timingSlackPs}
+                predictedFmaxGainMhz={predictedFmaxGainMhz}
               />
             </div>
           ) : activeMobilePanel === "schematic" ? (
@@ -618,6 +760,21 @@ export const App: React.FC = () => {
               <SchematicViewer
                 state={state}
                 activeDesignId={project.templateId ?? "logic_circuit_project"}
+                selectedSignalId={activeCrossProbeSignal}
+                onSelectSignal={handleSchematicSelectSignal}
+                onOpenAutoPipeline={handleOpenAutoPipeline}
+                onJumpToCode={(line) => {
+                  handleJumpToCode(line, line);
+                  setActiveMobilePanel("editor");
+                }}
+              />
+            </div>
+          ) : activeMobilePanel === "microarch" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <MicroarchViewer
+                state={state}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                verilogSource={activeFile?.content}
                 selectedSignalId={activeCrossProbeSignal}
                 onSelectSignal={handleSchematicSelectSignal}
                 onJumpToCode={(line) => {
@@ -645,6 +802,50 @@ export const App: React.FC = () => {
               <TimingRadarViewer
                 state={state}
                 activeDesignId={project.templateId ?? "logic_circuit_project"}
+                project={project}
+                onCrossProbe={(sig) => {
+                  handleSchematicSelectSignal(sig);
+                  setActiveMobilePanel("schematic");
+                }}
+                onNavigateToLine={(line) => {
+                  setHighlightLineSpan({ lineStart: line, lineEnd: line });
+                  setActiveMobilePanel("editor");
+                }}
+                onOpenAutoPipeline={handleOpenAutoPipeline}
+              />
+            </div>
+          ) : activeMobilePanel === "multidie" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <MultiDieViewer
+                state={state}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                verilogSource={activeFile?.content}
+                targetDevice={project.targetDevice}
+                onSelectSignal={(sig) => {
+                  handleSchematicSelectSignal(sig);
+                  setActiveMobilePanel("schematic");
+                }}
+                onJumpToCode={(lineStart, lineEnd) => {
+                  handleJumpToCode(lineStart, lineEnd);
+                  setActiveMobilePanel("editor");
+                }}
+              />
+            </div>
+          ) : activeMobilePanel === "ppa" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <PpaParetoViewer
+                state={state}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                verilogSource={activeFile?.content}
+                xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                targetDevice={project.targetDevice}
+                onSelectDevice={(dev) => {
+                  setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
+                }}
+                onJumpToCode={(lineStart, lineEnd) => {
+                  handleJumpToCode(lineStart, lineEnd);
+                  setActiveMobilePanel("editor");
+                }}
               />
             </div>
           ) : (
@@ -734,6 +935,9 @@ export const App: React.FC = () => {
                   isMaximized={true}
                   onToggleMaximize={() => toggleMaximizePanel("editor")}
                   onDiagnosticsChange={setDiagnostics}
+                  onOpenAutoPipeline={handleOpenAutoPipeline}
+                  timingSlackPs={timingSlackPs}
+                  predictedFmaxGainMhz={predictedFmaxGainMhz}
                 />
               </div>
             ) : maximizedPanel === "waveform" ? (
@@ -748,6 +952,18 @@ export const App: React.FC = () => {
                   selectedSignalId={activeCrossProbeSignal}
                   onSelectSignal={handleSchematicSelectSignal}
                   onJumpToCode={handleJumpToCode}
+                  onOpenAutoPipeline={handleOpenAutoPipeline}
+                />
+              </div>
+            ) : maximizedPanel === "microarch" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <MicroarchViewer
+                  state={state}
+                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  verilogSource={activeFile?.content}
+                  selectedSignalId={activeCrossProbeSignal}
+                  onSelectSignal={handleSchematicSelectSignal}
+                  onJumpToCode={handleJumpToCode}
                 />
               </div>
             ) : maximizedPanel === "virtuallab" ? (
@@ -756,7 +972,39 @@ export const App: React.FC = () => {
               </div>
             ) : maximizedPanel === "timing" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <TimingRadarViewer state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                <TimingRadarViewer
+                  state={state}
+                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  project={project}
+                  onCrossProbe={handleSchematicSelectSignal}
+                  onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+                  onOpenAutoPipeline={handleOpenAutoPipeline}
+                />
+              </div>
+            ) : maximizedPanel === "multidie" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <MultiDieViewer
+                  state={state}
+                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  verilogSource={activeFile?.content}
+                  targetDevice={project.targetDevice}
+                  onSelectSignal={handleSchematicSelectSignal}
+                  onJumpToCode={handleJumpToCode}
+                />
+              </div>
+            ) : maximizedPanel === "ppa" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <PpaParetoViewer
+                  state={state}
+                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  verilogSource={activeFile?.content}
+                  xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                  targetDevice={project.targetDevice}
+                  onSelectDevice={(dev) => {
+                    setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
+                  }}
+                  onJumpToCode={handleJumpToCode}
+                />
               </div>
             ) : centerView === "split" ? (
               <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
@@ -776,6 +1024,9 @@ export const App: React.FC = () => {
                     isMaximized={false}
                     onToggleMaximize={() => toggleMaximizePanel("editor")}
                     onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
                   />
                 </div>
 
@@ -824,6 +1075,29 @@ export const App: React.FC = () => {
                       >
                         <Cpu size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Schematic</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("microarch")}
+                        title="Micro-Architectural Block Diagram Synthesis (Macro-clustering for FSMs, ALUs, RegFiles)"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "microarch" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "microarch" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "microarch" ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "microarch" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Boxes size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>Architecture</span>
                       </button>
 
                       <button
@@ -893,6 +1167,52 @@ export const App: React.FC = () => {
                       >
                         <Clock size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Timing</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("multidie")}
+                        title="Multi-FPGA Partitioning & Silicon Interposer Floorplan (SLRs, SLLs, Laguna Registers)"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "multidie" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "multidie" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "multidie" ? "var(--accent-cyan, #06b6d4)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "multidie" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Layers size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>Multi-Die / SLR</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("ppa")}
+                        title="Live PPA Pareto Frontier & Multi-Part Silicon Cost Forecaster (Power, Performance, Area, ASIC)"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "ppa" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "ppa" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "ppa" ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "ppa" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Gauge size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>PPA & Costs</span>
                       </button>
                     </div>
 
@@ -967,13 +1287,54 @@ export const App: React.FC = () => {
                             selectedSignalId={activeCrossProbeSignal}
                             onSelectSignal={handleSchematicSelectSignal}
                             onJumpToCode={handleJumpToCode}
+                            onOpenAutoPipeline={handleOpenAutoPipeline}
+                          />
+                        )}
+                        {splitActiveVisualizer === "microarch" && (
+                          <MicroarchViewer
+                            state={state}
+                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            verilogSource={activeFile?.content}
+                            selectedSignalId={activeCrossProbeSignal}
+                            onSelectSignal={handleSchematicSelectSignal}
+                            onJumpToCode={handleJumpToCode}
                           />
                         )}
                         {splitActiveVisualizer === "virtuallab" && (
                           <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
                         )}
                         {splitActiveVisualizer === "timing" && (
-                          <TimingRadarViewer state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                          <TimingRadarViewer
+                            state={state}
+                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            project={project}
+                            onCrossProbe={handleSchematicSelectSignal}
+                            onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+                            onOpenAutoPipeline={handleOpenAutoPipeline}
+                          />
+                        )}
+                        {splitActiveVisualizer === "multidie" && (
+                          <MultiDieViewer
+                            state={state}
+                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            verilogSource={activeFile?.content}
+                            targetDevice={project.targetDevice}
+                            onSelectSignal={handleSchematicSelectSignal}
+                            onJumpToCode={handleJumpToCode}
+                          />
+                        )}
+                        {splitActiveVisualizer === "ppa" && (
+                          <PpaParetoViewer
+                            state={state}
+                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            verilogSource={activeFile?.content}
+                            xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                            targetDevice={project.targetDevice}
+                            onSelectDevice={(dev) => {
+                              setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
+                            }}
+                            onJumpToCode={handleJumpToCode}
+                          />
                         )}
                       </div>
                     </div>
@@ -986,6 +1347,17 @@ export const App: React.FC = () => {
                           selectedSignalId={activeCrossProbeSignal}
                           onSelectSignal={handleSchematicSelectSignal}
                           onJumpToCode={handleJumpToCode}
+                          onOpenAutoPipeline={handleOpenAutoPipeline}
+                        />
+                      )}
+                      {splitActiveVisualizer === "microarch" && (
+                        <MicroarchViewer
+                          state={state}
+                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          verilogSource={activeFile?.content}
+                          selectedSignalId={activeCrossProbeSignal}
+                          onSelectSignal={handleSchematicSelectSignal}
+                          onJumpToCode={handleJumpToCode}
                         />
                       )}
                       {splitActiveVisualizer === "virtuallab" && (
@@ -995,7 +1367,37 @@ export const App: React.FC = () => {
                         <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
                       )}
                       {splitActiveVisualizer === "timing" && (
-                        <TimingRadarViewer state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                        <TimingRadarViewer
+                          state={state}
+                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          project={project}
+                          onCrossProbe={handleSchematicSelectSignal}
+                          onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+                          onOpenAutoPipeline={handleOpenAutoPipeline}
+                        />
+                      )}
+                      {splitActiveVisualizer === "multidie" && (
+                        <MultiDieViewer
+                          state={state}
+                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          verilogSource={activeFile?.content}
+                          targetDevice={project.targetDevice}
+                          onSelectSignal={handleSchematicSelectSignal}
+                          onJumpToCode={handleJumpToCode}
+                        />
+                      )}
+                      {splitActiveVisualizer === "ppa" && (
+                        <PpaParetoViewer
+                          state={state}
+                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          verilogSource={activeFile?.content}
+                          xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                          targetDevice={project.targetDevice}
+                          onSelectDevice={(dev) => {
+                            setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
+                          }}
+                          onJumpToCode={handleJumpToCode}
+                        />
                       )}
                     </div>
                   )}
@@ -1018,6 +1420,9 @@ export const App: React.FC = () => {
                     isMaximized={false}
                     onToggleMaximize={() => toggleMaximizePanel("editor")}
                     onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
                   />
                 </div>
                 <ResizableSplitter
@@ -1046,6 +1451,9 @@ export const App: React.FC = () => {
                     isMaximized={false}
                     onToggleMaximize={() => toggleMaximizePanel("editor")}
                     onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
                   />
                 </div>
                 <ResizableSplitter
@@ -1057,6 +1465,45 @@ export const App: React.FC = () => {
                   <SchematicViewer
                     state={state}
                     activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    selectedSignalId={activeCrossProbeSignal}
+                    onSelectSignal={handleSchematicSelectSignal}
+                    onJumpToCode={handleJumpToCode}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                  />
+                </div>
+              </div>
+            ) : centerView === "microarch" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <MicroarchViewer
+                    state={state}
+                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    verilogSource={activeFile?.content}
                     selectedSignalId={activeCrossProbeSignal}
                     onSelectSignal={handleSchematicSelectSignal}
                     onJumpToCode={handleJumpToCode}
@@ -1080,6 +1527,9 @@ export const App: React.FC = () => {
                     isMaximized={false}
                     onToggleMaximize={() => toggleMaximizePanel("editor")}
                     onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
                   />
                 </div>
                 <ResizableSplitter
@@ -1089,6 +1539,85 @@ export const App: React.FC = () => {
                 />
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                   <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                </div>
+              </div>
+            ) : centerView === "multidie" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <MultiDieViewer
+                    state={state}
+                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    verilogSource={activeFile?.content}
+                    targetDevice={project.targetDevice}
+                    onSelectSignal={handleSchematicSelectSignal}
+                    onJumpToCode={handleJumpToCode}
+                  />
+                </div>
+              </div>
+            ) : centerView === "ppa" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <PpaParetoViewer
+                    state={state}
+                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    verilogSource={activeFile?.content}
+                    xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
+                    targetDevice={project.targetDevice}
+                    onSelectDevice={(dev) => {
+                      setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
+                    }}
+                    onJumpToCode={handleJumpToCode}
+                  />
                 </div>
               </div>
             ) : (
@@ -1108,6 +1637,9 @@ export const App: React.FC = () => {
                     isMaximized={false}
                     onToggleMaximize={() => toggleMaximizePanel("editor")}
                     onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
                   />
                 </div>
                 <ResizableSplitter
@@ -1116,7 +1648,14 @@ export const App: React.FC = () => {
                   onDoubleClick={() => setEditorWidthPercent(42)}
                 />
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <TimingRadarViewer state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                  <TimingRadarViewer
+                    state={state}
+                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    project={project}
+                    onCrossProbe={handleSchematicSelectSignal}
+                    onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                  />
                 </div>
               </div>
             )}
@@ -1157,6 +1696,15 @@ export const App: React.FC = () => {
         onClose={() => setIsAddSourceOpen(false)}
         onAddSource={handleAddSource}
         initialFileSet={addSourceInitialFileSet}
+      />
+
+      {/* Silicon Copilot Auto-Pipeline Modal */}
+      <AutoPipelineModal
+        isOpen={isAutoPipelineOpen}
+        onClose={() => setIsAutoPipelineOpen(false)}
+        recommendation={autoPipelineRec}
+        activeSourceCode={activeFile?.content}
+        onApplyPipeline={handleApplyPipeline}
       />
 
       {/* Global Aerospace Toast & Confirmation Dialog Containers */}

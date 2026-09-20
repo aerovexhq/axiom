@@ -5,10 +5,12 @@ use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::coverage::{CoverageReport, CoverageTracker};
 use crate::event::{EventPayload, SchedRegion, SimEvent, StratifiedEventQueue};
 use crate::glitch::GlitchDetector;
 use crate::listener::SimEventListener;
-use crate::snapshot::{CheckpointId, SimSnapshot};
+use crate::snapshot::{CheckpointId, SimSnapshot, SnapshotRingBuffer};
+use axiom_syntax::coverage::AstCoveragePoints;
 
 #[derive(Debug, Error)]
 pub enum SimError {
@@ -63,6 +65,10 @@ pub struct AxiomSimulator {
     /// Checkpoints in RAM for instant rewind / timeline scrubbing
     checkpoints: HashMap<CheckpointId, SimSnapshot>,
     next_checkpoint_id: u64,
+    /// Automated time-travel snapshot ring buffer
+    pub time_machine: SnapshotRingBuffer,
+    /// Live RTL code coverage tracker (statement, branch, toggle, FSM)
+    pub coverage: CoverageTracker,
 }
 
 impl AxiomSimulator {
@@ -91,6 +97,11 @@ impl AxiomSimulator {
             prev_net_values.insert(net.id, val);
         }
 
+        // Initialize toggle tracking for all circuit nets
+        let mut coverage = CoverageTracker::new();
+        let net_widths: Vec<(NetId, u32)> = compiled.circuit.nets.iter().map(|n| (n.id, n.width)).collect();
+        coverage.init_toggles(&net_widths);
+
         let mut sim = Self {
             compiled,
             current_time: SimTime::ZERO,
@@ -103,10 +114,13 @@ impl AxiomSimulator {
             prev_net_values,
             checkpoints: HashMap::new(),
             next_checkpoint_id: 1,
+            time_machine: SnapshotRingBuffer::new(256, 50),
+            coverage,
         };
 
         // Initialize design at t=0, delta=0
         sim.initialize_circuit();
+        sim.record_snapshot();
 
         Ok(sim)
     }
@@ -249,6 +263,10 @@ impl AxiomSimulator {
         self.current_time = target_time;
         self.current_delta = 0;
 
+        if self.time_machine.should_record_time(self.current_time) {
+            self.record_snapshot();
+        }
+
         let glitches = self.glitch_detector.glitches().len();
 
         Ok(TickSummary {
@@ -311,6 +329,7 @@ impl AxiomSimulator {
         }
 
         self.current_delta += 1;
+        self.record_snapshot();
 
         let settled = !self.event_queue.peek().map(|e| e.time == self.current_time && e.delta == self.current_delta).unwrap_or(false);
 
@@ -347,6 +366,7 @@ impl AxiomSimulator {
         match event.payload {
             EventPayload::EvalContinuousAssign(idx) => {
                 let changed = self.compiled.eval_continuous_assign(idx);
+                self.coverage.record_statement_hit(idx);
                 if changed {
                     let assign = &self.compiled.circuit.continuous_assigns[idx];
                     let new_val = self.compiled.arena.read_net(self.compiled.circuit.get_net(assign.target).unwrap());
@@ -355,12 +375,22 @@ impl AxiomSimulator {
             }
             EventPayload::EvalProcess(proc_id) => {
                 let output = self.compiled.eval_process(proc_id);
-                for target in output.changed_blocking_nets {
-                    let new_val = self.compiled.arena.read_net(self.compiled.circuit.get_net(target).unwrap());
-                    self.on_net_changed(target, new_val, false);
+                for target in &output.changed_blocking_nets {
+                    if let Some(stmt_ids) = self.coverage.net_to_statement_ids.get(target).cloned() {
+                        for s in stmt_ids {
+                            self.coverage.record_statement_hit(s);
+                        }
+                    }
+                    let new_val = self.compiled.arena.read_net(self.compiled.circuit.get_net(*target).unwrap());
+                    self.on_net_changed(*target, new_val, false);
                 }
                 for (target, value) in output.scheduled_nbas {
                     *nbas_count += 1;
+                    if let Some(stmt_ids) = self.coverage.net_to_statement_ids.get(&target).cloned() {
+                        for s in stmt_ids {
+                            self.coverage.record_statement_hit(s);
+                        }
+                    }
                     self.event_queue.schedule(
                         self.current_time,
                         self.current_delta,
@@ -368,6 +398,7 @@ impl AxiomSimulator {
                         EventPayload::ApplyNba { target, value },
                     );
                 }
+                self.update_branch_coverage();
             }
             EventPayload::ApplyNba { target, value } => {
                 let target_net = match self.compiled.circuit.get_net(target) {
@@ -414,6 +445,33 @@ impl AxiomSimulator {
     fn on_net_changed(&mut self, net: NetId, new_val: LogicVector, is_nba: bool) {
         let net_name = self.compiled.circuit.get_net(net).map(|n| n.name.as_str()).unwrap_or("unknown");
 
+        // Record bit toggles for live toggle coverage
+        let prev_val = self.prev_net_values.get(&net).cloned();
+        let width = new_val.width() as usize;
+        for bit_idx in 0..width {
+            let old_b = prev_val.as_ref().map(|p| p.get_bit(bit_idx as u32)).unwrap_or(Logic4::X);
+            let new_b = new_val.get_bit(bit_idx as u32);
+            if old_b == Logic4::Zero && new_b == Logic4::One {
+                self.coverage.record_toggle(net, bit_idx, true);
+            } else if old_b == Logic4::One && new_b == Logic4::Zero {
+                self.coverage.record_toggle(net, bit_idx, false);
+            }
+        }
+
+        // Record FSM state transitions if signal relates to FSM state register
+        if net_name.contains("state") {
+            let s_val = new_val.to_u64().unwrap_or(0);
+            let s_name = format!("STATE_{}", s_val);
+            self.coverage.record_fsm_state("fsm_main", &s_name);
+            if let Some(prev) = &prev_val {
+                let p_val = prev.to_u64().unwrap_or(0);
+                if p_val != s_val {
+                    let p_name = format!("STATE_{}", p_val);
+                    self.coverage.record_fsm_transition("fsm_main", &p_name, &s_name);
+                }
+            }
+        }
+
         // Record transition for glitch detection
         self.glitch_detector.record_transition(net, new_val.clone(), self.current_time, self.current_delta);
 
@@ -423,7 +481,6 @@ impl AxiomSimulator {
         }
 
         // Determine edge (posedge, negedge, or value change)
-        let prev_val = self.prev_net_values.get(&net).cloned();
         let is_posedge = match &prev_val {
             Some(prev) => prev.get_bit(0) == Logic4::Zero && new_val.get_bit(0) == Logic4::One,
             None => new_val.get_bit(0) == Logic4::One,
@@ -562,5 +619,200 @@ impl AxiomSimulator {
         }
 
         Ok(())
+    }
+
+    /// Records an automatic snapshot into the time-machine ring buffer.
+    pub fn record_snapshot(&mut self) -> CheckpointId {
+        self.time_machine.push(
+            self.current_time,
+            self.current_delta,
+            self.compiled.arena.clone(),
+            self.event_queue.clone(),
+            self.glitch_detector.clone(),
+        )
+    }
+
+    /// Restores full simulation state from a snapshot.
+    pub fn restore_snapshot(&mut self, snap: &SimSnapshot) {
+        self.current_time = snap.time;
+        self.current_delta = snap.delta;
+        self.compiled.arena = snap.arena.clone();
+        self.event_queue = snap.event_queue.clone();
+        self.glitch_detector = snap.glitch_detector.clone();
+
+        // Resync prev_net_values
+        for net in &self.compiled.circuit.nets {
+            let val = self.compiled.arena.read_net(net);
+            self.prev_net_values.insert(net.id, val);
+        }
+
+        // Notify listeners that delta cycle finished at new coordinate
+        for listener in &mut self.listeners {
+            listener.on_delta_cycle_finished(self.current_time, self.current_delta);
+        }
+    }
+
+    /// Rewinds the simulation by exactly one delta cycle (or to the nearest prior state).
+    pub fn step_back_delta(&mut self) -> Result<DeltaSummary, SimError> {
+        let prev_snap = self.time_machine.find_prev_delta(self.current_time, self.current_delta).cloned();
+        if let Some(snap) = prev_snap {
+            self.restore_snapshot(&snap);
+            Ok(DeltaSummary {
+                time: self.current_time,
+                delta: self.current_delta,
+                events_processed: 0,
+                active_nbas: 0,
+                settled: true,
+            })
+        } else {
+            Ok(DeltaSummary {
+                time: self.current_time,
+                delta: self.current_delta,
+                events_processed: 0,
+                active_nbas: 0,
+                settled: true,
+            })
+        }
+    }
+
+    /// Rewinds the simulation by dt physical time.
+    pub fn step_back_time(&mut self, dt: SimTime) -> Result<TickSummary, SimError> {
+        let target_ps = self.current_time.as_ps().saturating_sub(dt.as_ps());
+        self.scrub_to_time(SimTime::from_ps(target_ps))
+    }
+
+    /// Scrubs to a target timestamp: restores the closest snapshot <= target_time,
+    /// and fast-forwards forward to target_time if needed.
+    pub fn scrub_to_time(&mut self, target_time: SimTime) -> Result<TickSummary, SimError> {
+        let start_time = self.current_time;
+        if target_time == self.current_time {
+            return Ok(TickSummary {
+                start_time,
+                end_time: target_time,
+                delta_cycles_executed: 0,
+                events_executed: 0,
+                glitches_detected: self.glitch_detector.glitches().len(),
+            });
+        }
+
+        let best_snap = self.time_machine.find_closest_before(target_time).cloned();
+        if let Some(snap) = best_snap {
+            self.restore_snapshot(&snap);
+            if self.current_time < target_time {
+                let dt = target_time.as_ps() - self.current_time.as_ps();
+                return self.tick(SimTime::from_ps(dt));
+            }
+            Ok(TickSummary {
+                start_time,
+                end_time: self.current_time,
+                delta_cycles_executed: 0,
+                events_executed: 0,
+                glitches_detected: self.glitch_detector.glitches().len(),
+            })
+        } else {
+            self.current_time = SimTime::ZERO;
+            self.current_delta = 0;
+            self.initialize_circuit();
+            if target_time > SimTime::ZERO {
+                self.tick(target_time)
+            } else {
+                Ok(TickSummary {
+                    start_time,
+                    end_time: SimTime::ZERO,
+                    delta_cycles_executed: 0,
+                    events_executed: 0,
+                    glitches_detected: 0,
+                })
+            }
+        }
+    }
+
+    /// Sets the static AST coverage points and maps them to circuit nets.
+    pub fn set_coverage_points(&mut self, points: AstCoveragePoints) {
+        let mut net_to_stmts: HashMap<NetId, Vec<usize>> = HashMap::new();
+        for stmt in &points.statements {
+            for net in &self.compiled.circuit.nets {
+                let net_leaf = net.name.rsplit_once('.').map(|(_, l)| l).unwrap_or(&net.name);
+                if stmt.snippet.contains(&net.name) || stmt.snippet.contains(net_leaf) {
+                    net_to_stmts.entry(net.id).or_default().push(stmt.id);
+                }
+            }
+        }
+        self.coverage.net_to_statement_ids = net_to_stmts;
+        self.coverage.set_points(points);
+    }
+
+    /// Evaluates branch conditions against current circuit state arena.
+    pub fn update_branch_coverage(&mut self) {
+        if let Some(pts) = &self.coverage.points {
+            let branch_data: Vec<(usize, String)> = pts
+                .branches
+                .iter()
+                .map(|b| (b.id, b.cond_text.clone()))
+                .collect();
+            for (id, cond_text) in branch_data {
+                if let Some(is_true) = self.eval_simple_branch_cond(&cond_text) {
+                    self.coverage.record_branch_hit(id, is_true);
+                }
+            }
+        }
+    }
+
+    fn eval_simple_branch_cond(&self, cond: &str) -> Option<bool> {
+        let trimmed = cond.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        // 1. Inverted signal: !rst_n, ~rst_n
+        if let Some(sig) = trimmed.strip_prefix('!').or_else(|| trimmed.strip_prefix('~')) {
+            let sig = sig.trim();
+            if let Some(net) = self.compiled.circuit.get_net_by_name(sig) {
+                let val = self.compiled.arena.read_net(net);
+                return Some(val.get_bit(0) == Logic4::Zero);
+            }
+        }
+
+        // 2. Direct signal: rst_n, sel, en
+        if let Some(net) = self.compiled.circuit.get_net_by_name(trimmed) {
+            let val = self.compiled.arena.read_net(net);
+            return Some(val.get_bit(0) == Logic4::One);
+        }
+
+        // 3. Equality: state == 2'b01 or a == b
+        if let Some((lhs, rhs)) = trimmed.split_once("==") {
+            let lhs = lhs.trim();
+            let rhs = rhs.trim();
+            if let Some(net) = self.compiled.circuit.get_net_by_name(lhs) {
+                let val = self.compiled.arena.read_net(net);
+                let uval = val.to_u64().unwrap_or(0);
+                let target_val = if let Some(hex) = rhs.strip_prefix("0x") {
+                    u64::from_str_radix(hex, 16).ok()
+                } else if let Some((_, bin)) = rhs.split_once("'b") {
+                    u64::from_str_radix(bin, 2).ok()
+                } else if let Some((_, hex)) = rhs.split_once("'h") {
+                    u64::from_str_radix(hex, 16).ok()
+                } else if let Some((_, dec)) = rhs.split_once("'d") {
+                    dec.parse::<u64>().ok()
+                } else {
+                    rhs.parse::<u64>().ok()
+                };
+                if let Some(t) = target_val {
+                    return Some(uval == t);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Generates an in-depth coverage report with statement, branch, toggle, and FSM metrics.
+    pub fn get_coverage_report(&self) -> CoverageReport {
+        self.coverage.generate_report()
+    }
+
+    /// Resets all coverage counters to zero.
+    pub fn reset_coverage(&mut self) {
+        self.coverage.reset();
     }
 }

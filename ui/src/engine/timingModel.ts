@@ -75,19 +75,274 @@ export interface EnergyTreemapNode {
 }
 
 // --------------------------------------------------------------------------
-// 1. Static Timing Analysis (STA) Engine
+// 1. Static Timing Analysis (STA) Engine & Result Converter
 // --------------------------------------------------------------------------
+
+export function convertStaResult(
+  raw: any,
+  overrideClockPeriodNs?: number
+): { summary: SlackRadarSummary; cdcCrossings: CdcCrossing[] } {
+  if (!raw) {
+    throw new Error("Null or invalid STA output");
+  }
+
+  const clockPeriodPs = overrideClockPeriodNs
+    ? Math.round(overrideClockPeriodNs * 1000)
+    : Math.round(raw.clock_period_ps || 10000);
+  const targetFrequencyMhz = Math.round(1_000_000 / clockPeriodPs);
+
+  const rawWns = typeof raw.worst_negative_slack_ps === "number" ? raw.worst_negative_slack_ps : 0;
+  const rawWhs = typeof raw.worst_hold_slack_ps === "number" ? raw.worst_hold_slack_ps : 0;
+
+  // Scale slack if user overrode clock period
+  const deltaPeriodPs = overrideClockPeriodNs ? clockPeriodPs - (raw.clock_period_ps || 10000) : 0;
+  const adjustedWns = rawWns + deltaPeriodPs;
+
+  const rawPaths: any[] = Array.isArray(raw.all_paths) ? raw.all_paths : [];
+  const allPaths: TimingPath[] = rawPaths.map((p, idx) => {
+    const pSlack = (typeof p.slack_ps === "number" ? p.slack_ps : 0) + deltaPeriodPs;
+    const segments: PathSegment[] = (p.segments || []).map((seg: any) => {
+      let segType: PathSegment["type"] = "logic_cell";
+      const st = String(seg.segment_type || "").toLowerCase();
+      if (st.includes("clock")) segType = "launch_clock";
+      else if (st.includes("cell") || st.includes("lut") || st.includes("gate")) segType = "logic_cell";
+      else if (st.includes("net") || st.includes("wire") || st.includes("port")) segType = "interconnect";
+      else if (st.includes("setup")) segType = "setup_window";
+      else if (st.includes("tco") || st.includes("clk_to_q")) segType = "clock_to_out";
+
+      return {
+        name: seg.name || `Segment ${seg.instanceName || ""}`,
+        type: segType,
+        delayPs: Math.round(seg.delay_ps || 0),
+        cumulativeDelayPs: Math.round(seg.total_delay_ps || 0),
+        instanceName: seg.details || seg.name || "",
+        location: seg.details
+      };
+    });
+
+    return {
+      id: p.id || `path_${idx + 1}`,
+      startPoint: p.startpoint || "IN",
+      endPoint: p.endpoint || "OUT",
+      clockDomain: p.launch_clock || "clk",
+      slackPs: Math.round(pSlack),
+      requiredTimePs: Math.round(clockPeriodPs),
+      arrivalTimePs: Math.round(p.data_delay_ps || 0),
+      dataDelayPs: Math.round(p.data_delay_ps || 0),
+      logicDelayPs: Math.round(p.logic_delay_ps || 0),
+      netDelayPs: Math.round(p.wire_delay_ps || 0),
+      logicLevels: p.logic_levels || segments.length,
+      segments,
+      status: pSlack < 0 ? "violated" : "met"
+    };
+  });
+
+  const criticalPath: TimingPath = allPaths.reduce<TimingPath | null>((worst, cur) => {
+    if (!worst || cur.slackPs < worst.slackPs) return cur;
+    return worst;
+  }, null) ?? (allPaths[0] || {
+    id: "path_1",
+    startPoint: "clk",
+    endPoint: "out",
+    clockDomain: "clk",
+    slackPs: adjustedWns,
+    requiredTimePs: clockPeriodPs,
+    arrivalTimePs: clockPeriodPs - adjustedWns,
+    dataDelayPs: 250,
+    logicDelayPs: 180,
+    netDelayPs: 70,
+    logicLevels: 2,
+    segments: [],
+    status: adjustedWns < 0 ? "violated" : "met"
+  });
+
+  const failingPathsCount = allPaths.filter((p) => p.status === "violated").length;
+  const totalNegativeSlackPs = allPaths.filter((p) => p.slackPs < 0).reduce((acc, p) => acc + p.slackPs, 0);
+
+  // Re-bin histogram
+  const rawHistogram: any[] = Array.isArray(raw.histogram) ? raw.histogram : [];
+  let histogramBins = rawHistogram.map((h) => ({
+    range: h.range_label || "",
+    count: Number(h.count) || 0,
+    isViolating: Boolean(h.is_negative)
+  }));
+
+  if (histogramBins.length === 0 && allPaths.length > 0) {
+    histogramBins = [
+      { range: "< -1000ps", count: allPaths.filter((p) => p.slackPs < -1000).length, isViolating: true },
+      { range: "-1000..0ps", count: allPaths.filter((p) => p.slackPs >= -1000 && p.slackPs < 0).length, isViolating: true },
+      { range: "0..+500ps", count: allPaths.filter((p) => p.slackPs >= 0 && p.slackPs < 500).length, isViolating: false },
+      { range: "+500..+1500ps", count: allPaths.filter((p) => p.slackPs >= 500 && p.slackPs < 1500).length, isViolating: false },
+      { range: "> +1500ps", count: allPaths.filter((p) => p.slackPs >= 1500).length, isViolating: false }
+    ];
+  }
+
+  const maxOperatingFrequencyMhz = adjustedWns !== 0
+    ? Math.max(1, Math.round(1_000_000 / Math.max(50, clockPeriodPs - adjustedWns)))
+    : (typeof raw.fmax_mhz === "number" ? Math.round(raw.fmax_mhz) : targetFrequencyMhz);
+
+  const summary: SlackRadarSummary = {
+    clockPeriodPs,
+    targetFrequencyMhz,
+    maxOperatingFrequencyMhz,
+    worstNegativeSlackPs: Math.round(adjustedWns),
+    totalNegativeSlackPs: Math.round(totalNegativeSlackPs),
+    worstHoldSlackPs: Math.round(rawWhs),
+    failingPathsCount,
+    totalPathsCount: allPaths.length,
+    histogramBins,
+    criticalPath,
+    allPaths
+  };
+
+  const rawCdc: any[] = Array.isArray(raw.cdc_crossings) ? raw.cdc_crossings : [];
+  const cdcCrossings: CdcCrossing[] = rawCdc.map((c, i) => {
+    const isSafe = c.classification === "Safe" || c.classification === 0;
+    const isConstrained = c.classification === "Constrained" || c.classification === 2;
+    return {
+      id: c.id || `cdc_${i + 1}`,
+      sourceDomain: c.source_clk || "src_clk",
+      destDomain: c.dest_clk || "dst_clk",
+      sourceSignal: c.source_reg || "src_reg",
+      destSignal: c.dest_reg || "dst_reg",
+      ratio: "1:1",
+      kind: c.stages > 0 ? "synchronous" : "asynchronous",
+      protection: c.stages >= 2 ? "2ff_synchronizer" : (c.stages === 1 ? "handshake" : "none"),
+      status: isSafe ? "safe" : (isConstrained ? "warning" : "critical"),
+      message: isSafe
+        ? `${c.stages}-Stage Flip-Flop Synchronizer (MTBF > 10,000 yrs)`
+        : isConstrained
+        ? "Constrained Asynchronous Transfer via set_clock_groups / set_false_path"
+        : "CRITICAL: Unsynchronized Clock Domain Crossing! Metastability Risk"
+    };
+  });
+
+  return { summary, cdcCrossings };
+}
 
 export function computeTimingAnalysis(topModule: string, clockPeriodNs = 10.0): SlackRadarSummary {
   const clockPeriodPs = Math.round(clockPeriodNs * 1000);
   const targetFrequencyMhz = Math.round(1000 / clockPeriodNs);
 
+  const isLogicCircuit = topModule.includes("logic_circuit");
+  const isDspMac = topModule.includes("dsp_bram_mac") || topModule.includes("dsp");
   const isAlu = topModule.includes("alu");
   const isCounter = topModule.includes("counter");
 
   let paths: TimingPath[] = [];
 
-  if (isAlu) {
+  if (isLogicCircuit) {
+    paths = [
+      {
+        id: "path_1",
+        startPoint: "A",
+        endPoint: "F",
+        clockDomain: "clk",
+        slackPs: 0,
+        requiredTimePs: clockPeriodPs,
+        arrivalTimePs: 0,
+        dataDelayPs: 370,
+        logicDelayPs: 260,
+        netDelayPs: 110,
+        logicLevels: 4,
+        segments: [
+          { name: "Input Pad (A)", type: "interconnect", delayPs: 35, cumulativeDelayPs: 35, instanceName: "in_a" },
+          { name: "INV (inv1)", type: "logic_cell", delayPs: 62, cumulativeDelayPs: 97, instanceName: "inv1" },
+          { name: "Interconnect (w1)", type: "interconnect", delayPs: 25, cumulativeDelayPs: 122, instanceName: "w1" },
+          { name: "AND2 (and1)", type: "logic_cell", delayPs: 65, cumulativeDelayPs: 187, instanceName: "and1" },
+          { name: "Interconnect (w2)", type: "interconnect", delayPs: 25, cumulativeDelayPs: 212, instanceName: "w2" },
+          { name: "AND2 (and2)", type: "logic_cell", delayPs: 65, cumulativeDelayPs: 277, instanceName: "and2" },
+          { name: "Interconnect (w3)", type: "interconnect", delayPs: 25, cumulativeDelayPs: 302, instanceName: "w3" },
+          { name: "OR2 (or1)", type: "logic_cell", delayPs: 68, cumulativeDelayPs: 370, instanceName: "or1" }
+        ],
+        status: "met"
+      },
+      {
+        id: "path_2",
+        startPoint: "B",
+        endPoint: "F",
+        clockDomain: "clk",
+        slackPs: 0,
+        requiredTimePs: clockPeriodPs,
+        arrivalTimePs: 0,
+        dataDelayPs: 198,
+        logicDelayPs: 130,
+        netDelayPs: 68,
+        logicLevels: 2,
+        segments: [
+          { name: "Input Pad (B)", type: "interconnect", delayPs: 35, cumulativeDelayPs: 35, instanceName: "in_b" },
+          { name: "INV (inv2)", type: "logic_cell", delayPs: 62, cumulativeDelayPs: 97, instanceName: "inv2" },
+          { name: "Interconnect (w4)", type: "interconnect", delayPs: 25, cumulativeDelayPs: 122, instanceName: "w4" },
+          { name: "OR2 (or1)", type: "logic_cell", delayPs: 68, cumulativeDelayPs: 190, instanceName: "or1" }
+        ],
+        status: "met"
+      },
+      {
+        id: "path_3",
+        startPoint: "C",
+        endPoint: "F",
+        clockDomain: "clk",
+        slackPs: 0,
+        requiredTimePs: clockPeriodPs,
+        arrivalTimePs: 0,
+        dataDelayPs: 220,
+        logicDelayPs: 133,
+        netDelayPs: 87,
+        logicLevels: 2,
+        segments: [
+          { name: "Input Pad (C)", type: "interconnect", delayPs: 35, cumulativeDelayPs: 35, instanceName: "in_c" },
+          { name: "AND2 (and2)", type: "logic_cell", delayPs: 65, cumulativeDelayPs: 100, instanceName: "and2" },
+          { name: "Interconnect (w3)", type: "interconnect", delayPs: 25, cumulativeDelayPs: 125, instanceName: "w3" },
+          { name: "OR2 (or1)", type: "logic_cell", delayPs: 68, cumulativeDelayPs: 193, instanceName: "or1" }
+        ],
+        status: "met"
+      }
+    ];
+  } else if (isDspMac) {
+    paths = [
+      {
+        id: "path_1",
+        startPoint: "bram_inst/CLKARDCLK",
+        endPoint: "dsp_inst/P[47:0]",
+        clockDomain: "clk",
+        slackPs: 0,
+        requiredTimePs: clockPeriodPs - 50,
+        arrivalTimePs: 0,
+        dataDelayPs: 2420,
+        logicDelayPs: 2260,
+        netDelayPs: 160,
+        logicLevels: 2,
+        segments: [
+          { name: "Clock Skew (BUFG)", type: "launch_clock", delayPs: 35, cumulativeDelayPs: 35, instanceName: "bufg_clk" },
+          { name: "RAMB36E2 (bram_inst) Tco", type: "clock_to_out", delayPs: 680, cumulativeDelayPs: 715, instanceName: "bram_inst" },
+          { name: "Interconnect Net (douta)", type: "interconnect", delayPs: 110, cumulativeDelayPs: 825, instanceName: "douta" },
+          { name: "DSP48E2 Multiplier + Accumulator", type: "logic_cell", delayPs: 1580, cumulativeDelayPs: 2405, instanceName: "dsp_inst" },
+          { name: "Setup Window (P-Reg)", type: "setup_window", delayPs: 50, cumulativeDelayPs: 2455, instanceName: "dsp_inst/P" }
+        ],
+        status: "met"
+      },
+      {
+        id: "path_2",
+        startPoint: "dsp_inst/P[47:0]",
+        endPoint: "pipeline_valid_q/D",
+        clockDomain: "clk",
+        slackPs: 0,
+        requiredTimePs: clockPeriodPs - 45,
+        arrivalTimePs: 0,
+        dataDelayPs: 540,
+        logicDelayPs: 320,
+        netDelayPs: 220,
+        logicLevels: 1,
+        segments: [
+          { name: "DSP48E2 Tco (P-Reg)", type: "clock_to_out", delayPs: 220, cumulativeDelayPs: 220, instanceName: "dsp_inst" },
+          { name: "Interconnect (p_wire)", type: "interconnect", delayPs: 100, cumulativeDelayPs: 320, instanceName: "p_wire" },
+          { name: "Control LUT6_2", type: "logic_cell", delayPs: 100, cumulativeDelayPs: 420, instanceName: "lut_ctrl" },
+          { name: "Setup Window (FDRE)", type: "setup_window", delayPs: 45, cumulativeDelayPs: 465, instanceName: "pipeline_valid_q/D" }
+        ],
+        status: "met"
+      }
+    ];
+  } else if (isAlu) {
     paths = [
       {
         id: "path_1",
@@ -356,12 +611,99 @@ export function computeCdcMatrix(topModule: string): CdcCrossing[] {
 // --------------------------------------------------------------------------
 
 export function computeEnergyTreemap(topModule: string, stateCurrentSimTimePs: number): EnergyTreemapNode {
+  const isLogicCircuit = topModule.includes("logic_circuit");
+  const isDspMac = topModule.includes("dsp_bram_mac") || topModule.includes("dsp");
   const isAlu = topModule.includes("alu");
   const isCounter = topModule.includes("counter");
 
   const totalTimeNs = Math.max(1, stateCurrentSimTimePs / 1000);
 
-  if (isAlu) {
+  if (isLogicCircuit) {
+    const totalEnergy = 1.15 * totalTimeNs;
+    return {
+      id: "node_logic_top",
+      name: "logic_circuit (Top)",
+      scope: "top",
+      category: "datapath",
+      energyUj: totalEnergy,
+      percentage: 100,
+      switchingRateAlpha: 0.35,
+      thermalColor: "#10b981", // Cool Green
+      pdnDroopMv: 3.2,
+      children: [
+        {
+          id: "node_logic_gates",
+          name: "Gate-Level Logic (inv1/2, and1/2, or1)",
+          scope: "top.gates",
+          category: "datapath",
+          energyUj: totalEnergy * 0.72,
+          percentage: 72,
+          switchingRateAlpha: 0.45,
+          thermalColor: "#38bdf8",
+          pdnDroopMv: 2.1
+        },
+        {
+          id: "node_logic_io",
+          name: "I/O Buffers & Pads (A, B, C, F)",
+          scope: "top.io",
+          category: "io",
+          energyUj: totalEnergy * 0.28,
+          percentage: 28,
+          switchingRateAlpha: 0.25,
+          thermalColor: "#10b981",
+          pdnDroopMv: 1.1
+        }
+      ]
+    };
+  } else if (isDspMac) {
+    const totalEnergy = 8.4 * totalTimeNs;
+    return {
+      id: "node_dsp_top",
+      name: "dsp_bram_mac (Top)",
+      scope: "top",
+      category: "submodule",
+      energyUj: totalEnergy,
+      percentage: 100,
+      switchingRateAlpha: 0.78,
+      thermalColor: "#f97316", // Amber
+      pdnDroopMv: 22.4,
+      children: [
+        {
+          id: "node_dsp_slice",
+          name: "DSP48E2 MAC Slice (dsp_inst)",
+          scope: "top.dsp_inst",
+          category: "datapath",
+          energyUj: totalEnergy * 0.52,
+          percentage: 52,
+          switchingRateAlpha: 0.85,
+          thermalColor: "#ef4444", // Red Hot
+          pdnDroopMv: 12.5
+        },
+        {
+          id: "node_dsp_bram",
+          name: "RAMB36E2 Dual-Port BRAM (bram_inst)",
+          scope: "top.bram_inst",
+          category: "submodule",
+          energyUj: totalEnergy * 0.32,
+          percentage: 32,
+          switchingRateAlpha: 0.65,
+          thermalColor: "#f59e0b",
+          pdnDroopMv: 7.2
+        },
+        {
+          id: "node_dsp_clk",
+          name: "Clock & Pipeline Control (BUFG & FDRE)",
+          scope: "top.clk",
+          category: "clock",
+          energyUj: totalEnergy * 0.16,
+          percentage: 16,
+          switchingRateAlpha: 1.0,
+          thermalColor: "#38bdf8",
+          pdnDroopMv: 2.7
+        }
+      ]
+    };
+  } else if (isAlu) {
     const totalEnergy = 4.85 * totalTimeNs;
     return {
       id: "node_alu_top",

@@ -16,6 +16,7 @@ axiom-jit = { workspace = true }
 axiom-sim = { workspace = true }
 axiom-telemetry = { workspace = true }
 axiom-lsp = { workspace = true }
+axiom-sta = { workspace = true }
 wasm-bindgen = "0.2"
 serde = { workspace = true }
 serde-wasm-bindgen = "0.6"

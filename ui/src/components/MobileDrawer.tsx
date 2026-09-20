@@ -21,8 +21,9 @@ import { AxiomProject } from "../engine/projectModel";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { Badge, Button } from "./ui";
 import { useTranslation } from "../i18n/i18nContext";
+import { Boxes, Layers, Gauge } from "lucide-react";
 
-export type MobilePanelType = "editor" | "schematic" | "virtuallab" | "waveform" | "timing" | "dock";
+export type MobilePanelType = "editor" | "schematic" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "dock";
 
 export interface MobileDrawerProps {
   isOpen: boolean;
@@ -85,6 +86,27 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       sublabel: "IEEE gate symbols & netlist",
       icon: <Cpu size={18} />,
       color: "var(--accent-cyan)"
+    },
+    {
+      id: "microarch",
+      label: "Architecture",
+      sublabel: "FSM, ALU & Memory block diagram",
+      icon: <Boxes size={18} />,
+      color: "var(--accent-purple)"
+    },
+    {
+      id: "multidie",
+      label: "Multi-Die / SLR",
+      sublabel: "2.5D Interposer, SLRs & SLLs",
+      icon: <Layers size={18} />,
+      color: "var(--accent-cyan)"
+    },
+    {
+      id: "ppa",
+      label: "PPA & Costs",
+      sublabel: "Pareto frontier & silicon cost advisor",
+      icon: <Gauge size={18} />,
+      color: "var(--accent-purple, #a855f7)"
     },
     {
       id: "virtuallab",

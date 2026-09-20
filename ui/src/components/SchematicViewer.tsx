@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   MapPin,
   Clock,
-  X
+  X,
+  Zap
 } from "lucide-react";
 import { SimulationState } from "../engine/engineBridge";
 import {
@@ -30,6 +31,7 @@ interface SchematicViewerProps {
   selectedSignalId?: string | null;
   onSelectSignal: (signalId: string) => void;
   onJumpToCode?: (lineStart: number, lineEnd: number) => void;
+  onOpenAutoPipeline?: (cone?: LogicCone | null) => void;
 }
 
 export type GateType =
@@ -53,7 +55,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   activeDesignId,
   selectedSignalId,
   onSelectSignal,
-  onJumpToCode
+  onJumpToCode,
+  onOpenAutoPipeline
 }) => {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -387,6 +390,14 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       if (isSelected || isHovered || isConnectedToHoveredNode) {
         ctx.shadowColor = "rgba(0, 240, 255, 0.85)";
         ctx.shadowBlur = 10;
+      } else if (inCone && activeCone.isSlackViolated) {
+        ctx.shadowColor = "rgba(244, 63, 94, 0.95)";
+        ctx.shadowBlur = 14;
+        ctx.lineWidth = 2.8;
+      } else if (inCone) {
+        ctx.shadowColor = "rgba(16, 185, 129, 0.75)";
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 2.4;
       }
 
       ctx.beginPath();
@@ -397,6 +408,25 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         }
       }
       ctx.stroke();
+
+      // Per-net delay badge along critical path wires (+0.09 ns net)
+      if (inCone && activeCone.isSlackViolated && edge.wirePoints.length >= 2 && lodLevel !== "macro") {
+        const pMid = edge.wirePoints[Math.floor(edge.wirePoints.length / 2)];
+        const netDelayText = edge.delayPs ? `+${(edge.delayPs / 1000).toFixed(2)} ns net` : "+0.09 ns net";
+        ctx.font = "bold 8.5px JetBrains Mono, monospace";
+        const dMetrics = ctx.measureText(netDelayText);
+        const dWidth = dMetrics.width + 8;
+
+        ctx.fillStyle = "#0c1017";
+        ctx.fillRect(pMid.x - dWidth / 2, pMid.y - 7, dWidth, 14);
+        ctx.strokeStyle = "rgba(244, 63, 94, 0.8)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pMid.x - dWidth / 2, pMid.y - 7, dWidth, 14);
+
+        ctx.fillStyle = "#f43f5e";
+        ctx.textAlign = "center";
+        ctx.fillText(netDelayText, pMid.x, pMid.y + 3.5);
+      }
 
       // Bus slash width tag indicator '/[8]'
       if (edge.isBus && edge.wirePoints.length >= 2 && lodLevel !== "macro") {
@@ -558,6 +588,33 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         ctx.textAlign = "center";
         const titleY = node.sublabel ? node.y + 16 : node.y + node.height / 2 + 4;
         ctx.fillText(node.label, node.x + node.width / 2, titleY);
+      }
+
+      // Per-gate delay badge on critical path cells (+0.18 ns LUT)
+      if (
+        isCritical &&
+        isConeActive &&
+        activeCone.isSlackViolated &&
+        visuals.gateType !== "port_in" &&
+        visuals.gateType !== "port_out" &&
+        lodLevel !== "macro"
+      ) {
+        const gateDelayText = node.delayPs ? `+${(node.delayPs / 1000).toFixed(2)} ns LUT` : "+0.18 ns LUT";
+        ctx.font = "bold 8.5px JetBrains Mono, monospace";
+        const gMetrics = ctx.measureText(gateDelayText);
+        const gWidth = gMetrics.width + 8;
+        const gX = node.x + node.width / 2;
+        const gY = node.y + node.height + 11;
+
+        ctx.fillStyle = "#0c1017";
+        ctx.fillRect(gX - gWidth / 2, gY - 8, gWidth, 14);
+        ctx.strokeStyle = "rgba(244, 63, 94, 0.9)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(gX - gWidth / 2, gY - 8, gWidth, 14);
+
+        ctx.fillStyle = "#f43f5e";
+        ctx.textAlign = "center";
+        ctx.fillText(gateDelayText, gX, gY + 2.5);
       }
       // Note: Standard logic gates (and, nand, or, nor, xor, xnor, not, buf) have clean,
       // uncluttered interiors and no text below them. Boolean equations (e.g. w4 = ~B)
@@ -1173,7 +1230,31 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               }}
             >
               <Filter size={10} />
-              <span>Cone [F]</span>
+              <span>Fan-In [F]</span>
+            </button>
+          )}
+
+          {/* Slice Fanout Cone Button */}
+          {(typeof window === "undefined" || window.innerWidth > 768 || selectedNodeId || selectedEdgeId) && (
+            <button
+              onClick={handleSliceFanout}
+              disabled={!selectedNodeId && !selectedEdgeId}
+              title="Slice Fan-Out Driven Tree (O)"
+              className="btn btn-secondary"
+              style={{
+                fontSize: 10.5,
+                padding: "2px 6px",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
+                cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer",
+                flexShrink: 0,
+                whiteSpace: "nowrap"
+              }}
+            >
+              <Layers size={10} />
+              <span>Fan-Out [O]</span>
             </button>
           )}
 
@@ -1366,6 +1447,33 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                 <span>{activeCone.isSlackViolated ? "VIOLATED" : "MET"}</span>
               </div>
             </div>
+
+            {onOpenAutoPipeline && activeCone.isSlackViolated && (
+              <button
+                onClick={() => onOpenAutoPipeline(activeCone)}
+                style={{
+                  gridColumn: "1 / -1",
+                  marginTop: 6,
+                  padding: "6px 10px",
+                  background: "linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(168, 85, 247, 0.25))",
+                  border: "1px solid rgba(244, 63, 94, 0.6)",
+                  borderRadius: 6,
+                  color: "#fff",
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  boxShadow: "0 2px 8px rgba(244, 63, 94, 0.2)"
+                }}
+              >
+                <Zap size={12} color="#f43f5e" />
+                <span>⚡ Silicon Copilot: Auto-Pipeline Path</span>
+              </button>
+            )}
           </div>
         </div>
       )}

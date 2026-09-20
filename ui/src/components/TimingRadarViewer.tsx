@@ -1,47 +1,121 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Clock,
   CheckCircle2,
   TrendingUp,
   Share2,
   Flame,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle,
+  Crosshair,
+  ExternalLink,
+  Zap,
+  Loader2
 } from "lucide-react";
-import { SimulationState } from "../engine/engineBridge";
+import { engineBridge, SimulationState } from "../engine/engineBridge";
 import {
   computeTimingAnalysis,
   computeCdcMatrix,
   computeEnergyTreemap,
+  convertStaResult,
   TimingPath,
+  PathSegment,
   SlackRadarSummary,
   CdcCrossing,
   EnergyTreemapNode
 } from "../engine/timingModel";
+import { AxiomProject, ProjectFile } from "../engine/projectModel";
 import { useTranslation } from "../i18n/i18nContext";
 
 interface TimingRadarViewerProps {
   state: SimulationState;
   activeDesignId?: string;
+  project?: AxiomProject | null;
+  onCrossProbe?: (signalOrInstance: string) => void;
+  onNavigateToLine?: (line: number) => void;
+  onOpenAutoPipeline?: (path?: TimingPath | null) => void;
 }
 
 export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
   state,
-  activeDesignId: _activeDesignId
+  activeDesignId: _activeDesignId,
+  project,
+  onCrossProbe,
+  onNavigateToLine,
+  onOpenAutoPipeline
 }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"waterfall" | "cdc" | "treemap">("waterfall");
   const [clockPeriodNs, setClockPeriodNs] = useState<number>(10.0); // 100 MHz default
   const [selectedPathId, setSelectedPathId] = useState<string>("path_1");
 
+  // Dynamic live STA results from Rust axiom-sta engine
+  const [liveStaSummary, setLiveStaSummary] = useState<SlackRadarSummary | null>(null);
+  const [liveCdcCrossings, setLiveCdcCrossings] = useState<CdcCrossing[] | null>(null);
+  const [isLoadingSta, setIsLoadingSta] = useState<boolean>(false);
+  const [isLiveStaEngine, setIsLiveStaEngine] = useState<boolean>(false);
+  const [lastAnalysisDurationMs, setLastAnalysisDurationMs] = useState<number | null>(null);
+
+  // Trigger live STA analysis whenever project sources or clock constraint changes
+  useEffect(() => {
+    let cancelled = false;
+    if (!project) {
+      setLiveStaSummary(null);
+      setLiveCdcCrossings(null);
+      setIsLiveStaEngine(false);
+      return;
+    }
+
+    const designFiles = project.files.filter((f: ProjectFile) => f.fileSet === "sources_1");
+    const constrFiles = project.files.filter((f: ProjectFile) => f.fileSet === "constrs_1");
+    const verilogCode = designFiles.map((f: ProjectFile) => f.content).join("\n\n");
+    const xdcCode = constrFiles.map((f: ProjectFile) => f.content).join("\n\n");
+    const topModule = project.topModule || state.topModule;
+
+    if (!verilogCode.trim()) {
+      return;
+    }
+
+    setIsLoadingSta(true);
+    const startT = performance.now();
+    engineBridge
+      .runSta(verilogCode, xdcCode, topModule)
+      .then((res) => {
+        if (cancelled || !res) return;
+        try {
+          const { summary, cdcCrossings: cdc } = convertStaResult(res, clockPeriodNs);
+          const dur = Math.round(performance.now() - startT);
+          setLiveStaSummary(summary);
+          setLiveCdcCrossings(cdc);
+          setIsLiveStaEngine(true);
+          setLastAnalysisDurationMs(dur);
+        } catch (err) {
+          console.warn("[TimingRadarViewer] STA conversion fallback:", err);
+        }
+      })
+      .catch((err) => {
+        console.warn("[TimingRadarViewer] STA run error:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSta(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project, state.topModule, clockPeriodNs]);
+
   // Run Timing Analysis for active design & constraint
   const timingSummary: SlackRadarSummary = useMemo(() => {
+    if (liveStaSummary) return liveStaSummary;
     return computeTimingAnalysis(state.topModule, clockPeriodNs);
-  }, [state.topModule, clockPeriodNs]);
+  }, [liveStaSummary, state.topModule, clockPeriodNs]);
 
   // Run CDC Analysis
   const cdcCrossings: CdcCrossing[] = useMemo(() => {
+    if (liveCdcCrossings) return liveCdcCrossings;
     return computeCdcMatrix(state.topModule);
-  }, [state.topModule]);
+  }, [liveCdcCrossings, state.topModule]);
 
   // Run Energy Treemap Analysis
   const energyRoot: EnergyTreemapNode = useMemo(() => {
@@ -55,6 +129,27 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
       timingSummary.criticalPath
     );
   }, [timingSummary, selectedPathId]);
+
+  // 1-Click Cross-Probing Handler
+  const handleSegmentClick = (seg: PathSegment) => {
+    const targetName = seg.instanceName || seg.name;
+    if (onCrossProbe && targetName) {
+      onCrossProbe(targetName);
+    }
+    if (onNavigateToLine && project && targetName) {
+      const activeFile =
+        project.files.find((f: ProjectFile) => f.id === project.activeFileId) ??
+        project.files[0];
+      if (activeFile) {
+        const lines = activeFile.content.split("\n");
+        const cleanName = targetName.replace(/^[^\w]+|[^\w]+$/g, "");
+        const foundIdx = lines.findIndex((l: string) => l.includes(cleanName));
+        if (foundIdx >= 0) {
+          onNavigateToLine(foundIdx + 1);
+        }
+      }
+    }
+  };
 
   return (
     <div
@@ -84,6 +179,33 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
             <Clock size={14} color="var(--accent-cyan)" />
             <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
               {t.timing.title}
+            </span>
+          </div>
+
+          {/* Engine Status Badge */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "2px 8px",
+              borderRadius: 4,
+              backgroundColor: isLiveStaEngine ? "rgba(16, 185, 129, 0.12)" : "rgba(56, 189, 248, 0.12)",
+              border: `1px solid ${isLiveStaEngine ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.3)"}`,
+              fontSize: 10
+            }}
+          >
+            {isLoadingSta ? (
+              <Loader2 size={10} className="animate-spin" color="var(--accent-cyan)" />
+            ) : (
+              <Zap size={10} color={isLiveStaEngine ? "var(--accent-emerald)" : "var(--accent-cyan)"} />
+            )}
+            <span style={{ color: isLiveStaEngine ? "var(--accent-emerald)" : "var(--accent-cyan)", fontWeight: 600 }}>
+              {isLoadingSta
+                ? "Analyzing STA..."
+                : isLiveStaEngine
+                ? `Live STA (${lastAnalysisDurationMs ?? 0}ms)`
+                : "Topological Model"}
             </span>
           </div>
 
@@ -375,7 +497,31 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {onOpenAutoPipeline && activePath.slackPs < 0 && (
+                    <button
+                      onClick={() => onOpenAutoPipeline(activePath)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        padding: "3px 10px",
+                        borderRadius: 4,
+                        backgroundColor: "rgba(244, 63, 94, 0.2)",
+                        border: "1px solid rgba(244, 63, 94, 0.5)",
+                        color: "#f43f5e",
+                        cursor: "pointer",
+                        boxShadow: "0 0 10px rgba(244, 63, 94, 0.2)",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      <Zap size={11} color="#f43f5e" />
+                      <span>⚡ Auto-Pipeline Path</span>
+                    </button>
+                  )}
+
                   {timingSummary.allPaths.map((p, idx) => (
                     <button
                       key={p.id}
@@ -438,7 +584,22 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                         : "#c084fc";
 
                     return (
-                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        key={idx}
+                        onClick={() => handleSegmentClick(seg)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          cursor: "pointer",
+                          padding: "2px 0",
+                          borderRadius: 4,
+                          transition: "background 0.15s"
+                        }}
+                        title={`Click to cross-probe "${seg.instanceName || seg.name}" in Schematic and jump to HDL`}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(56, 189, 248, 0.06)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      >
                         <div style={{ width: 140, fontSize: 10, color: "var(--text-muted)", textAlign: "right", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {seg.name}
                         </div>
@@ -483,13 +644,13 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   <div>
                     <span style={{ color: "var(--text-muted)" }}>{t.timing.logicDelay}: </span>
                     <span style={{ color: "var(--accent-emerald)", fontWeight: 700 }}>
-                      {activePath.logicDelayPs} ps ({( (activePath.logicDelayPs / activePath.dataDelayPs) * 100 ).toFixed(0)}%)
+                      {activePath.logicDelayPs} ps ({( (activePath.logicDelayPs / Math.max(1, activePath.dataDelayPs)) * 100 ).toFixed(0)}%)
                     </span>
                   </div>
                   <div>
                     <span style={{ color: "var(--text-muted)" }}>{t.timing.routingDelay}: </span>
                     <span style={{ color: "var(--accent-amber)", fontWeight: 700 }}>
-                      {activePath.netDelayPs} ps ({( (activePath.netDelayPs / activePath.dataDelayPs) * 100 ).toFixed(0)}%)
+                      {activePath.netDelayPs} ps ({( (activePath.netDelayPs / Math.max(1, activePath.dataDelayPs)) * 100 ).toFixed(0)}%)
                     </span>
                   </div>
                   <div>
@@ -498,9 +659,115 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                   </div>
                 </div>
 
-                <div style={{ fontSize: 11, color: "var(--accent-cyan)", display: "flex", alignItems: "center", gap: 4 }}>
-                  <CheckCircle2 size={12} />
-                  <span>Pipeline Optimization: Healthy Timing Margin</span>
+                <div style={{ fontSize: 11, color: activePath.slackPs >= 0 ? "var(--accent-cyan)" : "#f43f5e", display: "flex", alignItems: "center", gap: 4 }}>
+                  {activePath.slackPs >= 0 ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                  <span>{activePath.slackPs >= 0 ? "Timing Met: Robust Operating Margin" : "CRITICAL TIMING VIOLATION"}</span>
+                </div>
+              </div>
+
+              {/* Critical Path Datapath Segments & 1-Click Cross-Probing Table */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-tertiary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: 6,
+                  padding: "10px 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "#fff" }}>
+                    <Crosshair size={13} color="var(--accent-cyan)" />
+                    <span>Critical Path Netlist Elements &amp; 1-Click Cross-Probing</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                    Click row to highlight element in Schematic and jump to HDL source
+                  </span>
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "var(--font-sans)" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid var(--border-subtle)", textAlign: "left", color: "var(--text-muted)", fontSize: 10 }}>
+                        <th style={{ padding: "6px 8px" }}>#</th>
+                        <th style={{ padding: "6px 8px" }}>Segment / Pin</th>
+                        <th style={{ padding: "6px 8px" }}>Type</th>
+                        <th style={{ padding: "6px 8px" }}>Instance / Location</th>
+                        <th style={{ padding: "6px 8px" }}>Delay</th>
+                        <th style={{ padding: "6px 8px" }}>Cumulative</th>
+                        <th style={{ padding: "6px 8px", textAlign: "right" }}>Cross-Probe</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activePath.segments.map((seg, idx) => (
+                        <tr
+                          key={idx}
+                          onClick={() => handleSegmentClick(seg)}
+                          style={{
+                            borderBottom: "1px solid rgba(255,255,255,0.03)",
+                            cursor: "pointer",
+                            transition: "background 0.12s"
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(56, 189, 248, 0.08)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                        >
+                          <td style={{ padding: "6px 8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                            {idx + 1}
+                          </td>
+                          <td style={{ padding: "6px 8px", fontWeight: 600, color: "#fff" }}>
+                            {seg.name}
+                          </td>
+                          <td style={{ padding: "6px 8px" }}>
+                            <span
+                              style={{
+                                fontSize: 9,
+                                padding: "1px 5px",
+                                borderRadius: 3,
+                                backgroundColor: "var(--bg-secondary)",
+                                color: "var(--text-muted)",
+                                border: "1px solid var(--border-subtle)"
+                              }}
+                            >
+                              {seg.type}
+                            </span>
+                          </td>
+                          <td style={{ padding: "6px 8px", fontFamily: "var(--font-mono)", color: "var(--accent-cyan)" }}>
+                            {seg.instanceName || "—"}
+                          </td>
+                          <td style={{ padding: "6px 8px", fontFamily: "var(--font-mono)", color: "var(--accent-emerald)" }}>
+                            +{seg.delayPs} ps
+                          </td>
+                          <td style={{ padding: "6px 8px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+                            {seg.cumulativeDelayPs} ps
+                          </td>
+                          <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                            <button
+                              className="btn btn-ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSegmentClick(seg);
+                              }}
+                              style={{
+                                fontSize: 10,
+                                padding: "2px 6px",
+                                height: "auto",
+                                minHeight: 18,
+                                color: "var(--accent-cyan)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 3
+                              }}
+                            >
+                              <ExternalLink size={10} />
+                              <span>Probe</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -558,55 +825,70 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {cdcCrossings.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <td style={{ padding: "10px", fontFamily: "var(--font-mono)", color: "var(--accent-cyan)" }}>
-                      {c.sourceDomain}
-                    </td>
-                    <td style={{ padding: "10px", fontFamily: "var(--font-mono)", color: "var(--accent-blue)" }}>
-                      {c.destDomain}
-                    </td>
-                    <td style={{ padding: "10px", fontFamily: "var(--font-mono)", color: "#fff" }}>
-                      {c.sourceSignal} &rarr; {c.destSignal}
-                    </td>
-                    <td style={{ padding: "10px", color: "var(--text-muted)" }}>
-                      {c.ratio}
-                    </td>
-                    <td style={{ padding: "10px" }}>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          padding: "2px 6px",
-                          borderRadius: 3,
-                          backgroundColor: "var(--bg-tertiary)",
-                          color: "#fff",
-                          border: "1px solid var(--border-subtle)"
-                        }}
-                      >
-                        {c.protection === "2ff_synchronizer" ? "2-Stage DFF Synchronizer" : "Direct Net (Intra-Domain)"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px" }}>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "2px 8px",
-                          borderRadius: 3,
-                          backgroundColor: "rgba(16, 185, 129, 0.15)",
-                          color: "var(--accent-emerald)",
-                          border: "1px solid rgba(16, 185, 129, 0.3)",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4
-                        }}
-                      >
-                        <CheckCircle2 size={10} />
-                        <span>{t.timing.verifiedPass}</span>
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {cdcCrossings.map((c) => {
+                  const isSafe = c.status === "safe";
+                  const isWarning = c.status === "warning";
+                  const statusColor = isSafe ? "var(--accent-emerald)" : isWarning ? "var(--accent-amber)" : "#f43f5e";
+                  const statusBg = isSafe ? "rgba(16, 185, 129, 0.15)" : isWarning ? "rgba(245, 158, 11, 0.15)" : "rgba(244, 63, 94, 0.15)";
+                  const statusBorder = isSafe ? "rgba(16, 185, 129, 0.3)" : isWarning ? "rgba(245, 158, 11, 0.3)" : "rgba(244, 63, 94, 0.3)";
+
+                  return (
+                    <tr key={c.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                      <td style={{ padding: "10px", fontFamily: "var(--font-mono)", color: "var(--accent-cyan)" }}>
+                        {c.sourceDomain}
+                      </td>
+                      <td style={{ padding: "10px", fontFamily: "var(--font-mono)", color: "var(--accent-blue)" }}>
+                        {c.destDomain}
+                      </td>
+                      <td style={{ padding: "10px", fontFamily: "var(--font-mono)", color: "#fff" }}>
+                        {c.sourceSignal} &rarr; {c.destSignal}
+                      </td>
+                      <td style={{ padding: "10px", color: "var(--text-muted)" }}>
+                        {c.ratio}
+                      </td>
+                      <td style={{ padding: "10px" }}>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            borderRadius: 3,
+                            backgroundColor: "var(--bg-tertiary)",
+                            color: "#fff",
+                            border: "1px solid var(--border-subtle)"
+                          }}
+                        >
+                          {c.protection === "2ff_synchronizer"
+                            ? "2-Stage DFF Synchronizer"
+                            : c.protection === "handshake"
+                            ? "Handshake Sync"
+                            : "Direct / Unprotected"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px" }}>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: 3,
+                            backgroundColor: statusBg,
+                            color: statusColor,
+                            border: `1px solid ${statusBorder}`,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4
+                          }}
+                        >
+                          {isSafe ? <CheckCircle2 size={10} /> : <AlertTriangle size={10} />}
+                          <span>{isSafe ? t.timing.verifiedPass : isWarning ? "CONSTRAINED" : "HAZARD"}</span>
+                        </span>
+                        <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 3 }}>
+                          {c.message}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

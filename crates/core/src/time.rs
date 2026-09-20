@@ -22,6 +22,11 @@ impl SimTime {
     }
 
     #[inline(always)]
+    pub const fn from_ps(ps: u64) -> Self {
+        SimTime(ps)
+    }
+
+    #[inline(always)]
     pub const fn from_nanoseconds(ns: u64) -> Self {
         SimTime(ns * Self::NANOSECOND)
     }
@@ -38,6 +43,11 @@ impl SimTime {
 
     #[inline(always)]
     pub const fn as_picoseconds(&self) -> u64 {
+        self.0
+    }
+
+    #[inline(always)]
+    pub const fn as_ps(&self) -> u64 {
         self.0
     }
 

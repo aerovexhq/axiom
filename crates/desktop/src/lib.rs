@@ -68,6 +68,45 @@ fn step_delta(
 }
 
 #[tauri::command]
+fn step_back_delta(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<StepResponse, String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.step_back_delta()
+}
+
+#[tauri::command]
+fn step_back_time(
+    window: WebviewWindow,
+    dt_ps: u64,
+    state: State<'_, EngineState>,
+) -> Result<StepResponse, String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.step_back_time(dt_ps)
+}
+
+#[tauri::command]
+fn scrub_to_time(
+    window: WebviewWindow,
+    target_time_ps: u64,
+    state: State<'_, EngineState>,
+) -> Result<StepResponse, String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.scrub_to_time(target_time_ps)
+}
+
+#[tauri::command]
+fn decode_protocol(
+    request: axiom_sim::ProtocolDecodeRequest,
+) -> Result<Vec<axiom_sim::DecodedTransaction>, String> {
+    Ok(axiom_sim::decode_protocol_request(&request))
+}
+
+#[tauri::command]
 fn force_signal(
     window: WebviewWindow,
     net_name: String,
@@ -97,6 +136,216 @@ fn export_saif(
     let mgr = state.lock().unwrap();
     let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
     engine.export_saif()
+}
+
+#[tauri::command]
+fn get_coverage(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<axiom_sim::CoverageReport, String> {
+    let mgr = state.lock().unwrap();
+    let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
+    engine.get_coverage()
+}
+
+#[tauri::command]
+fn reset_coverage(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<(), String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.reset_coverage()
+}
+
+#[tauri::command]
+fn export_lcov(
+    window: WebviewWindow,
+    source_path: String,
+    state: State<'_, EngineState>,
+) -> Result<String, String> {
+    let mgr = state.lock().unwrap();
+    let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
+    engine.export_lcov(&source_path)
+}
+
+#[tauri::command]
+fn export_html_report(
+    window: WebviewWindow,
+    source_name: String,
+    source_code: String,
+    state: State<'_, EngineState>,
+) -> Result<String, String> {
+    let mgr = state.lock().unwrap();
+    let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
+    engine.export_html_report(&source_name, &source_code)
+}
+
+#[tauri::command]
+fn run_sta(
+    verilog_source: String,
+    xdc_source: String,
+    top_module: Option<String>,
+) -> Result<axiom_sta::SlackRadarSummary, String> {
+    let (ast, diags) = parse_hdl(FileId(1), &verilog_source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error: {}", err_msgs.join("; ")));
+    }
+
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+
+    let circuit = elaborate(&ast, &top).map_err(|e| format!("Elaboration Error: {}", e))?;
+    let summary = axiom_sta::analyze_circuit(&circuit, &xdc_source, None);
+    Ok(summary)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PipelineRefactorOutput {
+    pub refactored_code: String,
+    pub diff_preview: String,
+}
+
+#[tauri::command]
+fn recommend_pipeline(
+    verilog_source: String,
+    xdc_source: String,
+    top_module: Option<String>,
+) -> Result<axiom_sta::AutoPipelineRecommendation, String> {
+    let (ast, diags) = parse_hdl(FileId(1), &verilog_source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error: {}", err_msgs.join("; ")));
+    }
+
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+
+    let circuit = elaborate(&ast, &top).map_err(|e| format!("Elaboration Error: {}", e))?;
+    let summary = axiom_sta::analyze_circuit(&circuit, &xdc_source, None);
+
+    let rec = axiom_sta::AutoPipeliner::analyze_path(
+        &summary.critical_path,
+        summary.clock_period_ps,
+        None,
+        None,
+        Some(&verilog_source),
+    );
+    Ok(rec)
+}
+
+#[tauri::command]
+fn apply_pipeline(
+    verilog_source: String,
+    top_module: String,
+    cut_net: String,
+    clock: String,
+    reset: Option<String>,
+) -> Result<PipelineRefactorOutput, String> {
+    let (refactored, diff) = axiom_sta::AutoPipeliner::refactor_verilog(
+        &verilog_source,
+        &top_module,
+        &cut_net,
+        &clock,
+        reset.as_deref(),
+    ).map_err(|e| e.to_string())?;
+
+    Ok(PipelineRefactorOutput {
+        refactored_code: refactored,
+        diff_preview: diff,
+    })
+}
+
+#[tauri::command]
+fn evaluate_ppa(
+    verilog_source: String,
+    xdc_source: String,
+    top_module: Option<String>,
+    target_device: Option<String>,
+    target_clock_freq_mhz: Option<f32>,
+    junction_temp_c: Option<f32>,
+    core_voltage_v: Option<f32>,
+    pdk: Option<String>,
+) -> Result<axiom_telemetry::PpaReport, String> {
+    let (ast, diags) = parse_hdl(FileId(1), &verilog_source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error: {}", err_msgs.join("; ")));
+    }
+
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+
+    let circuit = elaborate(&ast, &top).map_err(|e| format!("Elaboration Error: {}", e))?;
+    let sta_summary = axiom_sta::analyze_circuit(&circuit, &xdc_source, None);
+
+    let options = axiom_telemetry::PpaOptions {
+        target_device,
+        target_clock_freq_mhz,
+        junction_temp_c,
+        core_voltage_v,
+        switching_activity_alpha: Some(0.125),
+        pdk,
+    };
+
+    Ok(axiom_telemetry::PpaEvaluator::evaluate(&circuit, Some(&sta_summary), Some(options)))
+}
+
+#[tauri::command]
+fn synthesize_microarch(
+    verilog_source: String,
+    top_module: Option<String>,
+) -> Result<axiom_ir::microarch::MicroarchGraph, String> {
+    let (ast, diags) = parse_hdl(FileId(1), &verilog_source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error: {}", err_msgs.join("; ")));
+    }
+
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+
+    let circuit = elaborate(&ast, &top).map_err(|e| format!("Elaboration Error: {}", e))?;
+    let graph = axiom_ir::synthesize_microarch(&circuit, Some(&ast));
+    Ok(graph)
+}
+
+#[tauri::command]
+fn partition_multidie(
+    verilog_source: String,
+    top_module: Option<String>,
+    device: Option<String>,
+    constraints: Option<hashbrown::HashMap<String, String>>,
+    enable_laguna: Option<bool>,
+    tdm_ratio: Option<u32>,
+) -> Result<axiom_ir::PartitionResult, String> {
+    let (ast, diags) = parse_hdl(FileId(1), &verilog_source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error: {}", err_msgs.join("; ")));
+    }
+
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+
+    let circuit = elaborate(&ast, &top).map_err(|e| format!("Elaboration Error: {}", e))?;
+
+    let config = axiom_ir::PartitionConfig {
+        target_device: device.unwrap_or_else(|| "xcvu9p-flgb2104-2-e".to_string()),
+        max_die_utilization_pct: 85.0,
+        user_constraints: constraints.unwrap_or_default(),
+        enable_laguna_insertion: enable_laguna.unwrap_or(false),
+        tdm_ratio: tdm_ratio.unwrap_or(1),
+    };
+
+    let result = axiom_ir::partition_circuit(&circuit, &config);
+    Ok(result)
 }
 
 #[tauri::command]
@@ -193,6 +442,10 @@ pub fn run_desktop_app() {
             compile_design,
             step_time,
             step_delta,
+            step_back_delta,
+            step_back_time,
+            scrub_to_time,
+            decode_protocol,
             force_signal,
             export_vcd,
             export_saif,
@@ -201,7 +454,17 @@ pub fn run_desktop_app() {
             fs_remove_file,
             fs_list_dir,
             fs_create_dir,
-            fs_exists
+            fs_exists,
+            run_sta,
+            recommend_pipeline,
+            apply_pipeline,
+            evaluate_ppa,
+            synthesize_microarch,
+            partition_multidie,
+            get_coverage,
+            reset_coverage,
+            export_lcov,
+            export_html_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running Axiom EDA desktop application");
@@ -337,6 +600,9 @@ impl DesktopEngine {
             }
         };
 
+        let points = axiom_syntax::coverage::CoveragePointExtractor::extract(FileId(1), source, &ast);
+        sim.set_coverage_points(points);
+
         sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
         sim.add_listener(Box::new(SharedVcdListener(Arc::clone(&vcd))));
 
@@ -426,6 +692,118 @@ impl DesktopEngine {
         })
     }
 
+    pub fn step_back_delta(&mut self) -> Result<StepResponse, String> {
+        let sim = self.sim.as_mut().ok_or("No design compiled")?;
+        let delta_summary = sim.step_back_delta().map_err(|e| e.to_string())?;
+
+        let time = sim.current_time;
+        let delta = sim.current_delta;
+
+        let telemetry = if let Some(col) = &self.collector {
+            col.lock().unwrap().generate_frame(time)
+        } else {
+            TelemetryFrame {
+                time,
+                instantaneous_power_mw: 0.0,
+                total_energy_uj: 0.0,
+                rail_currents_ma: hashbrown::HashMap::new(),
+                rail_voltages_v: hashbrown::HashMap::new(),
+                module_energy_uj: hashbrown::HashMap::new(),
+            }
+        };
+
+        let mut signal_values = Vec::new();
+        for net in &sim.compiled.circuit.nets {
+            let val = sim.compiled.arena.read_net(net);
+            signal_values.push((net.name.clone(), val.to_string()));
+        }
+
+        Ok(StepResponse {
+            time_ps: time.as_picoseconds(),
+            delta,
+            tick_summary: None,
+            delta_summary: Some(delta_summary),
+            signal_values,
+            telemetry,
+        })
+    }
+
+    pub fn step_back_time(&mut self, dt_ps: u64) -> Result<StepResponse, String> {
+        let sim = self.sim.as_mut().ok_or("No design compiled")?;
+        let tick = sim
+            .step_back_time(SimTime::from_picoseconds(dt_ps))
+            .map_err(|e| e.to_string())?;
+
+        let time = sim.current_time;
+        let delta = sim.current_delta;
+
+        let telemetry = if let Some(col) = &self.collector {
+            col.lock().unwrap().generate_frame(time)
+        } else {
+            TelemetryFrame {
+                time,
+                instantaneous_power_mw: 0.0,
+                total_energy_uj: 0.0,
+                rail_currents_ma: hashbrown::HashMap::new(),
+                rail_voltages_v: hashbrown::HashMap::new(),
+                module_energy_uj: hashbrown::HashMap::new(),
+            }
+        };
+
+        let mut signal_values = Vec::new();
+        for net in &sim.compiled.circuit.nets {
+            let val = sim.compiled.arena.read_net(net);
+            signal_values.push((net.name.clone(), val.to_string()));
+        }
+
+        Ok(StepResponse {
+            time_ps: time.as_picoseconds(),
+            delta,
+            tick_summary: Some(tick),
+            delta_summary: None,
+            signal_values,
+            telemetry,
+        })
+    }
+
+    pub fn scrub_to_time(&mut self, target_time_ps: u64) -> Result<StepResponse, String> {
+        let sim = self.sim.as_mut().ok_or("No design compiled")?;
+        let tick = sim
+            .scrub_to_time(SimTime::from_picoseconds(target_time_ps))
+            .map_err(|e| e.to_string())?;
+
+        let time = sim.current_time;
+        let delta = sim.current_delta;
+
+        let telemetry = if let Some(col) = &self.collector {
+            col.lock().unwrap().generate_frame(time)
+        } else {
+            TelemetryFrame {
+                time,
+                instantaneous_power_mw: 0.0,
+                total_energy_uj: 0.0,
+                rail_currents_ma: hashbrown::HashMap::new(),
+                rail_voltages_v: hashbrown::HashMap::new(),
+                module_energy_uj: hashbrown::HashMap::new(),
+            }
+        };
+
+        let mut signal_values = Vec::new();
+        for net in &sim.compiled.circuit.nets {
+            let val = sim.compiled.arena.read_net(net);
+            signal_values.push((net.name.clone(), val.to_string()));
+        }
+
+        Ok(StepResponse {
+            time_ps: time.as_picoseconds(),
+            delta,
+            tick_summary: Some(tick),
+            delta_summary: None,
+            signal_values,
+            telemetry,
+        })
+    }
+
     pub fn force_signal(&mut self, net_name: &str, value_str: &str) -> Result<(), String> {
         let sim = self.sim.as_mut().ok_or("No design compiled")?;
         let net = sim
@@ -465,6 +843,29 @@ impl DesktopEngine {
             time,
         );
         Ok(saif)
+    }
+
+    pub fn get_coverage(&self) -> Result<axiom_sim::CoverageReport, String> {
+        let sim = self.sim.as_ref().ok_or("No simulation active")?;
+        Ok(sim.get_coverage_report())
+    }
+
+    pub fn reset_coverage(&mut self) -> Result<(), String> {
+        let sim = self.sim.as_mut().ok_or("No simulation active")?;
+        sim.reset_coverage();
+        Ok(())
+    }
+
+    pub fn export_lcov(&self, source_path: &str) -> Result<String, String> {
+        let sim = self.sim.as_ref().ok_or("No simulation active")?;
+        let report = sim.get_coverage_report();
+        Ok(axiom_sim::generate_lcov(&report, source_path))
+    }
+
+    pub fn export_html_report(&self, source_name: &str, source_code: &str) -> Result<String, String> {
+        let sim = self.sim.as_ref().ok_or("No simulation active")?;
+        let report = sim.get_coverage_report();
+        Ok(axiom_sim::generate_html(&report, source_name, source_code))
     }
 }
 

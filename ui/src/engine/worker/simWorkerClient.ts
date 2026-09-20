@@ -164,6 +164,37 @@ export class SimWorkerClient {
     } as any);
   }
 
+  public async stepBackTime(dtPs: number): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "STEP_BACK_TIME",
+      dtPs
+    } as any);
+  }
+
+  public async stepBackDelta(): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "STEP_BACK_DELTA"
+    } as any);
+  }
+
+  public async scrubToTime(targetTimePs: number): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "SCRUB_TO_TIME",
+      targetTimePs
+    } as any);
+  }
+
+  public async decodeProtocol(requestJson: string): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "DECODE_PROTOCOL",
+      requestJson
+    } as any);
+  }
+
   public async startPlay(intervalMs = 30, stepPs = 1000): Promise<void> {
     await this.initWorker();
     return this.send({
@@ -252,6 +283,125 @@ export class SimWorkerClient {
       source,
       line,
       col
+    } as any);
+  }
+
+  public async runSta(verilogSource: string, xdcSource: string, topModule?: string): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "RUN_STA",
+      verilogSource,
+      xdcSource,
+      topModule
+    } as any);
+  }
+
+  public async recommendPipeline(
+    verilogSource: string,
+    xdcSource: string,
+    topModule?: string
+  ): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "RECOMMEND_PIPELINE",
+      verilogSource,
+      xdcSource,
+      topModule
+    } as any);
+  }
+
+  public async applyPipeline(
+    verilogSource: string,
+    topModule: string,
+    cutNet: string,
+    clockName: string,
+    resetName?: string
+  ): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "APPLY_PIPELINE",
+      verilogSource,
+      topModule,
+      cutNet,
+      clockName,
+      resetName
+    } as any);
+  }
+
+  public async synthesizeMicroarch(source: string, topModule?: string): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "SYNTHESIZE_MICROARCH",
+      source,
+      topModule
+    } as any);
+  }
+
+  public async partitionMultiDie(
+    source: string,
+    topModule?: string,
+    device?: string,
+    constraints?: Record<string, string>,
+    enableLaguna?: boolean,
+    tdmRatio?: number
+  ): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "PARTITION_MULTIDIE",
+      source,
+      topModule,
+      device,
+      constraints,
+      enableLaguna,
+      tdmRatio
+    } as any);
+  }
+
+  public async evaluatePpa(options: {
+    verilogSource: string;
+    xdcSource?: string;
+    topModule?: string;
+    targetDevice?: string;
+    targetClockFreqMhz?: number;
+    junctionTempC?: number;
+    coreVoltageV?: number;
+    pdk?: string;
+  }): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "EVALUATE_PPA",
+      ...options
+    } as any);
+  }
+
+  public async getCoverage(): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "GET_COVERAGE"
+    } as any);
+  }
+
+  public async resetCoverage(): Promise<void> {
+    await this.initWorker();
+    return this.send({
+      type: "RESET_COVERAGE"
+    } as any);
+  }
+
+  public async exportLcov(sourcePath: string): Promise<string> {
+    await this.initWorker();
+    return this.send({
+      type: "EXPORT_LCOV",
+      sourcePath
+    } as any);
+  }
+
+  public async exportHtmlReport(sourceName: string, sourceCode: string): Promise<string> {
+    await this.initWorker();
+    return this.send({
+      type: "EXPORT_HTML_REPORT",
+      sourceName,
+      sourceCode
     } as any);
   }
 

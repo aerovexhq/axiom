@@ -1,10 +1,18 @@
 pub mod bir;
 pub mod elaborator;
 pub mod primitives;
+pub mod microarch;
+pub mod multidie;
 
 pub use bir::*;
 pub use elaborator::{ElaborationError, Elaborator};
 pub use primitives::*;
+pub use microarch::*;
+pub use multidie::{
+    estimate_circuit_modules, get_device_profile, partition_circuit, BoundaryUtilization, CutNet,
+    DieBoundary, DieInfo, DieKind, DieResourceBudget, DieUtilization, InterconnectKind,
+    ModuleResourceEstimate, MultiDieDevice, PartitionConfig, PartitionResult,
+};
 pub use axiom_syntax::EdgeKind;
 
 use axiom_syntax::SourceFile;

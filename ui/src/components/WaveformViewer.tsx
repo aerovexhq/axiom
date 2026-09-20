@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X, Search } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X, Search, History, Cpu } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { DisplayRadix, formatValueWithRadix, extractBitValue } from "../engine/radixUtils";
 import { useTranslation } from "../i18n/i18nContext";
+import { DecodedTransaction } from "../engine/protocolDecoders";
+import { ProtocolDecoderModal } from "./ProtocolDecoderModal";
 
 const formatTimeCompact = (ps: number) => {
   if (ps >= 1_000_000) return `${(ps / 1_000_000).toFixed(2)}μs`;
@@ -102,6 +104,12 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   // Signal Forcing Modal State
   const [forcingSignal, setForcingSignal] = useState<{ id: string; name: string; isBus: boolean; width: number } | null>(null);
   const [forceInputVal, setForceInputVal] = useState<string>("1");
+
+  // Phase 18: Time-Machine Scrub Sync & Hardware Protocol Decoder State
+  const [timeMachineSync, setTimeMachineSync] = useState<boolean>(false);
+  const [isProtocolModalOpen, setIsProtocolModalOpen] = useState<boolean>(false);
+  const [decodedTransactions, setDecodedTransactions] = useState<DecodedTransaction[]>([]);
+  const [activeHoverTx, setActiveHoverTx] = useState<DecodedTransaction | null>(null);
 
   const signalHeight = 28;
   const headerHeight = 32;
@@ -393,9 +401,55 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       }
     }
 
+    const protocolTrackHeight = decodedTransactions.length > 0 ? 28 : 0;
+    const rowYOffset = headerHeight + protocolTrackHeight;
+
+    // Draw Decoded Protocol Transaction Ribbon
+    if (decodedTransactions.length > 0) {
+      const pYTop = headerHeight;
+      const pHeight = 28;
+      ctx.fillStyle = "rgba(6, 182, 212, 0.08)";
+      ctx.fillRect(plotX, pYTop, plotW, pHeight);
+      ctx.strokeStyle = "rgba(6, 182, 212, 0.3)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, pYTop + pHeight);
+      ctx.lineTo(width, pYTop + pHeight);
+      ctx.stroke();
+
+      for (const tx of decodedTransactions) {
+        const tStart = tx.start_time_ps;
+        const tEnd = Math.max(tStart + 10, tx.end_time_ps);
+        const bX1 = plotX + (tStart - startTimePs) * pixelsPerPs;
+        const bX2 = plotX + (tEnd - startTimePs) * pixelsPerPs;
+        const bW = Math.max(24, bX2 - bX1);
+
+        if (bX2 >= plotX && bX1 <= width) {
+          const isHovered = activeHoverTx?.id === tx.id;
+          ctx.fillStyle = isHovered ? "rgba(6, 182, 212, 0.45)" : "rgba(6, 182, 212, 0.22)";
+          ctx.strokeStyle = isHovered ? "#22d3ee" : "#06b6d4";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === "function") {
+            (ctx as any).roundRect(bX1 + 1, pYTop + 4, bW - 2, pHeight - 8, 4);
+          } else {
+            ctx.rect(bX1 + 1, pYTop + 4, bW - 2, pHeight - 8);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "10px JetBrains Mono, monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          const label = tx.summary.length > 20 ? tx.summary.slice(0, 18) + "…" : tx.summary;
+          ctx.fillText(label, bX1 + bW / 2, pYTop + 17);
+        }
+      }
+    }
+
     // Render Signal Waveforms
     displayRows.forEach((row, index) => {
-      const yTop = headerHeight + index * signalHeight;
+      const yTop = rowYOffset + index * signalHeight;
       const yMid = yTop + signalHeight / 2;
       const yHigh = yTop + 6;
       const yLow = yTop + signalHeight - 6;
@@ -535,9 +589,27 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     ctx.textAlign = "right";
     ctx.fillText(cursorAPrivate !== null ? "Value (A)" : "Value", gutterWidth - 12, headerHeight - 10);
 
+    // Gutter Protocol Track
+    if (decodedTransactions.length > 0) {
+      const pYTop = headerHeight;
+      ctx.fillStyle = "rgba(6, 182, 212, 0.12)";
+      ctx.fillRect(0, pYTop, gutterWidth, 28);
+      ctx.strokeStyle = "rgba(6, 182, 212, 0.3)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, pYTop + 28);
+      ctx.lineTo(gutterWidth, pYTop + 28);
+      ctx.stroke();
+
+      ctx.font = "11px Inter, sans-serif";
+      ctx.fillStyle = "#06b6d4";
+      ctx.textAlign = "left";
+      ctx.fillText("⚡ " + (decodedTransactions[0]?.protocol.toUpperCase() ?? "DECODE"), 12, pYTop + 18);
+    }
+
     // Gutter Signal Rows
     displayRows.forEach((row, index) => {
-      const yTop = headerHeight + index * signalHeight;
+      const yTop = rowYOffset + index * signalHeight;
       const yMid = yTop + signalHeight / 2 + 4;
 
       // Row separator
@@ -635,8 +707,23 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const y = e.clientY - rect.top;
     setMouseDownPos({ x, y });
 
+    const protocolTrackHeight = decodedTransactions.length > 0 ? 28 : 0;
+    const rowYOffset = headerHeight + protocolTrackHeight;
+
     if (x >= gutterWidth) {
       const clickedPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
+
+      // Click on Decoded Protocol Track: Jump/Scrub to transaction
+      if (decodedTransactions.length > 0 && y >= headerHeight && y < rowYOffset) {
+        const found = decodedTransactions.find((t) => clickedPs >= t.start_time_ps && clickedPs <= t.end_time_ps);
+        if (found) {
+          setActiveHoverTx(found);
+          setCursorAPrivate(found.start_time_ps);
+          setCursorBPrivate(found.end_time_ps);
+          engineBridge.scrubToTime(found.start_time_ps);
+          return;
+        }
+      }
 
       // 1. Click on timeline header: check delta indicators or start horizontal pan
       if (y <= headerHeight) {
@@ -657,6 +744,11 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         setPanStartX(x);
         setPanStartTimeOffset(timeOffsetPs);
         return;
+      }
+
+      // Time Machine Sync: clicking on the waveform instantly rewinds or scrubs simulation
+      if (timeMachineSync) {
+        engineBridge.scrubToTime(clickedPs);
       }
 
       // 3. Drag existing Cursor A handle
@@ -695,7 +787,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       setActiveCursorDrag("new_selection");
     } else {
       // Clicked in gutter: Check for Bus expansion toggle or signal force modal
-      const rowIndex = Math.floor((y - headerHeight) / signalHeight);
+      const rowIndex = Math.floor((y - rowYOffset) / signalHeight);
       if (rowIndex >= 0 && rowIndex < displayRows.length) {
         const row = displayRows[rowIndex];
         if (row.isBus && !row.isBitChild) {
@@ -718,6 +810,11 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     if (x >= gutterWidth) {
       const calcPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
       setHoverTimePs(calcPs);
+
+      // Time Machine Sync: dragging cursor continuously scrubs live circuit state
+      if (timeMachineSync && (activeCursorDrag === "A" || activeCursorDrag === "new_selection")) {
+        engineBridge.scrubToTime(calcPs);
+      }
 
       if (activeCursorDrag === "A") {
         setCursorAPrivate(calcPs);
@@ -934,6 +1031,52 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           >
             <Bug size={12} />
             <span>{t.waveforms.glitchRadar}</span>
+          </button>
+
+          {/* Time Machine Sync Toggle */}
+          <button
+            onClick={() => setTimeMachineSync(!timeMachineSync)}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              padding: "2px 8px",
+              height: "auto",
+              minHeight: 22,
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: timeMachineSync ? "rgba(6, 182, 212, 0.2)" : "var(--bg-tertiary)",
+              color: timeMachineSync ? "var(--accent-cyan)" : "var(--text-muted)",
+              border: `1px solid ${timeMachineSync ? "var(--accent-cyan)" : "var(--border-subtle)"}`
+            }}
+            title="When active, dragging cursor or clicking timeline instantly scrubs live circuit state"
+          >
+            <History size={12} />
+            <span>Time-Machine: {timeMachineSync ? "SYNC ON" : "SYNC OFF"}</span>
+          </button>
+
+          {/* Protocol Decoder Trigger */}
+          <button
+            onClick={() => setIsProtocolModalOpen(true)}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              padding: "2px 8px",
+              height: "auto",
+              minHeight: 22,
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: decodedTransactions.length > 0 ? "rgba(168, 85, 247, 0.2)" : "var(--bg-tertiary)",
+              color: decodedTransactions.length > 0 ? "var(--accent-purple)" : "var(--text-muted)",
+              border: `1px solid ${decodedTransactions.length > 0 ? "var(--accent-purple)" : "var(--border-subtle)"}`
+            }}
+            title="Open Live Hardware Protocol Decoder (UART, SPI, I2C, AXI)"
+          >
+            <Cpu size={12} />
+            <span>Decode Protocol {decodedTransactions.length > 0 ? `(${decodedTransactions.length})` : ""}</span>
           </button>
         </div>
 
@@ -1263,6 +1406,22 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           </div>
         </div>
       )}
+
+      {/* Hardware Protocol Decoder Modal */}
+      <ProtocolDecoderModal
+        isOpen={isProtocolModalOpen}
+        onClose={() => setIsProtocolModalOpen(false)}
+        state={state}
+        onSelectTransaction={(tx) => {
+          setActiveHoverTx(tx);
+          setCursorAPrivate(tx.start_time_ps);
+          setCursorBPrivate(tx.end_time_ps);
+          engineBridge.scrubToTime(tx.start_time_ps);
+        }}
+        onTransactionsUpdated={(txs) => {
+          setDecodedTransactions(txs);
+        }}
+      />
     </div>
   );
 };

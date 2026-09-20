@@ -14,9 +14,12 @@ axiom-sim = { workspace = true }
 axiom-telemetry = { workspace = true }
 axiom-desktop = { workspace = true }
 axiom-lsp = { workspace = true }
+axiom-sta = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+hashbrown = { workspace = true }
+
 
 [[bin]]
 name = "axiom"

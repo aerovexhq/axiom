@@ -13,10 +13,12 @@ import {
   AlertTriangle,
   AlertCircle,
   CheckCircle,
-  Swords
+  Swords,
+  BarChart2,
+  Zap
 } from "lucide-react";
 import { AxiomProject } from "../engine/projectModel";
-import { engineBridge, LspDiagnostic } from "../engine/engineBridge";
+import { engineBridge, LspDiagnostic, CoverageReport } from "../engine/engineBridge";
 import { registerVerilogLanguage } from "../engine/monacoVerilog";
 import { registerXdcLanguage } from "../engine/monacoXdc";
 import { toast } from "../engine/toast";
@@ -42,6 +44,9 @@ interface HdlEditorProps {
   onToggleMaximize?: () => void;
   onDiagnosticsChange?: (diagnostics: LspDiagnostic[]) => void;
   onOpenProblems?: () => void;
+  onOpenAutoPipeline?: () => void;
+  timingSlackPs?: number | null;
+  predictedFmaxGainMhz?: number | null;
 }
 
 export const HdlEditor: React.FC<HdlEditorProps> = ({
@@ -58,7 +63,10 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   isMaximized,
   onToggleMaximize,
   onDiagnosticsChange,
-  onOpenProblems
+  onOpenProblems,
+  onOpenAutoPipeline,
+  timingSlackPs,
+  predictedFmaxGainMhz
 }) => {
   const { t } = useTranslation();
   const editorRef = useRef<monacoPkg.editor.IStandaloneCodeEditor | null>(null);
@@ -73,6 +81,26 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
     }
   });
   const [localDiags, setLocalDiags] = useState<LspDiagnostic[]>([]);
+  const [coverageEnabled, setCoverageEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("axiom_coverage_heatmap");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+  const [coverageReport, setCoverageReport] = useState<CoverageReport | null>(null);
+  const coverageDecorationsRef = useRef<string[]>([]);
+
+  const toggleCoverage = () => {
+    setCoverageEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("axiom_coverage_heatmap", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Per-file Monaco ViewState & Scroll Cache
   const viewStatesRef = useRef<Map<string, monacoPkg.editor.ICodeEditorViewState>>(new Map());
@@ -244,6 +272,87 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
     }
   }, [highlightLineSpan]);
 
+  // Live In-Editor RTL Code Coverage Heatmap Decorations
+  useEffect(() => {
+    let cancelled = false;
+
+    const updateCoverage = async () => {
+      if (!coverageEnabled || isXdc) {
+        if (editorRef.current) {
+          coverageDecorationsRef.current = editorRef.current.deltaDecorations(
+            coverageDecorationsRef.current,
+            []
+          );
+        }
+        return;
+      }
+
+      try {
+        const report = await engineBridge.getCoverage();
+        if (cancelled) return;
+        setCoverageReport(report);
+
+        if (!editorRef.current || !monacoRef.current) return;
+        const model = editorRef.current.getModel();
+        if (!model) return;
+
+        if (report && Array.isArray(report.lines) && report.lines.length > 0) {
+          const decors: monacoPkg.editor.IModelDeltaDecoration[] = report.lines.map((lineInfo) => {
+            let glyphClass = "axiom-cov-glyph-dead";
+            let lineClass = "axiom-cov-line-dead";
+            let desc = "Uncovered (0 executions)";
+
+            if (lineInfo.status === "Covered") {
+              glyphClass = "axiom-cov-glyph-full";
+              lineClass = "axiom-cov-line-full";
+              desc = `Covered: ${lineInfo.hits.toLocaleString()} executions`;
+            } else if (lineInfo.status === "Partial") {
+              glyphClass = "axiom-cov-glyph-partial";
+              lineClass = "axiom-cov-line-partial";
+              desc = `Branch Partial: True=${lineInfo.branch_true ?? 0}, False=${lineInfo.branch_false ?? 0} (Total: ${lineInfo.hits})`;
+            }
+
+            return {
+              range: new monacoRef.current!.Range(lineInfo.line, 1, lineInfo.line, 1),
+              options: {
+                isWholeLine: true,
+                glyphMarginClassName: glyphClass,
+                className: lineClass,
+                hoverMessage: {
+                  value: `**Axiom RTL Coverage**: ${desc}\n- **Line**: ${lineInfo.line}${
+                    lineInfo.snippet ? `\n\`\`\`verilog\n${lineInfo.snippet}\n\`\`\`` : ""
+                  }`
+                }
+              }
+            };
+          });
+
+          coverageDecorationsRef.current = editorRef.current.deltaDecorations(
+            coverageDecorationsRef.current,
+            decors
+          );
+        } else if (editorRef.current) {
+          coverageDecorationsRef.current = editorRef.current.deltaDecorations(
+            coverageDecorationsRef.current,
+            []
+          );
+        }
+      } catch (err) {
+        console.warn("Failed to query RTL coverage:", err);
+      }
+    };
+
+    updateCoverage();
+    const unsub = engineBridge.subscribe(() => {
+      updateCoverage();
+    });
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [coverageEnabled, isXdc, code]);
+
   const openFiles = project
     ? project.openFileIds
         .map((id) => project.files.find((f) => f.id === id))
@@ -405,6 +514,33 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
 
         {/* Right: Actions Strip (Linter status, JIT Ready, Elaborate button, Maximize) */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 6 }}>
+          {/* Silicon Copilot Auto-Pipeline Recommendation Pill */}
+          {timingSlackPs !== undefined && timingSlackPs !== null && timingSlackPs < 0 && onOpenAutoPipeline && (
+            <button
+              type="button"
+              onClick={onOpenAutoPipeline}
+              title={`Silicon Copilot: Setup timing violation (${timingSlackPs} ps). Click to auto-pipeline.`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: "rgba(244, 63, 94, 0.18)",
+                border: "1px solid rgba(244, 63, 94, 0.5)",
+                color: "#f43f5e",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                boxShadow: "0 0 10px rgba(244, 63, 94, 0.2)"
+              }}
+            >
+              <Zap size={11} color="#f43f5e" />
+              <span>⚡ Auto-Pipeline{predictedFmaxGainMhz ? `: +${Math.round(predictedFmaxGainMhz)} MHz` : ""}</span>
+            </button>
+          )}
+
           {/* Linter Diagnostic Pill */}
           <button
             type="button"
@@ -457,6 +593,40 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               </>
             )}
           </button>
+
+          {/* RTL Code Coverage Heatmap Toggle */}
+          {!isXdc && (
+            <button
+              type="button"
+              onClick={toggleCoverage}
+              title={
+                coverageEnabled
+                  ? `RTL Coverage Heatmap: ON (${coverageReport ? coverageReport.overall_pct.toFixed(0) : 0}% overall coverage)`
+                  : "RTL Coverage Heatmap: OFF (Click to enable)"
+              }
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "2px 7px",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: coverageEnabled ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                border: coverageEnabled ? "1px solid rgba(16, 185, 129, 0.35)" : "1px solid var(--border-subtle)",
+                color: coverageEnabled ? "var(--accent-emerald)" : "var(--text-muted)",
+                cursor: "pointer",
+                transition: "all 0.15s ease"
+              }}
+            >
+              <BarChart2 size={11} />
+              <span>
+                {coverageEnabled && coverageReport
+                  ? `${coverageReport.overall_pct.toFixed(0)}% Cov`
+                  : "Coverage"}
+              </span>
+            </button>
+          )}
 
           {/* Katana Slash Cursor Toggle */}
           <button
@@ -556,6 +726,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             fontSize: 14,
             lineHeight: 22,
             letterSpacing: 0.2,
+            glyphMargin: true,
             minimap: { enabled: true, renderCharacters: false, maxColumn: 60 },
             scrollBeyondLastLine: false,
             automaticLayout: true,

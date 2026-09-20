@@ -127,7 +127,7 @@ impl<'a> Elaborator<'a> {
                     self.elaborate_continuous_assign(assign, &local_nets, &resolved_params)?;
                 }
                 ModuleItem::ProceduralBlock(proc) => {
-                    self.elaborate_procedural_block(proc, scope_prefix, &local_nets)?;
+                    self.elaborate_procedural_block(proc, scope_prefix, &local_nets, &resolved_params)?;
                 }
                 ModuleItem::Instance(inst) => {
                     if let Some(child_module) = self.modules.get(inst.module_name.as_str()).copied() {
@@ -171,10 +171,10 @@ impl<'a> Elaborator<'a> {
         &mut self,
         assign: &AssignStmt,
         nets: &HashMap<String, NetId>,
-        _params: &HashMap<String, u64>,
+        params: &HashMap<String, u64>,
     ) -> Result<(), ElaborationError> {
         let target_id = self.resolve_lvalue_net(&assign.lhs, nets)?;
-        let expr = self.lower_expr(&assign.rhs, nets)?;
+        let expr = self.lower_expr(&assign.rhs, nets, params)?;
         self.circuit.add_continuous_assign(target_id, expr);
         Ok(())
     }
@@ -184,6 +184,7 @@ impl<'a> Elaborator<'a> {
         proc: &ProceduralBlock,
         scope_prefix: &str,
         nets: &HashMap<String, NetId>,
+        params: &HashMap<String, u64>,
     ) -> Result<(), ElaborationError> {
         let (kind, triggers) = match proc.kind {
             ProceduralKind::Initial => (BirProcessKind::Initial, Vec::new()),
@@ -215,35 +216,35 @@ impl<'a> Elaborator<'a> {
             ProceduralKind::AlwaysLatch => (BirProcessKind::Combinational, Vec::new()),
         };
 
-        let body = self.lower_statement(&proc.body, nets)?;
+        let body = self.lower_statement(&proc.body, nets, params)?;
         let name = format!("{scope_prefix}.proc_{}", self.circuit.processes.len());
         self.circuit.add_process(name, kind, triggers, body);
         Ok(())
     }
 
-    fn lower_statement(&self, stmt: &Statement, nets: &HashMap<String, NetId>) -> Result<Vec<BirStatement>, ElaborationError> {
+    fn lower_statement(&self, stmt: &Statement, nets: &HashMap<String, NetId>, params: &HashMap<String, u64>) -> Result<Vec<BirStatement>, ElaborationError> {
         let mut stmts = Vec::new();
         match stmt {
             Statement::Block(inner) => {
                 for s in inner {
-                    stmts.extend(self.lower_statement(s, nets)?);
+                    stmts.extend(self.lower_statement(s, nets, params)?);
                 }
             }
             Statement::BlockingAssign { lhs, rhs, .. } => {
                 let target = self.resolve_lvalue_net(lhs, nets)?;
-                let expr = self.lower_expr(rhs, nets)?;
+                let expr = self.lower_expr(rhs, nets, params)?;
                 stmts.push(BirStatement::Assign { target, expr, is_nonblocking: false });
             }
             Statement::NonBlockingAssign { lhs, rhs, .. } => {
                 let target = self.resolve_lvalue_net(lhs, nets)?;
-                let expr = self.lower_expr(rhs, nets)?;
+                let expr = self.lower_expr(rhs, nets, params)?;
                 stmts.push(BirStatement::Assign { target, expr, is_nonblocking: true });
             }
             Statement::If { cond, then_branch, else_branch, .. } => {
-                let cond_expr = self.lower_expr(cond, nets)?;
-                let then_body = self.lower_statement(then_branch, nets)?;
+                let cond_expr = self.lower_expr(cond, nets, params)?;
+                let then_body = self.lower_statement(then_branch, nets, params)?;
                 let else_body = if let Some(else_b) = else_branch {
-                    self.lower_statement(else_b, nets)?
+                    self.lower_statement(else_b, nets, params)?
                 } else {
                     Vec::new()
                 };
@@ -254,12 +255,12 @@ impl<'a> Elaborator<'a> {
                 });
             }
             Statement::Case { expr, items, .. } => {
-                let case_target = self.lower_expr(expr, nets)?;
+                let case_target = self.lower_expr(expr, nets, params)?;
                 let mut current_else = Vec::new();
 
                 // Lower items in reverse order to form nested if-else chain
                 for item in items.iter().rev() {
-                    let body = self.lower_statement(&item.body, nets)?;
+                    let body = self.lower_statement(&item.body, nets, params)?;
                     if item.patterns.is_empty() {
                         // Default branch
                         current_else = body;
@@ -267,7 +268,7 @@ impl<'a> Elaborator<'a> {
                         // Condition: (case_target == pat0) || (case_target == pat1)...
                         let mut cond = None;
                         for pat in &item.patterns {
-                            let pat_expr = self.lower_expr(pat, nets)?;
+                            let pat_expr = self.lower_expr(pat, nets, params)?;
                             let eq_expr = BirExpr::Binary {
                                 op: BinaryOp::Eq,
                                 lhs: Box::new(case_target.clone()),
@@ -295,7 +296,7 @@ impl<'a> Elaborator<'a> {
             }
             Statement::Delay { stmt, .. } => {
                 if let Some(inner) = stmt {
-                    stmts.extend(self.lower_statement(inner, nets)?);
+                    stmts.extend(self.lower_statement(inner, nets, params)?);
                 }
             }
             Statement::TaskCall { .. } => {}
@@ -304,40 +305,43 @@ impl<'a> Elaborator<'a> {
         Ok(stmts)
     }
 
-    fn lower_expr(&self, expr: &Expr, nets: &HashMap<String, NetId>) -> Result<BirExpr, ElaborationError> {
+    fn lower_expr(&self, expr: &Expr, nets: &HashMap<String, NetId>, params: &HashMap<String, u64>) -> Result<BirExpr, ElaborationError> {
         match expr {
             Expr::Ident(name, _) => {
+                if let Some(&param_val) = params.get(name) {
+                    return Ok(BirExpr::Const(LogicVector::from_u64(param_val, 32)));
+                }
                 let id = *nets.get(name).ok_or_else(|| ElaborationError::SignalNotFound(name.clone(), "expression".into()))?;
                 Ok(BirExpr::Net(id))
             }
             Expr::Number(vec, _) => Ok(BirExpr::Const(vec.clone())),
             Expr::UnsizedInt(val, _) => Ok(BirExpr::Const(LogicVector::from_u64(*val, 32))),
             Expr::Unary { op, expr, .. } => {
-                let inner = self.lower_expr(expr, nets)?;
+                let inner = self.lower_expr(expr, nets, params)?;
                 Ok(BirExpr::Unary { op: *op, expr: Box::new(inner) })
             }
             Expr::Binary { op, lhs, rhs, .. } => {
-                let l = self.lower_expr(lhs, nets)?;
-                let r = self.lower_expr(rhs, nets)?;
+                let l = self.lower_expr(lhs, nets, params)?;
+                let r = self.lower_expr(rhs, nets, params)?;
                 Ok(BirExpr::Binary { op: *op, lhs: Box::new(l), rhs: Box::new(r) })
             }
             Expr::Slice { target, msb, lsb, .. } => {
-                let t = self.lower_expr(target, nets)?;
-                let lsb_val = self.eval_const_expr(lsb, &HashMap::new()).unwrap_or(0) as u32;
-                let msb_val = self.eval_const_expr(msb, &HashMap::new()).unwrap_or(0) as u32;
+                let t = self.lower_expr(target, nets, params)?;
+                let lsb_val = self.eval_const_expr(lsb, params).unwrap_or(0) as u32;
+                let msb_val = self.eval_const_expr(msb, params).unwrap_or(0) as u32;
                 let width = msb_val - lsb_val + 1;
                 Ok(BirExpr::Slice { target: Box::new(t), lsb: lsb_val, width })
             }
             Expr::Concat(items, _) => {
                 let mut lowered = Vec::new();
                 for item in items {
-                    lowered.push(self.lower_expr(item, nets)?);
+                    lowered.push(self.lower_expr(item, nets, params)?);
                 }
                 Ok(BirExpr::Concat(lowered))
             }
             Expr::Replication { count, expr, .. } => {
-                let c = self.eval_const_expr(count, &HashMap::new()).unwrap_or(1) as usize;
-                let inner = self.lower_expr(expr, nets)?;
+                let c = self.eval_const_expr(count, params).unwrap_or(1) as usize;
+                let inner = self.lower_expr(expr, nets, params)?;
                 let mut items = Vec::new();
                 for _ in 0..c {
                     items.push(inner.clone());

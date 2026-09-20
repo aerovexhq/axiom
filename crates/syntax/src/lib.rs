@@ -1,10 +1,12 @@
 pub mod ast;
+pub mod coverage;
 pub mod lexer;
 pub mod parser;
 pub mod preprocessor;
 pub mod token;
 
 pub use ast::*;
+pub use coverage::*;
 pub use lexer::Lexer;
 pub use parser::Parser;
 pub use preprocessor::Preprocessor;

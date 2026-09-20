@@ -1,0 +1,16 @@
+[package]
+name = "axiom-sta"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+axiom-core.workspace = true
+axiom-syntax.workspace = true
+axiom-ir.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+smallvec.workspace = true
+hashbrown.workspace = true

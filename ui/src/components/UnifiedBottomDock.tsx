@@ -12,9 +12,18 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  BarChart2,
+  RotateCcw,
+  Search,
+  ExternalLink
 } from "lucide-react";
-import { SimulationState, engineBridge, LspDiagnostic } from "../engine/engineBridge";
+import {
+  SimulationState,
+  engineBridge,
+  LspDiagnostic,
+  CoverageReport
+} from "../engine/engineBridge";
 import { ResizableSplitter } from "./ResizableSplitter";
 import { useTranslation } from "../i18n";
 
@@ -48,7 +57,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [dockHeight, setDockHeight] = useState<number>(180);
-  const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing">("repl");
+  const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage">("repl");
   const [replMode, setReplMode] = useState<"logs" | "shell">("shell");
 
   const errorCount = diagnostics.filter((d) => d.severity === 1).length;
@@ -75,6 +84,31 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   const replEndRef = useRef<HTMLDivElement | null>(null);
   const telemetryCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const telemetryContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Coverage State & Sync
+  const [coverageReport, setCoverageReport] = useState<CoverageReport | null>(null);
+  const [coverageFilter, setCoverageFilter] = useState<"all" | "covered" | "partial" | "uncovered">("all");
+  const [coverageSearch, setCoverageSearch] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCoverage = async () => {
+      try {
+        const rep = await engineBridge.getCoverage();
+        if (!cancelled && rep) setCoverageReport(rep);
+      } catch (err) {
+        console.warn("UnifiedBottomDock: failed to fetch coverage:", err);
+      }
+    };
+    fetchCoverage();
+    const unsub = engineBridge.subscribe(() => {
+      fetchCoverage();
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [state.currentSimTimePs, state.currentDeltaCycle, state.compiled]);
 
   // Subscribe to Engine Logs
   useEffect(() => {
@@ -356,6 +390,34 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleResetCoverage = async () => {
+    await engineBridge.resetCoverage();
+    const rep = await engineBridge.getCoverage();
+    setCoverageReport(rep);
+  };
+
+  const handleExportLcov = async () => {
+    const lcov = await engineBridge.exportLcov(`rtl/${state.topModule}.v`);
+    const blob = new Blob([lcov], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${state.topModule}.info`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportHtml = async () => {
+    const html = await engineBridge.exportHtmlReport(`${state.topModule}.v`);
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${state.topModule}_coverage.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleResize = (deltaPx: number) => {
     setDockHeight((prev) => Math.max(120, Math.min(650, prev - deltaPx)));
   };
@@ -478,6 +540,25 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               <span>{state.glitches.length} {t("dock.glitches")}</span>
             </button>
           )}
+
+          <button
+            onClick={() => {
+              setActiveTab("coverage");
+              setIsCollapsed(false);
+            }}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "2px 6px",
+              color: "var(--accent-emerald)",
+              fontSize: 12
+            }}
+          >
+            <BarChart2 size={13} />
+            <span>Coverage ({coverageReport ? `${coverageReport.overall_pct.toFixed(0)}%` : "0%"})</span>
+          </button>
         </div>
 
         {/* Right: Live Telemetry & Simulation Status Chips */}
@@ -700,10 +781,110 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             <Clock size={12} />
             <span style={{ whiteSpace: "nowrap" }}>{t("dock.timingTab")}</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("coverage")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: activeTab === "coverage" ? 600 : 400,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: activeTab === "coverage" ? "var(--bg-tertiary)" : "transparent",
+              color: activeTab === "coverage" ? "var(--accent-emerald)" : "var(--text-muted)",
+              border: activeTab === "coverage" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+              flexShrink: 0
+            }}
+          >
+            <BarChart2 size={12} />
+            <span style={{ whiteSpace: "nowrap" }}>Coverage</span>
+            {coverageReport && (
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  backgroundColor:
+                    coverageReport.overall_pct >= 80
+                      ? "rgba(16, 185, 129, 0.2)"
+                      : coverageReport.overall_pct >= 50
+                      ? "rgba(245, 158, 11, 0.2)"
+                      : "rgba(244, 63, 94, 0.2)",
+                  color:
+                    coverageReport.overall_pct >= 80
+                      ? "var(--accent-emerald)"
+                      : coverageReport.overall_pct >= 50
+                      ? "var(--accent-amber)"
+                      : "var(--accent-rose)",
+                  padding: "0 4px",
+                  borderRadius: 8,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
+                }}
+              >
+                {coverageReport.overall_pct.toFixed(0)}%
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Right: Controls (Mode Toggle, Exporters, Maximize, Collapse) */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {activeTab === "coverage" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={handleExportLcov}
+                title="Export standard LCOV (.info) trace file"
+                className="btn btn-secondary"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 10,
+                  padding: "2px 6px"
+                }}
+              >
+                <Download size={10} />
+                <span>LCOV</span>
+              </button>
+
+              <button
+                onClick={handleExportHtml}
+                title="Export interactive dark-mode HTML coverage dashboard"
+                className="btn btn-secondary"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 10,
+                  padding: "2px 6px"
+                }}
+              >
+                <ExternalLink size={10} />
+                <span>HTML</span>
+              </button>
+
+              <button
+                onClick={handleResetCoverage}
+                title="Reset simulation coverage counters to zero"
+                className="btn btn-secondary"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 10,
+                  padding: "2px 6px"
+                }}
+              >
+                <RotateCcw size={10} />
+                <span>Reset</span>
+              </button>
+            </div>
+          )}
+
           {activeTab === "repl" && (
             <>
               {/* Shell vs Logs Toggle */}
@@ -1161,6 +1342,457 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
 
             <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
               Vivado static timing report modeled for <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>100 MHz target clock (10.000 ns period)</span>. All setup and hold checks passed.
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: RTL CODE COVERAGE & FSM STATE COVERAGE */}
+        {activeTab === "coverage" && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {/* Top KPI Metric Cards */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 10,
+                padding: "10px 12px 6px 12px",
+                flexShrink: 0
+              }}
+            >
+              {/* Card 1: Statements */}
+              <div
+                style={{
+                  padding: "8px 10px",
+                  backgroundColor: "var(--bg-tertiary)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    Statements
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      fontFamily: "var(--font-mono)",
+                      color:
+                        (coverageReport?.statement_pct ?? 0) >= 80
+                          ? "var(--accent-emerald)"
+                          : (coverageReport?.statement_pct ?? 0) >= 50
+                          ? "var(--accent-amber)"
+                          : "var(--accent-rose)"
+                    }}
+                  >
+                    {coverageReport ? `${coverageReport.statement_pct.toFixed(1)}%` : "0.0%"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {coverageReport?.statement_hit ?? 0} / {coverageReport?.statement_total ?? 0} executed
+                </div>
+                <div style={{ height: 3, width: "100%", backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: 2, overflow: "hidden", marginTop: 2 }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.min(100, Math.max(0, coverageReport?.statement_pct ?? 0))}%`,
+                      backgroundColor: "var(--accent-emerald)",
+                      transition: "width 0.2s ease"
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Card 2: Branches */}
+              <div
+                style={{
+                  padding: "8px 10px",
+                  backgroundColor: "var(--bg-tertiary)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    Branches (if/case/?)
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      fontFamily: "var(--font-mono)",
+                      color:
+                        (coverageReport?.branch_pct ?? 0) >= 80
+                          ? "var(--accent-emerald)"
+                          : (coverageReport?.branch_pct ?? 0) >= 50
+                          ? "var(--accent-amber)"
+                          : "var(--accent-rose)"
+                    }}
+                  >
+                    {coverageReport ? `${coverageReport.branch_pct.toFixed(1)}%` : "0.0%"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {coverageReport?.branch_covered ?? 0} full, {coverageReport?.branch_partial ?? 0} partial ({coverageReport?.branch_total ?? 0} total)
+                </div>
+                <div style={{ height: 3, width: "100%", backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: 2, overflow: "hidden", marginTop: 2 }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.min(100, Math.max(0, coverageReport?.branch_pct ?? 0))}%`,
+                      backgroundColor: "var(--accent-amber)",
+                      transition: "width 0.2s ease"
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Card 3: Toggle Activity */}
+              <div
+                style={{
+                  padding: "8px 10px",
+                  backgroundColor: "var(--bg-tertiary)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    Toggle Activity (0↔1)
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      fontFamily: "var(--font-mono)",
+                      color:
+                        (coverageReport?.toggle_pct ?? 0) >= 80
+                          ? "var(--accent-cyan)"
+                          : (coverageReport?.toggle_pct ?? 0) >= 50
+                          ? "var(--accent-amber)"
+                          : "var(--accent-rose)"
+                    }}
+                  >
+                    {coverageReport ? `${coverageReport.toggle_pct.toFixed(1)}%` : "0.0%"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {coverageReport?.toggle_covered ?? 0} / {coverageReport?.toggle_total ?? 0} transitions
+                </div>
+                <div style={{ height: 3, width: "100%", backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: 2, overflow: "hidden", marginTop: 2 }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.min(100, Math.max(0, coverageReport?.toggle_pct ?? 0))}%`,
+                      backgroundColor: "var(--accent-cyan)",
+                      transition: "width 0.2s ease"
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Card 4: FSM States */}
+              <div
+                style={{
+                  padding: "8px 10px",
+                  backgroundColor: "var(--bg-tertiary)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    FSM State Coverage
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      fontFamily: "var(--font-mono)",
+                      color:
+                        (coverageReport?.fsm_state_pct ?? 0) >= 80
+                          ? "var(--accent-purple)"
+                          : (coverageReport?.fsm_state_pct ?? 0) >= 50
+                          ? "var(--accent-amber)"
+                          : "var(--accent-rose)"
+                    }}
+                  >
+                    {coverageReport ? `${coverageReport.fsm_state_pct.toFixed(1)}%` : "100.0%"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {coverageReport?.fsm_state_hit ?? 0} / {coverageReport?.fsm_state_total ?? 0} states ({coverageReport?.fsm_transition_hit ?? 0}/{coverageReport?.fsm_transition_total ?? 0} arcs)
+                </div>
+                <div style={{ height: 3, width: "100%", backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: 2, overflow: "hidden", marginTop: 2 }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.min(100, Math.max(0, coverageReport?.fsm_state_pct ?? 100))}%`,
+                      backgroundColor: "var(--accent-purple)",
+                      transition: "width 0.2s ease"
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Toolbar (Filter Pills, Search, Summary) */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "4px 12px",
+                borderBottom: "1px solid var(--border-subtle)",
+                backgroundColor: "var(--bg-primary)",
+                gap: 8,
+                flexShrink: 0
+              }}
+            >
+              {/* Filter Pills */}
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setCoverageFilter("all")}
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: coverageFilter === "all" ? "var(--bg-tertiary)" : "transparent",
+                    color: coverageFilter === "all" ? "#fff" : "var(--text-muted)",
+                    border: coverageFilter === "all" ? "1px solid var(--border-strong)" : "1px solid transparent",
+                    cursor: "pointer",
+                    fontWeight: coverageFilter === "all" ? 600 : 400
+                  }}
+                >
+                  All ({coverageReport?.lines.length ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoverageFilter("covered")}
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: coverageFilter === "covered" ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                    color: coverageFilter === "covered" ? "var(--accent-emerald)" : "var(--text-muted)",
+                    border: coverageFilter === "covered" ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid transparent",
+                    cursor: "pointer",
+                    fontWeight: coverageFilter === "covered" ? 600 : 400
+                  }}
+                >
+                  Covered ({coverageReport?.lines.filter((l) => l.status === "Covered").length ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoverageFilter("partial")}
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: coverageFilter === "partial" ? "rgba(245, 158, 11, 0.15)" : "transparent",
+                    color: coverageFilter === "partial" ? "var(--accent-amber)" : "var(--text-muted)",
+                    border: coverageFilter === "partial" ? "1px solid rgba(245, 158, 11, 0.3)" : "1px solid transparent",
+                    cursor: "pointer",
+                    fontWeight: coverageFilter === "partial" ? 600 : 400
+                  }}
+                >
+                  Partial ({coverageReport?.lines.filter((l) => l.status === "Partial").length ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoverageFilter("uncovered")}
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: coverageFilter === "uncovered" ? "rgba(244, 63, 94, 0.15)" : "transparent",
+                    color: coverageFilter === "uncovered" ? "var(--accent-rose)" : "var(--text-muted)",
+                    border: coverageFilter === "uncovered" ? "1px solid rgba(244, 63, 94, 0.3)" : "1px solid transparent",
+                    cursor: "pointer",
+                    fontWeight: coverageFilter === "uncovered" ? 600 : 400
+                  }}
+                >
+                  Uncovered ({coverageReport?.lines.filter((l) => l.status === "Uncovered").length ?? 0})
+                </button>
+              </div>
+
+              {/* Search Box */}
+              <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+                <Search size={11} color="var(--text-muted)" style={{ position: "absolute", left: 6 }} />
+                <input
+                  type="text"
+                  placeholder="Filter by line # or snippet..."
+                  value={coverageSearch}
+                  onChange={(e) => setCoverageSearch(e.target.value)}
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 6px 2px 22px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: "var(--bg-secondary)",
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--text-primary)",
+                    outline: "none",
+                    width: 190
+                  }}
+                />
+                {coverageSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setCoverageSearch("")}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      padding: "0 4px"
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Line-by-Line Table */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0" }}>
+              {(!coverageReport || coverageReport.lines.length === 0) ? (
+                <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                  <BarChart2 size={24} style={{ margin: "0 auto 8px", opacity: 0.4 }} />
+                  <div>No coverage points instrumented in active elaborated circuit.</div>
+                  <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>
+                    Click <strong>Elaborate</strong> or run simulation ticks to begin real-time hit accumulation.
+                  </div>
+                </div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "var(--font-mono)" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)", textAlign: "left", position: "sticky", top: 0, backgroundColor: "var(--bg-secondary)", zIndex: 2 }}>
+                      <th style={{ padding: "5px 10px", width: 60 }}>LINE</th>
+                      <th style={{ padding: "5px 10px", width: 110 }}>STATUS</th>
+                      <th style={{ padding: "5px 10px", width: 90 }}>HITS</th>
+                      <th style={{ padding: "5px 10px", width: 140 }}>BRANCH (T/F)</th>
+                      <th style={{ padding: "5px 10px" }}>CODE SNIPPET</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {coverageReport.lines
+                      .filter((l) => {
+                        if (coverageFilter === "covered" && l.status !== "Covered") return false;
+                        if (coverageFilter === "partial" && l.status !== "Partial") return false;
+                        if (coverageFilter === "uncovered" && l.status !== "Uncovered") return false;
+                        if (coverageSearch.trim()) {
+                          const q = coverageSearch.toLowerCase();
+                          const mLine = String(l.line).includes(q);
+                          const mSnip = (l.snippet ?? "").toLowerCase().includes(q);
+                          if (!mLine && !mSnip) return false;
+                        }
+                        return true;
+                      })
+                      .map((l) => {
+                        const isCov = l.status === "Covered";
+                        const isPart = l.status === "Partial";
+
+                        return (
+                          <tr
+                            key={l.line}
+                            onClick={() => onNavigateToLine?.(l.line, 1)}
+                            title={`Click to jump to line ${l.line} in Monaco editor`}
+                            style={{
+                              borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+                              cursor: "pointer",
+                              transition: "background-color 0.1s ease"
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                          >
+                            <td style={{ padding: "4px 10px", color: "var(--accent-blue)", fontWeight: 600 }}>
+                              L{l.line}
+                            </td>
+                            <td style={{ padding: "4px 10px" }}>
+                              <span
+                                style={{
+                                  fontSize: 9.5,
+                                  fontWeight: 700,
+                                  padding: "1px 6px",
+                                  borderRadius: 3,
+                                  backgroundColor: isCov
+                                    ? "rgba(16, 185, 129, 0.15)"
+                                    : isPart
+                                    ? "rgba(245, 158, 11, 0.15)"
+                                    : "rgba(244, 63, 94, 0.15)",
+                                  color: isCov
+                                    ? "var(--accent-emerald)"
+                                    : isPart
+                                    ? "var(--accent-amber)"
+                                    : "var(--accent-rose)",
+                                  border: `1px solid ${
+                                    isCov
+                                      ? "rgba(16, 185, 129, 0.3)"
+                                      : isPart
+                                      ? "rgba(245, 158, 11, 0.3)"
+                                      : "rgba(244, 63, 94, 0.3)"
+                                  }`
+                                }}
+                              >
+                                {l.status}
+                              </span>
+                            </td>
+                            <td
+                              style={{
+                                padding: "4px 10px",
+                                color: l.hits > 0 ? "var(--text-primary)" : "var(--accent-rose)",
+                                fontWeight: l.hits > 0 ? 600 : 400
+                              }}
+                            >
+                              {l.hits.toLocaleString()}
+                            </td>
+                            <td style={{ padding: "4px 10px", color: "var(--text-secondary)" }}>
+                              {l.branch_true !== undefined && l.branch_true !== null ? (
+                                <span>
+                                  <span style={{ color: (l.branch_true ?? 0) > 0 ? "var(--accent-emerald)" : "var(--accent-rose)" }}>
+                                    T:{l.branch_true}
+                                  </span>
+                                  {" / "}
+                                  <span style={{ color: (l.branch_false ?? 0) > 0 ? "var(--accent-emerald)" : "var(--accent-rose)" }}>
+                                    F:{l.branch_false}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span style={{ color: "var(--text-muted)" }}>—</span>
+                              )}
+                            </td>
+                            <td
+                              style={{
+                                padding: "4px 10px",
+                                color: "var(--text-secondary)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                maxWidth: 450
+                              }}
+                            >
+                              {l.snippet ? l.snippet.trim() : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}

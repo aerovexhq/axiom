@@ -10,6 +10,7 @@ dist/
 **/.vitepress/cache
 .vitepress/dist
 **/.vitepress/dist
+docs/public/studio/
 Cargo.lock
 *.vcd
 *.saif

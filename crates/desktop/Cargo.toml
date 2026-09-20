@@ -20,6 +20,7 @@ axiom-ir = { workspace = true }
 axiom-jit = { workspace = true, features = ["native-jit"] }
 axiom-sim = { workspace = true }
 axiom-telemetry = { workspace = true }
+axiom-sta = { workspace = true }
 serde = { workspace = true }
 serde_json = "1.0"
 thiserror = { workspace = true }

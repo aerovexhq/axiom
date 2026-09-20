@@ -9,6 +9,10 @@ export type WorkerCommandType =
   | "COMPILE"
   | "STEP_TIME"
   | "STEP_DELTA"
+  | "STEP_BACK_TIME"
+  | "STEP_BACK_DELTA"
+  | "SCRUB_TO_TIME"
+  | "DECODE_PROTOCOL"
   | "START_PLAY"
   | "PAUSE"
   | "RESET"
@@ -20,6 +24,16 @@ export type WorkerCommandType =
   | "LINT_XDC"
   | "HOVER"
   | "COMPLETE"
+  | "RUN_STA"
+  | "RECOMMEND_PIPELINE"
+  | "APPLY_PIPELINE"
+  | "SYNTHESIZE_MICROARCH"
+  | "PARTITION_MULTIDIE"
+  | "EVALUATE_PPA"
+  | "GET_COVERAGE"
+  | "RESET_COVERAGE"
+  | "EXPORT_LCOV"
+  | "EXPORT_HTML_REPORT"
   | "ATTACH_SHARED_BUFFER"
   | "PING";
 
@@ -46,6 +60,25 @@ export interface StepTimeRequest extends BaseWorkerRequest {
 
 export interface StepDeltaRequest extends BaseWorkerRequest {
   type: "STEP_DELTA";
+}
+
+export interface StepBackTimeRequest extends BaseWorkerRequest {
+  type: "STEP_BACK_TIME";
+  dtPs: number;
+}
+
+export interface StepBackDeltaRequest extends BaseWorkerRequest {
+  type: "STEP_BACK_DELTA";
+}
+
+export interface ScrubToTimeRequest extends BaseWorkerRequest {
+  type: "SCRUB_TO_TIME";
+  targetTimePs: number;
+}
+
+export interface DecodeProtocolRequestMessage extends BaseWorkerRequest {
+  type: "DECODE_PROTOCOL";
+  requestJson: string;
 }
 
 export interface StartPlayRequest extends BaseWorkerRequest {
@@ -106,6 +139,117 @@ export interface CompleteRequest extends BaseWorkerRequest {
   col: number;
 }
 
+export interface RunStaRequest extends BaseWorkerRequest {
+  type: "RUN_STA";
+  verilogSource: string;
+  xdcSource: string;
+  topModule?: string;
+}
+
+export interface RecommendPipelineRequest extends BaseWorkerRequest {
+  type: "RECOMMEND_PIPELINE";
+  verilogSource: string;
+  xdcSource: string;
+  topModule?: string;
+}
+
+export interface ApplyPipelineRequest extends BaseWorkerRequest {
+  type: "APPLY_PIPELINE";
+  verilogSource: string;
+  topModule: string;
+  cutNet: string;
+  clockName: string;
+  resetName?: string;
+}
+
+export interface SynthesizeMicroarchRequest extends BaseWorkerRequest {
+  type: "SYNTHESIZE_MICROARCH";
+  source: string;
+  topModule?: string;
+}
+
+export interface PartitionMultiDieRequest extends BaseWorkerRequest {
+  type: "PARTITION_MULTIDIE";
+  source: string;
+  topModule?: string;
+  device?: string;
+  constraints?: Record<string, string>;
+  enableLaguna?: boolean;
+  tdmRatio?: number;
+}
+
+export interface EvaluatePpaRequest extends BaseWorkerRequest {
+  type: "EVALUATE_PPA";
+  verilogSource: string;
+  xdcSource?: string;
+  topModule?: string;
+  targetDevice?: string;
+  targetClockFreqMhz?: number;
+  junctionTempC?: number;
+  coreVoltageV?: number;
+  pdk?: string;
+}
+
+export interface GetCoverageRequest extends BaseWorkerRequest {
+  type: "GET_COVERAGE";
+}
+
+export interface ResetCoverageRequest extends BaseWorkerRequest {
+  type: "RESET_COVERAGE";
+}
+
+export interface ExportLcovRequest extends BaseWorkerRequest {
+  type: "EXPORT_LCOV";
+  sourcePath: string;
+}
+
+export interface ExportHtmlReportRequest extends BaseWorkerRequest {
+  type: "EXPORT_HTML_REPORT";
+  sourceName: string;
+  sourceCode: string;
+}
+
+export type LineCoverageStatus = "Covered" | "Partial" | "Uncovered" | "NonExecutable";
+
+export interface LineCoverageInfo {
+  line: number;
+  hits: number;
+  status: LineCoverageStatus;
+  branch_true?: number | null;
+  branch_false?: number | null;
+  snippet?: string | null;
+}
+
+export interface FsmCoverageData {
+  fsm_name: string;
+  state_hits: Record<string, number>;
+  transition_hits: Record<string, number>;
+  total_states: number;
+  total_transitions: number;
+}
+
+export interface CoverageReport {
+  statement_total: number;
+  statement_hit: number;
+  statement_pct: number;
+  branch_total: number;
+  branch_covered: number;
+  branch_partial: number;
+  branch_pct: number;
+  toggle_total: number;
+  toggle_covered: number;
+  toggle_pct: number;
+  fsm_state_total: number;
+  fsm_state_hit: number;
+  fsm_state_pct: number;
+  fsm_transition_total: number;
+  fsm_transition_hit: number;
+  fsm_transition_pct: number;
+  overall_pct: number;
+  lines: LineCoverageInfo[];
+  fsm_details: Record<string, FsmCoverageData>;
+}
+
 export interface AttachSharedBufferRequest extends BaseWorkerRequest {
   type: "ATTACH_SHARED_BUFFER";
   buffer: SharedArrayBuffer;
@@ -120,6 +264,10 @@ export type WorkerRequest =
   | CompileRequest
   | StepTimeRequest
   | StepDeltaRequest
+  | StepBackTimeRequest
+  | StepBackDeltaRequest
+  | ScrubToTimeRequest
+  | DecodeProtocolRequestMessage
   | StartPlayRequest
   | PauseRequest
   | ResetRequest
@@ -131,6 +279,16 @@ export type WorkerRequest =
   | LintXdcRequest
   | HoverRequest
   | CompleteRequest
+  | RunStaRequest
+  | RecommendPipelineRequest
+  | ApplyPipelineRequest
+  | SynthesizeMicroarchRequest
+  | PartitionMultiDieRequest
+  | EvaluatePpaRequest
+  | GetCoverageRequest
+  | ResetCoverageRequest
+  | ExportLcovRequest
+  | ExportHtmlReportRequest
   | AttachSharedBufferRequest
   | PingRequest;
 

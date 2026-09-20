@@ -476,3 +476,49 @@ select option {
     transform: scale(1) translateY(0);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   RTL Code Coverage In-Editor Heatmap & Glyphs
+   --------------------------------------------------------------------------- */
+.axiom-cov-glyph-full {
+  background: #10b981;
+  border-radius: 50%;
+  width: 6px !important;
+  height: 6px !important;
+  margin-left: 6px;
+  margin-top: 8px;
+  box-shadow: 0 0 5px rgba(16, 185, 129, 0.6);
+}
+
+.axiom-cov-glyph-partial {
+  background: #f59e0b;
+  border-radius: 50%;
+  width: 6px !important;
+  height: 6px !important;
+  margin-left: 6px;
+  margin-top: 8px;
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.6);
+}
+
+.axiom-cov-glyph-dead {
+  background: #f43f5e;
+  border-radius: 50%;
+  width: 6px !important;
+  height: 6px !important;
+  margin-left: 6px;
+  margin-top: 8px;
+  box-shadow: 0 0 5px rgba(244, 63, 94, 0.6);
+}
+
+.axiom-cov-line-full {
+  background: rgba(16, 185, 129, 0.07) !important;
+}
+
+.axiom-cov-line-partial {
+  background: rgba(245, 158, 11, 0.07) !important;
+}
+
+.axiom-cov-line-dead {
+  background: rgba(244, 63, 94, 0.07) !important;
+}
+

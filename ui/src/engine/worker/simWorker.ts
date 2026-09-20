@@ -2,6 +2,7 @@
 // Runs 100% off the main UI thread with autonomous background clocking and SharedArrayBuffer synchronization.
 
 import initWasm, { WasmEngine } from "../../wasm/axiom_wasm.js";
+import * as wasmModule from "../../wasm/axiom_wasm.js";
 import {
   WorkerRequest,
   WorkerMessage,
@@ -132,6 +133,58 @@ class SimWorkerKernel {
 
     this.processStepResponse(response);
     return response;
+  }
+
+  public stepBackDelta() {
+    if (!this.wasmEngine || !this.compiled) {
+      throw new Error("Cannot step back delta: circuit is not compiled");
+    }
+
+    const response = (this.wasmEngine as any).step_back_delta?.() as any;
+    if (!response) {
+      throw new Error("No response from step_back_delta");
+    }
+
+    this.processStepResponse(response);
+    return response;
+  }
+
+  public stepBackTime(dtPs: number) {
+    if (!this.wasmEngine || !this.compiled) {
+      throw new Error("Cannot step back time: circuit is not compiled");
+    }
+
+    const response = (this.wasmEngine as any).step_back_time?.(dtPs) as any;
+    if (!response) {
+      throw new Error("No response from step_back_time");
+    }
+
+    this.processStepResponse(response);
+    return response;
+  }
+
+  public scrubToTime(targetTimePs: number) {
+    if (!this.wasmEngine || !this.compiled) {
+      throw new Error("Cannot scrub to time: circuit is not compiled");
+    }
+
+    const response = (this.wasmEngine as any).scrub_to_time?.(targetTimePs) as any;
+    if (!response) {
+      throw new Error("No response from scrub_to_time");
+    }
+
+    this.processStepResponse(response);
+    return response;
+  }
+
+  public decodeProtocol(requestJson: string) {
+    if (typeof (wasmModule as any)?.wasm_decode_protocol === "function") {
+      return (wasmModule as any).wasm_decode_protocol(requestJson);
+    }
+    if (this.wasmEngine && typeof (this.wasmEngine as any).decode_protocol === "function") {
+      return (this.wasmEngine as any).decode_protocol(requestJson);
+    }
+    throw new Error("WASM protocol decoder not available in worker");
   }
 
   public startPlay(intervalMs = 30, stepPs = 1000) {
@@ -340,6 +393,26 @@ class SimWorkerKernel {
     return this.topModule;
   }
 
+  public getCoverage(): any {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    return (this.wasmEngine as any).get_coverage();
+  }
+
+  public resetCoverage(): void {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    (this.wasmEngine as any).reset_coverage();
+  }
+
+  public exportLcov(sourcePath: string): string {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    return (this.wasmEngine as any).export_lcov(sourcePath);
+  }
+
+  public exportHtmlReport(sourceName: string, sourceCode: string): string {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    return (this.wasmEngine as any).export_html_report(sourceName, sourceCode);
+  }
+
   private broadcastBatch(response: any) {
     const batch: WorkerEventBatchMessage = {
       type: "EVENT_BATCH",
@@ -425,6 +498,30 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         break;
       }
 
+      case "STEP_BACK_DELTA": {
+        const result = kernel.stepBackDelta();
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "STEP_BACK_TIME": {
+        const result = kernel.stepBackTime(req.dtPs);
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "SCRUB_TO_TIME": {
+        const result = kernel.scrubToTime(req.targetTimePs);
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "DECODE_PROTOCOL": {
+        const result = kernel.decodeProtocol(req.requestJson);
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
       case "START_PLAY": {
         kernel.startPlay(req.intervalMs, req.stepPs);
         self.postMessage({ type: "RESPONSE", id: req.id, success: true });
@@ -488,6 +585,117 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       case "COMPLETE": {
         const result = kernel.complete(req.source, req.line, req.col);
         self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "RUN_STA": {
+        let result: any = null;
+        if (typeof (kernel as any).run_sta === "function") {
+          result = (kernel as any).run_sta(req.verilogSource, req.xdcSource, req.topModule);
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "RECOMMEND_PIPELINE": {
+        let result: any = null;
+        if (typeof (kernel as any).recommend_pipeline === "function") {
+          result = (kernel as any).recommend_pipeline(req.verilogSource, req.xdcSource, req.topModule);
+        } else if (typeof (wasmModule as any).wasm_recommend_pipeline === "function") {
+          result = (wasmModule as any).wasm_recommend_pipeline(req.verilogSource, req.xdcSource, req.topModule);
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "APPLY_PIPELINE": {
+        let result: any = null;
+        if (typeof (kernel as any).apply_pipeline === "function") {
+          result = (kernel as any).apply_pipeline(
+            req.verilogSource,
+            req.topModule,
+            req.cutNet,
+            req.clockName,
+            req.resetName
+          );
+        } else if (typeof (wasmModule as any).wasm_apply_pipeline === "function") {
+          result = (wasmModule as any).wasm_apply_pipeline(
+            req.verilogSource,
+            req.topModule,
+            req.cutNet,
+            req.clockName,
+            req.resetName
+          );
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "SYNTHESIZE_MICROARCH": {
+        let result: any = null;
+        if (typeof (kernel as any).wasm_synthesize_microarch === "function") {
+          result = (kernel as any).wasm_synthesize_microarch(req.source, req.topModule);
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "PARTITION_MULTIDIE": {
+        let result: any = null;
+        if (typeof (kernel as any).wasm_partition_multidie === "function") {
+          const constraintsJson = req.constraints ? JSON.stringify(req.constraints) : null;
+          result = (kernel as any).wasm_partition_multidie(
+            req.source,
+            req.topModule,
+            req.device,
+            constraintsJson,
+            req.enableLaguna,
+            req.tdmRatio
+          );
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "EVALUATE_PPA": {
+        let result: any = null;
+        if (typeof (wasmModule as any).wasm_evaluate_ppa === "function") {
+          result = (wasmModule as any).wasm_evaluate_ppa(
+            req.verilogSource,
+            req.xdcSource ?? "",
+            req.topModule ?? null,
+            req.targetDevice ?? null,
+            req.targetClockFreqMhz ?? null,
+            req.junctionTempC ?? null,
+            req.coreVoltageV ?? null,
+            req.pdk ?? null
+          );
+        }
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
+        break;
+      }
+
+      case "GET_COVERAGE": {
+        const data = kernel.getCoverage();
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data });
+        break;
+      }
+
+      case "RESET_COVERAGE": {
+        kernel.resetCoverage();
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true });
+        break;
+      }
+
+      case "EXPORT_LCOV": {
+        const data = kernel.exportLcov(req.sourcePath);
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data });
+        break;
+      }
+
+      case "EXPORT_HTML_REPORT": {
+        const data = kernel.exportHtmlReport(req.sourceName, req.sourceCode);
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data });
         break;
       }
 

@@ -64,6 +64,73 @@ export class WasmEngine {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * Decode protocol transactions from request JSON payload.
+     * @param {string} request_json
+     * @returns {any}
+     */
+    decode_protocol(request_json) {
+        const ptr0 = passStringToWasm0(request_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_decode_protocol(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Exports standalone interactive HTML report.
+     * @param {string} source_name
+     * @param {string} source_code
+     * @returns {string}
+     */
+    export_html_report(source_name, source_code) {
+        let deferred4_0;
+        let deferred4_1;
+        try {
+            const ptr0 = passStringToWasm0(source_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passStringToWasm0(source_code, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len1 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmengine_export_html_report(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+            var ptr3 = ret[0];
+            var len3 = ret[1];
+            if (ret[3]) {
+                ptr3 = 0; len3 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred4_0 = ptr3;
+            deferred4_1 = len3;
+            return getStringFromWasm0(ptr3, len3);
+        } finally {
+            wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+        }
+    }
+    /**
+     * Exports standard LCOV (.info) format string.
+     * @param {string} source_path
+     * @returns {string}
+     */
+    export_lcov(source_path) {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(source_path, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmengine_export_lcov(this.__wbg_ptr, ptr0, len0);
+            var ptr2 = ret[0];
+            var len2 = ret[1];
+            if (ret[3]) {
+                ptr2 = 0; len2 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
+        } finally {
+            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
      * Export simulation switching activity as SAIF.
      * @returns {string}
      */
@@ -121,6 +188,17 @@ export class WasmEngine {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Queries the live RTL code coverage report.
+     * @returns {any}
+     */
+    get_coverage() {
+        const ret = wasm.wasmengine_get_coverage(this.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
     }
     /**
      * Query hover documentation for identifier/keyword at (line, column).
@@ -189,6 +267,82 @@ export class WasmEngine {
         return this;
     }
     /**
+     * Resets live RTL code coverage counters.
+     */
+    reset_coverage() {
+        const ret = wasm.wasmengine_reset_coverage(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Run Static Timing Analysis (STA) on active circuit with XDC constraints.
+     * @param {string} verilog_source
+     * @param {string} xdc_source
+     * @param {string | null} [top_module]
+     * @returns {any}
+     */
+    run_sta(verilog_source, xdc_source, top_module) {
+        const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_run_sta(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Scrub simulation to a target timestamp in picoseconds.
+     * @param {number} target_time_ps
+     * @returns {any}
+     */
+    scrub_to_time(target_time_ps) {
+        const ret = wasm.wasmengine_scrub_to_time(this.__wbg_ptr, target_time_ps);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Sets static AST coverage points on active simulation.
+     * @param {string} source
+     */
+    set_coverage_points(source) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_set_coverage_points(this.__wbg_ptr, ptr0, len0);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Rewind simulation by one discrete delta cycle.
+     * @returns {any}
+     */
+    step_back_delta() {
+        const ret = wasm.wasmengine_step_back_delta(this.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Rewind simulation physical time by dt_ps picoseconds.
+     * @param {number} dt_ps
+     * @returns {any}
+     */
+    step_back_time(dt_ps) {
+        const ret = wasm.wasmengine_step_back_time(this.__wbg_ptr, dt_ps);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Step simulation by a single discrete delta cycle (zero time).
      * @returns {any}
      */
@@ -242,6 +396,40 @@ export function wasm_complete_xdc(source, line, column) {
     const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.wasm_complete_xdc(ptr0, len0, line, column);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to decode protocol transactions from request JSON.
+ * @param {string} request_json
+ * @returns {any}
+ */
+export function wasm_decode_protocol(request_json) {
+    const ptr0 = passStringToWasm0(request_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_decode_protocol(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to generate coverage report for given source and simulated time.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {bigint | null} [sim_time_ps]
+ * @returns {any}
+ */
+export function wasm_get_coverage(source, top_module, sim_time_ps) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_get_coverage(ptr0, len0, ptr1, len1, !isLikeNone(sim_time_ps), isLikeNone(sim_time_ps) ? BigInt(0) : sim_time_ps);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -306,6 +494,113 @@ export function wasm_lint_xdc(source) {
     const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.wasm_lint_xdc(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to perform multi-die netlist partitioning.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {string | null} [device]
+ * @param {string | null} [constraints_json]
+ * @param {boolean | null} [enable_laguna]
+ * @param {number | null} [tdm_ratio]
+ * @returns {any}
+ */
+export function wasm_partition_multidie(source, top_module, device, constraints_json, enable_laguna, tdm_ratio) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    var ptr3 = isLikeNone(constraints_json) ? 0 : passStringToWasm0(constraints_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len3 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_partition_multidie(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(enable_laguna) ? 0xFFFFFF : enable_laguna ? 1 : 0, isLikeNone(tdm_ratio) ? Number.MAX_SAFE_INTEGER : (tdm_ratio) >>> 0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to evaluate Live PPA (Power-Performance-Area) Pareto Frontier & Silicon Cost.
+ * @param {string} verilog_source
+ * @param {string | null} [xdc_source]
+ * @param {string | null} [top_module]
+ * @param {string | null} [target_device]
+ * @param {number | null} [target_clock_freq_mhz]
+ * @param {number | null} [junction_temp_c]
+ * @param {number | null} [core_voltage_v]
+ * @param {string | null} [pdk]
+ * @returns {any}
+ */
+export function wasm_evaluate_ppa(verilog_source, xdc_source, top_module, target_device, target_clock_freq_mhz, junction_temp_c, core_voltage_v, pdk) {
+    if (typeof wasm.wasm_evaluate_ppa !== "function") {
+        return null;
+    }
+    const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(xdc_source) ? 0 : passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    var ptr3 = isLikeNone(target_device) ? 0 : passStringToWasm0(target_device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(pdk) ? 0 : passStringToWasm0(pdk, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_evaluate_ppa(
+        ptr0, len0,
+        ptr1, len1,
+        ptr2, len2,
+        ptr3, len3,
+        isLikeNone(target_clock_freq_mhz) ? -1 : target_clock_freq_mhz,
+        isLikeNone(junction_temp_c) ? -1000 : junction_temp_c,
+        isLikeNone(core_voltage_v) ? -1 : core_voltage_v,
+        ptr4, len4
+    );
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to run Static Timing Analysis (STA).
+ * @param {string} verilog_source
+ * @param {string} xdc_source
+ * @param {string | null} [top_module]
+ * @returns {any}
+ */
+export function wasm_run_sta(verilog_source, xdc_source, top_module) {
+    const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_run_sta(ptr0, len0, ptr1, len1, ptr2, len2);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to synthesize micro-architectural block diagram from Verilog source.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @returns {any}
+ */
+export function wasm_synthesize_microarch(source, top_module) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_synthesize_microarch(ptr0, len0, ptr1, len1);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -429,6 +724,10 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
