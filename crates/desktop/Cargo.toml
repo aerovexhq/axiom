@@ -27,6 +27,7 @@ thiserror = { workspace = true }
 hashbrown = { workspace = true }
 tauri = { version = "2" }
 tauri-plugin-single-instance = "2"
+rfd = "0.15"
 
 [build-dependencies]
 tauri-build = { version = "2" }

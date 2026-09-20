@@ -19,6 +19,12 @@ import { WelcomeLaunchpad } from "./components/WelcomeLaunchpad";
 import { ResizableSplitter } from "./components/ResizableSplitter";
 import { MobileDrawer, MobilePanelType } from "./components/MobileDrawer";
 import { MobileBottomBar } from "./components/MobileBottomBar";
+import { WindowFrame } from "./components/WindowFrame";
+import { UpdatePromptModal } from "./components/UpdatePromptModal";
+import { AboutModal } from "./components/AboutModal";
+import { ProtocolDecoderModal } from "./components/ProtocolDecoderModal";
+import { checkForUpdates, ReleaseManifest } from "./engine/updateChecker";
+import { scheduleAutoSave, isAutoSaveEnabled, notifySaveState } from "./engine/autoSaveManager";
 import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBridge";
 import {
   AutoPipelineRecommendation,
@@ -141,6 +147,39 @@ export const App: React.FC = () => {
   const [timingSlackPs, setTimingSlackPs] = useState<number | null>(null);
   const [predictedFmaxGainMhz, setPredictedFmaxGainMhz] = useState<number | null>(null);
 
+  // New Modals: Protocol Decoder, About, and Software Update Prompt
+  const [isProtocolDecoderOpen, setIsProtocolDecoderOpen] = useState<boolean>(false);
+  const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
+  const [isUpdatePromptOpen, setIsUpdatePromptOpen] = useState<boolean>(false);
+  const [updateManifest, setUpdateManifest] = useState<ReleaseManifest | null>(null);
+  const [updateCurrentCommit, setUpdateCurrentCommit] = useState<string>("a9a90cc");
+
+  // Non-blocking auto-update check on app startup
+  useEffect(() => {
+    checkForUpdates().then((res) => {
+      if (res.updateAvailable && res.latestManifest) {
+        setUpdateManifest(res.latestManifest);
+        setUpdateCurrentCommit(res.currentCommit);
+        const dismissed = sessionStorage.getItem(`axiom_update_dismissed_${res.latestManifest.shortCommit}`);
+        if (!dismissed) {
+          setIsUpdatePromptOpen(true);
+        }
+      }
+    });
+  }, []);
+
+  const handleManualCheckUpdates = async () => {
+    toast.info("Checking for Axiom EDA updates...");
+    const res = await checkForUpdates();
+    if (res.updateAvailable && res.latestManifest) {
+      setUpdateManifest(res.latestManifest);
+      setUpdateCurrentCommit(res.currentCommit);
+      setIsUpdatePromptOpen(true);
+    } else {
+      toast.success(`Axiom EDA is up to date! (Build: ${res.currentCommit})`);
+    }
+  };
+
   const handleOpenAddSource = (fileSet?: FileSetType) => {
     setAddSourceInitialFileSet(fileSet);
     setIsAddSourceOpen(true);
@@ -188,6 +227,8 @@ export const App: React.FC = () => {
     if (!project) return;
     saveProjectToStorage(project);
     setIsSaved(true);
+    notifySaveState(true);
+    toast.success(`Project "${project.name}" saved.`);
   }, [project]);
 
   // Export JSON bundle handler
@@ -282,8 +323,19 @@ export const App: React.FC = () => {
     if (!project || !activeFile) return;
     const updated = updateFileContent(project, activeFile.id, newCode);
     setProject(updated);
-    saveProjectToStorage(updated);
-    setIsSaved(true);
+
+    if (isAutoSaveEnabled()) {
+      setIsSaved(false);
+      notifySaveState(false);
+      scheduleAutoSave(() => {
+        saveProjectToStorage(updated);
+        setIsSaved(true);
+        notifySaveState(true);
+      }, 800);
+    } else {
+      setIsSaved(false);
+      notifySaveState(false);
+    }
   };
 
   const handleSelectFile = (fileId: string) => {
@@ -466,22 +518,32 @@ export const App: React.FC = () => {
   }, [handleOpenNewProject]);
 
   const handleCreateProject = useCallback(async (newProj: AxiomProject) => {
+    // If files exist and activeFileId is not set, default to first file
+    if (newProj.files.length > 0 && !newProj.activeFileId) {
+      newProj.activeFileId = newProj.files[0].id;
+      newProj.openFileIds = [newProj.files[0].id];
+    }
+
     const slug = newProj.id;
     setUrlProjectSlug(slug);
     setProject(newProj);
     await createAndPersistProject(newProj);
     setProjects(loadProjectRegistry());
     setIsSaved(true);
-    const bundled = bundleProjectSources(newProj);
-    engineBridge.compile(bundled, newProj.topModule);
+    notifySaveState(true);
 
-    // Auto-select signals
-    const sigIds = new Set<string>();
-    engineBridge.getState().signals.forEach((s) => {
-      sigIds.add(s.id);
-      sigIds.add(s.fullName);
-    });
-    setSelectedSignalIds(sigIds);
+    if (newProj.files.length > 0 && newProj.topModule) {
+      const bundled = bundleProjectSources(newProj);
+      engineBridge.compile(bundled, newProj.topModule);
+
+      // Auto-select signals
+      const sigIds = new Set<string>();
+      engineBridge.getState().signals.forEach((s) => {
+        sigIds.add(s.id);
+        sigIds.add(s.fullName);
+      });
+      setSelectedSignalIds(sigIds);
+    }
   }, []);
 
   const handleOpenProjectById = useCallback(async (id: string) => {
@@ -644,6 +706,61 @@ export const App: React.FC = () => {
 
   return (
     <div className="axiom-app">
+      {/* Universal Desktop & Web Acrylic Window Frame & Application Menu */}
+      {!isMobile && (
+        <WindowFrame
+          project={project}
+          isSimRunning={state.isRunning}
+          isSaved={isSaved}
+          onOpenNewProject={() => handleOpenNewProject()}
+          onOpenProjectFile={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            input.onchange = (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                  const content = re.target?.result as string;
+                  handleImportProjectJson(content);
+                };
+                reader.readAsText(file);
+              }
+            };
+            input.click();
+          }}
+          onCloseProject={handleCloseProject}
+          onSaveFile={handleSaveProject}
+          onSaveAll={handleSaveProject}
+          onAddSources={() => handleOpenAddSource()}
+          onExportProjectJson={handleExportProjectJson}
+          onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+          onToggleBottomDock={() => {
+            const dock = document.querySelector(".axiom-bottom-dock");
+            if (dock) {
+              dock.scrollIntoView({ behavior: "smooth" });
+            }
+          }}
+          onSwitchVisualizer={(view) => {
+            setCenterView("split");
+            setSplitActiveVisualizer(view);
+          }}
+          onRunSimulation={() => engineBridge.play()}
+          onPauseSimulation={() => engineBridge.pause()}
+          onStep1ns={() => engineBridge.tick(1000)}
+          onStep100ps={() => engineBridge.tick(100)}
+          onStepDelta={() => engineBridge.stepDelta()}
+          onResetSimulation={() => engineBridge.reset()}
+          onCompile={handleCompile}
+          onOpenAutoPipeline={() => handleOpenAutoPipeline()}
+          onOpenProtocolDecoder={() => setIsProtocolDecoderOpen(true)}
+          onOpenOmnibar={() => setIsOmnibarOpen(true)}
+          onCheckForUpdates={handleManualCheckUpdates}
+          onOpenAbout={() => setIsAboutOpen(true)}
+        />
+      )}
+
       {/* Simulation Execution & Status Header */}
       <Header
         state={state}
@@ -1705,6 +1822,27 @@ export const App: React.FC = () => {
         recommendation={autoPipelineRec}
         activeSourceCode={activeFile?.content}
         onApplyPipeline={handleApplyPipeline}
+      />
+
+      {/* Protocol Packet Decoder Modal */}
+      <ProtocolDecoderModal
+        isOpen={isProtocolDecoderOpen}
+        onClose={() => setIsProtocolDecoderOpen(false)}
+        state={state}
+      />
+
+      {/* Software Update Prompt Modal */}
+      <UpdatePromptModal
+        isOpen={isUpdatePromptOpen}
+        onClose={() => setIsUpdatePromptOpen(false)}
+        manifest={updateManifest}
+        currentCommit={updateCurrentCommit}
+      />
+
+      {/* About Axiom EDA Studio Modal */}
+      <AboutModal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
       />
 
       {/* Global Aerospace Toast & Confirmation Dialog Containers */}

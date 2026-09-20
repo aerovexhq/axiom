@@ -401,6 +401,27 @@ fn fs_exists(path: String) -> Result<bool, String> {
     Ok(std::path::Path::new(&path).exists())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppVersionInfo {
+    pub version: String,
+    pub commit: String,
+}
+
+#[tauri::command]
+fn get_app_version() -> AppVersionInfo {
+    AppVersionInfo {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        commit: option_env!("AXIOM_COMMIT_HASH").unwrap_or("a9a90cc").to_string(),
+    }
+}
+
+#[tauri::command]
+fn pick_folder() -> Option<String> {
+    rfd::FileDialog::new()
+        .pick_folder()
+        .map(|p| p.to_string_lossy().to_string())
+}
+
 pub fn run_desktop_app() {
     let engine: EngineState = Arc::new(Mutex::new(MultiEngineManager::new()));
     static WINDOW_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(2);
@@ -464,7 +485,9 @@ pub fn run_desktop_app() {
             get_coverage,
             reset_coverage,
             export_lcov,
-            export_html_report
+            export_html_report,
+            pick_folder,
+            get_app_version
         ])
         .run(tauri::generate_context!())
         .expect("error while running Axiom EDA desktop application");

@@ -522,3 +522,8 @@ select option {
   background: rgba(244, 63, 94, 0.07) !important;
 }
 
+.menu-item-hover:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
