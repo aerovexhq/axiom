@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X, Search, History, Cpu } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X, Search, History, Cpu, ShieldAlert } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { DisplayRadix, formatValueWithRadix, extractBitValue } from "../engine/radixUtils";
 import { useTranslation } from "../i18n/i18nContext";
 import { DecodedTransaction } from "../engine/protocolDecoders";
 import { ProtocolDecoderModal } from "./ProtocolDecoderModal";
+import { AssertionViolation, getViolationTimePs } from "../engine/assertionModel";
 
 const formatTimeCompact = (ps: number) => {
   if (ps >= 1_000_000) return `${(ps / 1_000_000).toFixed(2)}μs`;
@@ -84,6 +85,26 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     return () => window.removeEventListener("axiom_sim_reset", handleSimReset);
   }, []);
 
+  const signalHeight = 28;
+  const headerHeight = 32;
+  const gutterWidth = 230;
+
+  // Listen for waveform seek events (e.g. from bottom dock Assertions tab)
+  useEffect(() => {
+    const handleSeekWaveform = (e: any) => {
+      if (typeof e.detail?.timePs === "number") {
+        const targetTime = e.detail.timePs;
+        const containerW = containerRef.current?.clientWidth || 800;
+        const plotW = Math.max(100, containerW - gutterWidth);
+        const newOffset = Math.max(0, targetTime - (plotW / pixelsPerPs) / 2);
+        setTimeOffsetPs(newOffset);
+        setCursorAPrivate(targetTime);
+      }
+    };
+    window.addEventListener("axiom_seek_waveform", handleSeekWaveform);
+    return () => window.removeEventListener("axiom_seek_waveform", handleSeekWaveform);
+  }, [pixelsPerPs, gutterWidth]);
+
   // Modern Drag-to-Measure Window Selection System
   const [cursorAPrivate, setCursorAPrivate] = useState<number | null>(null);
   const [cursorBPrivate, setCursorBPrivate] = useState<number | null>(null);
@@ -101,6 +122,10 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   const [showDeltaGlitches, setShowDeltaGlitches] = useState<boolean>(true);
   const [expandedDeltaTimePs, setExpandedDeltaTimePs] = useState<number | null>(null);
 
+  // Phase 22: Temporal Logic Assertion Radar Pins
+  const [showAssertionPins, setShowAssertionPins] = useState<boolean>(true);
+  const [activeHoverViolation, setActiveHoverViolation] = useState<AssertionViolation | null>(null);
+
   // Signal Forcing Modal State
   const [forcingSignal, setForcingSignal] = useState<{ id: string; name: string; isBus: boolean; width: number } | null>(null);
   const [forceInputVal, setForceInputVal] = useState<string>("1");
@@ -110,10 +135,6 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   const [isProtocolModalOpen, setIsProtocolModalOpen] = useState<boolean>(false);
   const [decodedTransactions, setDecodedTransactions] = useState<DecodedTransaction[]>([]);
   const [activeHoverTx, setActiveHoverTx] = useState<DecodedTransaction | null>(null);
-
-  const signalHeight = 28;
-  const headerHeight = 32;
-  const gutterWidth = 230;
 
   // Active base signals from parent selection
   const baseSignals = useMemo(() => {
@@ -325,6 +346,53 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       ctx.lineTo(simTimeX, height);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    // Draw SVA Temporal Logic Assertion Violation Radar Pins
+    if (showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0) {
+      state.assertionViolations.forEach((v) => {
+        const vTimePs = getViolationTimePs(v);
+        const vX = plotX + (vTimePs - startTimePs) * pixelsPerPs;
+        if (vX >= plotX && vX <= width) {
+          const isHovered = activeHoverViolation === v;
+
+          // Vertical crimson violation line spanning all signal tracks
+          ctx.strokeStyle = isHovered ? "rgba(239, 68, 68, 0.85)" : "rgba(239, 68, 68, 0.45)";
+          ctx.lineWidth = isHovered ? 1.5 : 1;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(vX, headerHeight);
+          ctx.lineTo(vX, height);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Header crimson violation pin badge
+          const pinY = 4;
+          const pinH = 16;
+          const pinW = 20;
+
+          ctx.fillStyle = isHovered ? "#dc2626" : "#ef4444";
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === "function") {
+            (ctx as any).roundRect(vX - pinW / 2, pinY, pinW, pinH, 3);
+          } else {
+            ctx.rect(vX - pinW / 2, pinY, pinW, pinH);
+          }
+          ctx.fill();
+
+          if (isHovered) {
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
+          // Pin icon/label "!"
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 9px Inter, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("!", vX, pinY + 11);
+        }
+      });
     }
 
     // Draw Measurement Window Shading between Cursor A and B
@@ -725,8 +793,25 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         }
       }
 
-      // 1. Click on timeline header: check delta indicators or start horizontal pan
+      // 1. Click on timeline header: check assertion violation pins, delta indicators or start horizontal pan
       if (y <= headerHeight) {
+        if (showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0) {
+          const clickedViolation = state.assertionViolations.find((v) => {
+            const vTime = getViolationTimePs(v);
+            return Math.abs(vTime - clickedPs) * pixelsPerPs <= 12;
+          });
+          if (clickedViolation) {
+            const vTime = getViolationTimePs(clickedViolation);
+            const containerW = containerRef.current?.clientWidth || 800;
+            const plotW = Math.max(100, containerW - gutterWidth);
+            const targetOffset = Math.max(0, vTime - (plotW / pixelsPerPs) / 2);
+            setTimeOffsetPs(targetOffset);
+            setCursorAPrivate(vTime);
+            setActiveHoverViolation(clickedViolation);
+            return;
+          }
+        }
+
         const matchingDelta = deltaTimestamps.find((dT) => Math.abs(dT - clickedPs) * pixelsPerPs < 12);
         if (matchingDelta !== undefined) {
           setExpandedDeltaTimePs(expandedDeltaTimePs === matchingDelta ? null : matchingDelta);
@@ -834,10 +919,23 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         setTimeOffsetPs(Math.max(0, panStartTimeOffset - deltaPs));
       }
 
+      // Check hover on SVA assertion violation pins in timeline header
+      if (y <= headerHeight && showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0) {
+        const hoveredViolation = state.assertionViolations.find((v) => {
+          const vTime = getViolationTimePs(v);
+          return Math.abs(vTime - calcPs) * pixelsPerPs <= 12;
+        });
+        setActiveHoverViolation(hoveredViolation || null);
+      } else if (activeHoverViolation) {
+        setActiveHoverViolation(null);
+      }
+
       // Update cursor icon dynamically
       if (canvasRef.current) {
         if (isPanning) {
           canvasRef.current.style.cursor = "grabbing";
+        } else if (activeHoverViolation) {
+          canvasRef.current.style.cursor = "pointer";
         } else if (y <= headerHeight) {
           canvasRef.current.style.cursor = "grab";
         } else if (
@@ -1078,6 +1176,44 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
             <Cpu size={12} />
             <span>Decode Protocol {decodedTransactions.length > 0 ? `(${decodedTransactions.length})` : ""}</span>
           </button>
+
+          {/* SVA Assertion Radar Pins Toggle */}
+          <button
+            onClick={() => setShowAssertionPins(!showAssertionPins)}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              padding: "2px 8px",
+              height: "auto",
+              minHeight: 22,
+              borderRadius: "var(--radius-sm)",
+              backgroundColor:
+                showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0
+                  ? "rgba(239, 68, 68, 0.2)"
+                  : "var(--bg-tertiary)",
+              color:
+                showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0
+                  ? "#ef4444"
+                  : "var(--text-muted)",
+              border: `1px solid ${
+                showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0
+                  ? "#ef4444"
+                  : "var(--border-subtle)"
+              }`
+            }}
+            title="Toggle SVA Assertion Violation Pins on Waveform Timeline"
+          >
+            <ShieldAlert size={12} />
+            <span>
+              SVA Radar{" "}
+              {state.assertionViolations && state.assertionViolations.length > 0
+                ? `(${state.assertionViolations.length})`
+                : ""}
+            </span>
+          </button>
         </div>
 
         {/* Measurement HUD & Zoom Controls */}
@@ -1222,9 +1358,123 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           setIsPanning(false);
           setActiveCursorDrag(null);
           setHoverTimePs(null);
+          setActiveHoverViolation(null);
         }}
         style={{ flex: 1, cursor: isPanning ? "grabbing" : "crosshair" }}
       />
+
+      {/* SVA Violation Hover Tooltip Card */}
+      {activeHoverViolation && (
+        <div
+          style={{
+            position: "absolute",
+            top: headerHeight + 8,
+            left: Math.max(
+              gutterWidth + 10,
+              Math.min(
+                (containerRef.current?.clientWidth || 800) - 300,
+                gutterWidth +
+                  (getViolationTimePs(activeHoverViolation) - timeOffsetPs) * pixelsPerPs -
+                  120
+              )
+            ),
+            backgroundColor: "rgba(15, 23, 42, 0.96)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(239, 68, 68, 0.6)",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(239, 68, 68, 0.25)",
+            borderRadius: 8,
+            padding: "8px 12px",
+            zIndex: 60,
+            pointerEvents: "none",
+            minWidth: 240,
+            maxWidth: 320
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              marginBottom: 5
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  backgroundColor: "#ef4444",
+                  color: "#ffffff",
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  padding: "1px 6px",
+                  borderRadius: 3,
+                  textTransform: "uppercase"
+                }}
+              >
+                SVA Violation
+              </span>
+              <span
+                style={{
+                  color: "#f87171",
+                  fontFamily: "JetBrains Mono, monospace",
+                  fontSize: 11,
+                  fontWeight: 700
+                }}
+              >
+                {activeHoverViolation.assertion_id}
+              </span>
+            </div>
+            <span
+              style={{
+                color: "#94a3b8",
+                fontSize: 10,
+                fontFamily: "JetBrains Mono, monospace"
+              }}
+            >
+              Cycle #{activeHoverViolation.fail_cycle}
+            </span>
+          </div>
+
+          <div
+            style={{
+              fontSize: 11,
+              color: "#e2e8f0",
+              marginBottom: 6,
+              lineHeight: 1.4
+            }}
+          >
+            {activeHoverViolation.message}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              fontSize: 10,
+              color: "#94a3b8",
+              fontFamily: "JetBrains Mono, monospace",
+              borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+              paddingTop: 4
+            }}
+          >
+            <span>
+              Time:{" "}
+              <strong style={{ color: "#00f2fe" }}>
+                {formatTimeCompact(getViolationTimePs(activeHoverViolation))}
+              </strong>
+            </span>
+            <span>
+              {activeHoverViolation.line ? (
+                <span>Line: <strong style={{ color: "var(--accent-blue)" }}>L{activeHoverViolation.line}</strong></span>
+              ) : (
+                <span>Start: <strong style={{ color: "#94a3b8" }}>#{activeHoverViolation.start_cycle}</strong></span>
+              )}
+            </span>
+            <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Click to Center</span>
+          </div>
+        </div>
+      )}
 
       {/* Zero-Time Delta Accordion Drawer (when expandedDeltaTimePs is set) */}
       {expandedDeltaTimePs !== null && (

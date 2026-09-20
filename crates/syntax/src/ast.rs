@@ -55,6 +55,22 @@ pub struct ParamDecl {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AssertionKind {
+    Assert,
+    Assume,
+    Cover,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssertionDef {
+    pub label: Option<String>,
+    pub kind: AssertionKind,
+    pub clock: Option<SensitivityItem>,
+    pub expr_text: String,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ModuleItem {
     NetDecl(NetDecl),
@@ -63,6 +79,7 @@ pub enum ModuleItem {
     ProceduralBlock(ProceduralBlock),
     Instance(InstanceDef),
     GenerateBlock(GenerateBlock),
+    Assertion(AssertionDef),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +139,7 @@ pub enum Statement {
     For { init: Box<Statement>, cond: Expr, step: Box<Statement>, body: Box<Statement>, span: Span },
     Delay { amount: Expr, stmt: Option<Box<Statement>>, span: Span },
     TaskCall { name: String, args: Vec<Expr>, span: Span },
+    Assertion(AssertionDef),
     Null,
 }
 
@@ -142,6 +160,7 @@ impl Statement {
             Statement::For { span, .. } => *span,
             Statement::Delay { span, .. } => *span,
             Statement::TaskCall { span, .. } => *span,
+            Statement::Assertion(assert_def) => assert_def.span,
             Statement::Null => Span::new(axiom_core::FileId(0), 0, 0),
         }
     }

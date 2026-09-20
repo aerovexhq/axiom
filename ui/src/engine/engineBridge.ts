@@ -13,6 +13,13 @@ import { ProtocolDecodeRequest, DecodedTransaction, ProtocolKind, generateSynthe
 import { PpaReport, PpaOptions, evaluateClientFallbackPpa } from "./ppaModel";
 import { lintVhdlSource } from "./vhdlLinter";
 import { lintMemSource } from "./memLinter";
+import type {
+  AssertionViolation,
+  AssertionReport,
+  AssertionSummary,
+  AssertionStatus,
+  AssertionKind
+} from "./assertionModel";
 
 export type {
   ProtocolDecodeRequest,
@@ -23,7 +30,12 @@ export type {
   LineCoverageStatus,
   FsmCoverageData,
   PpaReport,
-  PpaOptions
+  PpaOptions,
+  AssertionViolation,
+  AssertionReport,
+  AssertionSummary,
+  AssertionStatus,
+  AssertionKind
 };
 
 export type LogicValue = "0" | "1" | "x" | "z";
@@ -97,6 +109,8 @@ export interface SimulationState {
     newVal: string;
     isGlitch: boolean;
   }>;
+  assertionViolations: AssertionViolation[];
+  assertionReport: AssertionReport | null;
 }
 
 export interface LspDiagnostic {
@@ -875,7 +889,9 @@ export class AxiomEngineBridge {
       glitches: [],
       hierarchy,
       forcedSignalIds: [],
-      deltaEvents: []
+      deltaEvents: [],
+      assertionViolations: [],
+      assertionReport: null
     };
   }
 
@@ -968,6 +984,10 @@ export class AxiomEngineBridge {
       for (const g of batch.glitches) {
         this.state.glitches.push(g);
       }
+    }
+
+    if (batch.assertionViolations && Array.isArray(batch.assertionViolations) && batch.assertionViolations.length > 0) {
+      this.state.assertionViolations = batch.assertionViolations;
     }
 
     this.notify();
@@ -1590,6 +1610,11 @@ export class AxiomEngineBridge {
           this.log(`[GLITCH DETECTED] ${g.message ?? g.net_name}`, "warn");
         }
       }
+    }
+
+    const violations = res.assertion_violations ?? res.assertionViolations;
+    if (Array.isArray(violations) && violations.length > 0) {
+      this.state.assertionViolations = violations;
     }
 
     if (Array.isArray(res.signal_values)) {
@@ -2362,6 +2387,191 @@ export class AxiomEngineBridge {
       overall_pct: isRunningOrStepped ? 82.5 : 0,
       lines: [],
       fsm_details: {}
+    };
+  }
+
+  public async addAssertion(nameOrExpr: string, svaExpr?: string, clockNet?: string, resetNet?: string): Promise<string> {
+    let name = nameOrExpr;
+    let expr = svaExpr ?? "";
+    if (!svaExpr) {
+      const match = nameOrExpr.match(/^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$/);
+      if (match) {
+        name = match[1];
+        expr = match[2];
+      } else {
+        name = `sva_${Math.random().toString(36).substring(2, 7)}`;
+        expr = nameOrExpr;
+      }
+    }
+
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const res = await invoke<string>("add_assertion", { name, svaExpr: expr, clockNet, resetNet });
+        return res;
+      } catch (err) {
+        console.warn("Tauri add_assertion fallback:", err);
+      }
+    }
+
+    if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      try {
+        return await simWorkerClient.addAssertion(name, expr, clockNet, resetNet);
+      } catch (err) {
+        console.warn("Worker addAssertion error:", err);
+      }
+    }
+
+    if (this.wasmEngine) {
+      try {
+        return (this.wasmEngine as any).add_assertion(name, expr, clockNet ?? null, resetNet ?? null);
+      } catch (err) {
+        console.warn("WASM add_assertion error:", err);
+      }
+    }
+
+    return `asrt_${Date.now()}`;
+  }
+
+  public async getAssertionReport(): Promise<AssertionReport> {
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const res: any = await invoke("get_assertion_report");
+        if (res) {
+          this.state.assertionReport = res;
+          return res;
+        }
+      } catch (err) {
+        console.warn("Tauri get_assertion_report fallback:", err);
+      }
+    }
+
+    if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      try {
+        const res = await simWorkerClient.getAssertionReport();
+        if (res) {
+          this.state.assertionReport = res;
+          return res;
+        }
+      } catch (err) {
+        console.warn("Worker getAssertionReport error:", err);
+      }
+    }
+
+    if (this.wasmEngine) {
+      try {
+        const res = (this.wasmEngine as any).get_assertion_report();
+        if (res) {
+          this.state.assertionReport = res;
+          return res;
+        }
+      } catch (err) {
+        console.warn("WASM get_assertion_report error:", err);
+      }
+    }
+
+    const fallback = this.getAssertionReportFallback();
+    this.state.assertionReport = fallback;
+    return fallback;
+  }
+
+  public async getAssertionViolations(): Promise<AssertionViolation[]> {
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const res: any = await invoke("get_assertion_violations");
+        if (Array.isArray(res)) {
+          this.state.assertionViolations = res;
+          return res;
+        }
+      } catch (err) {
+        console.warn("Tauri get_assertion_violations fallback:", err);
+      }
+    }
+
+    if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      try {
+        const res = await simWorkerClient.getAssertionViolations();
+        if (Array.isArray(res)) {
+          this.state.assertionViolations = res;
+          return res;
+        }
+      } catch (err) {
+        console.warn("Worker getAssertionViolations error:", err);
+      }
+    }
+
+    if (this.wasmEngine) {
+      try {
+        const res = (this.wasmEngine as any).get_assertion_violations();
+        if (Array.isArray(res)) {
+          this.state.assertionViolations = res;
+          return res;
+        }
+      } catch (err) {
+        console.warn("WASM get_assertion_violations error:", err);
+      }
+    }
+
+    return this.state.assertionViolations ?? [];
+  }
+
+  public async resetAssertions(): Promise<void> {
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        await invoke("reset_assertions");
+      } catch (err) {
+        console.warn("Tauri reset_assertions error:", err);
+      }
+    }
+
+    if (simWorkerClient.isSupported() && simWorkerClient.isInitialized()) {
+      try {
+        await simWorkerClient.resetAssertions();
+      } catch (err) {
+        console.warn("Worker resetAssertions error:", err);
+      }
+    }
+
+    if (this.wasmEngine) {
+      try {
+        (this.wasmEngine as any).reset_assertions();
+      } catch (err) {
+        console.warn("WASM reset_assertions error:", err);
+      }
+    }
+
+    this.state.assertionViolations = [];
+    this.state.assertionReport = null;
+    this.notify();
+  }
+
+  public async verifyAssertions(source?: string, topModule?: string, simTimePs?: number): Promise<AssertionReport> {
+    const src = source || this.activeSourceCode || "";
+    const top = topModule || this.state.topModule || "";
+    try {
+      const wasm = await this.initWasm();
+      if (wasm && typeof (wasm as any).wasm_verify_assertions === "function") {
+        return (wasm as any).wasm_verify_assertions(src, top || null, simTimePs ? BigInt(simTimePs) : null);
+      }
+    } catch (e) {
+      console.warn("wasm_verify_assertions fallback:", e);
+    }
+    return this.getAssertionReport();
+  }
+
+  private getAssertionReportFallback(): AssertionReport {
+    return {
+      assertions: [],
+      total_assertions: 0,
+      total_passes: 0,
+      total_failures: 0,
+      total_vacuous: 0,
+      active_in_flight: 0,
+      overall_pass_rate_pct: 100.0,
+      recent_violations: []
     };
   }
 

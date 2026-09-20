@@ -246,6 +246,19 @@ impl<'a> CoveragePointExtractor<'a> {
                 });
                 self.next_stmt_id += 1;
             }
+            Statement::Assertion(assert_def) => {
+                let (line, col) = offset_to_line_col(self.source, assert_def.span.start);
+                let snippet = self.get_snippet(assert_def.span);
+                self.statements.push(StatementPoint {
+                    id: self.next_stmt_id,
+                    span: assert_def.span,
+                    line,
+                    col,
+                    module_name: mod_name.to_string(),
+                    snippet,
+                });
+                self.next_stmt_id += 1;
+            }
             Statement::Null => {}
         }
     }

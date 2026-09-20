@@ -261,6 +261,7 @@ export const tr: Translations = {
     telemetry: "Güç & PDN",
     glitches: "Tehlikeler",
     timingTab: "Zamanlama",
+    assertionsTab: "Doğrulamalar",
     clear: "Günlüğü Temizle",
     execute: "Çalıştır",
     powerMw: "Dinamik Güç",

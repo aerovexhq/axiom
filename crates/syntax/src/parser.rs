@@ -46,6 +46,15 @@ impl<'a> Parser<'a> {
     }
 
     #[inline]
+    fn peek_at(&self, offset: usize) -> &TokenKind {
+        if self.cursor + offset < self.tokens.len() {
+            &self.tokens[self.cursor + offset].kind
+        } else {
+            &TokenKind::Eof
+        }
+    }
+
+    #[inline]
     fn peek_token(&self) -> &Token {
         if self.cursor < self.tokens.len() {
             &self.tokens[self.cursor]
@@ -334,7 +343,23 @@ impl<'a> Parser<'a> {
             TokenKind::Wire | TokenKind::Reg | TokenKind::Logic => self.parse_net_decl(),
             TokenKind::Parameter | TokenKind::LocalParam => self.parse_param_decl(),
             TokenKind::Generate => self.parse_generate_block(),
-            TokenKind::Ident(_) => self.parse_instance_or_assign(),
+            TokenKind::Assert | TokenKind::Assume | TokenKind::Cover => {
+                let def = self.parse_assertion_def(None)?;
+                Some(ModuleItem::Assertion(def))
+            }
+            TokenKind::Ident(_) => {
+                if self.peek_at(1) == &TokenKind::Colon && matches!(self.peek_at(2), TokenKind::Assert | TokenKind::Assume | TokenKind::Cover) {
+                    let label = match self.advance().kind.clone() {
+                        TokenKind::Ident(s) => s,
+                        _ => unreachable!(),
+                    };
+                    self.advance(); // consume ':'
+                    let def = self.parse_assertion_def(Some(label))?;
+                    Some(ModuleItem::Assertion(def))
+                } else {
+                    self.parse_instance_or_assign()
+                }
+            }
             _ => {
                 let span = self.current_span();
                 let tok = self.advance().kind.clone();
@@ -652,6 +677,19 @@ impl<'a> Parser<'a> {
                     })
                 }
             }
+            TokenKind::Assert | TokenKind::Assume | TokenKind::Cover => {
+                let def = self.parse_assertion_def(None)?;
+                Some(Statement::Assertion(def))
+            }
+            TokenKind::Ident(_) if self.peek_at(1) == &TokenKind::Colon && matches!(self.peek_at(2), TokenKind::Assert | TokenKind::Assume | TokenKind::Cover) => {
+                let label = match self.advance().kind.clone() {
+                    TokenKind::Ident(s) => s,
+                    _ => unreachable!(),
+                };
+                self.advance(); // consume ':'
+                let def = self.parse_assertion_def(Some(label))?;
+                Some(Statement::Assertion(def))
+            }
             _ => {
                 // System task call, user task call, or assignment:
                 let expr = self.parse_expr_precedence(Precedence::Shift)?;
@@ -757,6 +795,114 @@ impl<'a> Parser<'a> {
             items,
             span: start_span.merge(end_span),
         }))
+    }
+
+    fn parse_assertion_def(&mut self, label: Option<String>) -> Option<AssertionDef> {
+        let start_span = self.current_span();
+        let kind = match self.advance().kind.clone() {
+            TokenKind::Assert => AssertionKind::Assert,
+            TokenKind::Assume => AssertionKind::Assume,
+            TokenKind::Cover => AssertionKind::Cover,
+            _ => return None,
+        };
+
+        // Optional 'property' keyword: assert property (...)
+        self.match_token(&TokenKind::Property);
+
+        // Expect opening '('
+        self.expect(&TokenKind::LParen, "assertion property '('")?;
+
+        // Optional clocking event: @(posedge clk) or @(negedge clk)
+        let clock = if self.match_token(&TokenKind::At) {
+            self.expect(&TokenKind::LParen, "clock event '('")?;
+            let edge = if self.match_token(&TokenKind::Posedge) {
+                EdgeKind::Posedge
+            } else if self.match_token(&TokenKind::Negedge) {
+                EdgeKind::Negedge
+            } else {
+                EdgeKind::AnyChange
+            };
+            let signal = self.parse_expr()?;
+            self.expect(&TokenKind::RParen, "clock event ')'")?;
+            Some(SensitivityItem {
+                edge,
+                signal,
+                span: start_span,
+            })
+        } else {
+            None
+        };
+
+        // Collect tokens for property expression until matching closing ')'
+        let mut depth = 1usize;
+        let mut expr_parts: Vec<String> = Vec::new();
+        while !self.check(&TokenKind::Eof) && depth > 0 {
+            if self.check(&TokenKind::LParen) {
+                depth += 1;
+                expr_parts.push("(".to_string());
+                self.advance();
+            } else if self.check(&TokenKind::RParen) {
+                depth -= 1;
+                if depth == 0 {
+                    self.advance();
+                    break;
+                }
+                expr_parts.push(")".to_string());
+                self.advance();
+            } else {
+                let tok = self.advance();
+                let part = match &tok.kind {
+                    TokenKind::Ident(s) => s.clone(),
+                    TokenKind::UnsizedInt(v) => v.to_string(),
+                    TokenKind::Number(v) => format!("{v:?}"),
+                    TokenKind::ImpliesOverlap => "|->".to_string(),
+                    TokenKind::ImpliesNonOverlap => "|=>".to_string(),
+                    TokenKind::CycleDelay => "##".to_string(),
+                    TokenKind::RepeatStar => "[*".to_string(),
+                    TokenKind::LBracket => "[".to_string(),
+                    TokenKind::RBracket => "]".to_string(),
+                    TokenKind::AmpAmp => "&&".to_string(),
+                    TokenKind::PipePipe => "||".to_string(),
+                    TokenKind::Bang => "!".to_string(),
+                    TokenKind::EqEq => "==".to_string(),
+                    TokenKind::BangEq => "!=".to_string(),
+                    TokenKind::Lt => "<".to_string(),
+                    TokenKind::LtEq => "<=".to_string(),
+                    TokenKind::Gt => ">".to_string(),
+                    TokenKind::GtEq => ">=".to_string(),
+                    TokenKind::Colon => ":".to_string(),
+                    TokenKind::Plus => "+".to_string(),
+                    TokenKind::Minus => "-".to_string(),
+                    TokenKind::Star => "*".to_string(),
+                    TokenKind::Slash => "/".to_string(),
+                    TokenKind::Amp => "&".to_string(),
+                    TokenKind::Pipe => "|".to_string(),
+                    TokenKind::Caret => "^".to_string(),
+                    TokenKind::Tilde => "~".to_string(),
+                    _ => "".to_string(),
+                };
+                if !part.is_empty() {
+                    expr_parts.push(part);
+                }
+            }
+        }
+
+        let expr_text = expr_parts.join(" ");
+
+        // Optional action block: else $error("...");
+        if self.match_token(&TokenKind::Else) {
+            let _ = self.parse_statement();
+        }
+
+        let end_span = self.expect(&TokenKind::Semicolon, "assertion ending ';'")?;
+
+        Some(AssertionDef {
+            label,
+            kind,
+            clock,
+            expr_text,
+            span: start_span.merge(end_span),
+        })
     }
 
     // ==========================================

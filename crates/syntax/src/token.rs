@@ -35,6 +35,11 @@ pub enum TokenKind {
     Negedge,
     Integer,
     Time,
+    Assert,
+    Property,
+    Sequence,
+    Cover,
+    Assume,
 
     // Compiler directives
     DirectiveDefine,
@@ -75,6 +80,10 @@ pub enum TokenKind {
     ShrArith,      // >>>
     AssignEq,      // =
     AssignLe,      // <= (procedural non-blocking assignment)
+    ImpliesOverlap,    // |->
+    ImpliesNonOverlap, // |=>
+    CycleDelay,        // ##
+    RepeatStar,        // [*
     Question,      // ?
     Colon,         // :
     PlusColon,     // +:

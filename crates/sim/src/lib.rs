@@ -1,3 +1,4 @@
+pub mod assertion;
 pub mod coverage;
 pub mod event;
 pub mod glitch;
@@ -6,6 +7,11 @@ pub mod protocol;
 pub mod simulator;
 pub mod snapshot;
 
+pub use assertion::{
+    AssertionDef, AssertionEvaluator, AssertionKind, AssertionReport, AssertionStats,
+    AssertionStatus, AssertionSummary, AssertionThread, AssertionViolation, ClockEdge,
+    CompareOp, PropertyExpr, SequenceExpr, SvaParser, TemporalExpr,
+};
 pub use coverage::{
     generate_html, generate_lcov, BitToggle, BranchHits, CoverageReport, CoverageTracker,
     FsmCoverageData, LineCoverageInfo, LineCoverageStatus,

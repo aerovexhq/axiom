@@ -278,6 +278,7 @@ export interface Translations {
     telemetry: string;
     glitches: string;
     timingTab: string;
+    assertionsTab: string;
     clear: string;
     execute: string;
     powerMw: string;

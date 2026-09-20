@@ -163,6 +163,16 @@ impl VerilogLinter {
                     Self::collect_expr_reads(expr, &mut read_signals);
                 }
             }
+            if let ModuleItem::Assertion(asrt) = item {
+                if let Some(clk) = &asrt.clock {
+                    Self::collect_expr_reads(&clk.signal, &mut read_signals);
+                }
+                for word in asrt.expr_text.split(|c: char| !c.is_alphanumeric() && c != '_') {
+                    if !word.is_empty() && declared_signals.contains_key(word) {
+                        read_signals.insert(word.to_string());
+                    }
+                }
+            }
         }
 
         // Rule AXIOM_W003_UNDRIVEN_NET: Declared & read, but never driven (and not an input port or instance output)
@@ -455,6 +465,17 @@ impl VerilogLinter {
             Statement::TaskCall { args, .. } => {
                 for arg in args {
                     Self::collect_expr_reads(arg, read_signals);
+                }
+            }
+
+            Statement::Assertion(asrt) => {
+                if let Some(clk) = &asrt.clock {
+                    Self::collect_expr_reads(&clk.signal, read_signals);
+                }
+                for word in asrt.expr_text.split(|c: char| !c.is_alphanumeric() && c != '_') {
+                    if !word.is_empty() {
+                        read_signals.insert(word.to_string());
+                    }
                 }
             }
 

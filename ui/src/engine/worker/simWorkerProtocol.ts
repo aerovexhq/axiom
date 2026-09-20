@@ -3,6 +3,8 @@ import type {
   TelemetryPoint,
   GlitchEvent
 } from "../engineBridge";
+import type { AssertionViolation } from "../assertionModel";
+export type { AssertionViolation, AssertionReport } from "../assertionModel";
 
 export type WorkerCommandType =
   | "INIT"
@@ -34,6 +36,10 @@ export type WorkerCommandType =
   | "RESET_COVERAGE"
   | "EXPORT_LCOV"
   | "EXPORT_HTML_REPORT"
+  | "ADD_ASSERTION"
+  | "GET_ASSERTION_REPORT"
+  | "GET_ASSERTION_VIOLATIONS"
+  | "RESET_ASSERTIONS"
   | "ATTACH_SHARED_BUFFER"
   | "PING";
 
@@ -209,6 +215,26 @@ export interface ExportHtmlReportRequest extends BaseWorkerRequest {
   sourceCode: string;
 }
 
+export interface AddAssertionRequest extends BaseWorkerRequest {
+  type: "ADD_ASSERTION";
+  name: string;
+  svaExpr: string;
+  clockNet?: string;
+  resetNet?: string;
+}
+
+export interface GetAssertionReportRequest extends BaseWorkerRequest {
+  type: "GET_ASSERTION_REPORT";
+}
+
+export interface GetAssertionViolationsRequest extends BaseWorkerRequest {
+  type: "GET_ASSERTION_VIOLATIONS";
+}
+
+export interface ResetAssertionsRequest extends BaseWorkerRequest {
+  type: "RESET_ASSERTIONS";
+}
+
 export type LineCoverageStatus = "Covered" | "Partial" | "Uncovered" | "NonExecutable";
 
 export interface LineCoverageInfo {
@@ -289,6 +315,10 @@ export type WorkerRequest =
   | ResetCoverageRequest
   | ExportLcovRequest
   | ExportHtmlReportRequest
+  | AddAssertionRequest
+  | GetAssertionReportRequest
+  | GetAssertionViolationsRequest
+  | ResetAssertionsRequest
   | AttachSharedBufferRequest
   | PingRequest;
 
@@ -314,6 +344,7 @@ export interface WorkerEventBatchMessage {
   signalValues: Array<[string, string]>;
   telemetry?: TelemetryPoint;
   glitches?: GlitchEvent[];
+  assertionViolations?: AssertionViolation[];
   eventsExecuted: number;
   glitchCount?: number;
   peakCurrentMa?: number;

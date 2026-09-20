@@ -161,6 +161,7 @@ impl<'a> Elaborator<'a> {
                         }
                     }
                 }
+                ModuleItem::Assertion(_) => {}
             }
         }
 

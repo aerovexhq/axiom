@@ -15,6 +15,65 @@ export class WasmEngine {
         wasm.__wbg_wasmengine_free(ptr, 0);
     }
     /**
+     * Add a dynamic temporal SVA assertion expression to the active simulation.
+     * @param {string} name
+     * @param {string} sva_expr
+     * @param {string | null} [clock_net]
+     * @param {string | null} [_reset_net]
+     * @returns {string}
+     */
+    add_assertion(name, sva_expr, clock_net, _reset_net) {
+        let deferred6_0;
+        let deferred6_1;
+        try {
+            const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passStringToWasm0(sva_expr, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len1 = WASM_VECTOR_LEN;
+            var ptr2 = isLikeNone(clock_net) ? 0 : passStringToWasm0(clock_net, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len2 = WASM_VECTOR_LEN;
+            var ptr3 = isLikeNone(_reset_net) ? 0 : passStringToWasm0(_reset_net, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len3 = WASM_VECTOR_LEN;
+            const ret = wasm.wasmengine_add_assertion(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+            var ptr5 = ret[0];
+            var len5 = ret[1];
+            if (ret[3]) {
+                ptr5 = 0; len5 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred6_0 = ptr5;
+            deferred6_1 = len5;
+            return getStringFromWasm0(ptr5, len5);
+        } finally {
+            wasm.__wbindgen_free(deferred6_0, deferred6_1, 1);
+        }
+    }
+    /**
+     * @param {string} verilog_source
+     * @param {string} top_module
+     * @param {string} cut_net
+     * @param {string} clock_name
+     * @param {string | null} [reset_name]
+     * @returns {any}
+     */
+    apply_pipeline(verilog_source, top_module, cut_net, clock_name, reset_name) {
+        const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(cut_net, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(clock_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        var ptr4 = isLikeNone(reset_name) ? 0 : passStringToWasm0(reset_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len4 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_apply_pipeline(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Compile Verilog / SystemVerilog source code into executable 4-state simulation circuit.
      * @param {string} source
      * @param {string} top_module
@@ -72,6 +131,34 @@ export class WasmEngine {
         const ptr0 = passStringToWasm0(request_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmengine_decode_protocol(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * @param {string} verilog_source
+     * @param {string} xdc_source
+     * @param {string | null} [top_module]
+     * @param {string | null} [target_device]
+     * @param {number | null} [target_clock_freq_mhz]
+     * @param {number | null} [junction_temp_c]
+     * @param {number | null} [core_voltage_v]
+     * @param {string | null} [pdk]
+     * @returns {any}
+     */
+    evaluate_ppa(verilog_source, xdc_source, top_module, target_device, target_clock_freq_mhz, junction_temp_c, core_voltage_v, pdk) {
+        const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        var ptr3 = isLikeNone(target_device) ? 0 : passStringToWasm0(target_device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len3 = WASM_VECTOR_LEN;
+        var ptr4 = isLikeNone(pdk) ? 0 : passStringToWasm0(pdk, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len4 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_evaluate_ppa(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(target_clock_freq_mhz) ? Number.MAX_SAFE_INTEGER : Math.fround(target_clock_freq_mhz), isLikeNone(junction_temp_c) ? Number.MAX_SAFE_INTEGER : Math.fround(junction_temp_c), isLikeNone(core_voltage_v) ? Number.MAX_SAFE_INTEGER : Math.fround(core_voltage_v), ptr4, len4);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
@@ -190,6 +277,28 @@ export class WasmEngine {
         }
     }
     /**
+     * Get active assertion verification report.
+     * @returns {any}
+     */
+    get_assertion_report() {
+        const ret = wasm.wasmengine_get_assertion_report(this.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Get list of all assertion violations detected during simulation.
+     * @returns {any}
+     */
+    get_assertion_violations() {
+        const ret = wasm.wasmengine_get_assertion_violations(this.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Queries the live RTL code coverage report.
      * @returns {any}
      */
@@ -247,6 +356,37 @@ export class WasmEngine {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * Run in-RAM static analysis linter on Memory file (.coe, .mem, .hex).
+     * @param {string} source
+     * @param {string} file_name
+     * @returns {any}
+     */
+    lint_mem(source, file_name) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(file_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_lint_mem(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Run in-RAM static analysis linter on VHDL IEEE 1076 source.
+     * @param {string} source
+     * @returns {any}
+     */
+    lint_vhdl(source) {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_lint_vhdl(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Run in-RAM static analysis linter on Vivado XDC constraints.
      * @param {string} source
      * @returns {any}
@@ -265,6 +405,34 @@ export class WasmEngine {
         this.__wbg_ptr = ret;
         WasmEngineFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * @param {string} verilog_source
+     * @param {string} xdc_source
+     * @param {string | null} [top_module]
+     * @returns {any}
+     */
+    recommend_pipeline(verilog_source, xdc_source, top_module) {
+        const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_recommend_pipeline(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Reset assertion counters and thread states.
+     */
+    reset_assertions() {
+        const ret = wasm.wasmengine_reset_assertions(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Resets live RTL code coverage counters.
@@ -369,6 +537,33 @@ export class WasmEngine {
 if (Symbol.dispose) WasmEngine.prototype[Symbol.dispose] = WasmEngine.prototype.free;
 
 /**
+ * Standalone WebAssembly function to apply Silicon Copilot auto-pipelining refactoring.
+ * @param {string} verilog_source
+ * @param {string} top_module
+ * @param {string} cut_net
+ * @param {string} clock_name
+ * @param {string | null} [reset_name]
+ * @returns {any}
+ */
+export function wasm_apply_pipeline(verilog_source, top_module, cut_net, clock_name, reset_name) {
+    const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(cut_net, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passStringToWasm0(clock_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(reset_name) ? 0 : passStringToWasm0(reset_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_apply_pipeline(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * Standalone WebAssembly function to query completions without creating an engine instance.
  * @param {string} source
  * @param {number} line
@@ -411,6 +606,36 @@ export function wasm_decode_protocol(request_json) {
     const ptr0 = passStringToWasm0(request_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.wasm_decode_protocol(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to evaluate Power-Performance-Area (PPA) and silicon cost forecast.
+ * @param {string} verilog_source
+ * @param {string} xdc_source
+ * @param {string | null} [top_module]
+ * @param {string | null} [target_device]
+ * @param {number | null} [target_clock_freq_mhz]
+ * @param {number | null} [junction_temp_c]
+ * @param {number | null} [core_voltage_v]
+ * @param {string | null} [pdk]
+ * @returns {any}
+ */
+export function wasm_evaluate_ppa(verilog_source, xdc_source, top_module, target_device, target_clock_freq_mhz, junction_temp_c, core_voltage_v, pdk) {
+    const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    var ptr3 = isLikeNone(target_device) ? 0 : passStringToWasm0(target_device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(pdk) ? 0 : passStringToWasm0(pdk, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_evaluate_ppa(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, isLikeNone(target_clock_freq_mhz) ? Number.MAX_SAFE_INTEGER : Math.fround(target_clock_freq_mhz), isLikeNone(junction_temp_c) ? Number.MAX_SAFE_INTEGER : Math.fround(junction_temp_c), isLikeNone(core_voltage_v) ? Number.MAX_SAFE_INTEGER : Math.fround(core_voltage_v), ptr4, len4);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -486,6 +711,39 @@ export function wasm_lint(source) {
 }
 
 /**
+ * Standalone WebAssembly function to lint Memory initialization file without creating an engine instance.
+ * @param {string} source
+ * @param {string} file_name
+ * @returns {any}
+ */
+export function wasm_lint_mem(source, file_name) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(file_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_lint_mem(ptr0, len0, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to lint VHDL source without creating an engine instance.
+ * @param {string} source
+ * @returns {any}
+ */
+export function wasm_lint_vhdl(source) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_lint_vhdl(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * Standalone WebAssembly function to lint XDC constraints source without creating an engine instance.
  * @param {string} source
  * @returns {any}
@@ -527,41 +785,20 @@ export function wasm_partition_multidie(source, top_module, device, constraints_
 }
 
 /**
- * Standalone WebAssembly function to evaluate Live PPA (Power-Performance-Area) Pareto Frontier & Silicon Cost.
+ * Standalone WebAssembly function to run Silicon Copilot timing slack auto-pipelining analysis.
  * @param {string} verilog_source
- * @param {string | null} [xdc_source]
+ * @param {string} xdc_source
  * @param {string | null} [top_module]
- * @param {string | null} [target_device]
- * @param {number | null} [target_clock_freq_mhz]
- * @param {number | null} [junction_temp_c]
- * @param {number | null} [core_voltage_v]
- * @param {string | null} [pdk]
  * @returns {any}
  */
-export function wasm_evaluate_ppa(verilog_source, xdc_source, top_module, target_device, target_clock_freq_mhz, junction_temp_c, core_voltage_v, pdk) {
-    if (typeof wasm.wasm_evaluate_ppa !== "function") {
-        return null;
-    }
+export function wasm_recommend_pipeline(verilog_source, xdc_source, top_module) {
     const ptr0 = passStringToWasm0(verilog_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    var ptr1 = isLikeNone(xdc_source) ? 0 : passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len1 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(xdc_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
     var ptr2 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     var len2 = WASM_VECTOR_LEN;
-    var ptr3 = isLikeNone(target_device) ? 0 : passStringToWasm0(target_device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len3 = WASM_VECTOR_LEN;
-    var ptr4 = isLikeNone(pdk) ? 0 : passStringToWasm0(pdk, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-    var len4 = WASM_VECTOR_LEN;
-    const ret = wasm.wasm_evaluate_ppa(
-        ptr0, len0,
-        ptr1, len1,
-        ptr2, len2,
-        ptr3, len3,
-        isLikeNone(target_clock_freq_mhz) ? -1 : target_clock_freq_mhz,
-        isLikeNone(junction_temp_c) ? -1000 : junction_temp_c,
-        isLikeNone(core_voltage_v) ? -1 : core_voltage_v,
-        ptr4, len4
-    );
+    const ret = wasm.wasm_recommend_pipeline(ptr0, len0, ptr1, len1, ptr2, len2);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -601,6 +838,25 @@ export function wasm_synthesize_microarch(source, top_module) {
     var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     var len1 = WASM_VECTOR_LEN;
     const ret = wasm.wasm_synthesize_microarch(ptr0, len0, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Standalone WebAssembly function to verify SVA assertions on Verilog source.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {bigint | null} [sim_time_ps]
+ * @returns {any}
+ */
+export function wasm_verify_assertions(source, top_module, sim_time_ps) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_verify_assertions(ptr0, len0, ptr1, len1, !isLikeNone(sim_time_ps), isLikeNone(sim_time_ps) ? BigInt(0) : sim_time_ps);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

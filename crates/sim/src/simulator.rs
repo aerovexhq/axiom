@@ -5,6 +5,7 @@ use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::assertion::{AssertionEvaluator, AssertionReport, AssertionViolation};
 use crate::coverage::{CoverageReport, CoverageTracker};
 use crate::event::{EventPayload, SchedRegion, SimEvent, StratifiedEventQueue};
 use crate::glitch::GlitchDetector;
@@ -69,6 +70,8 @@ pub struct AxiomSimulator {
     pub time_machine: SnapshotRingBuffer,
     /// Live RTL code coverage tracker (statement, branch, toggle, FSM)
     pub coverage: CoverageTracker,
+    /// In-RAM Temporal Logic Assertion Radar (Live SVA / PSL Protocol Verification)
+    pub assertion_evaluator: AssertionEvaluator,
 }
 
 impl AxiomSimulator {
@@ -116,6 +119,7 @@ impl AxiomSimulator {
             next_checkpoint_id: 1,
             time_machine: SnapshotRingBuffer::new(256, 50),
             coverage,
+            assertion_evaluator: AssertionEvaluator::new(),
         };
 
         // Initialize design at t=0, delta=0
@@ -491,6 +495,21 @@ impl AxiomSimulator {
         };
         self.prev_net_values.insert(net, new_val);
 
+        // Step temporal assertions on clock edges if active
+        if (is_posedge || is_negedge) && !self.assertion_evaluator.assertions.is_empty() {
+            let mut current_net_vals = HashMap::new();
+            for n in &self.compiled.circuit.nets {
+                current_net_vals.insert(n.id, self.compiled.arena.read_net(n));
+            }
+            self.assertion_evaluator.step_clock(
+                net_name,
+                is_posedge,
+                self.current_time,
+                &self.compiled.circuit,
+                &current_net_vals,
+            );
+        }
+
         // If triggered from NBA, downstream logic evaluates in NEXT delta cycle (delta + 1).
         // Otherwise, evaluates in CURRENT delta cycle.
         let target_delta = if is_nba {
@@ -592,6 +611,7 @@ impl AxiomSimulator {
             arena: self.compiled.arena.clone(),
             event_queue: self.event_queue.clone(),
             glitch_detector: self.glitch_detector.clone(),
+            assertion_evaluator: self.assertion_evaluator.clone(),
         };
 
         self.checkpoints.insert(id, snapshot);
@@ -611,6 +631,7 @@ impl AxiomSimulator {
         self.compiled.arena = snap.arena;
         self.event_queue = snap.event_queue;
         self.glitch_detector = snap.glitch_detector;
+        self.assertion_evaluator = snap.assertion_evaluator;
 
         // Resync prev_net_values
         for net in &self.compiled.circuit.nets {
@@ -629,6 +650,7 @@ impl AxiomSimulator {
             self.compiled.arena.clone(),
             self.event_queue.clone(),
             self.glitch_detector.clone(),
+            self.assertion_evaluator.clone(),
         )
     }
 
@@ -639,6 +661,7 @@ impl AxiomSimulator {
         self.compiled.arena = snap.arena.clone();
         self.event_queue = snap.event_queue.clone();
         self.glitch_detector = snap.glitch_detector.clone();
+        self.assertion_evaluator = snap.assertion_evaluator.clone();
 
         // Resync prev_net_values
         for net in &self.compiled.circuit.nets {
@@ -814,5 +837,55 @@ impl AxiomSimulator {
     /// Resets all coverage counters to zero.
     pub fn reset_coverage(&mut self) {
         self.coverage.reset();
+    }
+
+    /// Adds an SVA assertion from text string.
+    pub fn add_assertion_str(&mut self, text: &str) -> Result<String, String> {
+        self.assertion_evaluator.add_assertion_str(text)
+    }
+
+    /// Returns design-wide assertion verification report.
+    pub fn get_assertion_report(&self) -> AssertionReport {
+        self.assertion_evaluator.get_report()
+    }
+
+    /// Returns list of all detected assertion violations.
+    pub fn get_assertion_violations(&self) -> Vec<AssertionViolation> {
+        self.assertion_evaluator.violations.clone()
+    }
+
+    /// Resets all assertions to their initial state.
+    pub fn reset_assertions(&mut self) {
+        self.assertion_evaluator.reset();
+    }
+
+    /// Loads assertions defined inside parsed AST module items.
+    pub fn load_assertions_from_ast(&mut self, ast: &axiom_syntax::ast::SourceFile) {
+        for module in &ast.modules {
+            for item in &module.items {
+                if let axiom_syntax::ast::ModuleItem::Assertion(asrt) = item {
+                    let mut clock_name = "clk".to_string();
+                    let mut edge = crate::assertion::ClockEdge::Posedge;
+                    if let Some(sens) = &asrt.clock {
+                        edge = match sens.edge {
+                            axiom_syntax::ast::EdgeKind::Negedge => crate::assertion::ClockEdge::Negedge,
+                            _ => crate::assertion::ClockEdge::Posedge,
+                        };
+                        if let axiom_syntax::ast::Expr::Ident(ref id, _) = sens.signal {
+                            clock_name = id.clone();
+                        }
+                    }
+
+                    let id = format!("asrt_{}", self.assertion_evaluator.assertions.len());
+                    let mut parser = crate::assertion::SvaParser::new(&asrt.expr_text);
+                    if let Some(mut parsed) = parser.parse_assertion(&id) {
+                        parsed.name = asrt.label.clone().unwrap_or_else(|| id.clone());
+                        parsed.clock = clock_name;
+                        parsed.edge = edge;
+                        self.assertion_evaluator.add_assertion(parsed);
+                    }
+                }
+            }
+        }
     }
 }

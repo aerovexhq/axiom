@@ -261,6 +261,7 @@ export const ja: Translations = {
     telemetry: "電力 & PDN",
     glitches: "グリッチ",
     timingTab: "タイミング",
+    assertionsTab: "アサーション",
     clear: "ログクリア",
     execute: "実行",
     powerMw: "動的消費電力",

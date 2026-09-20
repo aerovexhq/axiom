@@ -261,6 +261,7 @@ export const de: Translations = {
     telemetry: "Leistung & PDN",
     glitches: "Glitches",
     timingTab: "Timing",
+    assertionsTab: "Assertionen",
     clear: "Protokoll leeren",
     execute: "Ausführen",
     powerMw: "Dynamische Leistung",

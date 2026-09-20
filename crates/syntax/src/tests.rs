@@ -137,4 +137,32 @@ endmodule
             panic!("Expected ModuleItem::Instance");
         }
     }
+
+    #[test]
+    fn test_parse_sva_assertion() {
+        let src = r#"
+module arbiter (
+    input clk,
+    input req,
+    input ack
+);
+    check_ack: assert property (@(posedge clk) req |-> ##[1:4] ack);
+    check_rose: assert property (@(posedge clk) $rose(req) |=> ack);
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        assert_eq!(file.modules.len(), 1);
+        let m = &file.modules[0];
+        assert_eq!(m.items.len(), 2);
+        if let ModuleItem::Assertion(ref asrt) = m.items[0] {
+            assert_eq!(asrt.label.as_deref(), Some("check_ack"));
+            assert_eq!(asrt.kind, AssertionKind::Assert);
+            assert!(asrt.clock.is_some());
+            assert!(asrt.expr_text.contains("|->"));
+            assert!(asrt.expr_text.contains("##"));
+        } else {
+            panic!("Expected ModuleItem::Assertion");
+        }
+    }
 }

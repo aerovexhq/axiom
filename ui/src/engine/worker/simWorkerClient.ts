@@ -405,6 +405,38 @@ export class SimWorkerClient {
     } as any);
   }
 
+  public async addAssertion(name: string, svaExpr: string, clockNet?: string, resetNet?: string): Promise<string> {
+    await this.initWorker();
+    return this.send({
+      type: "ADD_ASSERTION",
+      name,
+      svaExpr,
+      clockNet,
+      resetNet
+    } as any);
+  }
+
+  public async getAssertionReport(): Promise<any> {
+    await this.initWorker();
+    return this.send({
+      type: "GET_ASSERTION_REPORT"
+    } as any);
+  }
+
+  public async getAssertionViolations(): Promise<any[]> {
+    await this.initWorker();
+    return this.send({
+      type: "GET_ASSERTION_VIOLATIONS"
+    } as any);
+  }
+
+  public async resetAssertions(): Promise<void> {
+    await this.initWorker();
+    return this.send({
+      type: "RESET_ASSERTIONS"
+    } as any);
+  }
+
   private send<T = any>(req: Omit<WorkerRequest, "id">, customTimeout?: number): Promise<T> {
     if (!this.worker) {
       return Promise.reject(new Error("Worker is not available"));

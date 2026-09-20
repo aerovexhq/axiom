@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use axiom_core::SimTime;
 use axiom_jit::SimStateArena;
+use crate::assertion::AssertionEvaluator;
 use crate::event::StratifiedEventQueue;
 use crate::glitch::GlitchDetector;
 
@@ -17,6 +18,7 @@ pub struct SimSnapshot {
     pub arena: SimStateArena,
     pub event_queue: StratifiedEventQueue,
     pub glitch_detector: GlitchDetector,
+    pub assertion_evaluator: AssertionEvaluator,
 }
 
 /// A circular bounded buffer of simulation snapshots for time-travel replay.
@@ -45,6 +47,7 @@ impl SnapshotRingBuffer {
         arena: SimStateArena,
         event_queue: StratifiedEventQueue,
         glitch_detector: GlitchDetector,
+        assertion_evaluator: AssertionEvaluator,
     ) -> CheckpointId {
         let id = CheckpointId(self.next_id);
         self.next_id += 1;
@@ -60,6 +63,7 @@ impl SnapshotRingBuffer {
             arena,
             event_queue,
             glitch_detector,
+            assertion_evaluator,
         });
 
         id

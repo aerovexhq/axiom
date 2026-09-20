@@ -72,6 +72,7 @@ SUBCOMMANDS:
     replay <FILE> -t <TOP> [OPTIONS]     Silicon time-travel bidirectional state rewind & scrubbing
     decode <FILE> -t <TOP> [OPTIONS]     In-engine hardware protocol decoding (UART, SPI, I2C, AXI)
     coverage <FILE> -t <TOP> [OPTIONS]   Run RTL statement, branch, toggle, and FSM code coverage
+    verify <FILE> -t <TOP> [OPTIONS]     In-RAM Temporal Logic Assertion Radar (SVA / PSL verification)
     lsp                                  Start stdio JSON-RPC Language Server Protocol (LSP) daemon
     help                                 Print this message or the help of the given subcommand(s)
     version                              Print version information
@@ -81,6 +82,12 @@ RUN OPTIONS:
     --ticks <N>              Number of clock ticks to simulate (default: 100)
     --vcd <FILE>             Dump IEEE 1364 Value Change Dump to FILE
     --saif <FILE>            Dump SAIF 2.0 switching activity to FILE
+
+VERIFY OPTIONS:
+    -t, --top <MODULE>       Name of top-level module (required)
+    --ticks <N>              Number of clock ticks to simulate (default: 50)
+    --assert "<EXPR>"        Dynamic SVA assertion expression to evaluate
+    --json                   Output machine-readable JSON report
 
 PPA OPTIONS:
     -t, --top <MODULE>       Name of top-level module
@@ -134,6 +141,14 @@ pub struct PpaCliConfig {
     pub target_freq: Option<f32>,
     pub junction_temp: Option<f32>,
     pub pdk: Option<String>,
+    pub json: bool,
+}
+
+pub struct VerifyCliConfig {
+    pub file_path: String,
+    pub top_module: String,
+    pub ticks: u64,
+    pub extra_assertions: Vec<String>,
     pub json: bool,
 }
 
@@ -930,6 +945,38 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "verify" => {
+            if args.len() < 3 {
+                eprintln!("Error: 'verify' requires a file path. Usage: axiom verify <FILE> -t <TOP> [--ticks <N>] [--assert \"<EXPR>\"] [--json]");
+                std::process::exit(1);
+            }
+            let file_path = args[2].clone();
+            let top_module = parse_top_arg(&args).unwrap_or_else(|| {
+                eprintln!("Error: missing -t or --top argument. Usage: axiom verify <FILE> -t <TOP> [OPTIONS]");
+                std::process::exit(1);
+            });
+            let ticks = parse_u64_arg(&args, "--ticks").unwrap_or(50);
+            let mut extra_assertions = Vec::new();
+            for i in 0..args.len() {
+                if args[i] == "--assert" && i + 1 < args.len() {
+                    extra_assertions.push(args[i + 1].clone());
+                }
+            }
+            let json = args.iter().any(|a| a == "--json");
+
+            let cfg = VerifyCliConfig {
+                file_path,
+                top_module,
+                ticks,
+                extra_assertions,
+                json,
+            };
+
+            if let Err(e) = execute_verify(&cfg) {
+                eprintln!("Verification Error: {}", e);
+                std::process::exit(1);
+            }
+        }
         other => {
             eprintln!("Unknown subcommand '{}'. Use 'axiom help' for usage.", other);
             std::process::exit(1);
@@ -1474,6 +1521,117 @@ pub fn execute_ppa(cfg: &PpaCliConfig) -> Result<(), String> {
     Ok(())
 }
 
+pub fn execute_verify(cfg: &VerifyCliConfig) -> Result<(), String> {
+    let resolved = resolve_file_path(&cfg.file_path);
+    let source = fs::read_to_string(&resolved).map_err(|e| format!("Failed to read {}: {}", resolved, e))?;
+
+    let (ast, diags) = parse_hdl(FileId(1), &source);
+    if !diags.is_empty() {
+        let errs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("Parse errors:\n{}", errs.join("\n")));
+    }
+
+    let circuit = elaborate(&ast, &cfg.top_module).map_err(|e| format!("Elaboration error: {e}"))?;
+    let mut sim = AxiomSimulator::new(circuit).map_err(|e| format!("Simulator init error: {e}"))?;
+
+    // Load assertions from AST
+    sim.load_assertions_from_ast(&ast);
+
+    // Load any CLI extra assertions
+    for asrt_str in &cfg.extra_assertions {
+        sim.add_assertion_str(asrt_str)?;
+    }
+
+    // Auto-detect clock
+    let clock_net = sim.compiled.circuit.nets.iter().find(|n| n.name.contains("clk")).map(|n| n.name.clone());
+    if let Some(clk) = &clock_net {
+        let _ = sim.add_clock(clk, SimTime::from_nanoseconds(10));
+    }
+
+    // Run simulation
+    let sim_time = SimTime::from_nanoseconds(cfg.ticks * 20);
+    let _ = sim.tick(sim_time);
+
+    let report = sim.get_assertion_report();
+
+    if cfg.json {
+        let json = serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?;
+        println!("{}", json);
+        return Ok(());
+    }
+
+    println!("\x1b[1;36m================================================================================");
+    println!("  ⚡ Axiom EDA — In-RAM Temporal Logic Assertion Radar");
+    println!("================================================================================\x1b[0m");
+    println!("Target Module   : \x1b[1m{}\x1b[0m ({})", cfg.top_module, resolved);
+    println!("Duration        : {} ns ({} ticks)", cfg.ticks * 20, cfg.ticks);
+    println!("Total Properties: {}", report.total_assertions);
+    println!("Violations      : \x1b[{}m{}\x1b[0m | Passes: \x1b[1;32m{}\x1b[0m | Vacuous: {}\n",
+        if report.total_failures > 0 { "1;31" } else { "1;32" },
+        report.total_failures,
+        report.total_passes,
+        report.total_vacuous
+    );
+
+    println!("┌────────┬─────────────────────────────┬──────────┬──────────┬──────────┬────────────┬──────────┐");
+    println!("│ Status │ Assertion Name              │ Kind     │ Attempts │ Passes   │ Violations │ Vacuous  │");
+    println!("├────────┼─────────────────────────────┼──────────┼──────────┼──────────┼────────────┼──────────┤");
+
+    for stat in &report.assertions {
+        let (status_str, status_color) = if !stat.violations.is_empty() {
+            (" FAIL ", "1;31")
+        } else if stat.stats.passes > 0 {
+            (" PASS ", "1;32")
+        } else if stat.stats.vacuous > 0 {
+            (" VACU ", "1;33")
+        } else {
+            (" IDLE ", "0;37")
+        };
+
+        println!(
+            "│ \x1b[{}m{}\x1b[0m │ {:<27} │ {:<8} │ {:>8} │ {:>8} │ \x1b[{}m{:>10}\x1b[0m │ {:>8} │",
+            status_color,
+            status_str,
+            stat.def.name,
+            match stat.def.kind {
+                axiom_sim::AssertionKind::Assert => "assert",
+                axiom_sim::AssertionKind::Assume => "assume",
+                axiom_sim::AssertionKind::Cover => "cover",
+            },
+            stat.stats.attempts,
+            stat.stats.passes,
+            if !stat.violations.is_empty() { "1;31" } else { "0" },
+            stat.violations.len(),
+            stat.stats.vacuous,
+        );
+    }
+    println!("└────────┴─────────────────────────────┴──────────┴──────────┴──────────┴────────────┴──────────┘\n");
+
+    if !report.recent_violations.is_empty() {
+        println!("\x1b[1;31mTemporal Protocol Violations Detected:\x1b[0m");
+        for (idx, v) in report.recent_violations.iter().enumerate() {
+            println!(
+                "  [{}] \x1b[1m{}\x1b[0m at t = {} ps (cycle {})",
+                idx + 1,
+                v.assertion_name,
+                v.fail_time.as_picoseconds(),
+                v.fail_cycle,
+            );
+            println!("      Reason: \x1b[31m{}\x1b[0m", v.message);
+            if let Some(line) = v.line {
+                println!("      Location: line {}", line);
+            }
+        }
+        println!();
+    }
+
+    if report.total_failures > 0 {
+        return Err(format!("{} temporal assertion violation(s) detected", report.total_failures));
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1559,6 +1717,19 @@ mod tests {
         };
         let res = execute_decode(&cfg);
         assert!(res.is_ok(), "ALU decode failed: {:?}", res);
+    }
+
+    #[test]
+    fn test_cli_verify_counter() {
+        let cfg = VerifyCliConfig {
+            file_path: "tests/fixtures/counter.v".to_string(),
+            top_module: "counter".to_string(),
+            ticks: 20,
+            extra_assertions: vec!["a_cnt: assert property (@(posedge clk) count >= 0);".to_string()],
+            json: false,
+        };
+        let res = execute_verify(&cfg);
+        assert!(res.is_ok(), "Counter verify failed: {:?}", res);
     }
 }
 

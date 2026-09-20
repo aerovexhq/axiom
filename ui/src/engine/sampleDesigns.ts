@@ -140,6 +140,9 @@ module counter_glitch_demo (
   wire path_b = count[0] ^ count[1];
   assign glitch_hazard_wire = path_a ^ path_b;
 
+  // SVA Verification Radar
+  a_count_active: assert property (@(posedge clk) disable iff (!rst_n) enable |=> (count != $past(count)));
+
 endmodule
 `
   },

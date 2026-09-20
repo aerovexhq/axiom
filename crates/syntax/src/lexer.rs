@@ -137,14 +137,28 @@ impl<'a> Lexer<'a> {
         let kind = match c {
             b'(' => TokenKind::LParen,
             b')' => TokenKind::RParen,
-            b'[' => TokenKind::LBracket,
+            b'[' => {
+                if self.peek() == Some(b'*') {
+                    self.advance();
+                    TokenKind::RepeatStar
+                } else {
+                    TokenKind::LBracket
+                }
+            }
             b']' => TokenKind::RBracket,
             b'{' => TokenKind::LBrace,
             b'}' => TokenKind::RBrace,
             b';' => TokenKind::Semicolon,
             b',' => TokenKind::Comma,
             b'.' => TokenKind::Dot,
-            b'#' => TokenKind::Hash,
+            b'#' => {
+                if self.peek() == Some(b'#') {
+                    self.advance();
+                    TokenKind::CycleDelay
+                } else {
+                    TokenKind::Hash
+                }
+            }
             b'@' => TokenKind::At,
             b'?' => TokenKind::Question,
             b':' => TokenKind::Colon,
@@ -188,6 +202,14 @@ impl<'a> Lexer<'a> {
                 if self.peek() == Some(b'|') {
                     self.advance();
                     TokenKind::PipePipe
+                } else if self.peek() == Some(b'-') && self.peek_next() == Some(b'>') {
+                    self.advance(); // consume '-'
+                    self.advance(); // consume '>'
+                    TokenKind::ImpliesOverlap
+                } else if self.peek() == Some(b'=') && self.peek_next() == Some(b'>') {
+                    self.advance(); // consume '='
+                    self.advance(); // consume '>'
+                    TokenKind::ImpliesNonOverlap
                 } else {
                     TokenKind::Pipe
                 }
@@ -317,6 +339,11 @@ impl<'a> Lexer<'a> {
             "negedge" => TokenKind::Negedge,
             "integer" => TokenKind::Integer,
             "time" => TokenKind::Time,
+            "assert" => TokenKind::Assert,
+            "property" => TokenKind::Property,
+            "sequence" => TokenKind::Sequence,
+            "cover" => TokenKind::Cover,
+            "assume" => TokenKind::Assume,
             _ => TokenKind::Ident(text.to_string()),
         };
 

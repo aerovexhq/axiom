@@ -182,6 +182,50 @@ fn export_html_report(
 }
 
 #[tauri::command]
+fn add_assertion(
+    window: WebviewWindow,
+    name: String,
+    sva_expr: String,
+    clock_net: Option<String>,
+    reset_net: Option<String>,
+    state: State<'_, EngineState>,
+) -> Result<String, String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.add_assertion(&name, &sva_expr, clock_net.as_deref(), reset_net.as_deref())
+}
+
+#[tauri::command]
+fn get_assertion_report(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<axiom_sim::assertion::AssertionReport, String> {
+    let mgr = state.lock().unwrap();
+    let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
+    engine.get_assertion_report()
+}
+
+#[tauri::command]
+fn get_assertion_violations(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<Vec<axiom_sim::assertion::AssertionViolation>, String> {
+    let mgr = state.lock().unwrap();
+    let engine = mgr.engines.get(window.label()).ok_or("No simulation active for this window")?;
+    engine.get_assertion_violations()
+}
+
+#[tauri::command]
+fn reset_assertions(
+    window: WebviewWindow,
+    state: State<'_, EngineState>,
+) -> Result<(), String> {
+    let mut mgr = state.lock().unwrap();
+    let engine = mgr.get_or_create(window.label());
+    engine.reset_assertions()
+}
+
+#[tauri::command]
 fn run_sta(
     verilog_source: String,
     xdc_source: String,
@@ -506,6 +550,10 @@ pub fn run_desktop_app() {
             reset_coverage,
             export_lcov,
             export_html_report,
+            add_assertion,
+            get_assertion_report,
+            get_assertion_violations,
+            reset_assertions,
             pick_folder,
             pick_files,
             get_app_version
@@ -537,6 +585,8 @@ pub struct StepResponse {
     pub delta_summary: Option<DeltaSummary>,
     pub signal_values: Vec<(String, String)>,
     pub telemetry: TelemetryFrame,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assertion_violations: Option<Vec<axiom_sim::assertion::AssertionViolation>>,
 }
 
 /// Shared desktop simulation engine session.
@@ -646,6 +696,7 @@ impl DesktopEngine {
 
         let points = axiom_syntax::coverage::CoveragePointExtractor::extract(FileId(1), source, &ast);
         sim.set_coverage_points(points);
+        sim.load_assertions_from_ast(&ast);
 
         sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
         sim.add_listener(Box::new(SharedVcdListener(Arc::clone(&vcd))));
@@ -690,6 +741,12 @@ impl DesktopEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         Ok(StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -697,6 +754,7 @@ impl DesktopEngine {
             delta_summary: None,
             signal_values,
             telemetry,
+            assertion_violations,
         })
     }
 
@@ -726,6 +784,12 @@ impl DesktopEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         Ok(StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -733,6 +797,7 @@ impl DesktopEngine {
             delta_summary: Some(delta_summary),
             signal_values,
             telemetry,
+            assertion_violations,
         })
     }
 
@@ -762,6 +827,12 @@ impl DesktopEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         Ok(StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -769,6 +840,7 @@ impl DesktopEngine {
             delta_summary: Some(delta_summary),
             signal_values,
             telemetry,
+            assertion_violations,
         })
     }
 
@@ -800,6 +872,12 @@ impl DesktopEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         Ok(StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -807,6 +885,7 @@ impl DesktopEngine {
             delta_summary: None,
             signal_values,
             telemetry,
+            assertion_violations,
         })
     }
 
@@ -838,6 +917,12 @@ impl DesktopEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         Ok(StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -845,6 +930,7 @@ impl DesktopEngine {
             delta_summary: None,
             signal_values,
             telemetry,
+            assertion_violations,
         })
     }
 
@@ -911,6 +997,34 @@ impl DesktopEngine {
         let report = sim.get_coverage_report();
         Ok(axiom_sim::generate_html(&report, source_name, source_code))
     }
+
+    pub fn add_assertion(&mut self, name: &str, sva_expr: &str, clock_net: Option<&str>, _reset_net: Option<&str>) -> Result<String, String> {
+        let sim = self.sim.as_mut().ok_or("No simulation active")?;
+        let clk = clock_net.unwrap_or("clk");
+        let formatted = if !sva_expr.contains("assert") && !sva_expr.contains("assume") && !sva_expr.contains("cover") {
+            let body = sva_expr.trim().trim_end_matches(';');
+            format!("{name}: assert property (@(posedge {clk}) ({body}));")
+        } else {
+            sva_expr.to_string()
+        };
+        sim.add_assertion_str(&formatted)
+    }
+
+    pub fn get_assertion_report(&self) -> Result<axiom_sim::assertion::AssertionReport, String> {
+        let sim = self.sim.as_ref().ok_or("No simulation active")?;
+        Ok(sim.get_assertion_report())
+    }
+
+    pub fn get_assertion_violations(&self) -> Result<Vec<axiom_sim::assertion::AssertionViolation>, String> {
+        let sim = self.sim.as_ref().ok_or("No simulation active")?;
+        Ok(sim.get_assertion_violations())
+    }
+
+    pub fn reset_assertions(&mut self) -> Result<(), String> {
+        let sim = self.sim.as_mut().ok_or("No simulation active")?;
+        sim.reset_assertions();
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -938,5 +1052,11 @@ mod tests {
         // Export SAIF
         let saif = engine.export_saif().unwrap();
         assert!(saif.contains("(DESIGN \"counter\")"));
+
+        // Assertions
+        let aid = engine.add_assertion("a_test", "rst |-> count == 0", Some("clk"), None).unwrap();
+        assert_eq!(aid, "a_test");
+        let rep = engine.get_assertion_report().unwrap();
+        assert_eq!(rep.total_assertions, 1);
     }
 }

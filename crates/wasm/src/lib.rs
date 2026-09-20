@@ -30,6 +30,8 @@ pub struct StepResponse {
     pub delta_summary: Option<DeltaSummary>,
     pub signal_values: Vec<(String, String)>,
     pub telemetry: TelemetryFrame,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assertion_violations: Option<Vec<axiom_sim::assertion::AssertionViolation>>,
 }
 
 struct SharedTelemetryListener(Arc<Mutex<TelemetryCollector>>);
@@ -147,6 +149,7 @@ impl WasmEngine {
 
         let points = axiom_syntax::coverage::CoveragePointExtractor::extract(FileId(1), source, &ast);
         sim.set_coverage_points(points);
+        sim.load_assertions_from_ast(&ast);
 
         sim.add_listener(Box::new(SharedTelemetryListener(Arc::clone(&collector))));
         sim.add_listener(Box::new(SharedVcdListener(Arc::clone(&vcd))));
@@ -199,6 +202,12 @@ impl WasmEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         let resp = StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -206,6 +215,7 @@ impl WasmEngine {
             delta_summary: None,
             signal_values,
             telemetry,
+            assertion_violations,
         };
 
         serde_wasm_bindgen::to_value(&resp).map_err(|e| JsValue::from_str(&e.to_string()))
@@ -245,6 +255,12 @@ impl WasmEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         let resp = StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -252,6 +268,7 @@ impl WasmEngine {
             delta_summary: Some(delta_summary),
             signal_values,
             telemetry,
+            assertion_violations,
         };
 
         serde_wasm_bindgen::to_value(&resp).map_err(|e| JsValue::from_str(&e.to_string()))
@@ -291,6 +308,12 @@ impl WasmEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         let resp = StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -298,6 +321,7 @@ impl WasmEngine {
             delta_summary: Some(delta_summary),
             signal_values,
             telemetry,
+            assertion_violations,
         };
 
         serde_wasm_bindgen::to_value(&resp).map_err(|e| JsValue::from_str(&e.to_string()))
@@ -337,6 +361,12 @@ impl WasmEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         let resp = StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -344,6 +374,7 @@ impl WasmEngine {
             delta_summary: None,
             signal_values,
             telemetry,
+            assertion_violations,
         };
 
         serde_wasm_bindgen::to_value(&resp).map_err(|e| JsValue::from_str(&e.to_string()))
@@ -383,6 +414,12 @@ impl WasmEngine {
             signal_values.push((net.name.clone(), val.to_string()));
         }
 
+        let assertion_violations = if !sim.assertion_evaluator.violations.is_empty() {
+            Some(sim.get_assertion_violations())
+        } else {
+            None
+        };
+
         let resp = StepResponse {
             time_ps: time.as_picoseconds(),
             delta,
@@ -390,6 +427,7 @@ impl WasmEngine {
             delta_summary: None,
             signal_values,
             telemetry,
+            assertion_violations,
         };
 
         serde_wasm_bindgen::to_value(&resp).map_err(|e| JsValue::from_str(&e.to_string()))
@@ -603,6 +641,44 @@ impl WasmEngine {
             core_voltage_v,
             pdk,
         )
+    }
+
+    /// Add a dynamic temporal SVA assertion expression to the active simulation.
+    #[wasm_bindgen]
+    pub fn add_assertion(&mut self, name: &str, sva_expr: &str, clock_net: Option<String>, _reset_net: Option<String>) -> Result<String, JsValue> {
+        let sim = self.sim.as_mut().ok_or_else(|| JsValue::from_str("Simulator not initialized"))?;
+        let clk = clock_net.as_deref().unwrap_or("clk");
+        let formatted = if !sva_expr.contains("assert") && !sva_expr.contains("assume") && !sva_expr.contains("cover") {
+            let body = sva_expr.trim().trim_end_matches(';');
+            format!("{name}: assert property (@(posedge {clk}) ({body}));")
+        } else {
+            sva_expr.to_string()
+        };
+        sim.add_assertion_str(&formatted).map_err(|e| JsValue::from_str(&e))
+    }
+
+    /// Get active assertion verification report.
+    #[wasm_bindgen]
+    pub fn get_assertion_report(&self) -> Result<JsValue, JsValue> {
+        let sim = self.sim.as_ref().ok_or_else(|| JsValue::from_str("Simulator not initialized"))?;
+        let report = sim.get_assertion_report();
+        serde_wasm_bindgen::to_value(&report).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Get list of all assertion violations detected during simulation.
+    #[wasm_bindgen]
+    pub fn get_assertion_violations(&self) -> Result<JsValue, JsValue> {
+        let sim = self.sim.as_ref().ok_or_else(|| JsValue::from_str("Simulator not initialized"))?;
+        let violations = sim.get_assertion_violations();
+        serde_wasm_bindgen::to_value(&violations).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Reset assertion counters and thread states.
+    #[wasm_bindgen]
+    pub fn reset_assertions(&mut self) -> Result<(), JsValue> {
+        let sim = self.sim.as_mut().ok_or_else(|| JsValue::from_str("Simulator not initialized"))?;
+        sim.reset_assertions();
+        Ok(())
     }
 }
 
@@ -867,6 +943,40 @@ pub fn wasm_get_coverage(source: &str, top_module: Option<String>, sim_time_ps: 
         }
     }
     let report = sim.get_coverage_report();
+    serde_wasm_bindgen::to_value(&report).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Standalone WebAssembly function to verify SVA assertions on Verilog source.
+#[wasm_bindgen]
+pub fn wasm_verify_assertions(
+    source: &str,
+    top_module: Option<String>,
+    sim_time_ps: Option<u64>,
+) -> Result<JsValue, JsValue> {
+    let (ast, diags) = parse_hdl(FileId(1), source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(JsValue::from_str(&format!("HDL Syntax Error: {}", err_msgs.join("; "))));
+    }
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+    let circuit = elaborate(&ast, &top).map_err(|e| JsValue::from_str(&format!("Elaboration Error: {e}")))?;
+    let mut sim = AxiomSimulator::new(circuit).map_err(|e| JsValue::from_str(&format!("Sim Init Error: {e}")))?;
+    sim.load_assertions_from_ast(&ast);
+
+    // Auto-clock if clock net exists
+    let clk = sim.compiled.circuit.nets.iter().find(|n| n.name.contains("clk")).map(|n| n.name.clone());
+    if let Some(c) = clk {
+        let _ = sim.add_clock(&c, SimTime::from_ps(10_000));
+    }
+
+    if let Some(ps) = sim_time_ps {
+        if ps > 0 {
+            let _ = sim.tick(SimTime::from_ps(ps));
+        }
+    }
+    let report = sim.get_assertion_report();
     serde_wasm_bindgen::to_value(&report).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 

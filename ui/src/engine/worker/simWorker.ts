@@ -413,6 +413,26 @@ class SimWorkerKernel {
     return (this.wasmEngine as any).export_html_report(sourceName, sourceCode);
   }
 
+  public addAssertion(name: string, svaExpr: string, clockNet?: string, resetNet?: string): any {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    return (this.wasmEngine as any).add_assertion(name, svaExpr, clockNet ?? null, resetNet ?? null);
+  }
+
+  public getAssertionReport(): any {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    return (this.wasmEngine as any).get_assertion_report();
+  }
+
+  public getAssertionViolations(): any {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    return (this.wasmEngine as any).get_assertion_violations();
+  }
+
+  public resetAssertions(): void {
+    if (!this.wasmEngine) throw new Error("WASM engine not initialized");
+    (this.wasmEngine as any).reset_assertions();
+  }
+
   private broadcastBatch(response: any) {
     const batch: WorkerEventBatchMessage = {
       type: "EVENT_BATCH",
@@ -425,6 +445,7 @@ class SimWorkerKernel {
         delta: this.currentDeltaCycle,
         ...this.latestTelemetry
       },
+      assertionViolations: response.assertion_violations ?? undefined,
       eventsExecuted: this.totalEventsExecuted,
       glitchCount: this.glitchCount,
       peakCurrentMa: this.latestTelemetry.currentMa,
@@ -696,6 +717,30 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       case "EXPORT_HTML_REPORT": {
         const data = kernel.exportHtmlReport(req.sourceName, req.sourceCode);
         self.postMessage({ type: "RESPONSE", id: req.id, success: true, data });
+        break;
+      }
+
+      case "ADD_ASSERTION": {
+        const data = kernel.addAssertion(req.name, req.svaExpr, req.clockNet, req.resetNet);
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data });
+        break;
+      }
+
+      case "GET_ASSERTION_REPORT": {
+        const data = kernel.getAssertionReport();
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data });
+        break;
+      }
+
+      case "GET_ASSERTION_VIOLATIONS": {
+        const data = kernel.getAssertionViolations();
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true, data });
+        break;
+      }
+
+      case "RESET_ASSERTIONS": {
+        kernel.resetAssertions();
+        self.postMessage({ type: "RESPONSE", id: req.id, success: true });
         break;
       }
 

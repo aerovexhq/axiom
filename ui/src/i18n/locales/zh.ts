@@ -261,6 +261,7 @@ export const zh: Translations = {
     telemetry: "功耗与 PDN",
     glitches: "毛刺危害",
     timingTab: "时序",
+    assertionsTab: "断言",
     clear: "清空日志",
     execute: "执行",
     powerMw: "动态功耗",

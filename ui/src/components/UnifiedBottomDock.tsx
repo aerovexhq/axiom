@@ -16,7 +16,10 @@ import {
   BarChart2,
   RotateCcw,
   Search,
-  ExternalLink
+  ExternalLink,
+  ShieldAlert,
+  Play,
+  Plus
 } from "lucide-react";
 import {
   SimulationState,
@@ -24,8 +27,19 @@ import {
   LspDiagnostic,
   CoverageReport
 } from "../engine/engineBridge";
+import {
+  AssertionReport,
+  getViolationTimePs,
+  getAssertionStatusBadge
+} from "../engine/assertionModel";
 import { ResizableSplitter } from "./ResizableSplitter";
 import { useTranslation } from "../i18n";
+
+const formatTimeCompact = (ps: number) => {
+  if (ps >= 1_000_000) return `${(ps / 1_000_000).toFixed(2)}μs`;
+  if (ps >= 1000) return `${(ps / 1000).toFixed(2)}ns`;
+  return `${ps}ps`;
+};
 
 interface UnifiedBottomDockProps {
   state: SimulationState;
@@ -57,7 +71,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [dockHeight, setDockHeight] = useState<number>(180);
-  const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage">("repl");
+  const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage" | "assertions">("repl");
   const [replMode, setReplMode] = useState<"logs" | "shell">("shell");
 
   const errorCount = diagnostics.filter((d) => d.severity === 1).length;
@@ -109,6 +123,80 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
       unsub();
     };
   }, [state.currentSimTimePs, state.currentDeltaCycle, state.compiled]);
+
+  // Assertion Radar State & Sync
+  const [assertionReport, setAssertionReport] = useState<AssertionReport | null>(null);
+  const [assertionFilter, setAssertionFilter] = useState<"all" | "violated" | "passing" | "in_flight" | "vacuous">("all");
+  const [assertionSearch, setAssertionSearch] = useState<string>("");
+  const [dynamicAssertionInput, setDynamicAssertionInput] = useState<string>("");
+  const [expandedViolationIds, setExpandedViolationIds] = useState<Record<string, boolean>>({});
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchAssertions = async () => {
+      try {
+        const rep = await engineBridge.getAssertionReport();
+        if (!cancelled && rep) setAssertionReport(rep);
+      } catch (err) {
+        console.warn("UnifiedBottomDock: failed to fetch assertions:", err);
+      }
+    };
+    fetchAssertions();
+    const unsub = engineBridge.subscribe(() => {
+      fetchAssertions();
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [state.currentSimTimePs, state.currentDeltaCycle, state.compiled]);
+
+  const handleVerifyAssertions = async () => {
+    setIsVerifying(true);
+    try {
+      const rep = await engineBridge.verifyAssertions();
+      if (rep) setAssertionReport(rep);
+    } catch (err) {
+      console.error("Failed to run assertion verification:", err);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResetAssertions = async () => {
+    try {
+      await engineBridge.resetAssertions();
+      const rep = await engineBridge.getAssertionReport();
+      if (rep) setAssertionReport(rep);
+    } catch (err) {
+      console.error("Failed to reset assertions:", err);
+    }
+  };
+
+  const handleAddDynamicAssertion = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!dynamicAssertionInput.trim()) return;
+    try {
+      await engineBridge.addAssertion(dynamicAssertionInput.trim());
+      setDynamicAssertionInput("");
+      const rep = await engineBridge.getAssertionReport();
+      if (rep) setAssertionReport(rep);
+    } catch (err) {
+      console.error("Failed to add dynamic assertion:", err);
+    }
+  };
+
+  const toggleViolationExpanded = (assertionId: string) => {
+    setExpandedViolationIds((prev) => ({
+      ...prev,
+      [assertionId]: !prev[assertionId]
+    }));
+  };
+
+  const handleSeekWave = (timePs: number) => {
+    window.dispatchEvent(new CustomEvent("axiom_seek_waveform", { detail: { timePs } }));
+  };
 
   // Subscribe to Engine Logs
   useEffect(() => {
@@ -559,6 +647,34 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
             <BarChart2 size={13} />
             <span>Coverage ({coverageReport ? `${coverageReport.overall_pct.toFixed(0)}%` : "0%"})</span>
           </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("assertions");
+              setIsCollapsed(false);
+            }}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "2px 6px",
+              color:
+                (state.assertionViolations?.length ?? 0) > 0
+                  ? "var(--accent-rose)"
+                  : "var(--accent-cyan)",
+              fontSize: 12
+            }}
+          >
+            <ShieldAlert size={13} />
+            <span>
+              Assertions (
+              {(state.assertionViolations?.length ?? 0) > 0
+                ? `${state.assertionViolations.length} Fail`
+                : `${assertionReport?.total_assertions ?? 0}`}
+              )
+            </span>
+          </button>
         </div>
 
         {/* Right: Live Telemetry & Simulation Status Chips */}
@@ -829,10 +945,102 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab("assertions")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: activeTab === "assertions" ? 600 : 400,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: activeTab === "assertions" ? "var(--bg-tertiary)" : "transparent",
+              color: activeTab === "assertions" ? "var(--accent-cyan)" : "var(--text-muted)",
+              border: activeTab === "assertions" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+              flexShrink: 0
+            }}
+          >
+            <ShieldAlert size={12} />
+            <span style={{ whiteSpace: "nowrap" }}>{t("dock.assertionsTab")}</span>
+            {(state.assertionViolations?.length ?? 0) > 0 ? (
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  backgroundColor: "rgba(244, 63, 94, 0.2)",
+                  color: "var(--accent-rose)",
+                  padding: "0 4px",
+                  borderRadius: 8,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
+                }}
+              >
+                {state.assertionViolations.length} FAIL
+              </span>
+            ) : assertionReport && assertionReport.total_assertions > 0 ? (
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  backgroundColor: "rgba(16, 185, 129, 0.2)",
+                  color: "var(--accent-emerald)",
+                  padding: "0 4px",
+                  borderRadius: 8,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
+                }}
+              >
+                {assertionReport.overall_pass_rate_pct.toFixed(0)}%
+              </span>
+            ) : null}
+          </button>
         </div>
 
         {/* Right: Controls (Mode Toggle, Exporters, Maximize, Collapse) */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {activeTab === "assertions" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={handleVerifyAssertions}
+                disabled={isVerifying}
+                title="Run in-RAM assertion verification radar (200 cycles)"
+                className="btn btn-secondary"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 10,
+                  padding: "2px 6px",
+                  color: "var(--accent-cyan)",
+                  borderColor: "rgba(6, 182, 212, 0.4)"
+                }}
+              >
+                <Play size={10} />
+                <span>{isVerifying ? "Verifying..." : "Verify (200t)"}</span>
+              </button>
+
+              <button
+                onClick={handleResetAssertions}
+                title="Reset all assertion monitor stats and violation logs"
+                className="btn btn-secondary"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 10,
+                  padding: "2px 6px"
+                }}
+              >
+                <RotateCcw size={10} />
+                <span>Reset</span>
+              </button>
+            </div>
+          )}
+
           {activeTab === "coverage" && (
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
@@ -1792,6 +2000,605 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                       })}
                   </tbody>
                 </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Assertions Tab Content */}
+        {activeTab === "assertions" && (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              overflowY: "auto",
+              backgroundColor: "var(--bg-primary)",
+              color: "var(--text-primary)",
+              padding: "12px 16px",
+              gap: 12
+            }}
+          >
+            {/* Top 5 KPI Summary Cards */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                gap: 10
+              }}
+            >
+              {/* Card 1: Total Assertions */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Total Assertions</span>
+                  <ShieldAlert size={14} style={{ color: "var(--accent-cyan)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "#f8fafc" }}>
+                  {assertionReport?.total_assertions ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Active Protocol Monitors</span>
+              </div>
+
+              {/* Card 2: Pass Rate */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Pass Rate</span>
+                  <CheckCircle2
+                    size={14}
+                    style={{
+                      color:
+                        (assertionReport?.overall_pass_rate_pct ?? 100) >= 90
+                          ? "var(--accent-emerald)"
+                          : (assertionReport?.overall_pass_rate_pct ?? 100) >= 70
+                          ? "var(--accent-amber)"
+                          : "var(--accent-rose)"
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-mono)",
+                    color:
+                      (assertionReport?.overall_pass_rate_pct ?? 100) >= 90
+                        ? "var(--accent-emerald)"
+                        : (assertionReport?.overall_pass_rate_pct ?? 100) >= 70
+                        ? "var(--accent-amber)"
+                        : "var(--accent-rose)"
+                  }}
+                >
+                  {assertionReport ? `${assertionReport.overall_pass_rate_pct.toFixed(1)}%` : "100.0%"}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  {assertionReport?.total_passes ?? 0} successful cycles
+                </span>
+              </div>
+
+              {/* Card 3: Violations */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Violations</span>
+                  <AlertCircle
+                    size={14}
+                    style={{
+                      color:
+                        (assertionReport?.total_failures ?? state.assertionViolations?.length ?? 0) > 0
+                          ? "var(--accent-rose)"
+                          : "var(--accent-emerald)"
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-mono)",
+                    color:
+                      (assertionReport?.total_failures ?? state.assertionViolations?.length ?? 0) > 0
+                        ? "var(--accent-rose)"
+                        : "var(--accent-emerald)"
+                  }}
+                >
+                  {assertionReport?.total_failures ?? state.assertionViolations?.length ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  {state.assertionViolations?.length ?? 0} in current timeline
+                </span>
+              </div>
+
+              {/* Card 4: In-Flight */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Active In-Flight</span>
+                  <Zap size={14} style={{ color: "var(--accent-blue)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-blue)" }}>
+                  {assertionReport?.active_in_flight ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Multi-cycle threads evaluating</span>
+              </div>
+
+              {/* Card 5: Vacuous Passes */}
+              <div
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "8px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>Vacuous Passes</span>
+                  <Info size={14} style={{ color: "var(--accent-amber)" }} />
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-amber)" }}>
+                  {assertionReport?.total_vacuous ?? 0}
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Antecedent conditions false</span>
+              </div>
+            </div>
+
+            {/* Dynamic In-RAM SVA Injection Bar */}
+            <form
+              onSubmit={handleAddDynamicAssertion}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "var(--bg-secondary)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-sm)",
+                padding: "6px 10px"
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "var(--accent-cyan)",
+                  backgroundColor: "rgba(6, 182, 212, 0.12)",
+                  padding: "3px 7px",
+                  borderRadius: 3,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                <Plus size={11} />
+                <span>INJECT SVA</span>
+              </div>
+
+              <input
+                type="text"
+                value={dynamicAssertionInput}
+                onChange={(e) => setDynamicAssertionInput(e.target.value)}
+                placeholder="assert property (@(posedge clk) req |-> ##[1:2] ack);"
+                style={{
+                  flex: 1,
+                  fontSize: 11.5,
+                  fontFamily: "JetBrains Mono, monospace",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "#f8fafc"
+                }}
+              />
+
+              <button
+                type="submit"
+                disabled={!dynamicAssertionInput.trim()}
+                className="btn btn-primary"
+                style={{
+                  fontSize: 11,
+                  padding: "3px 10px",
+                  height: 24,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  opacity: !dynamicAssertionInput.trim() ? 0.5 : 1
+                }}
+              >
+                <span>Inject</span>
+              </button>
+            </form>
+
+            {/* Filter Pills & Search */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                flexWrap: "wrap"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {(["all", "violated", "passing", "in_flight", "vacuous"] as const).map((filter) => {
+                  const isActive = assertionFilter === filter;
+                  const label =
+                    filter === "all"
+                      ? `All (${assertionReport?.assertions.length ?? 0})`
+                      : filter === "violated"
+                      ? `Violated (${assertionReport?.assertions.filter((a) => a.violations.length > 0).length ?? 0})`
+                      : filter === "passing"
+                      ? `Passing (${assertionReport?.assertions.filter((a) => a.status === "Passing").length ?? 0})`
+                      : filter === "in_flight"
+                      ? `In-Flight (${assertionReport?.assertions.filter((a) => a.status === "InFlight").length ?? 0})`
+                      : `Vacuous (${assertionReport?.assertions.filter((a) => a.status === "Vacuous").length ?? 0})`;
+
+                  return (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setAssertionFilter(filter)}
+                      className="btn btn-ghost"
+                      style={{
+                        fontSize: 10.5,
+                        padding: "2px 8px",
+                        height: 22,
+                        borderRadius: "var(--radius-sm)",
+                        backgroundColor: isActive ? "var(--bg-tertiary)" : "transparent",
+                        color: isActive ? "#fff" : "var(--text-muted)",
+                        border: isActive ? "1px solid var(--border-strong)" : "1px solid transparent",
+                        fontWeight: isActive ? 600 : 400
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Search Bar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  backgroundColor: "var(--bg-secondary)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 8px",
+                  maxWidth: 240,
+                  width: "100%"
+                }}
+              >
+                <Search size={11} style={{ color: "var(--text-muted)" }} />
+                <input
+                  type="text"
+                  value={assertionSearch}
+                  onChange={(e) => setAssertionSearch(e.target.value)}
+                  placeholder="Filter assertions..."
+                  style={{
+                    backgroundColor: "transparent",
+                    border: "none",
+                    outline: "none",
+                    color: "var(--text-primary)",
+                    fontSize: 11,
+                    width: "100%"
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Assertion Items / Table */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--bg-secondary)"
+              }}
+            >
+              {(!assertionReport || assertionReport.assertions.length === 0) ? (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: 120,
+                    gap: 8,
+                    color: "var(--text-muted)"
+                  }}
+                >
+                  <ShieldAlert size={24} style={{ opacity: 0.4 }} />
+                  <span style={{ fontSize: 12 }}>No temporal assertions loaded in active design</span>
+                  <span style={{ fontSize: 11, color: "#64748b" }}>
+                    Add <code>assert property (@(posedge clk) ...);</code> to your RTL or use the injector above.
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {assertionReport.assertions
+                    .filter((a) => {
+                      if (assertionFilter === "violated") return a.violations.length > 0;
+                      if (assertionFilter === "passing") return a.status === "Passing";
+                      if (assertionFilter === "in_flight") return a.status === "InFlight";
+                      if (assertionFilter === "vacuous") return a.status === "Vacuous";
+                      return true;
+                    })
+                    .filter((a) => {
+                      if (!assertionSearch.trim()) return true;
+                      const q = assertionSearch.toLowerCase();
+                      return (
+                        a.def.name.toLowerCase().includes(q) ||
+                        a.def.source_text.toLowerCase().includes(q) ||
+                        a.def.clock.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((a) => {
+                      const badge = getAssertionStatusBadge(a.status);
+                      const isExpanded = !!expandedViolationIds[a.def.id];
+
+                      return (
+                        <div
+                          key={a.def.id}
+                          style={{
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                            display: "flex",
+                            flexDirection: "column"
+                          }}
+                        >
+                          {/* Assertion Header Row */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "8px 12px",
+                              gap: 12,
+                              backgroundColor: isExpanded ? "var(--bg-tertiary)" : "transparent"
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                              {/* Status Badge */}
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  padding: "2px 7px",
+                                  borderRadius: 3,
+                                  backgroundColor: badge.bg,
+                                  color: badge.color,
+                                  border: `1px solid ${badge.border}`,
+                                  whiteSpace: "nowrap"
+                                }}
+                              >
+                                {badge.label}
+                              </span>
+
+                              {/* Assertion Name & Kind */}
+                              <div style={{ display: "flex", flexDirection: "column", minWidth: 120 }}>
+                                <span
+                                  onClick={() => a.def.line && onNavigateToLine?.(a.def.line, 1)}
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    color: "#f8fafc",
+                                    cursor: a.def.line ? "pointer" : "default"
+                                  }}
+                                  title={a.def.line ? `Jump to line ${a.def.line}` : undefined}
+                                >
+                                  {a.def.name}
+                                </span>
+                                <span style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                                  {a.def.kind} • {a.def.edge} {a.def.clock}
+                                </span>
+                              </div>
+
+                              {/* Source Code Snippet */}
+                              <div
+                                style={{
+                                  flex: 1,
+                                  fontSize: 11,
+                                  fontFamily: "JetBrains Mono, monospace",
+                                  color: "var(--text-secondary)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: 420
+                                }}
+                                title={a.def.source_text}
+                              >
+                                {a.def.source_text}
+                              </div>
+                            </div>
+
+                            {/* Counters & Actions */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                              <div style={{ display: "flex", gap: 10, fontSize: 10.5, fontFamily: "var(--font-mono)" }}>
+                                <span title="Attempts">Att: <strong>{a.stats.attempts}</strong></span>
+                                <span style={{ color: "var(--accent-emerald)" }} title="Passes">Pass: <strong>{a.stats.passes}</strong></span>
+                                <span style={{ color: a.stats.failures > 0 ? "var(--accent-rose)" : "var(--text-muted)" }} title="Failures">
+                                  Fail: <strong>{a.stats.failures}</strong>
+                                </span>
+                                <span style={{ color: "var(--accent-amber)" }} title="Vacuous">Vac: <strong>{a.stats.vacuous}</strong></span>
+                                {a.stats.in_flight > 0 && (
+                                  <span style={{ color: "var(--accent-blue)" }} title="In-flight">Act: <strong>{a.stats.in_flight}</strong></span>
+                                )}
+                              </div>
+
+                              {/* Violations Toggle */}
+                              {a.violations.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleViolationExpanded(a.def.id)}
+                                  className="btn btn-ghost"
+                                  style={{
+                                    fontSize: 10,
+                                    padding: "2px 6px",
+                                    height: 22,
+                                    borderRadius: 3,
+                                    backgroundColor: "rgba(244, 63, 94, 0.15)",
+                                    color: "var(--accent-rose)",
+                                    border: "1px solid rgba(244, 63, 94, 0.3)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4
+                                  }}
+                                >
+                                  <span>{a.violations.length} Violations</span>
+                                  {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Violations Accordion Drawer */}
+                          {isExpanded && a.violations.length > 0 && (
+                            <div
+                              style={{
+                                backgroundColor: "rgba(15, 23, 42, 0.6)",
+                                borderTop: "1px solid rgba(255, 255, 255, 0.04)",
+                                padding: "8px 12px 8px 36px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6
+                              }}
+                            >
+                              {a.violations.map((v, vIdx) => {
+                                const vTime = getViolationTimePs(v);
+                                return (
+                                  <div
+                                    key={vIdx}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      fontSize: 11,
+                                      padding: "4px 8px",
+                                      backgroundColor: "rgba(239, 68, 68, 0.08)",
+                                      border: "1px solid rgba(239, 68, 68, 0.2)",
+                                      borderRadius: 4
+                                    }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                                      <span style={{ color: "var(--accent-rose)", fontWeight: 700, fontSize: 10 }}>
+                                        #{v.fail_cycle}
+                                      </span>
+                                      <span style={{ color: "var(--accent-cyan)", fontFamily: "JetBrains Mono, monospace", fontSize: 10 }}>
+                                        {formatTimeCompact(vTime)}
+                                      </span>
+                                      <span style={{ color: "#f1f5f9", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        {v.message}
+                                      </span>
+
+                                      {/* Signal Snapshot Pills */}
+                                      {v.signals && Object.keys(v.signals).length > 0 && (
+                                        <div style={{ display: "flex", gap: 4 }}>
+                                          {Object.entries(v.signals).slice(0, 4).map(([sig, val]) => (
+                                            <span
+                                              key={sig}
+                                              style={{
+                                                fontSize: 9.5,
+                                                fontFamily: "JetBrains Mono, monospace",
+                                                padding: "1px 4px",
+                                                borderRadius: 2,
+                                                backgroundColor: "rgba(255, 255, 255, 0.06)",
+                                                color: "#cbd5e1"
+                                              }}
+                                            >
+                                              {sig}={val}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSeekWave(vTime)}
+                                        className="btn btn-ghost"
+                                        style={{
+                                          fontSize: 10,
+                                          padding: "1px 6px",
+                                          height: 20,
+                                          borderRadius: 2,
+                                          color: "var(--accent-cyan)",
+                                          border: "1px solid rgba(6, 182, 212, 0.3)"
+                                        }}
+                                        title="Seek waveform timeline to this violation timestamp"
+                                      >
+                                        Seek Wave
+                                      </button>
+
+                                      {v.line && (
+                                        <button
+                                          type="button"
+                                          onClick={() => onNavigateToLine?.(v.line!, 1)}
+                                          className="btn btn-ghost"
+                                          style={{
+                                            fontSize: 10,
+                                            padding: "1px 6px",
+                                            height: 20,
+                                            borderRadius: 2,
+                                            color: "var(--accent-blue)",
+                                            border: "1px solid rgba(59, 130, 246, 0.3)"
+                                          }}
+                                          title={`Jump to line ${v.line} in Monaco editor`}
+                                        >
+                                          L{v.line}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               )}
             </div>
           </div>

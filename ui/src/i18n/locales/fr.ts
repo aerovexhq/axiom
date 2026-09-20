@@ -261,6 +261,7 @@ export const fr: Translations = {
     telemetry: "Puissance & PDN",
     glitches: "Aléas",
     timingTab: "Temporel",
+    assertionsTab: "Assertions",
     clear: "Effacer le Journal",
     execute: "Exécuter",
     powerMw: "Puissance Dynamique",
