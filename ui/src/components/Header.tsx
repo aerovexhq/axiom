@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Play,
   Pause,
@@ -12,14 +12,16 @@ import {
   Menu,
   Search,
   Columns,
-  Minimize2
+  Minimize2,
+  GraduationCap
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
-import { AxiomProject } from "../engine/projectModel";
+import { AxiomProject, PROJECT_TEMPLATES } from "../engine/projectModel";
 import { MobilePanelType } from "./MobileDrawer";
 import { useTranslation } from "../i18n";
 import { LanguageDropdown } from "./LanguageDropdown";
 import { ProjectDropdown } from "./ProjectDropdown";
+import { ClassLectureReferenceModal } from "./ClassLectureReferenceModal";
 
 interface HeaderProps {
   state: SimulationState;
@@ -76,10 +78,18 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const [isSlideModalOpen, setIsSlideModalOpen] = useState<boolean>(false);
 
+  const classTmpl = PROJECT_TEMPLATES.find((t) => t.id === "class_examples_project");
+  const isClassExampleProject =
+    project?.templateId === "class_examples_project" ||
+    (project?.files.some((f) => f.name === "uygulama_0.v" || f.name === "tb_uygulama_0.v") ?? false);
+  const activeClassLesson =
+    classTmpl?.lessons?.find((l) => l.id === project?.lessonId) ?? classTmpl?.lessons?.[0];
 
   if (isMobile) {
     return (
+      <>
       <header
         style={{
           height: 42,
@@ -158,6 +168,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Right: Simulation Clock & Quick Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {project && isClassExampleProject && activeClassLesson && (
+            <button
+              onClick={() => setIsSlideModalOpen(true)}
+              title="View Lecture Slides"
+              className="btn btn-secondary btn-icon"
+              style={{ width: 28, height: 28, borderColor: "rgba(6, 182, 212, 0.4)", color: "var(--accent-cyan)" }}
+            >
+              <GraduationCap size={14} />
+            </button>
+          )}
+
           {/* Custom Mobile Language Selector (Flag Only) */}
           <LanguageDropdown align="right" />
 
@@ -218,10 +239,18 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
       </header>
+
+      <ClassLectureReferenceModal
+        isOpen={isSlideModalOpen}
+        onClose={() => setIsSlideModalOpen(false)}
+        lesson={activeClassLesson}
+      />
+      </>
     );
   }
 
   return (
+    <>
     <header
       style={{
         height: 38,
@@ -577,6 +606,31 @@ export const Header: React.FC<HeaderProps> = ({
           </>
         )}
 
+        {/* Lecture Reference Slides button for Class Examples */}
+        {project && isClassExampleProject && activeClassLesson && (
+          <>
+            <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
+            <button
+              onClick={() => setIsSlideModalOpen(true)}
+              title="View Istanbul University Logic Circuits Lecture Slides"
+              className="btn btn-secondary"
+              style={{
+                height: 26,
+                padding: "0 8px",
+                fontSize: 11.5,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                borderColor: "rgba(6, 182, 212, 0.4)",
+                color: "var(--accent-cyan)"
+              }}
+            >
+              <GraduationCap size={13} color="var(--accent-cyan)" />
+              <span>Slides</span>
+            </button>
+          </>
+        )}
+
         {/* Omnibar & Command Palette (Single Icon Button) */}
         {onOpenOmnibar && (
           <>
@@ -594,5 +648,12 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
     </header>
+
+    <ClassLectureReferenceModal
+      isOpen={isSlideModalOpen}
+      onClose={() => setIsSlideModalOpen(false)}
+      lesson={activeClassLesson}
+    />
+    </>
   );
 };

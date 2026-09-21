@@ -1094,13 +1094,13 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
           overflowY: "auto"
         }}
       >
-        {(activeDesignId === "logic_circuit" || activeDesignId.includes("logic_circuit")) && renderLogicCircuitBays()}
+        {(activeDesignId === "logic_circuit" || activeDesignId.includes("logic_circuit") || activeDesignId.includes("class_examples") || activeDesignId.includes("uygulama_0")) && renderLogicCircuitBays()}
         {activeDesignId === "uart" && renderUartBays()}
         {activeDesignId === "spi" && renderSpiBays()}
         {activeDesignId === "pwm" && renderPwmBays()}
         {activeDesignId === "riscv" && renderRiscvBays()}
 
-        {!["uart", "spi", "pwm", "riscv", "logic_circuit"].some(k => activeDesignId.includes(k)) && (
+        {!["uart", "spi", "pwm", "riscv", "logic_circuit", "class_examples", "uygulama_0"].some(k => activeDesignId.includes(k)) && (
           <>
             {/* ==================================================================== */}
             {/* BAY 1: 8-Bit DIP Switch Bank & Bus Injector                         */}

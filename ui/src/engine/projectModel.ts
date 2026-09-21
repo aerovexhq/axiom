@@ -14,6 +14,27 @@ export interface ProjectFile {
   isReadOnly?: boolean;
 }
 
+export interface TemplateScreenshot {
+  id: string;
+  title: string;
+  description: string;
+  src: string;
+  type: "design" | "benchtest" | "schematic" | "waveform";
+}
+
+export interface TemplateLesson {
+  id: string;
+  lessonNumber: number;
+  title: string;
+  subtitle: string;
+  description: string;
+  institution?: string;
+  course?: string;
+  screenshots: TemplateScreenshot[];
+  files: Omit<ProjectFile, "id">[];
+  defaultTopModule: string;
+}
+
 export interface AxiomProject {
   id: string;
   name: string;           // e.g. "riscv_core_soc", "uart_comm_hub"
@@ -23,6 +44,7 @@ export interface AxiomProject {
   openFileIds: string[];  // Open tabs in editor
   files: ProjectFile[];
   templateId?: string;
+  lessonId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,11 +52,12 @@ export interface AxiomProject {
 export interface ProjectTemplate {
   id: string;
   name: string;
-  category: "processors" | "protocols" | "power" | "standard";
+  category: "processors" | "protocols" | "power" | "standard" | "education";
   description: string;
   defaultTopModule: string;
   defaultDevice: string;
   files: Omit<ProjectFile, "id">[];
+  lessons?: TemplateLesson[];
 }
 
 export const FPGA_TARGET_DEVICES: { id: string; name: string; family: string; logicCells: string }[] = [
@@ -1108,6 +1131,248 @@ create_clock -period 10.000 -name clk [get_ports clk]
 `
       }
     ]
+  },
+  {
+    id: "class_examples_project",
+    name: "Class Examples",
+    category: "education",
+    description: "Istanbul University - Cerrahpasa (IUC) Logic Circuits coursework, lab experiments, lecture reference slides, and benchtests.",
+    defaultTopModule: "uygulama_0",
+    defaultDevice: "xc7a35tcpg236-1",
+    lessons: [
+      {
+        id: "lesson_1",
+        lessonNumber: 1,
+        title: "Lesson 1",
+        subtitle: "Uygulama 0 — Basic Gate Logic & Benchtest",
+        description: "Gate-level combinational circuit implementation with primitive NOT, AND, OR gates and stimulus testbench.",
+        institution: "Istanbul University - Cerrahpasa",
+        course: "Logic Circuits",
+        defaultTopModule: "uygulama_0",
+        screenshots: [
+          {
+            id: "uygulama_0_design",
+            title: "Design Source (uygulama_0.v)",
+            description: "Primitive gate-level implementation with NOT, AND, OR gates (g1..g5) computing F = ((~A & B) & C) | ~B.",
+            src: "/class_examples/lesson_1/uygulama_0_design.jpg",
+            type: "design"
+          },
+          {
+            id: "tb_uygulama_0_benchtest",
+            title: "Benchtest Source (tb_uygulama_0.v)",
+            description: "Testbench applying stimulus vectors at #0, #25, #25, #25 intervals and stopping at #100.",
+            src: "/class_examples/lesson_1/tb_uygulama_0_benchtest.jpg",
+            type: "benchtest"
+          }
+        ],
+        files: [
+          {
+            name: "uygulama_0.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            isTop: true,
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: Uygulama 0 (Design Source)
+// Primitive gate-level implementation:
+//   g1: not(w2, A)
+//   g2: and(w1, w2, B)
+//   g3: not(w4, B)
+//   g4: and(w3, w1, C)
+//   g5: or(F, w4, w3)
+
+module uygulama_0 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+
+endmodule
+`
+          },
+          {
+            name: "tb_uygulama_0.v",
+            fileType: "verilog",
+            fileSet: "sim_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: tb_uygulama_0 (Benchtest / Testbench Source)
+
+module tb_uygulama_0 ();
+
+    reg A;
+    reg B;
+    reg C;
+    wire F;
+
+    uygulama_0 uut (
+        .A(A),
+        .B(B),
+        .C(C),
+        .F(F)
+    );
+
+    initial begin
+        #0
+        A = 1'b1;
+        B = 1'b0;
+        C = 1'b1;
+
+        #25
+        A = 1'b0;
+        B = 1'b0;
+        C = 1'b1;
+
+        #25
+        A = 1'b0;
+        B = 1'b0;
+        C = 1'b0;
+
+        #25
+        A = 1'b1;
+        B = 1'b1;
+        C = 1'b1;
+    end
+
+    initial #100 $stop;
+
+endmodule
+`
+          },
+          {
+            name: "constraints.xdc",
+            fileType: "xdc",
+            fileSet: "constrs_1",
+            content: `## Istanbul University - Cerrahpasa | Logic Circuits (Uygulama 0)
+## Basys 3 Artix-7 Pin Assignments
+## Switches: SW0 -> A, SW1 -> B, SW2 -> C
+## LED: LD0 -> F
+set_property PACKAGE_PIN V17 [get_ports {A}]
+set_property IOSTANDARD LVCMOS33 [get_ports {A}]
+set_property PACKAGE_PIN V16 [get_ports {B}]
+set_property IOSTANDARD LVCMOS33 [get_ports {B}]
+set_property PACKAGE_PIN W16 [get_ports {C}]
+set_property IOSTANDARD LVCMOS33 [get_ports {C}]
+
+set_property PACKAGE_PIN U16 [get_ports {F}]
+set_property IOSTANDARD LVCMOS33 [get_ports {F}]
+`
+          }
+        ]
+      }
+    ],
+    files: [
+      {
+        name: "uygulama_0.v",
+        fileType: "verilog",
+        fileSet: "sources_1",
+        isTop: true,
+        content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: Uygulama 0 (Design Source)
+// Primitive gate-level implementation:
+//   g1: not(w2, A)
+//   g2: and(w1, w2, B)
+//   g3: not(w4, B)
+//   g4: and(w3, w1, C)
+//   g5: or(F, w4, w3)
+
+module uygulama_0 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+
+endmodule
+`
+      },
+      {
+        name: "tb_uygulama_0.v",
+        fileType: "verilog",
+        fileSet: "sim_1",
+        content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: tb_uygulama_0 (Benchtest / Testbench Source)
+
+module tb_uygulama_0 ();
+
+    reg A;
+    reg B;
+    reg C;
+    wire F;
+
+    uygulama_0 uut (
+        .A(A),
+        .B(B),
+        .C(C),
+        .F(F)
+    );
+
+    initial begin
+        #0
+        A = 1'b1;
+        B = 1'b0;
+        C = 1'b1;
+
+        #25
+        A = 1'b0;
+        B = 1'b0;
+        C = 1'b1;
+
+        #25
+        A = 1'b0;
+        B = 1'b0;
+        C = 1'b0;
+
+        #25
+        A = 1'b1;
+        B = 1'b1;
+        C = 1'b1;
+    end
+
+    initial #100 $stop;
+
+endmodule
+`
+      },
+      {
+        name: "constraints.xdc",
+        fileType: "xdc",
+        fileSet: "constrs_1",
+        content: `## Istanbul University - Cerrahpasa | Logic Circuits (Uygulama 0)
+## Basys 3 Artix-7 Pin Assignments
+## Switches: SW0 -> A, SW1 -> B, SW2 -> C
+## LED: LD0 -> F
+set_property PACKAGE_PIN V17 [get_ports {A}]
+set_property IOSTANDARD LVCMOS33 [get_ports {A}]
+set_property PACKAGE_PIN V16 [get_ports {B}]
+set_property IOSTANDARD LVCMOS33 [get_ports {B}]
+set_property PACKAGE_PIN W16 [get_ports {C}]
+set_property IOSTANDARD LVCMOS33 [get_ports {C}]
+
+set_property PACKAGE_PIN U16 [get_ports {F}]
+set_property IOSTANDARD LVCMOS33 [get_ports {F}]
+`
+      }
+    ]
   }
 ];
 
@@ -1115,13 +1380,18 @@ create_clock -period 10.000 -name clk [get_ports clk]
 export function createProjectFromTemplate(
   templateId: string,
   projectName?: string,
-  targetDevice?: string
+  targetDevice?: string,
+  lessonId?: string
 ): AxiomProject {
   const template = PROJECT_TEMPLATES.find((t) => t.id === templateId) ?? PROJECT_TEMPLATES[0];
+  const selectedLesson = template.lessons?.find((l) => l.id === lessonId) ?? template.lessons?.[0];
+
+  const templateFiles = selectedLesson ? selectedLesson.files : template.files;
+  const topModule = selectedLesson ? selectedLesson.defaultTopModule : template.defaultTopModule;
   const name = projectName?.trim() || template.name.toLowerCase().replace(/[^a-z0-9]/g, "_");
   const device = targetDevice || template.defaultDevice;
 
-  const files: ProjectFile[] = template.files.map((f, idx) => ({
+  const files: ProjectFile[] = templateFiles.map((f, idx) => ({
     ...f,
     id: `file_${Date.now()}_${idx}`
   }));
@@ -1132,11 +1402,12 @@ export function createProjectFromTemplate(
     id: `proj_${Date.now()}`,
     name,
     targetDevice: device,
-    topModule: template.defaultTopModule,
+    topModule,
     activeFileId: topFile.id,
     openFileIds: [topFile.id],
     files,
     templateId: template.id,
+    lessonId: selectedLesson?.id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };

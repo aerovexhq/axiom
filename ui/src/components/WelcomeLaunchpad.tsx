@@ -18,9 +18,11 @@ import {
   Radio,
   Sliders,
   Activity,
-  Box
+  Box,
+  GraduationCap,
+  Image as ImageIcon
 } from "lucide-react";
-import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
+import { PROJECT_TEMPLATES, ProjectTemplate, TemplateLesson } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
 import { useTranslation } from "../i18n";
 import {
@@ -32,6 +34,7 @@ import {
   DropdownMenuItem
 } from "./ui";
 import { toast } from "../engine/toast";
+import { ClassLectureReferenceModal } from "./ClassLectureReferenceModal";
 
 interface WelcomeLaunchpadProps {
   onOpenNewProject: (templateId?: string) => void;
@@ -60,6 +63,10 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectsTab, setProjectsTab] = useState<"active" | "trash">("active");
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
+  const [selectedClassLessonId, setSelectedClassLessonId] = useState<string>("lesson_1");
+  const [isLectureModalOpen, setIsLectureModalOpen] = useState<boolean>(false);
+  const [classModalLesson, setClassModalLesson] = useState<TemplateLesson | null>(null);
+  const [activeScreenshotId, setActiveScreenshotId] = useState<string | undefined>(undefined);
 
   const activeProjects = projects.filter((p) => !p.isTrashed);
   const trashedProjects = projects.filter((p) => p.isTrashed);
@@ -94,6 +101,8 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
         return <Code2 size={20} color="var(--accent-emerald)" />;
       case "counter_project":
         return <Activity size={20} color="var(--accent-rose)" />;
+      case "class_examples_project":
+        return <GraduationCap size={20} color="var(--accent-cyan)" />;
       default:
         return <Box size={20} color="var(--text-muted)" />;
     }
@@ -575,43 +584,256 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
             gap: 14
           }}
         >
-          {PROJECT_TEMPLATES.map((tmpl: ProjectTemplate) => (
-            <div
-              key={tmpl.id}
-              onClick={() => onOpenNewProject(tmpl.id)}
-              className="axiom-card axiom-card-hover"
-              style={{
-                padding: "15px",
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  {getTemplateIcon(tmpl.id)}
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-                    {tmpl.name}
+          {PROJECT_TEMPLATES.map((tmpl: ProjectTemplate) => {
+            if (tmpl.id === "class_examples_project") {
+              const selectedLesson =
+                tmpl.lessons?.find((l) => l.id === selectedClassLessonId) ?? tmpl.lessons?.[0];
+              return (
+                <div
+                  key={tmpl.id}
+                  className="axiom-card"
+                  style={{
+                    padding: "15px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                    border: "1px solid rgba(6, 182, 212, 0.3)",
+                    background: "linear-gradient(180deg, rgba(6, 182, 212, 0.04) 0%, rgba(18, 24, 33, 0.95) 100%)"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      {getTemplateIcon(tmpl.id)}
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                            {tmpl.name}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 9.5,
+                              fontWeight: 600,
+                              padding: "1px 5px",
+                              borderRadius: "var(--radius-xs)",
+                              backgroundColor: "rgba(6, 182, 212, 0.15)",
+                              color: "var(--accent-cyan)",
+                              border: "1px solid rgba(6, 182, 212, 0.3)"
+                            }}
+                          >
+                            IUC
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: 0, lineHeight: 1.45 }}>
+                    {tmpl.description}
+                  </p>
+
+                  {/* Course Lessons Dropdown */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        Course Lessons
+                      </span>
+                      <span className="mono-num" style={{ fontSize: 10, color: "var(--accent-cyan)" }}>
+                        {tmpl.lessons?.length ?? 1} Lesson
+                      </span>
+                    </div>
+
+                    <select
+                      value={selectedClassLessonId}
+                      onChange={(e) => setSelectedClassLessonId(e.target.value)}
+                      className="input"
+                      style={{
+                        height: 26,
+                        fontSize: 11.5,
+                        padding: "0 8px",
+                        backgroundColor: "var(--bg-tertiary)",
+                        border: "1px solid var(--border-medium)",
+                        borderRadius: "var(--radius-xs)",
+                        color: "var(--text-primary)",
+                        cursor: "pointer",
+                        fontWeight: 500
+                      }}
+                    >
+                      {tmpl.lessons?.map((lesson) => (
+                        <option key={lesson.id} value={lesson.id}>
+                          {lesson.title}: {lesson.subtitle}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Screenshots in the Selected Element (Lesson 1) */}
+                  {selectedLesson && selectedLesson.screenshots.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+                          <ImageIcon size={11} color="var(--accent-blue)" />
+                          <span>Lecture Reference Slides</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClassModalLesson(selectedLesson);
+                            setActiveScreenshotId(selectedLesson.screenshots[0].id);
+                            setIsLectureModalOpen(true);
+                          }}
+                          className="btn btn-ghost"
+                          style={{ height: 20, padding: "0 6px", fontSize: 10.5, color: "var(--accent-cyan)" }}
+                        >
+                          View High-Res
+                        </button>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {selectedLesson.screenshots.map((shot) => (
+                          <div
+                            key={shot.id}
+                            onClick={() => {
+                              setClassModalLesson(selectedLesson);
+                              setActiveScreenshotId(shot.id);
+                              setIsLectureModalOpen(true);
+                            }}
+                            title={`Click to preview ${shot.title}`}
+                            style={{
+                              position: "relative",
+                              borderRadius: "var(--radius-sm)",
+                              overflow: "hidden",
+                              border: "1px solid var(--border-subtle)",
+                              backgroundColor: "#06090e",
+                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column"
+                            }}
+                            className="axiom-card-hover"
+                          >
+                            <div style={{ height: 62, width: "100%", overflow: "hidden", position: "relative" }}>
+                              <img
+                                src={shot.src}
+                                alt={shot.title}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  filter: "brightness(0.9)"
+                                }}
+                              />
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  backgroundColor: "rgba(0, 0, 0, 0.35)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  opacity: 0,
+                                  transition: "opacity 0.15s ease"
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: "#fff",
+                                    backgroundColor: "rgba(0,0,0,0.6)",
+                                    padding: "2px 6px",
+                                    borderRadius: 3
+                                  }}
+                                >
+                                  Preview
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                padding: "4px 6px",
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: "var(--text-secondary)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                backgroundColor: "var(--bg-secondary)",
+                                borderTop: "1px solid var(--border-subtle)"
+                              }}
+                            >
+                              {shot.type === "design" ? "uygulama_0.v" : "tb_uygulama_0.v"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
+                    <span className="mono-num" style={{ fontSize: 10.5, color: "var(--accent-cyan)" }}>
+                      Basys 3 (Artix-7)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onOpenNewProject(tmpl.id)}
+                      className="btn btn-primary"
+                      style={{
+                        height: 24,
+                        padding: "0 8px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3
+                      }}
+                    >
+                      <span>{t("launchpad.createTemplate")}</span>
+                      <ChevronRight size={11} />
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={tmpl.id}
+                onClick={() => onOpenNewProject(tmpl.id)}
+                className="axiom-card axiom-card-hover"
+                style={{
+                  padding: "15px",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    {getTemplateIcon(tmpl.id)}
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                      {tmpl.name}
+                    </span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: 0, lineHeight: 1.45 }}>
+                  {tmpl.description}
+                </p>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
+                  <span className="mono-num" style={{ fontSize: 10.5, color: "var(--accent-cyan)" }}>
+                    {tmpl.defaultDevice.split(" ")[0]}
+                  </span>
+                  <span style={{ fontSize: 10.5, color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: 3, fontWeight: 600 }}>
+                    <span>{t("launchpad.createTemplate")}</span>
+                    <ChevronRight size={11} />
                   </span>
                 </div>
               </div>
-
-              <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: 0, lineHeight: 1.45 }}>
-                {tmpl.description}
-              </p>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
-                <span className="mono-num" style={{ fontSize: 10.5, color: "var(--accent-cyan)" }}>
-                  {tmpl.defaultDevice.split(" ")[0]}
-                </span>
-                <span style={{ fontSize: 10.5, color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: 3, fontWeight: 600 }}>
-                  <span>{t("launchpad.createTemplate")}</span>
-                  <ChevronRight size={11} />
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -684,6 +906,13 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
           <ChevronRight size={12} />
         </a>
       </div>
+
+      <ClassLectureReferenceModal
+        isOpen={isLectureModalOpen}
+        onClose={() => setIsLectureModalOpen(false)}
+        lesson={classModalLesson}
+        initialScreenshotId={activeScreenshotId}
+      />
     </div>
   );
 };

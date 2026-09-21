@@ -15,7 +15,8 @@ import {
   PROJECT_TEMPLATES,
   AxiomProject,
   ProjectFile,
-  createProjectFromTemplate
+  createProjectFromTemplate,
+  TemplateLesson
 } from "../engine/projectModel";
 import {
   sanitizeProjectName,
@@ -27,6 +28,7 @@ import { FPGA_PARTS_DATABASE } from "../engine/partsCatalog";
 import { FPGA_BOARDS_DATABASE, FpgaBoard } from "../engine/boardsCatalog";
 import { isDesktop, openFolderDialog } from "../engine/platform";
 import { Modal, Input, Button, Card, Badge } from "./ui";
+import { ClassLectureReferenceModal } from "./ClassLectureReferenceModal";
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -73,6 +75,10 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   const [projectType, setProjectType] = useState<ProjectType>("rtl");
   const [doNotSpecifySources, setDoNotSpecifySources] = useState<boolean>(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(initialTemplateId);
+  const [selectedLessonId, setSelectedLessonId] = useState<string>("lesson_1");
+  const [isLectureModalOpen, setIsLectureModalOpen] = useState<boolean>(false);
+  const [classModalLesson, setClassModalLesson] = useState<TemplateLesson | null>(null);
+  const [activeScreenshotId, setActiveScreenshotId] = useState<string | undefined>(undefined);
 
   // Step 3: Default Part & Boards
   const [catalogTab, setCatalogTab] = useState<"parts" | "boards">("parts");
@@ -97,6 +103,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       setProjectType("rtl");
       setDoNotSpecifySources(false);
       setSelectedTemplateId(initialTemplateId);
+      setSelectedLessonId("lesson_1");
       setSelectedPartId("xc7a100t-csg324-1");
       setSelectedBoardId(null);
       setCatalogTab("parts");
@@ -178,7 +185,8 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       newProj = createProjectFromTemplate(
         selectedTemplateId,
         finalName,
-        selectedPart.name
+        selectedPart.name,
+        selectedLessonId
       );
     } else {
       const files: ProjectFile[] = [];
@@ -227,6 +235,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   };
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -652,37 +661,151 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                   {/* Template Sub-Selection */}
                   {projectType === "example" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                      {PROJECT_TEMPLATES.map((tmpl) => {
-                        const isTmplSelected = selectedTemplateId === tmpl.id;
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+                        {PROJECT_TEMPLATES.map((tmpl) => {
+                          const isTmplSelected = selectedTemplateId === tmpl.id;
+                          return (
+                            <div
+                              key={tmpl.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTemplateId(tmpl.id);
+                                if (tmpl.lessons && tmpl.lessons.length > 0) {
+                                  setSelectedLessonId(tmpl.lessons[0].id);
+                                }
+                              }}
+                              style={{
+                                padding: "8px 10px",
+                                backgroundColor: isTmplSelected ? "rgba(59, 130, 246, 0.15)" : "var(--bg-tertiary)",
+                                border: `1px solid ${isTmplSelected ? "var(--accent-blue)" : "var(--border-subtle)"}`,
+                                borderRadius: "var(--radius-sm)",
+                                cursor: "pointer",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 2
+                              }}
+                            >
+                              <span style={{ fontSize: 11.5, fontWeight: 600, color: isTmplSelected ? "var(--accent-blue)" : "var(--text-primary)" }}>
+                                {tmpl.name}
+                              </span>
+                              <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+                                {tmpl.files.length} Files • Top: {tmpl.defaultTopModule}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Course Lessons Sub-Selection (for Class Examples) */}
+                      {(() => {
+                        const selTmpl = PROJECT_TEMPLATES.find((t) => t.id === selectedTemplateId);
+                        if (!selTmpl?.lessons || selTmpl.lessons.length === 0) return null;
+                        const activeLesson = selTmpl.lessons.find((l) => l.id === selectedLessonId) ?? selTmpl.lessons[0];
                         return (
                           <div
-                            key={tmpl.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTemplateId(tmpl.id);
-                            }}
                             style={{
-                              padding: "8px 10px",
-                              backgroundColor: isTmplSelected ? "rgba(59, 130, 246, 0.15)" : "var(--bg-tertiary)",
-                              border: `1px solid ${isTmplSelected ? "var(--accent-blue)" : "var(--border-subtle)"}`,
+                              marginTop: 10,
+                              padding: 10,
+                              backgroundColor: "var(--bg-secondary)",
                               borderRadius: "var(--radius-sm)",
-                              cursor: "pointer",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 2
+                              border: "1px solid rgba(6, 182, 212, 0.3)"
                             }}
                           >
-                            <span style={{ fontSize: 11.5, fontWeight: 600, color: isTmplSelected ? "var(--accent-blue)" : "var(--text-primary)" }}>
-                              {tmpl.name}
-                            </span>
-                            <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
-                              {tmpl.files.length} Files • Top: {tmpl.defaultTopModule}
-                            </span>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>
+                                Course Lesson / Lab Experiment
+                              </span>
+                              <span className="mono-num" style={{ fontSize: 10, color: "var(--accent-cyan)" }}>
+                                Istanbul University - Cerrahpasa
+                              </span>
+                            </div>
+
+                            <select
+                              value={selectedLessonId}
+                              onChange={(e) => setSelectedLessonId(e.target.value)}
+                              className="input"
+                              style={{
+                                height: 28,
+                                fontSize: 11.5,
+                                width: "100%",
+                                padding: "0 8px",
+                                backgroundColor: "var(--bg-tertiary)",
+                                border: "1px solid var(--border-medium)",
+                                borderRadius: "var(--radius-xs)",
+                                color: "var(--text-primary)",
+                                cursor: "pointer"
+                              }}
+                            >
+                              {selTmpl.lessons.map((lesson) => (
+                                <option key={lesson.id} value={lesson.id}>
+                                  {lesson.title}: {lesson.subtitle}
+                                </option>
+                              ))}
+                            </select>
+
+                            {/* Lecture Reference Slides preview thumbnails */}
+                            {activeLesson && activeLesson.screenshots.length > 0 && (
+                              <div style={{ marginTop: 8 }}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 10.5, color: "var(--text-muted)", fontWeight: 500 }}>
+                                    Lecture Reference Slides ({activeLesson.screenshots.length}):
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setClassModalLesson(activeLesson);
+                                      setActiveScreenshotId(activeLesson.screenshots[0].id);
+                                      setIsLectureModalOpen(true);
+                                    }}
+                                    className="btn btn-ghost"
+                                    style={{ height: 18, padding: "0 4px", fontSize: 10, color: "var(--accent-cyan)" }}
+                                  >
+                                    View Full Size
+                                  </button>
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                  {activeLesson.screenshots.map((shot) => (
+                                    <div
+                                      key={shot.id}
+                                      onClick={() => {
+                                        setClassModalLesson(activeLesson);
+                                        setActiveScreenshotId(shot.id);
+                                        setIsLectureModalOpen(true);
+                                      }}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        padding: 6,
+                                        backgroundColor: "var(--bg-tertiary)",
+                                        borderRadius: "var(--radius-xs)",
+                                        border: "1px solid var(--border-subtle)",
+                                        cursor: "pointer"
+                                      }}
+                                    >
+                                      <img
+                                        src={shot.src}
+                                        alt={shot.title}
+                                        style={{ width: 44, height: 32, objectFit: "cover", borderRadius: 3, border: "1px solid rgba(255,255,255,0.1)" }}
+                                      />
+                                      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                                        <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                          {shot.type === "design" ? "uygulama_0.v" : "tb_uygulama_0.v"}
+                                        </span>
+                                        <span style={{ fontSize: 9.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                          {shot.title}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
-                      })}
-                    </div>
+                      })()}
+                    </>
                   )}
                 </div>
               </div>
@@ -962,7 +1085,12 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                     <span>Design Sources: untitled.v (Top Module)</span>
                   </span>
                 ) : projectType === "example" ? (
-                  <span>Curated Starter Template ({PROJECT_TEMPLATES.find((t) => t.id === selectedTemplateId)?.name})</span>
+                  <span>
+                    Curated Starter Template ({PROJECT_TEMPLATES.find((t) => t.id === selectedTemplateId)?.name}
+                    {PROJECT_TEMPLATES.find((t) => t.id === selectedTemplateId)?.lessons?.find((l) => l.id === selectedLessonId)
+                      ? ` • ${PROJECT_TEMPLATES.find((t) => t.id === selectedTemplateId)?.lessons?.find((l) => l.id === selectedLessonId)?.title}`
+                      : ""})
+                  </span>
                 ) : (
                   <span style={{ color: "var(--text-muted)" }}>None (empty fileset ready for Add Sources)</span>
                 )}
@@ -982,5 +1110,13 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
         </div>
       )}
     </Modal>
+
+    <ClassLectureReferenceModal
+      isOpen={isLectureModalOpen}
+      onClose={() => setIsLectureModalOpen(false)}
+      lesson={classModalLesson}
+      initialScreenshotId={activeScreenshotId}
+    />
+    </>
   );
 };

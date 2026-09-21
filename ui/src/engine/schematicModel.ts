@@ -397,7 +397,12 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
 // --------------------------------------------------------------------------
 
 export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
-  if (sampleDesignId === "logic_circuit" || sampleDesignId.includes("logic_circuit")) {
+  if (
+    sampleDesignId === "logic_circuit" ||
+    sampleDesignId.includes("logic_circuit") ||
+    sampleDesignId.includes("class_examples") ||
+    sampleDesignId.includes("uygulama_0")
+  ) {
     return generateLogicCircuitGraph();
   } else if (sampleDesignId === "counter" || sampleDesignId.includes("counter")) {
     return generateCounterGraph();
