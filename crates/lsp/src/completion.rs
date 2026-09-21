@@ -182,6 +182,7 @@ impl VerilogCompletion {
                                 DataType::Reg => "reg",
                                 DataType::Logic => "logic",
                                 DataType::Integer => "integer",
+                                DataType::Genvar => "genvar",
                                 DataType::Implicit => "net",
                             };
                             for name in &net.names {

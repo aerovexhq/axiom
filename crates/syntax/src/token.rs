@@ -25,9 +25,14 @@ pub enum TokenKind {
     If,
     Else,
     Case,
+    Casez,
+    Casex,
     EndCase,
     Default,
     For,
+    Forever,
+    Repeat,
+    While,
     Generate,
     EndGenerate,
     Genvar,
@@ -50,6 +55,10 @@ pub enum TokenKind {
     DirectiveEndif,
     DirectiveInclude,
     DirectiveTimescale,
+    DirectiveDefaultNettype,
+    DirectiveResetall,
+    DirectiveUndef,
+    DirectiveCelldefine,
 
     // Operators
     Plus,          // +

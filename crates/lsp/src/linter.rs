@@ -417,6 +417,7 @@ impl VerilogLinter {
                 expr,
                 items,
                 span,
+                ..
             } => {
                 Self::collect_expr_reads(expr, read_signals);
                 let mut has_default = false;
@@ -466,6 +467,20 @@ impl VerilogLinter {
                 Self::lint_statement(source, init, is_clocked, is_combinational, assigned_signals, read_signals, diags);
                 Self::collect_expr_reads(cond, read_signals);
                 Self::lint_statement(source, step, is_clocked, is_combinational, assigned_signals, read_signals, diags);
+                Self::lint_statement(source, body, is_clocked, is_combinational, assigned_signals, read_signals, diags);
+            }
+
+            Statement::Forever { body, .. } => {
+                Self::lint_statement(source, body, is_clocked, is_combinational, assigned_signals, read_signals, diags);
+            }
+
+            Statement::Repeat { count, body, .. } => {
+                Self::collect_expr_reads(count, read_signals);
+                Self::lint_statement(source, body, is_clocked, is_combinational, assigned_signals, read_signals, diags);
+            }
+
+            Statement::While { cond, body, .. } => {
+                Self::collect_expr_reads(cond, read_signals);
                 Self::lint_statement(source, body, is_clocked, is_combinational, assigned_signals, read_signals, diags);
             }
 
@@ -532,6 +547,11 @@ impl VerilogLinter {
                 Self::collect_expr_reads(msb, reads);
                 Self::collect_expr_reads(lsb, reads);
             }
+            Expr::IndexedSlice { target, base, width, .. } => {
+                Self::collect_expr_reads(target, reads);
+                Self::collect_expr_reads(base, reads);
+                Self::collect_expr_reads(width, reads);
+            }
             Expr::Call { args, .. } => {
                 for arg in args {
                     Self::collect_expr_reads(arg, reads);
@@ -549,7 +569,7 @@ impl VerilogLinter {
     fn collect_expr_targets(expr: &Expr) -> Vec<String> {
         match expr {
             Expr::Ident(name, _) => vec![name.clone()],
-            Expr::Slice { target, .. } => Self::collect_expr_targets(target),
+            Expr::Slice { target, .. } | Expr::IndexedSlice { target, .. } => Self::collect_expr_targets(target),
             Expr::Concat(items, _) => {
                 let mut targets = Vec::new();
                 for item in items {
@@ -580,6 +600,25 @@ impl VerilogLinter {
                 targets.extend(Self::collect_statement_assigned_targets(then_branch));
                 if let Some(else_b) = else_branch {
                     targets.extend(Self::collect_statement_assigned_targets(else_b));
+                }
+            }
+            Statement::For { init, step, body, .. } => {
+                targets.extend(Self::collect_statement_assigned_targets(init));
+                targets.extend(Self::collect_statement_assigned_targets(step));
+                targets.extend(Self::collect_statement_assigned_targets(body));
+            }
+            Statement::Forever { body, .. } => {
+                targets.extend(Self::collect_statement_assigned_targets(body));
+            }
+            Statement::Repeat { body, .. } => {
+                targets.extend(Self::collect_statement_assigned_targets(body));
+            }
+            Statement::While { body, .. } => {
+                targets.extend(Self::collect_statement_assigned_targets(body));
+            }
+            Statement::Case { items, .. } => {
+                for item in items {
+                    targets.extend(Self::collect_statement_assigned_targets(&item.body));
                 }
             }
             _ => {}

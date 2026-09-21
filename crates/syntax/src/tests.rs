@@ -215,4 +215,167 @@ endmodule
             panic!("Expected anonymous gate primitive");
         }
     }
+
+    #[test]
+    fn test_parse_non_ansi_ports() {
+        let src = r#"
+module full_adder (a, b, cin, sum, cout);
+    input a, b, cin;
+    output sum, cout;
+    wire a, b, cin;
+    wire sum, cout;
+
+    assign sum = a ^ b ^ cin;
+    assign cout = (a & b) | (b & cin) | (a & cin);
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        let m = &file.modules[0];
+        assert_eq!(m.ports.len(), 5);
+        assert_eq!(m.ports[0].name, "a");
+        assert_eq!(m.ports[0].direction, PortDirection::Input);
+        assert_eq!(m.ports[3].name, "sum");
+        assert_eq!(m.ports[3].direction, PortDirection::Output);
+        assert_eq!(m.items.len(), 4); // 2 wire decls + 2 assigns
+    }
+
+    #[test]
+    fn test_parse_multi_assign() {
+        let src = r#"
+module multi_assign (output wire x, y, z);
+    assign x = 1'b0, y = 1'b1, z = x & y;
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        let m = &file.modules[0];
+        assert_eq!(m.items.len(), 3);
+        assert!(matches!(m.items[0], ModuleItem::ContinuousAssign(_)));
+        assert!(matches!(m.items[1], ModuleItem::ContinuousAssign(_)));
+        assert!(matches!(m.items[2], ModuleItem::ContinuousAssign(_)));
+    }
+
+    #[test]
+    fn test_parse_multi_instance() {
+        let src = r#"
+module multi_inst (input a, b, output w1, w2);
+    not g1(w1, a), g2(w2, b);
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        let m = &file.modules[0];
+        assert_eq!(m.items.len(), 2);
+        if let ModuleItem::Instance(ref i1) = m.items[0] {
+            assert_eq!(i1.instance_name, "g1");
+            assert_eq!(i1.module_name, "not");
+        }
+        if let ModuleItem::Instance(ref i2) = m.items[1] {
+            assert_eq!(i2.instance_name, "g2");
+            assert_eq!(i2.module_name, "not");
+        }
+    }
+
+    #[test]
+    fn test_parse_named_blocks_and_local_decls() {
+        let src = r#"
+module tb ();
+    reg [7:0] arr [0:3];
+    initial begin : init_block
+        integer i;
+        for (i = 0; i < 4; i = i + 1) begin : loop_b
+            arr[i] = 8'h00;
+        end : loop_b
+    end : init_block
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        assert_eq!(file.modules.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_procedural_loops() {
+        let src = r#"
+module loop_mod (input clk, output reg [3:0] q);
+    initial begin
+        forever #10 q = ~q;
+    end
+    initial begin
+        repeat (4) begin
+            #5 q = q + 1;
+        end
+    end
+    initial begin
+        while (q < 4'd10) begin
+            #2 q = q + 1;
+        end
+    end
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        assert_eq!(file.modules.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_casez_casex() {
+        let src = r#"
+module prio_enc (input [3:0] in, output reg [1:0] out);
+    always @* begin
+        casez (in)
+            4'b1???: out = 2'd3;
+            4'b01??: out = 2'd2;
+            4'b001?: out = 2'd1;
+            default: out = 2'd0;
+        endcase
+    end
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        let m = &file.modules[0];
+        if let ModuleItem::ProceduralBlock(ref pb) = m.items[0] {
+            if let Statement::Block(ref stmts) = pb.body {
+                if let Statement::Case { kind, .. } = stmts[0] {
+                    assert_eq!(kind, CaseKind::CaseZ);
+                } else {
+                    panic!("Expected Statement::Case");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_indexed_part_select() {
+        let src = r#"
+module part_sel (input [31:0] data, output [7:0] byte0, byte1);
+    assign byte0 = data[0 +: 8];
+    assign byte1 = data[15 -: 8];
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        let m = &file.modules[0];
+        assert_eq!(m.items.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_compiler_directives() {
+        let src = r#"
+`timescale 1ns / 1ps
+`default_nettype none
+`resetall
+`celldefine
+module dummy (input a, output y);
+    assign y = a;
+endmodule
+`endcelldefine
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        assert_eq!(file.modules.len(), 1);
+        assert_eq!(file.modules[0].name, "dummy");
+    }
 }

@@ -233,6 +233,17 @@ impl<'a> CoveragePointExtractor<'a> {
                     self.visit_statement(s, mod_name);
                 }
             }
+            Statement::Forever { body, .. } => {
+                self.visit_statement(body, mod_name);
+            }
+            Statement::Repeat { count, body, .. } => {
+                self.visit_expr(count, mod_name);
+                self.visit_statement(body, mod_name);
+            }
+            Statement::While { cond, body, .. } => {
+                self.visit_expr(cond, mod_name);
+                self.visit_statement(body, mod_name);
+            }
             Statement::TaskCall { span, .. } => {
                 let (line, col) = offset_to_line_col(self.source, span.start);
                 let snippet = self.get_snippet(*span);
@@ -302,6 +313,11 @@ impl<'a> CoveragePointExtractor<'a> {
                 self.visit_expr(target, mod_name);
                 self.visit_expr(msb, mod_name);
                 self.visit_expr(lsb, mod_name);
+            }
+            Expr::IndexedSlice { target, base, width, .. } => {
+                self.visit_expr(target, mod_name);
+                self.visit_expr(base, mod_name);
+                self.visit_expr(width, mod_name);
             }
             Expr::Concat(exprs, _) => {
                 for e in exprs {

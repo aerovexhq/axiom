@@ -44,6 +44,7 @@ impl VerilogHover {
                         DataType::Reg => "reg",
                         DataType::Logic => "logic",
                         DataType::Integer => "integer",
+                        DataType::Genvar => "genvar",
                         DataType::Implicit => "",
                     };
                     ports_str.push_str(&format!("- `{}`: {} {}\n", p.name, dir_str, dt_str));
@@ -83,6 +84,7 @@ impl VerilogHover {
                         DataType::Reg => "reg",
                         DataType::Logic => "logic",
                         DataType::Integer => "integer",
+                        DataType::Genvar => "genvar",
                         DataType::Implicit => "logic",
                     };
                     let (decl_line, decl_col) = offset_to_line_col(source, port.span.start);
@@ -123,6 +125,7 @@ impl VerilogHover {
                                 DataType::Reg => "reg",
                                 DataType::Logic => "logic",
                                 DataType::Integer => "integer",
+                                DataType::Genvar => "genvar",
                                 DataType::Implicit => "wire",
                             };
                             let (decl_line, decl_col) = offset_to_line_col(source, net.span.start);

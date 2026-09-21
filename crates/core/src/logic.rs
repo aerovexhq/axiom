@@ -228,7 +228,7 @@ impl LogicVector {
                 '0' => Logic4::Zero,
                 '1' => Logic4::One,
                 'x' | 'X' => Logic4::X,
-                'z' | 'Z' => Logic4::Z,
+                'z' | 'Z' | '?' => Logic4::Z,
                 _ => return Err(format!("Invalid binary character: '{c}'")),
             };
             bits.push(bit);
@@ -255,7 +255,7 @@ impl LogicVector {
                     bits.extend_from_slice(&[Logic4::X; 4]);
                     continue;
                 }
-                'z' | 'Z' => {
+                'z' | 'Z' | '?' => {
                     bits.extend_from_slice(&[Logic4::Z; 4]);
                     continue;
                 }

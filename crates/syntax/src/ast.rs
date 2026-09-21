@@ -37,6 +37,7 @@ pub enum DataType {
     Reg,
     Logic,
     Integer,
+    Genvar,
     Implicit,
 }
 
@@ -129,14 +130,24 @@ pub struct SensitivityItem {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CaseKind {
+    Exact,
+    CaseZ,
+    CaseX,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Statement {
     Block(Vec<Statement>),
     BlockingAssign { lhs: Expr, rhs: Expr, span: Span },
     NonBlockingAssign { lhs: Expr, rhs: Expr, span: Span },
     If { cond: Expr, then_branch: Box<Statement>, else_branch: Option<Box<Statement>>, span: Span },
-    Case { expr: Expr, items: Vec<CaseItem>, span: Span },
+    Case { kind: CaseKind, expr: Expr, items: Vec<CaseItem>, span: Span },
     For { init: Box<Statement>, cond: Expr, step: Box<Statement>, body: Box<Statement>, span: Span },
+    Forever { body: Box<Statement>, span: Span },
+    Repeat { count: Expr, body: Box<Statement>, span: Span },
+    While { cond: Expr, body: Box<Statement>, span: Span },
     Delay { amount: Expr, stmt: Option<Box<Statement>>, span: Span },
     TaskCall { name: String, args: Vec<Expr>, span: Span },
     Assertion(AssertionDef),
@@ -158,6 +169,9 @@ impl Statement {
             Statement::If { span, .. } => *span,
             Statement::Case { span, .. } => *span,
             Statement::For { span, .. } => *span,
+            Statement::Forever { span, .. } => *span,
+            Statement::Repeat { span, .. } => *span,
+            Statement::While { span, .. } => *span,
             Statement::Delay { span, .. } => *span,
             Statement::TaskCall { span, .. } => *span,
             Statement::Assertion(assert_def) => assert_def.span,
@@ -199,6 +213,7 @@ pub enum Expr {
     Binary { op: BinaryOp, lhs: Box<Expr>, rhs: Box<Expr>, span: Span },
     Ternary { cond: Box<Expr>, then_expr: Box<Expr>, else_expr: Box<Expr>, span: Span },
     Slice { target: Box<Expr>, msb: Box<Expr>, lsb: Box<Expr>, span: Span },
+    IndexedSlice { target: Box<Expr>, base: Box<Expr>, width: Box<Expr>, is_ascending: bool, span: Span },
     Concat(Vec<Expr>, Span),
     Call { name: String, args: Vec<Expr>, span: Span },
     Replication { count: Box<Expr>, expr: Box<Expr>, span: Span },
@@ -215,6 +230,7 @@ impl Expr {
             Expr::Binary { span, .. } => *span,
             Expr::Ternary { span, .. } => *span,
             Expr::Slice { span, .. } => *span,
+            Expr::IndexedSlice { span, .. } => *span,
             Expr::Concat(_, s) => *s,
             Expr::Call { span, .. } => *span,
             Expr::Replication { span, .. } => *span,

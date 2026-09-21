@@ -131,10 +131,28 @@ impl<'a> Parser<'a> {
         let mut modules = Vec::new();
 
         while !self.check(&TokenKind::Eof) {
-            // Skip directives without semicolons (`timescale, etc.)
-            if self.match_token(&TokenKind::DirectiveTimescale) {
+            // Skip directives without semicolons (`timescale, `default_nettype, `resetall, etc.)
+            if matches!(
+                self.peek(),
+                TokenKind::DirectiveTimescale
+                    | TokenKind::DirectiveDefaultNettype
+                    | TokenKind::DirectiveResetall
+                    | TokenKind::DirectiveUndef
+                    | TokenKind::DirectiveCelldefine
+            ) {
+                self.advance();
                 while !self.check(&TokenKind::Module) && !self.check(&TokenKind::Eof) {
-                    if matches!(self.peek(), TokenKind::DirectiveDefine | TokenKind::DirectiveIfdef | TokenKind::DirectiveInclude | TokenKind::DirectiveTimescale) {
+                    if matches!(
+                        self.peek(),
+                        TokenKind::DirectiveDefine
+                            | TokenKind::DirectiveIfdef
+                            | TokenKind::DirectiveInclude
+                            | TokenKind::DirectiveTimescale
+                            | TokenKind::DirectiveDefaultNettype
+                            | TokenKind::DirectiveResetall
+                            | TokenKind::DirectiveUndef
+                            | TokenKind::DirectiveCelldefine
+                    ) {
                         break;
                     }
                     self.advance();
@@ -200,11 +218,7 @@ impl<'a> Parser<'a> {
         // Module items
         let mut items = Vec::new();
         while !self.check(&TokenKind::EndModule) && !self.check(&TokenKind::Eof) {
-            if let Some(item) = self.parse_module_item() {
-                items.push(item);
-            } else {
-                self.synchronize_to_semicolon();
-            }
+            self.parse_module_items_into(&mut items, &mut ports);
         }
 
         let end_span = self.expect(&TokenKind::EndModule, "endmodule")
@@ -334,18 +348,68 @@ impl<'a> Parser<'a> {
         })
     }
 
+    #[allow(dead_code)]
     fn parse_module_item(&mut self) -> Option<ModuleItem> {
+        let mut items = Vec::new();
+        let mut dummy = Vec::new();
+        self.parse_module_items_into(&mut items, &mut dummy);
+        items.into_iter().next()
+    }
+
+    fn parse_module_items_into(&mut self, items: &mut Vec<ModuleItem>, ports: &mut Vec<PortDecl>) {
         match self.peek() {
-            TokenKind::Assign => self.parse_continuous_assign(),
-            TokenKind::Always | TokenKind::AlwaysComb | TokenKind::AlwaysFf | TokenKind::AlwaysLatch | TokenKind::Initial => {
-                self.parse_procedural_block()
+            TokenKind::Assign => {
+                self.parse_continuous_assign_into(items);
             }
-            TokenKind::Wire | TokenKind::Reg | TokenKind::Logic => self.parse_net_decl(),
-            TokenKind::Parameter | TokenKind::LocalParam => self.parse_param_decl(),
-            TokenKind::Generate => self.parse_generate_block(),
+            TokenKind::Always | TokenKind::AlwaysComb | TokenKind::AlwaysFf | TokenKind::AlwaysLatch | TokenKind::Initial => {
+                if let Some(item) = self.parse_procedural_block() {
+                    items.push(item);
+                } else {
+                    self.synchronize_to_semicolon();
+                }
+            }
+            TokenKind::Wire | TokenKind::Reg | TokenKind::Logic | TokenKind::Integer | TokenKind::Genvar => {
+                if let Some(decl) = self.parse_net_decl() {
+                    if let ModuleItem::NetDecl(ref net) = decl {
+                        for p in ports.iter_mut() {
+                            if net.names.contains(&p.name) {
+                                if p.data_type == DataType::Implicit {
+                                    p.data_type = net.data_type;
+                                }
+                                if p.range.is_none() && net.range.is_some() {
+                                    p.range = net.range.clone();
+                                }
+                            }
+                        }
+                    }
+                    items.push(decl);
+                } else {
+                    self.synchronize_to_semicolon();
+                }
+            }
+            TokenKind::Input | TokenKind::Output | TokenKind::Inout => {
+                self.parse_non_ansi_port_decl_into(ports);
+            }
+            TokenKind::Parameter | TokenKind::LocalParam => {
+                if let Some(item) = self.parse_param_decl() {
+                    items.push(item);
+                } else {
+                    self.synchronize_to_semicolon();
+                }
+            }
+            TokenKind::Generate => {
+                if let Some(item) = self.parse_generate_block() {
+                    items.push(item);
+                } else {
+                    self.synchronize_to_semicolon();
+                }
+            }
             TokenKind::Assert | TokenKind::Assume | TokenKind::Cover => {
-                let def = self.parse_assertion_def(None)?;
-                Some(ModuleItem::Assertion(def))
+                if let Some(def) = self.parse_assertion_def(None) {
+                    items.push(ModuleItem::Assertion(def));
+                } else {
+                    self.synchronize_to_semicolon();
+                }
             }
             TokenKind::Ident(_) => {
                 if self.peek_at(1) == &TokenKind::Colon && matches!(self.peek_at(2), TokenKind::Assert | TokenKind::Assume | TokenKind::Cover) {
@@ -354,10 +418,13 @@ impl<'a> Parser<'a> {
                         _ => unreachable!(),
                     };
                     self.advance(); // consume ':'
-                    let def = self.parse_assertion_def(Some(label))?;
-                    Some(ModuleItem::Assertion(def))
+                    if let Some(def) = self.parse_assertion_def(Some(label)) {
+                        items.push(ModuleItem::Assertion(def));
+                    } else {
+                        self.synchronize_to_semicolon();
+                    }
                 } else {
-                    self.parse_instance_or_assign()
+                    self.parse_instance_or_assign_into(items);
                 }
             }
             _ => {
@@ -367,23 +434,92 @@ impl<'a> Parser<'a> {
                     format!("Unexpected module item: {tok:?}"),
                     span,
                 ));
-                None
+                self.synchronize_to_semicolon();
             }
         }
     }
 
-    fn parse_continuous_assign(&mut self) -> Option<ModuleItem> {
-        let start_span = self.advance().span; // consume 'assign'
-        let lhs = self.parse_expr()?;
-        self.expect(&TokenKind::AssignEq, "assignment '='")?;
-        let rhs = self.parse_expr()?;
-        let end_span = self.expect(&TokenKind::Semicolon, "assignment ending ';'")?;
+    fn parse_non_ansi_port_decl_into(&mut self, ports: &mut Vec<PortDecl>) {
+        let tok = self.advance();
+        let dir = match tok.kind {
+            TokenKind::Input => PortDirection::Input,
+            TokenKind::Output => PortDirection::Output,
+            TokenKind::Inout => PortDirection::Inout,
+            _ => unreachable!(),
+        };
 
-        Some(ModuleItem::ContinuousAssign(AssignStmt {
-            lhs,
-            rhs,
-            span: start_span.merge(end_span),
-        }))
+        let mut dt = DataType::Implicit;
+        if self.match_token(&TokenKind::Wire) {
+            dt = DataType::Wire;
+        } else if self.match_token(&TokenKind::Reg) {
+            dt = DataType::Reg;
+        } else if self.match_token(&TokenKind::Logic) {
+            dt = DataType::Logic;
+        } else if self.match_token(&TokenKind::Integer) {
+            dt = DataType::Integer;
+        }
+
+        let range = if self.check(&TokenKind::LBracket) {
+            self.parse_range()
+        } else {
+            None
+        };
+
+        while let TokenKind::Ident(name) = self.peek().clone() {
+            let span = self.advance().span;
+            if let Some(existing) = ports.iter_mut().find(|p| p.name == name) {
+                existing.direction = dir;
+                if dt != DataType::Implicit {
+                    existing.data_type = dt;
+                }
+                if range.is_some() {
+                    existing.range = range.clone();
+                }
+            } else {
+                ports.push(PortDecl {
+                    direction: dir,
+                    data_type: dt,
+                    name,
+                    range: range.clone(),
+                    span,
+                });
+            }
+
+            if !self.match_token(&TokenKind::Comma) {
+                break;
+            }
+        }
+
+        self.expect(&TokenKind::Semicolon, "port declaration ';'");
+    }
+
+    fn parse_continuous_assign_into(&mut self, items: &mut Vec<ModuleItem>) {
+        let _start_span = self.advance().span; // consume 'assign'
+        loop {
+            let item_start = self.current_span();
+            let Some(lhs) = self.parse_expr() else {
+                self.synchronize_to_semicolon();
+                return;
+            };
+            if self.expect(&TokenKind::AssignEq, "assignment '='").is_none() {
+                self.synchronize_to_semicolon();
+                return;
+            }
+            let Some(rhs) = self.parse_expr() else {
+                self.synchronize_to_semicolon();
+                return;
+            };
+            let span = item_start.merge(self.current_span());
+            items.push(ModuleItem::ContinuousAssign(AssignStmt {
+                lhs,
+                rhs,
+                span,
+            }));
+            if !self.match_token(&TokenKind::Comma) {
+                break;
+            }
+        }
+        self.expect(&TokenKind::Semicolon, "assignment ending ';'");
     }
 
     fn parse_net_decl(&mut self) -> Option<ModuleItem> {
@@ -393,6 +529,8 @@ impl<'a> Parser<'a> {
             TokenKind::Wire => DataType::Wire,
             TokenKind::Reg => DataType::Reg,
             TokenKind::Logic => DataType::Logic,
+            TokenKind::Integer => DataType::Integer,
+            TokenKind::Genvar => DataType::Genvar,
             _ => DataType::Implicit,
         };
 
@@ -567,8 +705,34 @@ impl<'a> Parser<'a> {
         match self.peek() {
             TokenKind::Begin => {
                 let _start_span = self.advance().span;
+                // Optional block label: begin : label_name
+                if self.match_token(&TokenKind::Colon) {
+                    if let TokenKind::Ident(_) = self.peek() {
+                        self.advance();
+                    }
+                }
                 let mut stmts = Vec::new();
                 while !self.check(&TokenKind::End) && !self.check(&TokenKind::Eof) {
+                    // Check for local variable declaration inside procedural block:
+                    // integer, reg, wire, logic, genvar
+                    if matches!(self.peek(), TokenKind::Integer | TokenKind::Reg | TokenKind::Wire | TokenKind::Logic | TokenKind::Genvar) {
+                        if let Some(decl) = self.parse_net_decl() {
+                            if let ModuleItem::NetDecl(net) = decl {
+                                if let Some(init_expr) = net.init {
+                                    for name in net.names {
+                                        stmts.push(Statement::BlockingAssign {
+                                            lhs: Expr::Ident(name, net.span),
+                                            rhs: init_expr.clone(),
+                                            span: net.span,
+                                        });
+                                    }
+                                }
+                            }
+                        } else {
+                            self.synchronize_to_semicolon();
+                        }
+                        continue;
+                    }
                     if let Some(s) = self.parse_statement() {
                         stmts.push(s);
                     } else {
@@ -576,6 +740,12 @@ impl<'a> Parser<'a> {
                     }
                 }
                 self.expect(&TokenKind::End, "block 'end'")?;
+                // Optional end label: end : label_name
+                if self.match_token(&TokenKind::Colon) {
+                    if let TokenKind::Ident(_) = self.peek() {
+                        self.advance();
+                    }
+                }
                 Some(Statement::Block(stmts))
             }
             TokenKind::If => {
@@ -596,8 +766,17 @@ impl<'a> Parser<'a> {
                     span: start_span.merge(self.current_span()),
                 })
             }
-            TokenKind::Case => {
-                let start_span = self.advance().span;
+            TokenKind::Case | TokenKind::Casez | TokenKind::Casex => {
+                let (kind, start_span) = {
+                    let tok = self.advance();
+                    let k = match tok.kind {
+                        TokenKind::Case => CaseKind::Exact,
+                        TokenKind::Casez => CaseKind::CaseZ,
+                        TokenKind::Casex => CaseKind::CaseX,
+                        _ => unreachable!(),
+                    };
+                    (k, tok.span)
+                };
                 self.expect(&TokenKind::LParen, "case expression '('")?;
                 let expr = self.parse_expr()?;
                 self.expect(&TokenKind::RParen, "case expression ')'")?;
@@ -621,6 +800,7 @@ impl<'a> Parser<'a> {
                 }
                 self.expect(&TokenKind::EndCase, "endcase")?;
                 Some(Statement::Case {
+                    kind,
                     expr,
                     items,
                     span: start_span.merge(self.current_span()),
@@ -632,7 +812,19 @@ impl<'a> Parser<'a> {
                 let init = Box::new(self.parse_statement()?);
                 let cond = self.parse_expr()?;
                 self.expect(&TokenKind::Semicolon, "for condition ';'")?;
-                let step = Box::new(self.parse_statement()?);
+                // Parse step assignment without requiring semicolon before ')'
+                let step_lhs = self.parse_expr_precedence(Precedence::Shift)?;
+                let step = if self.match_token(&TokenKind::AssignEq) {
+                    let step_rhs = self.parse_expr()?;
+                    let span = step_lhs.span().merge(step_rhs.span());
+                    Box::new(Statement::BlockingAssign { lhs: step_lhs, rhs: step_rhs, span })
+                } else if self.match_token(&TokenKind::LtEq) || self.match_token(&TokenKind::AssignLe) {
+                    let step_rhs = self.parse_expr()?;
+                    let span = step_lhs.span().merge(step_rhs.span());
+                    Box::new(Statement::NonBlockingAssign { lhs: step_lhs, rhs: step_rhs, span })
+                } else {
+                    Box::new(Statement::Null)
+                };
                 self.expect(&TokenKind::RParen, "for ')'")?;
                 let body = Box::new(self.parse_statement()?);
                 Some(Statement::For {
@@ -642,6 +834,30 @@ impl<'a> Parser<'a> {
                     body,
                     span: start_span.merge(self.current_span()),
                 })
+            }
+            TokenKind::Forever => {
+                let start_span = self.advance().span;
+                let body = Box::new(self.parse_statement()?);
+                let span = start_span.merge(body.span());
+                Some(Statement::Forever { body, span })
+            }
+            TokenKind::Repeat => {
+                let start_span = self.advance().span;
+                self.expect(&TokenKind::LParen, "repeat '('")?;
+                let count = self.parse_expr()?;
+                self.expect(&TokenKind::RParen, "repeat ')'")?;
+                let body = Box::new(self.parse_statement()?);
+                let span = start_span.merge(body.span());
+                Some(Statement::Repeat { count, body, span })
+            }
+            TokenKind::While => {
+                let start_span = self.advance().span;
+                self.expect(&TokenKind::LParen, "while condition '('")?;
+                let cond = self.parse_expr()?;
+                self.expect(&TokenKind::RParen, "while condition ')'")?;
+                let body = Box::new(self.parse_statement()?);
+                let span = start_span.merge(body.span());
+                Some(Statement::While { cond, body, span })
             }
             TokenKind::Semicolon => {
                 self.advance();
@@ -725,11 +941,18 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_instance_or_assign(&mut self) -> Option<ModuleItem> {
-        let start_span = self.current_span();
+        let mut items = Vec::new();
+        self.parse_instance_or_assign_into(&mut items);
+        items.into_iter().next()
+    }
+
+    fn parse_instance_or_assign_into(&mut self, items: &mut Vec<ModuleItem>) {
+        let _start_span = self.current_span();
         let module_name = match self.advance().kind.clone() {
             TokenKind::Ident(s) => s,
-            _ => return None,
+            _ => return,
         };
 
         // Parameters or delay on instance: #(.WIDTH(8)), #(8), or #10
@@ -743,36 +966,49 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Instance name: u_alu, g1, or omitted for gate primitives
-        let instance_name = if self.check(&TokenKind::LParen) {
-            // Anonymous instance (standard in Verilog gate primitives)
-            format!("{}_{}", module_name, self.current_span().start)
-        } else if matches!(self.peek(), TokenKind::Ident(_)) {
-            match self.advance().kind.clone() {
-                TokenKind::Ident(s) => s,
-                _ => unreachable!(),
+        // Loop over multiple instances: u1 (...), u2 (...) or gate instances
+        loop {
+            let inst_start = self.current_span();
+            let instance_name = if self.check(&TokenKind::LParen) {
+                // Anonymous instance (standard in Verilog gate primitives)
+                format!("{}_{}", module_name, self.current_span().start)
+            } else if matches!(self.peek(), TokenKind::Ident(_)) {
+                match self.advance().kind.clone() {
+                    TokenKind::Ident(s) => s,
+                    _ => unreachable!(),
+                }
+            } else {
+                self.diagnostics.push(Diagnostic::error(
+                    "Expected instance name or '(' for port connections",
+                    self.current_span(),
+                ));
+                self.synchronize_to_semicolon();
+                return;
+            };
+
+            // Port bindings: (.a(din_a), .b(din_b)) or (din_a, din_b)
+            if self.expect(&TokenKind::LParen, "instance port connections '('").is_none() {
+                self.synchronize_to_semicolon();
+                return;
             }
-        } else {
-            self.diagnostics.push(Diagnostic::error(
-                "Expected instance name or '(' for port connections",
-                self.current_span(),
-            ));
-            return None;
-        };
+            let port_bindings = self.parse_port_connections(&module_name);
+            let rparen_span = self.expect(&TokenKind::RParen, "instance port connections ')'");
+            let end_span = rparen_span.unwrap_or_else(|| self.current_span());
 
-        // Port bindings: (.a(din_a), .b(din_b)) or (din_a, din_b)
-        self.expect(&TokenKind::LParen, "instance port connections '('")?;
-        let port_bindings = self.parse_port_connections(&module_name);
-        self.expect(&TokenKind::RParen, "instance port connections ')'")?;
-        let end_span = self.expect(&TokenKind::Semicolon, "instance declaration ';'")?;
+            items.push(ModuleItem::Instance(InstanceDef {
+                module_name: module_name.clone(),
+                instance_name,
+                param_bindings: param_bindings.clone(),
+                port_bindings,
+                span: inst_start.merge(end_span),
+            }));
 
-        Some(ModuleItem::Instance(InstanceDef {
-            module_name,
-            instance_name,
-            param_bindings,
-            port_bindings,
-            span: start_span.merge(end_span),
-        }))
+            if !self.match_token(&TokenKind::Comma) {
+                break;
+            }
+        }
+
+        self.expect(&TokenKind::Semicolon, "instance declaration ';'");
     }
 
     fn parse_instance_param_bindings(&mut self) -> Vec<(String, Expr)> {
@@ -875,12 +1111,9 @@ impl<'a> Parser<'a> {
     fn parse_generate_block(&mut self) -> Option<ModuleItem> {
         let start_span = self.advance().span; // 'generate'
         let mut items = Vec::new();
+        let mut dummy_ports = Vec::new();
         while !self.check(&TokenKind::EndGenerate) && !self.check(&TokenKind::Eof) {
-            if let Some(item) = self.parse_module_item() {
-                items.push(item);
-            } else {
-                self.synchronize_to_semicolon();
-            }
+            self.parse_module_items_into(&mut items, &mut dummy_ports);
         }
         let end_span = self.expect(&TokenKind::EndGenerate, "endgenerate")?;
         Some(ModuleItem::GenerateBlock(GenerateBlock {
@@ -1043,8 +1276,8 @@ impl<'a> Parser<'a> {
                     })
                 } else {
                     let mut expr = Expr::Ident(name, tok.span);
-                    // Check for bit-slice [msb:lsb] or [idx]
-                    if self.match_token(&TokenKind::LBracket) {
+                    // Check for bit-slice [msb:lsb], indexed part-select [base +: width] / [base -: width], or [idx]
+                    while self.match_token(&TokenKind::LBracket) {
                         let msb = self.parse_expr()?;
                         if self.match_token(&TokenKind::Colon) {
                             let lsb = self.parse_expr()?;
@@ -1053,6 +1286,26 @@ impl<'a> Parser<'a> {
                                 target: Box::new(expr),
                                 msb: Box::new(msb),
                                 lsb: Box::new(lsb),
+                                span: tok.span.merge(end_span),
+                            };
+                        } else if self.match_token(&TokenKind::PlusColon) {
+                            let width = self.parse_expr()?;
+                            let end_span = self.expect(&TokenKind::RBracket, "indexed slice ']'")?;
+                            expr = Expr::IndexedSlice {
+                                target: Box::new(expr),
+                                base: Box::new(msb),
+                                width: Box::new(width),
+                                is_ascending: true,
+                                span: tok.span.merge(end_span),
+                            };
+                        } else if self.match_token(&TokenKind::MinusColon) {
+                            let width = self.parse_expr()?;
+                            let end_span = self.expect(&TokenKind::RBracket, "indexed slice ']'")?;
+                            expr = Expr::IndexedSlice {
+                                target: Box::new(expr),
+                                base: Box::new(msb),
+                                width: Box::new(width),
+                                is_ascending: false,
                                 span: tok.span.merge(end_span),
                             };
                         } else {

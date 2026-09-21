@@ -318,6 +318,19 @@ impl<'a> Elaborator<'a> {
                     stmts.extend(self.lower_statement(inner, nets, params)?);
                 }
             }
+            Statement::Forever { body, .. } => {
+                stmts.extend(self.lower_statement(body, nets, params)?);
+            }
+            Statement::Repeat { count, body, .. } => {
+                let n = self.eval_const_expr(count, params).unwrap_or(1);
+                let cap = n.min(256);
+                for _ in 0..cap {
+                    stmts.extend(self.lower_statement(body, nets, params)?);
+                }
+            }
+            Statement::While { body, .. } => {
+                stmts.extend(self.lower_statement(body, nets, params)?);
+            }
             Statement::TaskCall { .. } => {}
             _ => {}
         }
@@ -350,6 +363,17 @@ impl<'a> Elaborator<'a> {
                 let msb_val = self.eval_const_expr(msb, params).unwrap_or(0) as u32;
                 let width = msb_val - lsb_val + 1;
                 Ok(BirExpr::Slice { target: Box::new(t), lsb: lsb_val, width })
+            }
+            Expr::IndexedSlice { target, base, width, is_ascending, .. } => {
+                let t = self.lower_expr(target, nets, params)?;
+                let base_val = self.eval_const_expr(base, params).unwrap_or(0) as u32;
+                let width_val = self.eval_const_expr(width, params).unwrap_or(1) as u32;
+                let lsb_val = if *is_ascending {
+                    base_val
+                } else {
+                    base_val.saturating_sub(width_val.saturating_sub(1))
+                };
+                Ok(BirExpr::Slice { target: Box::new(t), lsb: lsb_val, width: width_val })
             }
             Expr::Concat(items, _) => {
                 let mut lowered = Vec::new();
