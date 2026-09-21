@@ -523,6 +523,10 @@ select option {
   background: rgba(244, 63, 94, 0.07) !important;
 }
 
+.menu-item-hover {
+  white-space: nowrap;
+}
+
 .menu-item-hover:hover {
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
@@ -540,6 +544,9 @@ select option {
   z-index: 100;
   padding: 4px;
   min-width: 160px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  white-space: nowrap;
   display: flex;
   flex-direction: column;
 }
@@ -560,6 +567,12 @@ select option {
   text-align: left;
   transition: background-color 0.15s ease, color 0.15s ease;
   user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.axiom-menu-item * {
+  white-space: nowrap;
 }
 
 .axiom-menu-item:hover:not(:disabled) {
@@ -594,5 +607,6 @@ select option {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted, #78889b);
+  white-space: nowrap;
 }
 

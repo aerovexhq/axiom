@@ -561,6 +561,13 @@ export const App: React.FC = () => {
   }, []);
 
   const handleOpenProjectById = useCallback(async (id: string) => {
+    const registry = loadProjectRegistry();
+    const meta = registry.find((p) => p.id === id);
+    if (meta?.isTrashed) {
+      toast.warning(`Cannot open "${meta.name}" because it is in Trash. Restore it first.`);
+      return;
+    }
+
     const loaded = await loadProjectById(id);
     if (loaded) {
       setUrlProjectSlug(loaded.id);

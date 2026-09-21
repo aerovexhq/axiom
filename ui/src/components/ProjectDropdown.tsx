@@ -108,6 +108,9 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
             top: "calc(100% + 6px)",
             left: 0,
             minWidth: 260,
+            width: "max-content",
+            maxWidth: "calc(100vw - 32px)",
+            whiteSpace: "nowrap",
             backgroundColor: "var(--bg-secondary)",
             border: "1px solid var(--border-strong)",
             borderRadius: "var(--radius-md)",
@@ -124,11 +127,12 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
             style={{
               padding: "10px 12px",
               backgroundColor: "var(--bg-primary)",
-              borderBottom: "1px solid var(--border-subtle)"
+              borderBottom: "1px solid var(--border-subtle)",
+              whiteSpace: "nowrap"
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 3, whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                 {project.name}
               </span>
               <span
@@ -142,7 +146,9 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                   fontWeight: 600,
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 3
+                  gap: 3,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
                 }}
               >
                 {isSaved ? <Check size={9} /> : null}
@@ -150,25 +156,25 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
               </span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-              <Cpu size={11} color="var(--accent-cyan)" />
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap" }}>
+              <Cpu size={11} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {project.targetDevice}
               </span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10.5, color: "var(--text-muted)", marginTop: 4 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10.5, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
                 <span style={{ color: "var(--accent-amber)", fontWeight: 700 }}>[TOP]</span>
                 <span className="mono-num" style={{ color: "var(--text-secondary)" }}>{project.topModule}</span>
               </span>
               <span>•</span>
-              <span>{project.files.length} files</span>
+              <span style={{ whiteSpace: "nowrap" }}>{project.files.length} files</span>
             </div>
           </div>
 
           {/* Menu Actions Section */}
-          <div style={{ padding: "4px 0", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "4px 0", display: "flex", flexDirection: "column", whiteSpace: "nowrap" }}>
             <button
               onClick={() => {
                 onSaveProject();
@@ -179,6 +185,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
+                gap: 20,
                 padding: "7px 12px",
                 fontSize: 12,
                 color: "var(--text-secondary)",
@@ -186,14 +193,15 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
+                whiteSpace: "nowrap",
                 transition: "background 0.1s ease, color 0.1s ease"
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Save size={13} color="var(--accent-cyan)" />
-                <span>Save Project</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
+                <Save size={13} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
+                <span style={{ whiteSpace: "nowrap" }}>Save Project</span>
               </div>
-              <span className="mono-num" style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3 }}>
+              <span className="mono-num" style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3, marginLeft: 16, flexShrink: 0, whiteSpace: "nowrap" }}>
                 Ctrl+S
               </span>
             </button>
@@ -208,6 +216,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
+                gap: 20,
                 padding: "7px 12px",
                 fontSize: 12,
                 color: "var(--text-secondary)",
@@ -215,14 +224,15 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
+                whiteSpace: "nowrap",
                 transition: "background 0.1s ease, color 0.1s ease"
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Download size={13} color="var(--accent-purple)" />
-                <span>Export Project Bundle</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
+                <Download size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
+                <span style={{ whiteSpace: "nowrap" }}>Export Project Bundle</span>
               </div>
-              <span className="mono-num" style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3 }}>
+              <span className="mono-num" style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3, marginLeft: 16, flexShrink: 0, whiteSpace: "nowrap" }}>
                 .json
               </span>
             </button>
@@ -244,11 +254,12 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
+                whiteSpace: "nowrap",
                 transition: "background 0.1s ease, color 0.1s ease"
               }}
             >
-              <FilePlus size={13} color="var(--accent-blue)" />
-              <span>Add Source to Project...</span>
+              <FilePlus size={13} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
+              <span style={{ whiteSpace: "nowrap" }}>Add Source to Project...</span>
             </button>
 
             <button
@@ -268,11 +279,12 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
+                whiteSpace: "nowrap",
                 transition: "background 0.1s ease, color 0.1s ease"
               }}
             >
-              <FolderPlus size={13} color="var(--accent-emerald)" />
-              <span>{t("header.newProject")}...</span>
+              <FolderPlus size={13} color="var(--accent-emerald)" style={{ flexShrink: 0 }} />
+              <span style={{ whiteSpace: "nowrap" }}>{t("header.newProject")}...</span>
             </button>
           </div>
 
@@ -280,7 +292,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
           <div style={{ height: 1, backgroundColor: "var(--border-subtle)", margin: "2px 0" }} />
 
           {/* Exit Action: Close Project & Move to Trash */}
-          <div style={{ padding: "4px 0" }}>
+          <div style={{ padding: "4px 0", whiteSpace: "nowrap" }}>
             <button
               onClick={() => {
                 setIsOpen(false);
@@ -299,11 +311,12 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 cursor: "pointer",
                 width: "100%",
                 textAlign: "left",
+                whiteSpace: "nowrap",
                 transition: "background 0.1s ease, color 0.1s ease"
               }}
             >
-              <X size={13} color="var(--text-muted)" />
-              <span>{t("header.closeProject")}</span>
+              <X size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              <span style={{ whiteSpace: "nowrap" }}>{t("header.closeProject")}</span>
             </button>
           </div>
         </div>

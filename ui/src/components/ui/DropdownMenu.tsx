@@ -189,6 +189,9 @@ export const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({
         right: align === "end" ? 0 : undefined,
         transform: align === "center" ? "translateX(-50%)" : undefined,
         minWidth,
+        width: "max-content",
+        maxWidth: "calc(100vw - 32px)",
+        whiteSpace: "nowrap",
         zIndex,
         ...style
       }}
@@ -248,10 +251,10 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
       disabled={disabled}
       onClick={handleClick}
       className={itemClass}
-      style={style}
+      style={{ whiteSpace: "nowrap", ...style }}
     >
       {icon && (
-        <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, whiteSpace: "nowrap" }}>
           {icon}
         </span>
       )}
@@ -275,8 +278,9 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
             backgroundColor: "var(--bg-tertiary)",
             padding: "1px 5px",
             borderRadius: 3,
-            marginLeft: 8,
-            flexShrink: 0
+            marginLeft: 12,
+            flexShrink: 0,
+            whiteSpace: "nowrap"
           }}
         >
           {shortcut}

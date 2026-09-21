@@ -121,7 +121,9 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
             top: "calc(100% + 6px)",
             ...(align === "right" ? { right: 0 } : { left: 0 }),
             minWidth: 235,
-            width: 235,
+            width: "max-content",
+            maxWidth: "calc(100vw - 32px)",
+            whiteSpace: "nowrap",
             backgroundColor: "var(--bg-secondary)",
             border: "1px solid var(--border-strong)",
             borderRadius: 8,
@@ -142,14 +144,15 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
               letterSpacing: "0.06em",
               color: "var(--text-muted)",
               borderBottom: "1px solid var(--border-subtle)",
-              marginBottom: 4
+              marginBottom: 4,
+              whiteSpace: "nowrap"
             }}
           >
             {t("header.language")}
           </div>
 
           {/* Language Item Rows */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, whiteSpace: "nowrap" }}>
             {languages.map((l) => {
               const isSelected = l.code === language;
               const hasSubname = l.name !== l.nativeName;
@@ -163,6 +166,7 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    gap: 16,
                     width: "100%",
                     padding: "6px 8px",
                     border: "none",
@@ -171,6 +175,8 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
                     color: isSelected ? "var(--accent-cyan)" : "var(--text-primary)",
                     cursor: "pointer",
                     textAlign: "left",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
                     transition: "background-color 0.12s ease"
                   }}
                   onMouseEnter={(e) => {

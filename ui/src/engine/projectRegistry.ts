@@ -98,25 +98,32 @@ export function loadProjectRegistry(): ProjectMetadata[] {
 }
 
 /**
+ * Unlocked helper writing project registry to localStorage and FileSystem.
+ */
+async function persistRegistryRaw(projects: ProjectMetadata[]): Promise<void> {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(REGISTRY_STORAGE_KEY, JSON.stringify(projects));
+    } catch (err) {
+      console.warn("[ProjectRegistry] Failed to persist registry to localStorage:", err);
+    }
+  }
+
+  try {
+    const fs = getFileSystem();
+    await fs.mkdir("/projects");
+    await fs.writeFile(REGISTRY_FS_PATH, JSON.stringify({ version: 1, projects }, null, 2));
+  } catch (err) {
+    console.warn("[ProjectRegistry] Failed to write registry to FileSystem:", err);
+  }
+}
+
+/**
  * Persists the project metadata list to localStorage and mirrors to FileSystem.
  */
 export async function saveProjectRegistry(projects: ProjectMetadata[]): Promise<void> {
   return withLock("axiom_registry_lock", async () => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(REGISTRY_STORAGE_KEY, JSON.stringify(projects));
-      } catch (err) {
-        console.warn("[ProjectRegistry] Failed to persist registry to localStorage:", err);
-      }
-    }
-
-    try {
-      const fs = getFileSystem();
-      await fs.mkdir("/projects");
-      await fs.writeFile(REGISTRY_FS_PATH, JSON.stringify({ version: 1, projects }, null, 2));
-    } catch (err) {
-      console.warn("[ProjectRegistry] Failed to write registry to FileSystem:", err);
-    }
+    await persistRegistryRaw(projects);
   });
 }
 
@@ -210,8 +217,18 @@ export async function createAndPersistProject(project: AxiomProject): Promise<vo
 
 /**
  * Loads a full AxiomProject by ID, either from local cache or FileSystem.
+ * Returns null if the project is trashed and allowTrashed is false.
  */
-export async function loadProjectById(id: string): Promise<AxiomProject | null> {
+export async function loadProjectById(id: string, allowTrashed = false): Promise<AxiomProject | null> {
+  if (!allowTrashed) {
+    const registry = loadProjectRegistry();
+    const meta = registry.find((p) => p.id === id);
+    if (meta?.isTrashed) {
+      console.warn(`[ProjectRegistry] Blocked attempt to load trashed project: ${id}`);
+      return null;
+    }
+  }
+
   // Try localStorage fast path
   if (typeof window !== "undefined") {
     try {
@@ -258,7 +275,7 @@ export async function trashProject(id: string): Promise<void> {
     if (target) {
       target.isTrashed = true;
       target.trashedAt = new Date().toISOString();
-      await saveProjectRegistry(registry);
+      await persistRegistryRaw(registry);
     }
   });
   sessionBroadcaster.broadcast({ type: "PROJECT_TRASHED", projectId: id });
@@ -275,7 +292,7 @@ export async function restoreProject(id: string): Promise<void> {
     if (target) {
       target.isTrashed = false;
       delete target.trashedAt;
-      await saveProjectRegistry(registry);
+      await persistRegistryRaw(registry);
     }
   });
   sessionBroadcaster.broadcast({ type: "REGISTRY_UPDATED" });
@@ -313,7 +330,7 @@ export async function permanentDeleteProject(id: string): Promise<void> {
     // 3. Remove from registry under registry lock
     await withLock("axiom_registry_lock", async () => {
       const registry = loadProjectRegistry().filter((p) => p.id !== id);
-      await saveProjectRegistry(registry);
+      await persistRegistryRaw(registry);
     });
   });
 

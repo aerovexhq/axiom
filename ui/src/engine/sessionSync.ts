@@ -25,16 +25,49 @@ export const SESSION_ID: string = (() => {
 // In-memory sequential queue fallback for environments without navigator.locks
 const inMemoryQueues = new Map<string, Promise<unknown>>();
 
+// In-session active lock depth counter to guarantee re-entrancy
+const heldLockDepths = new Map<string, number>();
+
 /**
  * Executes an asynchronous operation under a named exclusive lock.
  * Uses Web Locks API (navigator.locks) across tabs and windows when available.
+ * Fully re-entrant: nested calls on the same session execute immediately without deadlocking.
  */
 export async function withLock<T>(lockName: string, operation: () => Promise<T>): Promise<T> {
+  const currentDepth = heldLockDepths.get(lockName) || 0;
+  if (currentDepth > 0) {
+    heldLockDepths.set(lockName, currentDepth + 1);
+    try {
+      return await operation();
+    } finally {
+      const depth = heldLockDepths.get(lockName) || 1;
+      if (depth <= 1) {
+        heldLockDepths.delete(lockName);
+      } else {
+        heldLockDepths.set(lockName, depth - 1);
+      }
+    }
+  }
+
+  const runWithDepthTracking = async (): Promise<T> => {
+    heldLockDepths.set(lockName, 1);
+    try {
+      return await operation();
+    } finally {
+      const depth = heldLockDepths.get(lockName) || 1;
+      if (depth <= 1) {
+        heldLockDepths.delete(lockName);
+      } else {
+        heldLockDepths.set(lockName, depth - 1);
+      }
+    }
+  };
+
   if (typeof navigator !== "undefined" && "locks" in navigator && typeof navigator.locks?.request === "function") {
     return new Promise<T>((resolve, reject) => {
       navigator.locks.request(lockName, { mode: "exclusive" }, async () => {
         try {
-          const result = await operation();
+          const result = await runWithDepthTracking();
           resolve(result);
         } catch (err) {
           reject(err);
@@ -53,7 +86,7 @@ export async function withLock<T>(lockName: string, operation: () => Promise<T>)
 
   await previous;
   try {
-    return await operation();
+    return await runWithDepthTracking();
   } finally {
     release();
     if (inMemoryQueues.get(lockName) === lockPromise) {

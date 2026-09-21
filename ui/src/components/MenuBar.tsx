@@ -135,19 +135,24 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 16,
+    gap: 20,
     padding: "6px 12px",
     fontSize: 12,
     color: "var(--text-primary)",
     cursor: "pointer",
     borderRadius: "var(--radius-sm)",
-    userSelect: "none"
+    userSelect: "none",
+    whiteSpace: "nowrap",
+    flexShrink: 0
   };
 
   const shortcutStyle: React.CSSProperties = {
     fontSize: 10.5,
     color: "var(--text-muted)",
-    fontFamily: "monospace"
+    fontFamily: "monospace",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    marginLeft: 12
   };
 
   const dividerStyle: React.CSSProperties = {
@@ -161,6 +166,9 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     top: "100%",
     left: 0,
     minWidth: 230,
+    width: "max-content",
+    maxWidth: "calc(100vw - 32px)",
+    whiteSpace: "nowrap",
     backgroundColor: "var(--bg-secondary)",
     border: "1px solid var(--border-default)",
     borderRadius: "var(--radius-md)",
