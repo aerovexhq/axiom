@@ -38,6 +38,7 @@ import {
   ProjectFile,
   FileSetType,
   PROJECT_TEMPLATES,
+  createProjectFromTemplate,
   bundleProjectSources,
   updateFileContent,
   addFileToProject,
@@ -527,10 +528,6 @@ export const App: React.FC = () => {
     setIsNewProjectOpen(true);
   }, []);
 
-  const handleSelectTemplate = useCallback((templateId: string) => {
-    handleOpenNewProject(templateId);
-  }, [handleOpenNewProject]);
-
   const handleCreateProject = useCallback(async (newProj: AxiomProject) => {
     // If files exist and activeFileId is not set, default to first file
     if (newProj.files.length > 0 && !newProj.activeFileId) {
@@ -559,6 +556,35 @@ export const App: React.FC = () => {
       setSelectedSignalIds(sigIds);
     }
   }, []);
+
+  const handleSelectTemplate = useCallback(
+    async (templateId: string, lessonId?: string) => {
+      if (templateId === "class_examples_project") {
+        const registry = loadProjectRegistry();
+        const template = PROJECT_TEMPLATES.find((t) => t.id === templateId);
+        const selectedLesson =
+          template?.lessons?.find((l) => l.id === lessonId) ?? template?.lessons?.[0];
+        const baseName = selectedLesson ? selectedLesson.defaultTopModule : "uygulama_0";
+
+        let projName = baseName;
+        let counter = 1;
+        const existingNames = new Set(registry.map((p) => p.name.toLowerCase()));
+        while (existingNames.has(projName.toLowerCase())) {
+          projName = `${baseName}_${counter}`;
+          counter++;
+        }
+
+        const newProj = createProjectFromTemplate(templateId, projName, undefined, lessonId);
+        await handleCreateProject(newProj);
+        toast.success(
+          `Created project "${newProj.name}" (${selectedLesson?.title ?? "Lesson 1"})`
+        );
+        return;
+      }
+      handleOpenNewProject(templateId);
+    },
+    [handleCreateProject, handleOpenNewProject]
+  );
 
   const handleOpenProjectById = useCallback(async (id: string) => {
     const registry = loadProjectRegistry();
@@ -885,8 +911,8 @@ export const App: React.FC = () => {
           {!project ? (
             <WelcomeLaunchpad
               onOpenNewProject={handleOpenNewProject}
-              onSelectTemplate={(tmplId) => {
-                handleSelectTemplate(tmplId);
+              onSelectTemplate={(tmplId, lessonId) => {
+                handleSelectTemplate(tmplId, lessonId);
                 setActiveMobilePanel("editor");
               }}
               onImportProjectJson={handleImportProjectJson}

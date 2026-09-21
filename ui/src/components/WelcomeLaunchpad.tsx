@@ -38,7 +38,7 @@ import { ClassLectureReferenceModal } from "./ClassLectureReferenceModal";
 
 interface WelcomeLaunchpadProps {
   onOpenNewProject: (templateId?: string) => void;
-  onSelectTemplate: (templateId: string) => void;
+  onSelectTemplate?: (templateId: string, lessonId?: string) => void;
   onImportProjectJson: (jsonStr: string) => void;
   projects?: ProjectMetadata[];
   onOpenProject?: (projectId: string) => void;
@@ -50,7 +50,7 @@ interface WelcomeLaunchpadProps {
 
 export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   onOpenNewProject,
-  onSelectTemplate: _onSelectTemplate,
+  onSelectTemplate,
   onImportProjectJson,
   projects = [],
   onOpenProject,
@@ -776,7 +776,13 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => onOpenNewProject(tmpl.id)}
+                      onClick={() => {
+                        if (onSelectTemplate) {
+                          onSelectTemplate(tmpl.id, selectedClassLessonId);
+                        } else {
+                          onOpenNewProject(tmpl.id);
+                        }
+                      }}
                       className="btn btn-primary"
                       style={{
                         height: 24,
