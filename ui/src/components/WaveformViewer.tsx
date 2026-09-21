@@ -672,7 +672,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       ctx.font = "11px Inter, sans-serif";
       ctx.fillStyle = "#06b6d4";
       ctx.textAlign = "left";
-      ctx.fillText("⚡ " + (decodedTransactions[0]?.protocol.toUpperCase() ?? "DECODE"), 12, pYTop + 18);
+      ctx.fillText(decodedTransactions[0]?.protocol.toUpperCase() ?? "DECODE", 12, pYTop + 18);
     }
 
     // Gutter Signal Rows
@@ -1254,10 +1254,10 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                   setCursorBPrivate(null);
                 }}
                 className="btn btn-ghost btn-icon"
-                style={{ fontSize: 10, color: "var(--text-muted)", padding: "0 2px", width: 16, height: 16 }}
+                style={{ color: "var(--text-muted)", padding: "0 2px", width: 16, height: 16, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                 title={t.waveforms.clearCursors}
               >
-                ✕
+                <X size={11} />
               </button>
             </div>
           )}
@@ -1283,10 +1283,10 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
               <button
                 onClick={() => setCursorAPrivate(null)}
                 className="btn btn-ghost btn-icon"
-                style={{ fontSize: 10, color: "var(--text-muted)", padding: "0 2px", width: 16, height: 16 }}
+                style={{ color: "var(--text-muted)", padding: "0 2px", width: 16, height: 16, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                 title={t.waveforms.clearCursors}
               >
-                ✕
+                <X size={11} />
               </button>
             </div>
           )}
@@ -1562,9 +1562,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
             <button
               onClick={() => setForcingSignal(null)}
               className="btn btn-ghost btn-icon"
-              style={{ color: "var(--text-muted)", width: 22, height: 22 }}
+              style={{ color: "var(--text-muted)", width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
             >
-              ✕
+              <X size={13} />
             </button>
           </div>
 

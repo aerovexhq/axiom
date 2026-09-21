@@ -514,7 +514,7 @@ export const AutoPipelineModal: React.FC<AutoPipelineModalProps> = ({
               ) : (
                 <>
                   <Sparkles size={14} />
-                  <span>🚀 Apply Pipelining & Re-elaborate</span>
+                  <span>Apply Pipelining & Re-elaborate</span>
                 </>
               )}
             </button>

@@ -500,7 +500,7 @@ export const App: React.FC = () => {
         );
         if (res && res.refactored_code) {
           handleCodeChange(res.refactored_code);
-          toast.success(`✨ Silicon Copilot: Inserted pipeline register stage at '${cutNet}' (+1 cycle)`);
+          toast.success(`Silicon Copilot: Inserted pipeline register stage at '${cutNet}' (+1 cycle)`);
           handleCompile();
         }
       } catch (e) {

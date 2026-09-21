@@ -9,7 +9,8 @@ import {
   Sliders,
   Layers,
   ArrowRight,
-  Check
+  Check,
+  X
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
@@ -717,7 +718,7 @@ export const MultiDieViewer: React.FC<MultiDieViewerProps> = ({
       ctx.fillStyle = isSelected ? "#ffffff" : "#38bdf8";
       ctx.font = "bold 9px monospace";
       if (enableLaguna) {
-        ctx.fillText(`/${cn.bit_width} ⚡`, badgeX + 6, badgeY + 14);
+        ctx.fillText(`/${cn.bit_width} [L]`, badgeX + 4, badgeY + 14);
       } else {
         ctx.fillText(`/${cn.bit_width}`, badgeX + 8, badgeY + 14);
       }
@@ -1001,10 +1002,13 @@ export const MultiDieViewer: React.FC<MultiDieViewerProps> = ({
                   border: "none",
                   color: "var(--text-muted, #64748b)",
                   cursor: "pointer",
-                  fontSize: "13px"
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
               >
-                ✕
+                <X size={13} />
               </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

@@ -526,7 +526,7 @@ export const MicroarchViewer: React.FC<MicroarchViewerProps> = ({
           ctx.strokeRect(block.x + 10, block.y + block.height - 24, block.width - 20, 18);
           ctx.fillStyle = "#f59e0b";
           ctx.textAlign = "center";
-          ctx.fillText("⚡ Double-click: FSM Bubble Diagram", block.x + block.width / 2, block.y + block.height - 15);
+          ctx.fillText("Double-click: FSM Bubble Diagram", block.x + block.width / 2, block.y + block.height - 15);
         } else if (block.kind.type === "Alu") {
           const alu = block.kind.data as AluMacro;
           const liveOp = Number(getSignalValue(alu.opcode_signal)) || 0;
@@ -544,7 +544,7 @@ export const MicroarchViewer: React.FC<MicroarchViewerProps> = ({
           ctx.strokeRect(block.x + 10, block.y + block.height - 24, block.width - 20, 18);
           ctx.fillStyle = "#38bdf8";
           ctx.textAlign = "center";
-          ctx.fillText("⚡ Double-click: ALU Function Table", block.x + block.width / 2, block.y + block.height - 15);
+          ctx.fillText("Double-click: ALU Function Table", block.x + block.width / 2, block.y + block.height - 15);
         } else if (block.kind.type === "RegisterFile") {
           const rf = block.kind.data as RegisterFileMacro;
           ctx.font = "10px monospace";
@@ -560,7 +560,7 @@ export const MicroarchViewer: React.FC<MicroarchViewerProps> = ({
           ctx.strokeRect(block.x + 10, block.y + block.height - 24, block.width - 20, 18);
           ctx.fillStyle = "#c084fc";
           ctx.textAlign = "center";
-          ctx.fillText("⚡ Double-click: Register Matrix", block.x + block.width / 2, block.y + block.height - 15);
+          ctx.fillText("Double-click: Register Matrix", block.x + block.width / 2, block.y + block.height - 15);
         } else if (block.kind.type === "DatapathReg") {
           const reg = block.kind.data;
           const liveVal = getSignalValue(reg.name);

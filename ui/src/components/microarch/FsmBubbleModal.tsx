@@ -122,7 +122,7 @@ export const FsmBubbleModal: React.FC<FsmBubbleModalProps> = ({
       ctx.fillStyle = isSrcActive ? "#f59e0b" : isTraversed ? "#10b981" : "#8b949e";
       ctx.lineWidth = isTraversed || isSrcActive ? 2.5 : 1.5;
 
-      const condLabel = isTraversed ? `${t.condition} (✓${transHits})` : t.condition;
+      const condLabel = isTraversed ? `${t.condition} [${transHits}]` : t.condition;
 
       if (isSelfLoop) {
         // Self-loop circle above node
@@ -244,7 +244,7 @@ export const FsmBubbleModal: React.FC<FsmBubbleModalProps> = ({
       // Hit count indicator
       ctx.font = "9px monospace";
       ctx.fillStyle = isCovered ? "#10b981" : "#f43f5e";
-      ctx.fillText(isCovered ? `✓ ${sHits} hits` : "0 hits", pos.x, pos.y + 20);
+      ctx.fillText(isCovered ? `${sHits} hits` : "0 hits", pos.x, pos.y + 20);
     });
 
     ctx.restore();

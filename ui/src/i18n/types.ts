@@ -4,17 +4,16 @@ export interface LanguageInfo {
   code: SupportedLanguage;
   name: string;
   nativeName: string;
-  flag: string;
 }
 
 export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
-  { code: "en", name: "English", nativeName: "English", flag: "🇺🇸" },
-  { code: "tr", name: "Turkish", nativeName: "Türkçe", flag: "🇹🇷" },
-  { code: "de", name: "German", nativeName: "Deutsch", flag: "🇩🇪" },
-  { code: "es", name: "Spanish", nativeName: "Español", flag: "🇪🇸" },
-  { code: "fr", name: "French", nativeName: "Français", flag: "🇫🇷" },
-  { code: "ja", name: "Japanese", nativeName: "日本語", flag: "🇯🇵" },
-  { code: "zh", name: "Chinese", nativeName: "简体中文", flag: "🇨🇳" },
+  { code: "en", name: "English", nativeName: "English" },
+  { code: "tr", name: "Turkish", nativeName: "Türkçe" },
+  { code: "de", name: "German", nativeName: "Deutsch" },
+  { code: "es", name: "Spanish", nativeName: "Español" },
+  { code: "fr", name: "French", nativeName: "Français" },
+  { code: "ja", name: "Japanese", nativeName: "日本語" },
+  { code: "zh", name: "Chinese", nativeName: "简体中文" },
 ];
 
 export interface Translations {

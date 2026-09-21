@@ -1697,7 +1697,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                 }}
               >
                 <Zap size={12} color="#f43f5e" />
-                <span>⚡ Silicon Copilot: Auto-Pipeline Path</span>
+                <span>Silicon Copilot: Auto-Pipeline Path</span>
               </button>
             )}
           </div>
@@ -2716,7 +2716,7 @@ function getGateDetailedInfo(
       liveValuesMap.get(`${node.scope}.${node.inputs[0].name}`) ??
       "0";
     const outVal = inVal === "1" ? "0" : inVal === "0" ? "1" : "X";
-    liveEval = `~${node.inputs[0].name}[${inVal}] ➔ ${outVal}`;
+    liveEval = `~${node.inputs[0].name}[${inVal}] -> ${outVal}`;
   } else if (gateType === "and" && node.inputs.length >= 2) {
     const in1Val =
       liveValuesMap.get(node.inputs[0].name) ??
@@ -2728,7 +2728,7 @@ function getGateDetailedInfo(
       "0";
     const outVal =
       in1Val === "1" && in2Val === "1" ? "1" : in1Val === "0" || in2Val === "0" ? "0" : "X";
-    liveEval = `${node.inputs[0].name}[${in1Val}] & ${node.inputs[1].name}[${in2Val}] ➔ ${outVal}`;
+    liveEval = `${node.inputs[0].name}[${in1Val}] & ${node.inputs[1].name}[${in2Val}] -> ${outVal}`;
   } else if (gateType === "or" && node.inputs.length >= 2) {
     const in1Val =
       liveValuesMap.get(node.inputs[0].name) ??
@@ -2740,7 +2740,7 @@ function getGateDetailedInfo(
       "0";
     const outVal =
       in1Val === "1" || in2Val === "1" ? "1" : in1Val === "0" && in2Val === "0" ? "0" : "X";
-    liveEval = `${node.inputs[0].name}[${in1Val}] | ${node.inputs[1].name}[${in2Val}] ➔ ${outVal}`;
+    liveEval = `${node.inputs[0].name}[${in1Val}] | ${node.inputs[1].name}[${in2Val}] -> ${outVal}`;
   } else if (gateType === "xor" && node.inputs.length >= 2) {
     const in1Val =
       liveValuesMap.get(node.inputs[0].name) ??
@@ -2752,7 +2752,7 @@ function getGateDetailedInfo(
       "0";
     const outVal =
       in1Val !== in2Val && in1Val !== "X" && in2Val !== "X" ? "1" : in1Val === in2Val && in1Val !== "X" ? "0" : "X";
-    liveEval = `${node.inputs[0].name}[${in1Val}] ^ ${node.inputs[1].name}[${in2Val}] ➔ ${outVal}`;
+    liveEval = `${node.inputs[0].name}[${in1Val}] ^ ${node.inputs[1].name}[${in2Val}] -> ${outVal}`;
   }
 
   return {

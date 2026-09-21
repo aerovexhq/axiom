@@ -550,7 +550,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               }}
             >
               <Zap size={11} color="#f43f5e" />
-              <span>⚡ Auto-Pipeline{predictedFmaxGainMhz ? `: +${Math.round(predictedFmaxGainMhz)} MHz` : ""}</span>
+              <span>Auto-Pipeline{predictedFmaxGainMhz ? `: +${Math.round(predictedFmaxGainMhz)} MHz` : ""}</span>
             </button>
           )}
 

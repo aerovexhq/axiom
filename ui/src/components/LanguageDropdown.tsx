@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Check } from "lucide-react";
+import { Check, Globe } from "lucide-react";
 import { useTranslation, SupportedLanguage } from "../i18n";
 
 interface LanguageDropdownProps {
@@ -59,7 +59,7 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
       className={className}
       style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
     >
-      {/* Sleek Trigger Button (Flag Only) */}
+      {/* Sleek Trigger Button (Globe + Language Code) */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -68,12 +68,12 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
         aria-expanded={isOpen}
         title={`${t("header.language")} (${currentLanguageInfo?.nativeName ?? "English"})`}
         style={{
-          width: 28,
           height: 28,
-          padding: 0,
+          padding: "0 7px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          gap: 5,
           backgroundColor: isOpen ? "rgba(56, 189, 248, 0.12)" : "rgba(255, 255, 255, 0.03)",
           border: isOpen ? "1px solid rgba(56, 189, 248, 0.45)" : "1px solid var(--border-subtle)",
           borderRadius: 6,
@@ -96,15 +96,19 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
           }
         }}
       >
+        <Globe size={13} style={{ color: isOpen ? "var(--accent-cyan)" : "var(--text-secondary)", flexShrink: 0 }} />
         <span
           style={{
-            fontSize: 16,
+            fontFamily: "var(--font-mono)",
+            fontSize: 10.5,
+            fontWeight: 700,
             lineHeight: 1,
             userSelect: "none",
-            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))"
+            color: isOpen ? "var(--accent-cyan)" : "var(--text-primary)",
+            letterSpacing: "0.04em"
           }}
         >
-          {currentLanguageInfo?.flag || "🇺🇸"}
+          {language.toUpperCase()}
         </span>
       </button>
 
@@ -180,9 +184,23 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
                     }
                   }}
                 >
-                  {/* Left: Flag & Native Name + (English Name) */}
+                  {/* Left: Code Badge & Native Name + (English Name) */}
                   <div style={{ display: "flex", alignItems: "center", minWidth: 0, gap: 8 }}>
-                    <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{l.flag}</span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.05em",
+                        padding: "1px 5px",
+                        borderRadius: 3,
+                        backgroundColor: isSelected ? "rgba(56, 189, 248, 0.18)" : "rgba(255, 255, 255, 0.06)",
+                        color: isSelected ? "var(--accent-cyan)" : "var(--text-muted)",
+                        flexShrink: 0
+                      }}
+                    >
+                      {l.code.toUpperCase()}
+                    </span>
                     <span
                       style={{
                         fontSize: 12.5,
@@ -208,20 +226,8 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
                     )}
                   </div>
 
-                  {/* Right: Muted 2-Letter Code & Checkmark */}
+                  {/* Right: Checkmark */}
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: 10,
-                        fontWeight: 600,
-                        letterSpacing: "0.04em",
-                        color: isSelected ? "var(--accent-cyan)" : "var(--text-muted)",
-                        opacity: isSelected ? 0.9 : 0.6
-                      }}
-                    >
-                      {l.code.toUpperCase()}
-                    </span>
                     {isSelected ? (
                       <Check size={13} color="var(--accent-cyan)" strokeWidth={2.5} />
                     ) : (

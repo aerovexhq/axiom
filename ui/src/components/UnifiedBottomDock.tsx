@@ -1859,7 +1859,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                    Toggle Activity (0↔1)
+                    Toggle Activity (0/1)
                   </span>
                   <span
                     style={{

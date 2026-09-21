@@ -509,7 +509,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Cpu size={13} color="var(--accent-cyan)" />
-                <span>⚡ Schematic DAG</span>
+                <span>Schematic DAG</span>
               </div>
             </div>
 
@@ -523,7 +523,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Box size={13} color="var(--accent-cyan)" />
-                <span>📦 Package & Floorplan</span>
+                <span>Package & Floorplan</span>
               </div>
             </div>
 
@@ -537,7 +537,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Boxes size={13} color="var(--accent-purple)" />
-                <span>🔬 Architecture Diagram</span>
+                <span>Architecture Diagram</span>
               </div>
             </div>
 
@@ -551,7 +551,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Sliders size={13} color="var(--accent-amber)" />
-                <span>🎛 Virtual Lab Rack</span>
+                <span>Virtual Lab Rack</span>
               </div>
             </div>
 
@@ -565,7 +565,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Activity size={13} color="var(--accent-blue)" />
-                <span>📈 Waveform Scope</span>
+                <span>Waveform Scope</span>
               </div>
             </div>
 
@@ -579,7 +579,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Clock size={13} color="var(--accent-rose)" />
-                <span>⏱ Timing Radar & Slack</span>
+                <span>Timing Radar & Slack</span>
               </div>
             </div>
 
@@ -593,7 +593,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Layers size={13} color="var(--accent-cyan)" />
-                <span>💠 Multi-Die / Chiplet</span>
+                <span>Multi-Die / Chiplet</span>
               </div>
             </div>
 
@@ -607,7 +607,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Gauge size={13} color="var(--accent-purple)" />
-                <span>📊 PPA & Silicon Costs</span>
+                <span>PPA & Silicon Costs</span>
               </div>
             </div>
           </div>
@@ -748,7 +748,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Zap size={13} color="var(--accent-amber)" />
-                <span>⚡ Silicon Copilot (Auto-Pipelining)</span>
+                <span>Silicon Copilot (Auto-Pipelining)</span>
               </div>
             </div>
           </div>

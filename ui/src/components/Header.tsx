@@ -488,7 +488,7 @@ export const Header: React.FC<HeaderProps> = ({
               style={{ height: 26, fontSize: 11 }}
             >
               <Minimize2 size={11} />
-              <span>{t("header.restore")} {maximizedPanel.toUpperCase()} (🗗)</span>
+              <span>{t("header.restore")} {maximizedPanel.toUpperCase()}</span>
             </button>
           </>
         )}

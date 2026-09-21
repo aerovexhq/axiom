@@ -529,7 +529,7 @@ export const TimingRadarViewer: React.FC<TimingRadarViewerProps> = ({
                       }}
                     >
                       <Zap size={11} color="#f43f5e" />
-                      <span>⚡ Auto-Pipeline Path</span>
+                      <span>Auto-Pipeline Path</span>
                     </button>
                   )}
 

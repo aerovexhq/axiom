@@ -233,7 +233,7 @@ fn main() {
                 axiom_lsp::VerilogLinter::lint(&content)
             };
             if diags.is_empty() {
-                println!("✓ No issues found in {}", file_path);
+                println!("[OK] No issues found in {}", file_path);
             } else {
                 println!("Found {} issues in {}:", diags.len(), file_path);
                 for d in &diags {
@@ -430,7 +430,7 @@ fn main() {
             );
 
             println!("\x1b[1;36m================================================================================");
-            println!("  ⚡ Axiom Silicon Copilot — Real-Time Timing Slack Auto-Pipeliner");
+            println!("  Axiom Silicon Copilot — Real-Time Timing Slack Auto-Pipeliner");
             println!("================================================================================\x1b[0m");
             println!("Top Module      : \x1b[1m{}\x1b[0m", top);
             println!("Critical Path   : \x1b[33m{}\x1b[0m -> \x1b[33m{}\x1b[0m", rec.startpoint, rec.endpoint);
@@ -439,7 +439,7 @@ fn main() {
             println!("Current Fmax    : {:.1} MHz\n", rec.current_fmax_mhz);
 
             if rec.candidates.is_empty() {
-                println!("\x1b[32m✔ No timing violations detected. The path already meets target timing.\x1b[0m");
+                println!("\x1b[32m[OK] No timing violations detected. The path already meets target timing.\x1b[0m");
             } else {
                 println!("\x1b[1mEvaluated Candidate Pipeline Cut Points:\x1b[0m");
                 println!("┌──────────────────────┬─────────────┬─────────────┬─────────────┬────────────┬─────────────┐");
@@ -447,7 +447,7 @@ fn main() {
                 println!("├──────────────────────┼─────────────┼─────────────┼─────────────┼────────────┼─────────────┤");
 
                 for cand in &rec.candidates {
-                    let opt_badge = if cand.is_optimal { "\x1b[1;32m   ★ YES   \x1b[0m" } else { "     -     " };
+                    let opt_badge = if cand.is_optimal { "\x1b[1;32m   [YES]   \x1b[0m" } else { "     -     " };
                     println!(
                         "│ {:<20} │ {:>11.1} │ {:>11.1} │ {:>11.1} │ {:>8.1}MHz│{}│",
                         cand.net_name,
@@ -461,7 +461,7 @@ fn main() {
                 println!("└──────────────────────┴─────────────┴─────────────┴─────────────┴────────────┴─────────────┘\n");
 
                 if let Some(opt) = &rec.optimal_cut {
-                    println!("\x1b[1;32m★ Silicon Copilot Recommendation:\x1b[0m");
+                    println!("\x1b[1;32mSilicon Copilot Recommendation:\x1b[0m");
                     println!("  Cut Net         : \x1b[1;33m{}\x1b[0m (driven by {})", opt.net_name, opt.driver_cell);
                     println!("  Predicted WNS   : \x1b[1;32m{:.1} ps\x1b[0m (\x1b[1;32m+{:.1} ps gain\x1b[0m)", opt.predicted_wns_ps, opt.slack_gain_ps);
                     println!("  Predicted Fmax  : \x1b[1;32m{:.1} MHz\x1b[0m (\x1b[1;32m+{:.1} MHz / +{:.1}%\x1b[0m)",
@@ -491,7 +491,7 @@ fn main() {
                                 eprintln!("Failed to write refactored code to '{target_dest}': {e}");
                                 std::process::exit(1);
                             }
-                            println!("\x1b[1;32m✔ Successfully applied pipeline stage at '{}' and wrote to '{}'\x1b[0m", opt.net_name, target_dest);
+                            println!("\x1b[1;32m[OK] Successfully applied pipeline stage at '{}' and wrote to '{}'\x1b[0m", opt.net_name, target_dest);
                         }
                     } else {
                         println!("\x1b[90mTip: Run with '--apply' to automatically update RTL source file.\x1b[0m");
@@ -1421,13 +1421,13 @@ pub fn execute_coverage(cfg: &CoverageCliConfig) -> Result<(), String> {
     if let Some(lcov_path) = &cfg.lcov_path {
         let lcov = axiom_sim::generate_lcov(&report, &cfg.file_path);
         fs::write(lcov_path, &lcov).map_err(|e| format!("Failed to write LCOV file: {e}"))?;
-        println!("✓ Exported LCOV tracefile to {}", lcov_path);
+        println!("[OK] Exported LCOV tracefile to {}", lcov_path);
     }
 
     if let Some(html_path) = &cfg.html_path {
         let html = axiom_sim::generate_html(&report, &cfg.file_path, &source);
         fs::write(html_path, &html).map_err(|e| format!("Failed to write HTML report: {e}"))?;
-        println!("✓ Exported interactive HTML report to {}", html_path);
+        println!("[OK] Exported interactive HTML report to {}", html_path);
     }
 
     // Print ANSI colored terminal report
@@ -1486,7 +1486,7 @@ pub fn execute_ppa(cfg: &PpaCliConfig) -> Result<(), String> {
     }
 
     println!("\x1b[1;36m================================================================================");
-    println!("  ⚡ Axiom EDA — Power-Performance-Area (PPA) & Silicon Cost Radar");
+    println!("  Axiom EDA — Power-Performance-Area (PPA) & Silicon Cost Radar");
     println!("================================================================================\x1b[0m");
     println!("Top Module      : \x1b[1m{}\x1b[0m", report.top_module);
     println!("Target Part     : \x1b[1;33m{}\x1b[0m", cfg.target_device.as_deref().unwrap_or("xcku5p-ffvb676-2-e"));
@@ -1512,7 +1512,7 @@ pub fn execute_ppa(cfg: &PpaCliConfig) -> Result<(), String> {
             axiom_telemetry::FpgaFitStatus::Fits => ("   FITS   ", "1;32"),
             axiom_telemetry::FpgaFitStatus::ExceedsCapacity => (" OVERFLOW ", "1;31"),
         };
-        let rec_tag = if eval.is_recommended { " \x1b[1;33m★ REC\x1b[0m" } else { "      " };
+        let rec_tag = if eval.is_recommended { " \x1b[1;33m[REC]\x1b[0m" } else { "      " };
         let savings_str = if eval.cost_delta_vs_target < 0.0 {
             format!("\x1b[1;32m-${:.2}\x1b[0m", eval.cost_delta_vs_target.abs())
         } else if eval.cost_delta_vs_target > 0.0 {
@@ -1595,7 +1595,7 @@ pub fn execute_verify(cfg: &VerifyCliConfig) -> Result<(), String> {
     }
 
     println!("\x1b[1;36m================================================================================");
-    println!("  ⚡ Axiom EDA — In-RAM Temporal Logic Assertion Radar");
+    println!("  Axiom EDA — In-RAM Temporal Logic Assertion Radar");
     println!("================================================================================\x1b[0m");
     println!("Target Module   : \x1b[1m{}\x1b[0m ({})", cfg.top_module, resolved);
     println!("Duration        : {} ns ({} ticks)", cfg.ticks * 20, cfg.ticks);
@@ -1741,7 +1741,7 @@ pub fn execute_synth(cfg: &SynthCliConfig) -> Result<(), String> {
         let verilog = synth.to_verilog();
         fs::write(out_p, verilog)
             .map_err(|e| format!("Failed to write netlist to '{}': {}", out_p, e))?;
-        println!("\x1b[1;32m✓\x1b[0m Wrote structural Verilog netlist to \x1b[1m{}\x1b[0m\n", out_p);
+        println!("\x1b[1;32m[OK]\x1b[0m Wrote structural Verilog netlist to \x1b[1m{}\x1b[0m\n", out_p);
     }
 
     Ok(())
