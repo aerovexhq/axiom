@@ -1191,40 +1191,20 @@ endmodule
 // Istanbul University - Cerrahpasa | Logic Circuits
 // Lesson 1: tb_uygulama_0 (Benchtest / Testbench Source)
 
-module tb_uygulama_0 ();
+module tb_uygulama_0;
 
     reg A;
     reg B;
     reg C;
     wire F;
 
-    uygulama_0 uut (
-        .A(A),
-        .B(B),
-        .C(C),
-        .F(F)
-    );
+    uygulama_0 uut (A, B, C, F);
 
     initial begin
-        #0
-        A = 1'b1;
-        B = 1'b0;
-        C = 1'b1;
-
-        #25
-        A = 1'b0;
-        B = 1'b0;
-        C = 1'b1;
-
-        #25
-        A = 1'b0;
-        B = 1'b0;
-        C = 1'b0;
-
-        #25
-        A = 1'b1;
-        B = 1'b1;
-        C = 1'b1;
+        #0  A = 1'b1; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b0;
+        #25 A = 1'b1; B = 1'b1; C = 1'b1;
     end
 
     initial #100 $stop;
@@ -1296,40 +1276,20 @@ endmodule
 // Istanbul University - Cerrahpasa | Logic Circuits
 // Lesson 1: tb_uygulama_0 (Benchtest / Testbench Source)
 
-module tb_uygulama_0 ();
+module tb_uygulama_0;
 
     reg A;
     reg B;
     reg C;
     wire F;
 
-    uygulama_0 uut (
-        .A(A),
-        .B(B),
-        .C(C),
-        .F(F)
-    );
+    uygulama_0 uut (A, B, C, F);
 
     initial begin
-        #0
-        A = 1'b1;
-        B = 1'b0;
-        C = 1'b1;
-
-        #25
-        A = 1'b0;
-        B = 1'b0;
-        C = 1'b1;
-
-        #25
-        A = 1'b0;
-        B = 1'b0;
-        C = 1'b0;
-
-        #25
-        A = 1'b1;
-        B = 1'b1;
-        C = 1'b1;
+        #0  A = 1'b1; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b0;
+        #25 A = 1'b1; B = 1'b1; C = 1'b1;
     end
 
     initial #100 $stop;

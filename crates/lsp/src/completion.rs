@@ -43,6 +43,46 @@ impl VerilogCompletion {
         });
 
         items.push(CompletionItem {
+            label: "casez ... endcase".to_string(),
+            kind: 27, // Snippet
+            detail: "Casez statement with don't-care bit support".to_string(),
+            insert_text: "casez (${1:sel})\n    ${2:4'b1???}: begin\n        ${3}\n    end\n    default: begin\n        ${0}\n    end\nendcase\n".to_string(),
+            documentation: Some("Casez multi-way branch treating ? and z as don't-care matching bits.".to_string()),
+        });
+
+        items.push(CompletionItem {
+            label: "casex ... endcase".to_string(),
+            kind: 27, // Snippet
+            detail: "Casex statement with don't-care bit support".to_string(),
+            insert_text: "casex (${1:sel})\n    ${2:4'b1xxx}: begin\n        ${3}\n    end\n    default: begin\n        ${0}\n    end\nendcase\n".to_string(),
+            documentation: Some("Casex multi-way branch treating x and z as don't-care matching bits.".to_string()),
+        });
+
+        items.push(CompletionItem {
+            label: "forever begin ... end".to_string(),
+            kind: 27, // Snippet
+            detail: "Unbounded simulation loop".to_string(),
+            insert_text: "forever begin\n    #${1:5} ${2:clk = ~clk};\nend\n".to_string(),
+            documentation: Some("Continuous simulation loop typically used for clock generation.".to_string()),
+        });
+
+        items.push(CompletionItem {
+            label: "repeat (...) begin ... end".to_string(),
+            kind: 27, // Snippet
+            detail: "Bounded iteration loop".to_string(),
+            insert_text: "repeat (${1:count}) begin\n    ${0}\nend\n".to_string(),
+            documentation: Some("Executes procedural statements a fixed number of iterations.".to_string()),
+        });
+
+        items.push(CompletionItem {
+            label: "while (...) begin ... end".to_string(),
+            kind: 27, // Snippet
+            detail: "Conditional while loop".to_string(),
+            insert_text: "while (${1:condition}) begin\n    ${0}\nend\n".to_string(),
+            documentation: Some("Procedural while loop executing until condition is false.".to_string()),
+        });
+
+        items.push(CompletionItem {
             label: "assign".to_string(),
             kind: 27, // Snippet
             detail: "Continuous assignment".to_string(),
@@ -83,6 +123,7 @@ impl VerilogCompletion {
             ("endmodule", "End of module declaration"),
             ("endtask", "End of task declaration"),
             ("for", "Loop statement"),
+            ("forever", "Unbounded simulation loop"),
             ("function", "Pure combinational function declaration"),
             ("generate", "Elaboration-time generation block"),
             ("if", "Conditional branch statement"),
@@ -102,7 +143,9 @@ impl VerilogCompletion {
             ("parameter", "Elaboration configurable parameter"),
             ("posedge", "Rising edge event qualifier"),
             ("reg", "Procedural register variable"),
+            ("repeat", "Bounded iteration loop"),
             ("task", "Simulation task declaration"),
+            ("while", "Conditional procedural loop"),
             ("wire", "Combinational net connection"),
             ("xnor", "XNOR gate primitive"),
             ("xor", "XOR gate primitive"),

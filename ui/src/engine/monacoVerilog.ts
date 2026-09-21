@@ -78,7 +78,7 @@ export function registerVerilogLanguage(monaco: typeof Monaco) {
     operators: [
       '=', '<=', '+', '-', '*', '/', '%', '==', '!=', '===', '!==', '==?', '!=?',
       '&&', '||', '!', '&', '|', '^', '~^', '^~', '~', '<<', '>>', '<<<', '>>>',
-      '<', '<=', '>', '>=', '?', ':', '@', '#', '->', '++'
+      '<', '<=', '>', '>=', '?', ':', '@', '#', '->', '++', '+:', '-:'
     ],
 
     brackets: [
@@ -115,8 +115,8 @@ export function registerVerilogLanguage(monaco: typeof Monaco) {
         }],
 
         // Numbers: Verilog sized/radix literals (e.g., 32'hdeadbeef, 8'b1010_0011, 4'd12, '1)
-        [/\d+('[bBoOdDhH][0-9a-fA-F_xzXZ]+|\b)/, 'number'],
-        [/'[01xzXZ]/, 'number'],
+        [/\d+('[bBoOdDhH][0-9a-fA-F_xzXZ?]+|\b)/, 'number'],
+        [/'[01xzXZ?]/, 'number'],
         [/\b\d+([._]\d+)*\b/, 'number'],
 
         // Strings

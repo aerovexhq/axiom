@@ -1113,33 +1113,13 @@ module tb_uygulama_0 ();
     reg C;
     wire F;
 
-    uygulama_0 uut (
-        .A(A),
-        .B(B),
-        .C(C),
-        .F(F)
-    );
+    uygulama_0 uut (A, B, C, F);
 
     initial begin
-        #0
-        A = 1'b1;
-        B = 1'b0;
-        C = 1'b1;
-
-        #25
-        A = 1'b0;
-        B = 1'b0;
-        C = 1'b1;
-
-        #25
-        A = 1'b0;
-        B = 1'b0;
-        C = 1'b0;
-
-        #25
-        A = 1'b1;
-        B = 1'b1;
-        C = 1'b1;
+        #0  A = 1'b1; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b0;
+        #25 A = 1'b1; B = 1'b1; C = 1'b1;
     end
 
     initial #100 $stop;
@@ -1160,6 +1140,20 @@ endmodule
 
         let hover_or = VerilogHover::hover(src, 1, 52).expect("Should hover or");
         assert!(hover_or.contents.contains("OR Gate"));
+    }
+
+    #[test]
+    fn test_completion_snippets_and_keywords() {
+        let items = VerilogCompletion::complete("module test; endmodule", 1, 1);
+        let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
+        assert!(labels.contains(&"casez ... endcase"));
+        assert!(labels.contains(&"casex ... endcase"));
+        assert!(labels.contains(&"forever begin ... end"));
+        assert!(labels.contains(&"repeat (...) begin ... end"));
+        assert!(labels.contains(&"while (...) begin ... end"));
+        assert!(labels.contains(&"forever"));
+        assert!(labels.contains(&"repeat"));
+        assert!(labels.contains(&"while"));
     }
 }
 

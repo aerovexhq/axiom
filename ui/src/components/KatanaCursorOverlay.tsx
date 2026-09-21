@@ -305,6 +305,11 @@ export const KatanaCursorOverlay: React.FC<KatanaCursorOverlayProps> = ({
           duration: 180, // 180ms crisp katana strike duration
           glints
         }];
+
+        // Snap follower coordinates to new position to eliminate ghost trailing slash from older cursor state
+        trailX = newTargetX;
+        trailY = newTargetY;
+        trailH = newTargetH;
       }
 
       targetX = newTargetX;
