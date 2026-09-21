@@ -714,6 +714,20 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                               <img
                                 src={shot.src}
                                 alt={shot.title}
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  if (!target.dataset.triedFallback) {
+                                    target.dataset.triedFallback = "1";
+                                    target.src = shot.type === "design"
+                                      ? "./class_examples/lesson_1/uygulama_0_design.jpg"
+                                      : "./class_examples/lesson_1/tb_uygulama_0_benchtest.jpg";
+                                  } else if (target.dataset.triedFallback === "1") {
+                                    target.dataset.triedFallback = "2";
+                                    target.src = shot.type === "design"
+                                      ? "/studio/class_examples/lesson_1/uygulama_0_design.jpg"
+                                      : "/studio/class_examples/lesson_1/tb_uygulama_0_benchtest.jpg";
+                                  }
+                                }}
                                 style={{
                                   width: "100%",
                                   height: "100%",
