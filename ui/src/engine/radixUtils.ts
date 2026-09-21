@@ -110,3 +110,79 @@ export function extractBitValue(rawVal: string, width: number, bitIndex: number)
   if (charIdx < 0 || charIdx >= bits.length) return "x";
   return bits[charIdx];
 }
+
+/**
+ * Safely converts a multi-bit bus raw sample into a numeric float for analog plotting.
+ * Returns null if the value is X, Z, or unparseable.
+ */
+export function parseToFloat(rawVal: string, width: number, isSigned: boolean = false): number | null {
+  const parsed = parseRawValue(rawVal, width);
+  if (parsed.hasX || parsed.hasZ || parsed.num === null) return null;
+
+  const mask = (1n << BigInt(width)) - 1n;
+  const unsignedVal = parsed.num & mask;
+
+  if (isSigned && width > 1) {
+    const msb = 1n << BigInt(width - 1);
+    if ((unsignedVal & msb) !== 0n) {
+      const signedVal = unsignedVal - (1n << BigInt(width));
+      return Number(signedVal);
+    }
+  }
+
+  return Number(unsignedVal);
+}
+
+/**
+ * Formats a picosecond duration into a human-readable reciprocal frequency string (GHz, MHz, kHz).
+ */
+export function formatFrequency(deltaPs: number): string {
+  if (deltaPs <= 0) return "-";
+  const freqHz = 1 / (deltaPs * 1e-12);
+  if (freqHz >= 1e9) {
+    return `${(freqHz / 1e9).toFixed(3)} GHz`;
+  } else if (freqHz >= 1e6) {
+    return `${(freqHz / 1e6).toFixed(2)} MHz`;
+  } else if (freqHz >= 1e3) {
+    return `${(freqHz / 1e3).toFixed(1)} kHz`;
+  }
+  return `${freqHz.toFixed(1)} Hz`;
+}
+
+/**
+ * Calculates clock cycles within a given delta time based on clock signal transitions.
+ */
+export function calculateClockCycles(
+  deltaPs: number,
+  clockSamples?: Array<{ timePs: number; value: string }>
+): { cycles: number; clockPeriodPs: number } | null {
+  if (deltaPs <= 0 || !clockSamples || clockSamples.length < 3) return null;
+
+  // Find consecutive rising edges (0 -> 1)
+  const risingEdges: number[] = [];
+  for (let i = 1; i < clockSamples.length; i++) {
+    if (clockSamples[i - 1].value === "0" && clockSamples[i].value === "1") {
+      risingEdges.push(clockSamples[i].timePs);
+    }
+  }
+
+  if (risingEdges.length < 2) return null;
+
+  // Calculate average clock period from the observed rising edges
+  let totalPeriodPs = 0;
+  let periodCount = 0;
+  for (let i = 1; i < risingEdges.length; i++) {
+    const p = risingEdges[i] - risingEdges[i - 1];
+    if (p > 0) {
+      totalPeriodPs += p;
+      periodCount++;
+    }
+  }
+
+  if (periodCount === 0) return null;
+  const avgPeriodPs = totalPeriodPs / periodCount;
+  const cycles = deltaPs / avgPeriodPs;
+
+  return { cycles: Math.round(cycles * 10) / 10, clockPeriodPs: avgPeriodPs };
+}
+

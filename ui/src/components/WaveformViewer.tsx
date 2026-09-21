@@ -1,7 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X, Search, History, Cpu, ShieldAlert } from "lucide-react";
+import {
+  ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X,
+  Search, History, Cpu, ShieldAlert, Bookmark, Activity, ChevronDown,
+  Plus, Trash2, Edit2
+} from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
-import { DisplayRadix, formatValueWithRadix, extractBitValue } from "../engine/radixUtils";
+import {
+  DisplayRadix, formatValueWithRadix, extractBitValue, parseRawValue, parseToFloat,
+  formatFrequency, calculateClockCycles
+} from "../engine/radixUtils";
 import { useTranslation } from "../i18n/i18nContext";
 import { DecodedTransaction } from "../engine/protocolDecoders";
 import { ProtocolDecoderModal } from "./ProtocolDecoderModal";
@@ -12,6 +19,16 @@ const formatTimeCompact = (ps: number) => {
   if (ps >= 1000) return `${(ps / 1000).toFixed(2)}ns`;
   return `${ps}ps`;
 };
+
+export type BusPlotMode = "digital" | "analog_step" | "analog_linear";
+export type BusSliceMode = "bits" | "nibbles";
+
+export interface TimelineMarker {
+  id: string;
+  timePs: number;
+  label: string;
+  color: string;
+}
 
 interface WaveformViewerProps {
   state: SimulationState;
@@ -29,6 +46,13 @@ interface DisplaySignalRow {
   width: number;
   isBus: boolean;
   samples: Array<{ timePs: number; delta: number; value: string; isGlitch?: boolean }>;
+}
+
+export interface RowLayout {
+  row: DisplaySignalRow;
+  yTop: number;
+  height: number;
+  isAnalog: boolean;
 }
 
 export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedSignalIds }) => {
@@ -85,7 +109,6 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     return () => window.removeEventListener("axiom_sim_reset", handleSimReset);
   }, []);
 
-  const signalHeight = 28;
   const headerHeight = 32;
   const gutterWidth = 230;
 
@@ -108,15 +131,105 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   // Modern Drag-to-Measure Window Selection System
   const [cursorAPrivate, setCursorAPrivate] = useState<number | null>(null);
   const [cursorBPrivate, setCursorBPrivate] = useState<number | null>(null);
-  const [activeCursorDrag, setActiveCursorDrag] = useState<"A" | "B" | "window" | "new_selection" | null>(null);
+  const [activeCursorDrag, setActiveCursorDrag] = useState<"A" | "B" | "window" | "new_selection" | string | null>(null);
   const [selectionAnchorPs, setSelectionAnchorPs] = useState<number | null>(null);
   const [windowDragOffsetPs, setWindowDragOffsetPs] = useState<number>(0);
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Multi-Radix Bus Exploder State
-  const [expandedBuses, setExpandedBuses] = useState<Record<string, boolean>>({});
+  // Multi-Radix Bus Exploder State with local persistence
+  const [expandedBuses, setExpandedBuses] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_wave_expanded_buses_${state.topModule || "default"}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `axiom_wave_expanded_buses_${state.topModule || "default"}`,
+          JSON.stringify(expandedBuses)
+        );
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [expandedBuses, state.topModule]);
+
   const [busRadixMap, setBusRadixMap] = useState<Record<string, DisplayRadix>>({});
   const [globalRadix, setGlobalRadix] = useState<DisplayRadix>("hex");
+
+  // Phase 37: Multi-Bit Bus Plot Modes (Digital, Analog Stepped, Analog Linear)
+  const [busPlotModes, setBusPlotModes] = useState<Record<string, BusPlotMode>>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_wave_bus_modes_${state.topModule || "default"}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `axiom_wave_bus_modes_${state.topModule || "default"}`,
+          JSON.stringify(busPlotModes)
+        );
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [busPlotModes, state.topModule]);
+
+  // Phase 37: Multi-Bit Bus Slicing Mode (Bits vs. Nibbles)
+  const [busSliceModes, setBusSliceModes] = useState<Record<string, BusSliceMode>>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_wave_slice_modes_${state.topModule || "default"}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `axiom_wave_slice_modes_${state.topModule || "default"}`,
+          JSON.stringify(busSliceModes)
+        );
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [busSliceModes, state.topModule]);
+
+  // Phase 37: Draggable Timeline Bookmark Markers
+  const [markers, setMarkers] = useState<TimelineMarker[]>(() => {
+    try {
+      const saved = localStorage.getItem(`axiom_wave_markers_${state.topModule || "default"}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `axiom_wave_markers_${state.topModule || "default"}`,
+          JSON.stringify(markers)
+        );
+      } catch {}
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [markers, state.topModule]);
+
+  const [activeMarkerModal, setActiveMarkerModal] = useState<{
+    isOpen: boolean;
+    marker: TimelineMarker;
+    isNew: boolean;
+  } | null>(null);
+  const [isMarkerDropdownOpen, setIsMarkerDropdownOpen] = useState(false);
+  const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
 
   // Zero-Time Delta Accordion Viewer State
   const [showDeltaGlitches, setShowDeltaGlitches] = useState<boolean>(true);
@@ -144,6 +257,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   }, [state.signals, selectedSignalIds]);
 
   // Flattened row list incorporating expanded multi-bit sub-lanes
+  // Flattened row list incorporating expanded multi-bit sub-lanes and custom slices
   const displayRows = useMemo<DisplaySignalRow[]>(() => {
     const rows: DisplaySignalRow[] = [];
 
@@ -160,35 +274,95 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         samples: sig.samples
       });
 
-      // If bus is expanded, generate bit sub-lanes
+      // If bus is expanded, generate bit or nibble sub-lanes
       if (sig.isBus && expandedBuses[sig.id]) {
-        for (let b = sig.width - 1; b >= 0; b--) {
-          const bitName = `${sig.name}[${b}]`;
-          const bitSamples = sig.samples.map((s) => ({
-            timePs: s.timePs,
-            delta: s.delta,
-            value: extractBitValue(s.value, sig.width, b),
-            isGlitch: s.isGlitch
-          }));
+        const sliceMode = busSliceModes[sig.id] || "bits";
 
-          rows.push({
-            key: `${sig.id}_bit_${b}`,
-            isBitChild: true,
-            parentName: sig.name,
-            bitIndex: b,
-            id: `${sig.id}_bit_${b}`,
-            name: bitName,
-            fullName: `${sig.fullName}[${b}]`,
-            width: 1,
-            isBus: false,
-            samples: bitSamples
-          });
+        if (sliceMode === "nibbles" && sig.width >= 8 && sig.width % 4 === 0) {
+          // Nibble Slicing: create 4-bit sub-lanes [N*4-1 : (N-1)*4]
+          const nibbleCount = Math.floor(sig.width / 4);
+          for (let n = nibbleCount - 1; n >= 0; n--) {
+            const highBit = (n + 1) * 4 - 1;
+            const lowBit = n * 4;
+            const sliceName = `${sig.name}[${highBit}:${lowBit}]`;
+
+            const sliceSamples = sig.samples.map((s) => {
+              const parsed = parseRawValue(s.value, sig.width);
+              let sliceVal = "0x0";
+              if (parsed.hasX) sliceVal = "x";
+              else if (parsed.hasZ) sliceVal = "z";
+              else if (parsed.num !== null) {
+                const nibbleVal = Number((parsed.num >> BigInt(lowBit)) & 0xFn);
+                sliceVal = "0x" + nibbleVal.toString(16).toUpperCase();
+              }
+              return {
+                timePs: s.timePs,
+                delta: s.delta,
+                value: sliceVal,
+                isGlitch: s.isGlitch
+              };
+            });
+
+            rows.push({
+              key: `${sig.id}_nibble_${n}`,
+              isBitChild: true,
+              parentName: sig.name,
+              bitIndex: lowBit,
+              id: `${sig.id}_nibble_${n}`,
+              name: sliceName,
+              fullName: `${sig.fullName}[${highBit}:${lowBit}]`,
+              width: 4,
+              isBus: true,
+              samples: sliceSamples
+            });
+          }
+        } else {
+          // Individual bit expansion: [width-1] down to [0]
+          for (let b = sig.width - 1; b >= 0; b--) {
+            const bitName = `${sig.name}[${b}]`;
+            const bitSamples = sig.samples.map((s) => ({
+              timePs: s.timePs,
+              delta: s.delta,
+              value: extractBitValue(s.value, sig.width, b),
+              isGlitch: s.isGlitch
+            }));
+
+            rows.push({
+              key: `${sig.id}_bit_${b}`,
+              isBitChild: true,
+              parentName: sig.name,
+              bitIndex: b,
+              id: `${sig.id}_bit_${b}`,
+              name: bitName,
+              fullName: `${sig.fullName}[${b}]`,
+              width: 1,
+              isBus: false,
+              samples: bitSamples
+            });
+          }
         }
       }
     });
 
     return rows;
-  }, [baseSignals, expandedBuses]);
+  }, [baseSignals, expandedBuses, busSliceModes]);
+
+  const protocolTrackHeight = decodedTransactions.length > 0 ? 28 : 0;
+
+  // Flattened row layouts with dynamic heights for analog waveforms
+  const rowLayouts = useMemo<RowLayout[]>(() => {
+    let currY = headerHeight + protocolTrackHeight;
+    return displayRows.map((row) => {
+      const isAnalog =
+        row.isBus &&
+        !row.isBitChild &&
+        (busPlotModes[row.id] === "analog_step" || busPlotModes[row.id] === "analog_linear");
+      const h = isAnalog ? 56 : 28;
+      const layout: RowLayout = { row, yTop: currY, height: h, isAnalog };
+      currY += h;
+      return layout;
+    });
+  }, [displayRows, busPlotModes, headerHeight, protocolTrackHeight]);
 
   // Auto-fit or adjust time window when simulation advances
   useEffect(() => {
@@ -224,6 +398,49 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     }));
   };
 
+  // Toggle All Buses (Explode All / Collapse All)
+  const toggleAllBuses = () => {
+    const hasAnyExpanded = Object.values(expandedBuses).some(Boolean);
+    if (hasAnyExpanded) {
+      setExpandedBuses({});
+    } else {
+      const next: Record<string, boolean> = {};
+      baseSignals.forEach((s) => {
+        if (s.isBus) next[s.id] = true;
+      });
+      setExpandedBuses(next);
+    }
+  };
+
+  // Cycle Analog Plot Mode for Bus (digital -> analog_step -> analog_linear -> digital)
+  const cycleBusPlotMode = (busId: string) => {
+    const current = busPlotModes[busId] || "digital";
+    const next: BusPlotMode =
+      current === "digital"
+        ? "analog_step"
+        : current === "analog_step"
+        ? "analog_linear"
+        : "digital";
+    setBusPlotModes((prev) => ({ ...prev, [busId]: next }));
+  };
+
+  // Cycle Slice Mode for Bus (bits -> nibbles -> bits)
+  const cycleBusSliceMode = (busId: string) => {
+    setBusSliceModes((prev) => ({
+      ...prev,
+      [busId]: prev[busId] === "nibbles" ? "bits" : "nibbles"
+    }));
+  };
+
+  // Jump camera and set cursor to specific timestamp
+  const jumpToTime = (targetPs: number) => {
+    const containerW = containerRef.current?.clientWidth || 800;
+    const plotW = Math.max(100, containerW - gutterWidth);
+    const newOffset = Math.max(0, targetPs - (plotW / pixelsPerPs) / 2);
+    setTimeOffsetPs(newOffset);
+    setCursorAPrivate(targetPs);
+  };
+
   // Cycle Radix for Bus
   const cycleBusRadix = (busId: string, current: DisplayRadix) => {
     const radices: DisplayRadix[] = ["hex", "bin", "u_dec", "s_dec", "ascii"];
@@ -248,6 +465,41 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     });
     return result;
   }, [state.signals]);
+  // Clock Signal & Precision Cycle Detection
+  const clockCycleData = useMemo(() => {
+    if (cursorAPrivate === null || cursorBPrivate === null) return null;
+    const deltaPs = Math.abs(cursorBPrivate - cursorAPrivate);
+    if (deltaPs <= 0) return null;
+
+    const clockSig = state.signals.find(
+      (s) =>
+        s.name.toLowerCase() === "clk" ||
+        s.name.toLowerCase() === "clock" ||
+        s.name.toLowerCase().endsWith("_clk") ||
+        s.name.toLowerCase().includes("clk")
+    );
+    if (!clockSig || !clockSig.samples || clockSig.samples.length < 3) return null;
+
+    return calculateClockCycles(deltaPs, clockSig.samples);
+  }, [cursorAPrivate, cursorBPrivate, state.signals]);
+
+  // Delta Time & Frequency Measurement Calculation
+  const measurementDelta = useMemo(() => {
+    if (cursorAPrivate === null || cursorBPrivate === null) return null;
+    const deltaPs = Math.abs(cursorBPrivate - cursorAPrivate);
+    const deltaNs = deltaPs / 1000;
+    const deltaUs = deltaNs / 1000;
+
+    const timeStr = deltaPs >= 1_000_000
+      ? `${deltaUs.toFixed(3)} μs`
+      : deltaPs >= 1000
+      ? `${deltaNs.toFixed(3)} ns`
+      : `${deltaPs} ps`;
+
+    const freqStr = formatFrequency(deltaPs);
+
+    return { timeStr, freqStr, deltaPs };
+  }, [cursorAPrivate, cursorBPrivate]);
 
   // Main Canvas Render
   const renderCanvas = useCallback(() => {
@@ -395,6 +647,62 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       });
     }
 
+    // Phase 37: Draw Draggable Timeline Bookmark Markers
+    markers.forEach((m, idx) => {
+      const mX = plotX + (m.timePs - startTimePs) * pixelsPerPs;
+      if (mX >= plotX && mX <= width) {
+        const isHovered = hoveredMarkerId === m.id || activeCursorDrag === `marker:${m.id}`;
+
+        // Full-height vertical dashed line
+        ctx.strokeStyle = m.color || "#f59e0b";
+        ctx.lineWidth = isHovered ? 1.8 : 1.2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(mX, headerHeight);
+        ctx.lineTo(mX, height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Bookmark Flag Tag on Timeline Header
+        const flagText = m.label || `M${idx + 1}`;
+        ctx.font = "bold 9px Inter, sans-serif";
+        const tagTextWidth = ctx.measureText(flagText).width;
+        const tagW = Math.max(24, Math.min(80, tagTextWidth + 10));
+        const tagH = 16;
+        const tagY = 3;
+
+        ctx.fillStyle = m.color || "#f59e0b";
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === "function") {
+          (ctx as any).roundRect(mX - tagW / 2, tagY, tagW, tagH, 3);
+        } else {
+          ctx.rect(mX - tagW / 2, tagY, tagW, tagH);
+        }
+        ctx.fill();
+
+        if (isHovered) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Pointer notch at bottom of flag
+        ctx.fillStyle = m.color || "#f59e0b";
+        ctx.beginPath();
+        ctx.moveTo(mX - 4, tagY + tagH);
+        ctx.lineTo(mX + 4, tagY + tagH);
+        ctx.lineTo(mX, tagY + tagH + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Marker label text
+        ctx.fillStyle = "#0c1017";
+        ctx.textAlign = "center";
+        const trimmedLabel = flagText.length > 10 ? flagText.slice(0, 9) + "…" : flagText;
+        ctx.fillText(trimmedLabel, mX, tagY + 11);
+      }
+    });
+
     // Draw Measurement Window Shading between Cursor A and B
     if (cursorAPrivate !== null && cursorBPrivate !== null && cursorAPrivate !== cursorBPrivate) {
       const minCur = Math.min(cursorAPrivate, cursorBPrivate);
@@ -411,6 +719,52 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         ctx.strokeStyle = "rgba(6, 182, 212, 0.45)";
         ctx.lineWidth = 1;
         ctx.strokeRect(winLeft, 0, winRight - winLeft, height);
+
+        // Phase 37: Floating Precision Measurement HUD Badge on Canvas
+        if (measurementDelta) {
+          const winW = winRight - winLeft;
+          const badgeCenterX = winLeft + winW / 2;
+          const badgeY = headerHeight + 6;
+
+          let badgeText = `Δt: ${measurementDelta.timeStr}   f: ${measurementDelta.freqStr}`;
+          if (clockCycleData) {
+            badgeText += `   [${clockCycleData.cycles} cyc]`;
+          }
+
+          ctx.font = "bold 10px JetBrains Mono, monospace";
+          const textMetrics = ctx.measureText(badgeText);
+          const badgeW = Math.max(160, textMetrics.width + 16);
+          const badgeH = 20;
+          const badgeLeft = Math.max(plotX + 8, Math.min(width - badgeW - 8, badgeCenterX - badgeW / 2));
+
+          ctx.fillStyle = "rgba(12, 16, 23, 0.95)";
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === "function") {
+            (ctx as any).roundRect(badgeLeft, badgeY, badgeW, badgeH, 4);
+          } else {
+            ctx.rect(badgeLeft, badgeY, badgeW, badgeH);
+          }
+          ctx.fill();
+
+          ctx.strokeStyle = "#06b6d4";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Render measurement metrics inside floating badge
+          ctx.fillStyle = "#00f2fe";
+          ctx.textAlign = "left";
+          ctx.fillText(`Δt: ${measurementDelta.timeStr}`, badgeLeft + 8, badgeY + 14);
+
+          ctx.fillStyle = "#10b981";
+          const dtW = ctx.measureText(`Δt: ${measurementDelta.timeStr}   `).width;
+          ctx.fillText(`f: ${measurementDelta.freqStr}`, badgeLeft + 8 + dtW, badgeY + 14);
+
+          if (clockCycleData) {
+            ctx.fillStyle = "#f59e0b";
+            const fW = ctx.measureText(`f: ${measurementDelta.freqStr}   `).width;
+            ctx.fillText(`${clockCycleData.cycles} cyc`, badgeLeft + 8 + dtW + fW, badgeY + 14);
+          }
+        }
       }
     }
 
@@ -469,9 +823,6 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       }
     }
 
-    const protocolTrackHeight = decodedTransactions.length > 0 ? 28 : 0;
-    const rowYOffset = headerHeight + protocolTrackHeight;
-
     // Draw Decoded Protocol Transaction Ribbon
     if (decodedTransactions.length > 0) {
       const pYTop = headerHeight;
@@ -515,12 +866,11 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       }
     }
 
-    // Render Signal Waveforms
-    displayRows.forEach((row, index) => {
-      const yTop = rowYOffset + index * signalHeight;
-      const yMid = yTop + signalHeight / 2;
+    // Render Signal Waveforms using rowLayouts
+    rowLayouts.forEach(({ row, yTop, height: rowH, isAnalog }, index) => {
+      const yMid = yTop + rowH / 2;
       const yHigh = yTop + 6;
-      const yLow = yTop + signalHeight - 6;
+      const yLow = yTop + rowH - 6;
 
       // Row background
       ctx.fillStyle = row.isBitChild
@@ -528,14 +878,14 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         : index % 2 === 0
         ? "rgba(17, 21, 28, 0.4)"
         : "transparent";
-      ctx.fillRect(plotX, yTop, plotW, signalHeight);
+      ctx.fillRect(plotX, yTop, plotW, rowH);
 
       // Row separator
       ctx.strokeStyle = "#151b23";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, yTop + signalHeight);
-      ctx.lineTo(width, yTop + signalHeight);
+      ctx.moveTo(0, yTop + rowH);
+      ctx.lineTo(width, yTop + rowH);
       ctx.stroke();
 
       const samples = row.samples;
@@ -588,13 +938,13 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
 
             // Coral glitch hazard ribbon
             ctx.fillStyle = "rgba(236, 72, 153, 0.18)";
-            ctx.fillRect(currX - 3, yTop, 6, signalHeight);
+            ctx.fillRect(currX - 3, yTop, 6, rowH);
           }
 
           lastVal = s.value;
         }
-      } else {
-        // Multi-bit Bus signal (Hex diamonds with formatted text)
+      } else if (!isAnalog) {
+        // Multi-bit Bus signal: Digital Hex diamonds with formatted text
         const currentRadix = busRadixMap[row.id] ?? globalRadix;
 
         for (let i = 0; i < samples.length; i++) {
@@ -636,6 +986,133 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
             ctx.fillText(formattedVal, startX + segWidth / 2, yMid + 3.5);
           }
         }
+      } else {
+        // Phase 37: Multi-Bit Bus signal: Analog & Stepped Waveform Plotting!
+        const plotMode = busPlotModes[row.id];
+        const isSigned = (busRadixMap[row.id] ?? globalRadix) === "s_dec";
+
+        const numericSamples: Array<{ timePs: number; value: number }> = [];
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+
+        for (const s of samples) {
+          const v = parseToFloat(s.value, row.width, isSigned);
+          if (v !== null) {
+            numericSamples.push({ timePs: s.timePs, value: v });
+            if (v < minVal) minVal = v;
+            if (v > maxVal) maxVal = v;
+          }
+        }
+
+        if (numericSamples.length > 0) {
+          if (minVal === maxVal) {
+            minVal -= 1;
+            maxVal += 1;
+          }
+          const valRange = maxVal - minVal;
+
+          // Subtle reference grid lines (0%, 50%, 100%)
+          ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 4]);
+          ctx.beginPath();
+          ctx.moveTo(plotX, yHigh);
+          ctx.lineTo(width, yHigh);
+          ctx.moveTo(plotX, yMid);
+          ctx.lineTo(width, yMid);
+          ctx.moveTo(plotX, yLow);
+          ctx.lineTo(width, yLow);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Compute curve points
+          const points: Array<{ x: number; y: number; val: number }> = [];
+          for (let i = 0; i < numericSamples.length; i++) {
+            const s = numericSamples[i];
+            const currX = plotX + (s.timePs - startTimePs) * pixelsPerPs;
+            const norm = (s.value - minVal) / valRange;
+            const currY = yLow - norm * (yLow - yHigh);
+            points.push({ x: currX, y: currY, val: s.value });
+          }
+
+          // Gradient fill under curve down to yLow
+          const gradient = ctx.createLinearGradient(0, yHigh, 0, yLow);
+          gradient.addColorStop(0, plotMode === "analog_step" ? "rgba(56, 189, 248, 0.28)" : "rgba(16, 185, 129, 0.28)");
+          gradient.addColorStop(1, "rgba(56, 189, 248, 0.02)");
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+
+          const firstX = Math.max(plotX, points[0].x);
+          ctx.moveTo(firstX, yLow);
+          ctx.lineTo(firstX, points[0].y);
+
+          for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            const nextTime = i < numericSamples.length - 1 ? numericSamples[i + 1].timePs : state.currentSimTimePs;
+            const nextX = plotX + (nextTime - startTimePs) * pixelsPerPs;
+
+            if (plotMode === "analog_step") {
+              ctx.lineTo(nextX, p.y);
+            } else {
+              if (i < points.length - 1) {
+                ctx.lineTo(points[i + 1].x, points[i + 1].y);
+              } else {
+                ctx.lineTo(nextX, p.y);
+              }
+            }
+          }
+
+          const lastX = Math.min(width, plotX + (state.currentSimTimePs - startTimePs) * pixelsPerPs);
+          ctx.lineTo(lastX, yLow);
+          ctx.closePath();
+          ctx.fill();
+
+          // Stroke curve
+          ctx.strokeStyle = plotMode === "analog_step" ? "#38bdf8" : "#10b981";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(firstX, points[0].y);
+
+          for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            const nextTime = i < numericSamples.length - 1 ? numericSamples[i + 1].timePs : state.currentSimTimePs;
+            const nextX = plotX + (nextTime - startTimePs) * pixelsPerPs;
+
+            if (plotMode === "analog_step") {
+              ctx.lineTo(nextX, p.y);
+              if (i < points.length - 1) {
+                ctx.lineTo(nextX, points[i + 1].y);
+              }
+            } else {
+              if (i < points.length - 1) {
+                ctx.lineTo(points[i + 1].x, points[i + 1].y);
+              } else {
+                ctx.lineTo(nextX, p.y);
+              }
+            }
+          }
+          ctx.stroke();
+
+          // Draw sample point dots when zoomed in
+          if (pixelsPerPs > 0.05) {
+            ctx.fillStyle = plotMode === "analog_step" ? "#00f0ff" : "#34d399";
+            for (const p of points) {
+              if (p.x >= plotX && p.x <= width) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2.5, 0, 2 * Math.PI);
+                ctx.fill();
+              }
+            }
+          }
+
+          // Range watermark labels in top-right of track
+          ctx.font = "9px JetBrains Mono, monospace";
+          ctx.fillStyle = "rgba(148, 163, 184, 0.5)";
+          ctx.textAlign = "right";
+          ctx.fillText(`+${maxVal}`, width - 8, yHigh + 8);
+          ctx.fillText(`${minVal}`, width - 8, yLow - 2);
+        }
       }
     });
 
@@ -676,44 +1153,103 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     }
 
     // Gutter Signal Rows
-    displayRows.forEach((row, index) => {
-      const yTop = rowYOffset + index * signalHeight;
-      const yMid = yTop + signalHeight / 2 + 4;
+    rowLayouts.forEach(({ row, yTop, height: rowH, isAnalog }) => {
+      const yMid = yTop + (isAnalog ? 20 : rowH / 2 + 4);
 
       // Row separator
       ctx.strokeStyle = "#151b23";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, yTop + signalHeight);
-      ctx.lineTo(gutterWidth, yTop + signalHeight);
+      ctx.moveTo(0, yTop + rowH);
+      ctx.lineTo(gutterWidth, yTop + rowH);
       ctx.stroke();
 
       const isForced = state.forcedSignalIds.includes(row.id);
 
-      // Expand/Collapse Chevron indicator for buses
+      // 1. Expand/Collapse Chevron indicator for buses
       if (row.isBus && !row.isBitChild) {
         ctx.font = "9px Inter, sans-serif";
-        ctx.fillStyle = "#64748b";
+        ctx.fillStyle = expandedBuses[row.id] ? "#38bdf8" : "#64748b";
         ctx.textAlign = "left";
         ctx.fillText(expandedBuses[row.id] ? "▼" : "▶", 8, yMid - 1);
       }
 
-      // Signal Name & Indentation for bit child
+      // 2. Analog Mode Pill Badge for buses
+      if (row.isBus && !row.isBitChild) {
+        const plotMode = busPlotModes[row.id] || "digital";
+        const modeLabel = plotMode === "digital" ? "DIG" : plotMode === "analog_step" ? "STP" : "LIN";
+        const modeBg =
+          plotMode === "digital"
+            ? "rgba(100, 116, 139, 0.2)"
+            : plotMode === "analog_step"
+            ? "rgba(56, 189, 248, 0.25)"
+            : "rgba(16, 185, 129, 0.25)";
+        const modeColor =
+          plotMode === "digital" ? "#94a3b8" : plotMode === "analog_step" ? "#38bdf8" : "#10b981";
+
+        ctx.fillStyle = modeBg;
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === "function") {
+          (ctx as any).roundRect(22, yMid - 8, 26, 13, 2);
+        } else {
+          ctx.rect(22, yMid - 8, 26, 13);
+        }
+        ctx.fill();
+
+        ctx.font = "bold 8px JetBrains Mono, monospace";
+        ctx.fillStyle = modeColor;
+        ctx.textAlign = "center";
+        ctx.fillText(modeLabel, 35, yMid + 2);
+      }
+
+      // 3. Slice Mode Pill Badge for buses >= 8 bits
+      const hasSliceSupport = row.isBus && !row.isBitChild && row.width >= 8 && row.width % 4 === 0;
+      if (hasSliceSupport) {
+        const sliceMode = busSliceModes[row.id] || "bits";
+        const sliceLabel = sliceMode === "nibbles" ? "NIB" : "BIT";
+        const sliceBg = sliceMode === "nibbles" ? "rgba(168, 85, 247, 0.25)" : "rgba(100, 116, 139, 0.2)";
+        const sliceColor = sliceMode === "nibbles" ? "#c084fc" : "#94a3b8";
+
+        ctx.fillStyle = sliceBg;
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === "function") {
+          (ctx as any).roundRect(50, yMid - 8, 22, 13, 2);
+        } else {
+          ctx.rect(50, yMid - 8, 22, 13);
+        }
+        ctx.fill();
+
+        ctx.font = "bold 8px JetBrains Mono, monospace";
+        ctx.fillStyle = sliceColor;
+        ctx.textAlign = "center";
+        ctx.fillText(sliceLabel, 61, yMid + 2);
+      }
+
+      // 4. Signal Name & Indentation
       ctx.font = row.isBitChild ? "10px JetBrains Mono, monospace" : "11px JetBrains Mono, monospace";
       ctx.fillStyle = isForced
         ? "#f59e0b"
         : row.isBitChild
         ? "#94a3b8"
         : row.isBus
-        ? "#38bdf8"
+        ? isAnalog
+          ? "#00f2fe"
+          : "#38bdf8"
         : "#10b981";
       ctx.textAlign = "left";
 
-      const xOffset = row.isBitChild ? 28 : row.isBus ? 20 : 12;
-      const maxChars = row.isBitChild ? 14 : 16;
+      const xOffset = row.isBitChild ? 28 : row.isBus ? (hasSliceSupport ? 76 : 52) : 12;
+      const maxChars = row.isBitChild ? 14 : row.isBus ? (hasSliceSupport ? 10 : 13) : 16;
       const displayName = row.name.length > maxChars ? row.name.substring(0, maxChars - 2) + ".." : row.name;
 
       ctx.fillText(displayName, xOffset, yMid);
+
+      // Subtitle in analog mode: range
+      if (isAnalog) {
+        ctx.font = "9px JetBrains Mono, monospace";
+        ctx.fillStyle = "rgba(148, 163, 184, 0.6)";
+        ctx.fillText(`∿ ${busPlotModes[row.id] === "analog_step" ? "DAC Step" : "Linear"}`, xOffset, yMid + 16);
+      }
 
       // Value at Cursor A or Current Time
       const queryTime = cursorAPrivate !== null ? cursorAPrivate : state.currentSimTimePs;
@@ -722,13 +1258,14 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       const rawVal = sample?.value ?? "-";
       const displayVal = row.isBus ? formatValueWithRadix(rawVal, row.width, currentRadix) : rawVal;
 
+      ctx.font = "11px JetBrains Mono, monospace";
       ctx.fillStyle = isForced ? "#f59e0b" : "#f1f5f9";
       ctx.textAlign = "right";
       ctx.fillText(displayVal, gutterWidth - 12, yMid);
     });
   }, [
     state,
-    displayRows,
+    rowLayouts,
     timeOffsetPs,
     pixelsPerPs,
     cursorAPrivate,
@@ -739,10 +1276,19 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     expandedBuses,
     busRadixMap,
     globalRadix,
+    busPlotModes,
+    markers,
+    hoveredMarkerId,
+    activeCursorDrag,
     deltaTimestamps,
     gutterWidth,
     headerHeight,
-    signalHeight
+    measurementDelta,
+    clockCycleData,
+    decodedTransactions,
+    activeHoverTx,
+    activeHoverViolation,
+    t
   ]);
 
   // Handle Resize and Animation
@@ -793,8 +1339,18 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         }
       }
 
-      // 1. Click on timeline header: check assertion violation pins, delta indicators or start horizontal pan
+      // 1. Click on timeline header: check markers, assertion violation pins, delta indicators or start horizontal pan
       if (y <= headerHeight) {
+        // Check timeline markers
+        const clickedMarker = markers.find((m) => {
+          const mX = gutterWidth + (m.timePs - timeOffsetPs) * pixelsPerPs;
+          return Math.abs(mX - x) <= 12;
+        });
+        if (clickedMarker) {
+          setActiveCursorDrag(`marker:${clickedMarker.id}`);
+          return;
+        }
+
         if (showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0) {
           const clickedViolation = state.assertionViolations.find((v) => {
             const vTime = getViolationTimePs(v);
@@ -802,11 +1358,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           });
           if (clickedViolation) {
             const vTime = getViolationTimePs(clickedViolation);
-            const containerW = containerRef.current?.clientWidth || 800;
-            const plotW = Math.max(100, containerW - gutterWidth);
-            const targetOffset = Math.max(0, vTime - (plotW / pixelsPerPs) / 2);
-            setTimeOffsetPs(targetOffset);
-            setCursorAPrivate(vTime);
+            jumpToTime(vTime);
             setActiveHoverViolation(clickedViolation);
             return;
           }
@@ -871,16 +1423,21 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       setCursorBPrivate(clickedPs);
       setActiveCursorDrag("new_selection");
     } else {
-      // Clicked in gutter: Check for Bus expansion toggle or signal force modal
-      const rowIndex = Math.floor((y - rowYOffset) / signalHeight);
-      if (rowIndex >= 0 && rowIndex < displayRows.length) {
-        const row = displayRows[rowIndex];
-        if (row.isBus && !row.isBitChild) {
-          if (x < 30) {
-            toggleBusExpansion(row.id);
-          } else if (x > gutterWidth - 60) {
-            cycleBusRadix(row.id, busRadixMap[row.id] ?? globalRadix);
-          }
+      // Clicked in gutter: Find row layout by y
+      const hit = rowLayouts.find((l) => y >= l.yTop && y < l.yTop + l.height);
+      if (hit && hit.row.isBus && !hit.row.isBitChild) {
+        if (x < 22) {
+          // Toggle bus expansion
+          toggleBusExpansion(hit.row.id);
+        } else if (x >= 22 && x < 50) {
+          // Toggle analog mode
+          cycleBusPlotMode(hit.row.id);
+        } else if (x >= 50 && x < 74 && hit.row.width >= 8 && hit.row.width % 4 === 0) {
+          // Toggle slice mode between bits and nibbles
+          cycleBusSliceMode(hit.row.id);
+        } else if (x > gutterWidth - 65) {
+          // Cycle radix
+          cycleBusRadix(hit.row.id, busRadixMap[hit.row.id] ?? globalRadix);
         }
       }
     }
@@ -895,6 +1452,15 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     if (x >= gutterWidth) {
       const calcPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
       setHoverTimePs(calcPs);
+
+      // Dragging a timeline marker
+      if (activeCursorDrag && typeof activeCursorDrag === "string" && activeCursorDrag.startsWith("marker:")) {
+        const markerId = activeCursorDrag.slice("marker:".length);
+        setMarkers((prev) =>
+          prev.map((m) => (m.id === markerId ? { ...m, timePs: calcPs } : m))
+        );
+        return;
+      }
 
       // Time Machine Sync: dragging cursor continuously scrubs live circuit state
       if (timeMachineSync && (activeCursorDrag === "A" || activeCursorDrag === "new_selection")) {
@@ -919,21 +1485,34 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         setTimeOffsetPs(Math.max(0, panStartTimeOffset - deltaPs));
       }
 
-      // Check hover on SVA assertion violation pins in timeline header
-      if (y <= headerHeight && showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0) {
-        const hoveredViolation = state.assertionViolations.find((v) => {
-          const vTime = getViolationTimePs(v);
-          return Math.abs(vTime - calcPs) * pixelsPerPs <= 12;
+      // Check hover on header markers or SVA pins
+      if (y <= headerHeight) {
+        const hoveredM = markers.find((m) => {
+          const mX = gutterWidth + (m.timePs - timeOffsetPs) * pixelsPerPs;
+          return Math.abs(mX - x) <= 12;
         });
-        setActiveHoverViolation(hoveredViolation || null);
-      } else if (activeHoverViolation) {
-        setActiveHoverViolation(null);
+        setHoveredMarkerId(hoveredM ? hoveredM.id : null);
+
+        if (showAssertionPins && state.assertionViolations && state.assertionViolations.length > 0) {
+          const hoveredViolation = state.assertionViolations.find((v) => {
+            const vTime = getViolationTimePs(v);
+            return Math.abs(vTime - calcPs) * pixelsPerPs <= 12;
+          });
+          setActiveHoverViolation(hoveredViolation || null);
+        } else if (activeHoverViolation) {
+          setActiveHoverViolation(null);
+        }
+      } else {
+        if (hoveredMarkerId) setHoveredMarkerId(null);
+        if (activeHoverViolation) setActiveHoverViolation(null);
       }
 
       // Update cursor icon dynamically
       if (canvasRef.current) {
         if (isPanning) {
           canvasRef.current.style.cursor = "grabbing";
+        } else if (hoveredMarkerId) {
+          canvasRef.current.style.cursor = "ew-resize";
         } else if (activeHoverViolation) {
           canvasRef.current.style.cursor = "pointer";
         } else if (y <= headerHeight) {
@@ -977,6 +1556,33 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     setSelectionAnchorPs(null);
   };
 
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (x >= gutterWidth && y <= headerHeight) {
+      const clickedPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
+      const existing = markers.find((m) => {
+        const mX = gutterWidth + (m.timePs - timeOffsetPs) * pixelsPerPs;
+        return Math.abs(mX - x) <= 14;
+      });
+
+      if (existing) {
+        setActiveMarkerModal({ isOpen: true, marker: { ...existing }, isNew: false });
+      } else {
+        const newMarker: TimelineMarker = {
+          id: `m_${Date.now()}`,
+          timePs: clickedPs,
+          label: `M${markers.length + 1}`,
+          color: ["#f59e0b", "#10b981", "#38bdf8", "#a855f7", "#ec4899"][markers.length % 5]
+        };
+        setActiveMarkerModal({ isOpen: true, marker: newMarker, isNew: true });
+      }
+    }
+  };
+
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -1011,34 +1617,6 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     setPixelsPerPs(newPixelsPerPs);
     setTimeOffsetPs(Math.max(0, minPs - (plotWidth / newPixelsPerPs) * 0.05));
   };
-
-  // Delta Time & Frequency Measurement Calculation
-  const measurementDelta = useMemo(() => {
-    if (cursorAPrivate === null || cursorBPrivate === null) return null;
-    const deltaPs = Math.abs(cursorBPrivate - cursorAPrivate);
-    const deltaNs = deltaPs / 1000;
-    const deltaUs = deltaNs / 1000;
-
-    const timeStr = deltaPs >= 1_000_000
-      ? `${deltaUs.toFixed(3)} μs`
-      : deltaPs >= 1000
-      ? `${deltaNs.toFixed(3)} ns`
-      : `${deltaPs} ps`;
-
-    let freqStr = "-";
-    if (deltaPs > 0) {
-      const freqHz = 1 / (deltaPs * 1e-12);
-      if (freqHz >= 1e9) {
-        freqStr = `${(freqHz / 1e9).toFixed(3)} GHz`;
-      } else if (freqHz >= 1e6) {
-        freqStr = `${(freqHz / 1e6).toFixed(2)} MHz`;
-      } else {
-        freqStr = `${(freqHz / 1e3).toFixed(1)} kHz`;
-      }
-    }
-
-    return { timeStr, freqStr, deltaPs };
-  }, [cursorAPrivate, cursorBPrivate]);
 
   // Delta Accordion Events at expanded time
   const activeDeltaEvents = useMemo(() => {
@@ -1106,6 +1684,160 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 {r === "u_dec" ? "UDec" : r === "s_dec" ? "SDec" : r}
               </button>
             ))}
+          </div>
+
+          {/* Phase 37: Explode / Collapse All Buses */}
+          {baseSignals.some((s) => s.isBus) && (
+            <button
+              onClick={toggleAllBuses}
+              className="btn btn-ghost"
+              style={{
+                fontSize: 11,
+                padding: "2px 7px",
+                height: "auto",
+                minHeight: 22,
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: Object.values(expandedBuses).some(Boolean)
+                  ? "rgba(56, 189, 248, 0.15)"
+                  : "var(--bg-tertiary)",
+                color: Object.values(expandedBuses).some(Boolean) ? "#38bdf8" : "var(--text-muted)",
+                border: `1px solid ${
+                  Object.values(expandedBuses).some(Boolean) ? "#38bdf8" : "var(--border-subtle)"
+                }`,
+                display: "flex",
+                alignItems: "center",
+                gap: 4
+              }}
+              title={Object.values(expandedBuses).some(Boolean) ? t.waveforms.collapseBuses : t.waveforms.explodeBuses}
+            >
+              <Activity size={12} />
+              <span>{Object.values(expandedBuses).some(Boolean) ? t.waveforms.collapseBuses : t.waveforms.explodeBuses}</span>
+            </button>
+          )}
+
+          {/* Phase 37: Timeline Bookmark Markers Dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setIsMarkerDropdownOpen(!isMarkerDropdownOpen)}
+              className="btn btn-ghost"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                padding: "2px 8px",
+                height: "auto",
+                minHeight: 22,
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: markers.length > 0 ? "rgba(245, 158, 11, 0.15)" : "var(--bg-tertiary)",
+                color: markers.length > 0 ? "#f59e0b" : "var(--text-muted)",
+                border: `1px solid ${markers.length > 0 ? "#f59e0b" : "var(--border-subtle)"}`
+              }}
+              title="Timeline Markers & Bookmarks"
+            >
+              <Bookmark size={12} />
+              <span>Markers ({markers.length})</span>
+              <ChevronDown size={11} />
+            </button>
+
+            {isMarkerDropdownOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 26,
+                  left: 0,
+                  backgroundColor: "var(--bg-surface)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                  minWidth: 200,
+                  padding: 6,
+                  zIndex: 70,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setIsMarkerDropdownOpen(false);
+                    const timePs = cursorAPrivate !== null ? cursorAPrivate : Math.round(timeOffsetPs + 500);
+                    const newM: TimelineMarker = {
+                      id: `m_${Date.now()}`,
+                      timePs,
+                      label: `M${markers.length + 1}`,
+                      color: ["#f59e0b", "#10b981", "#38bdf8", "#a855f7", "#ec4899"][markers.length % 5]
+                    };
+                    setActiveMarkerModal({ isOpen: true, marker: newM, isNew: true });
+                  }}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: 11,
+                    padding: "4px 8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    justifyContent: "center"
+                  }}
+                >
+                  <Plus size={12} />
+                  <span>{t.waveforms.addMarker}</span>
+                </button>
+
+                {markers.length > 0 && (
+                  <div style={{ maxHeight: 180, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2, marginTop: 4 }}>
+                    {markers.map((m) => (
+                      <div
+                        key={m.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "3px 6px",
+                          borderRadius: 4,
+                          backgroundColor: "rgba(255,255,255,0.03)",
+                          cursor: "pointer",
+                          fontSize: 11
+                        }}
+                        onClick={() => {
+                          jumpToTime(m.timePs);
+                          setIsMarkerDropdownOpen(false);
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: m.color }} />
+                          <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{m.label}</span>
+                          <span style={{ color: "var(--text-muted)", fontSize: 10 }}>{formatTimeCompact(m.timePs)}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsMarkerDropdownOpen(false);
+                              setActiveMarkerModal({ isOpen: true, marker: { ...m }, isNew: false });
+                            }}
+                            className="btn btn-ghost btn-icon"
+                            style={{ width: 18, height: 18, padding: 0 }}
+                          >
+                            <Edit2 size={11} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMarkers((prev) => prev.filter((item) => item.id !== m.id));
+                            }}
+                            className="btn btn-ghost btn-icon"
+                            style={{ width: 18, height: 18, padding: 0, color: "#ef4444" }}
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Delta Glitches Filter */}
@@ -1218,7 +1950,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
 
         {/* Measurement HUD & Zoom Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {/* Dual-Cursor Measurement HUD */}
+          {/* Dual-Cursor Measurement HUD with Frequency and Clock Cycles */}
           {measurementDelta && (
             <div
               style={{
@@ -1239,6 +1971,11 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
               <span style={{ color: "#a855f7" }}>B:{cursorBPrivate !== null ? formatTimeCompact(cursorBPrivate) : ""}</span>
               <span style={{ color: "#f1f5f9", fontWeight: 600, whiteSpace: "nowrap" }}>Δt: {measurementDelta.timeStr}</span>
               <span style={{ color: "#10b981", fontWeight: 600, whiteSpace: "nowrap" }}>f: {measurementDelta.freqStr}</span>
+              {clockCycleData && (
+                <span style={{ color: "#f59e0b", fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {clockCycleData.cycles} {t.waveforms.clockCycles}
+                </span>
+              )}
               <button
                 onClick={handleZoomToWindow}
                 className="btn btn-ghost"
@@ -1343,15 +2080,19 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
         onContextMenu={(e) => {
           e.preventDefault();
           const rect = canvasRef.current?.getBoundingClientRect();
           if (!rect) return;
           const y = e.clientY - rect.top;
-          const rowIndex = Math.floor((y - headerHeight) / signalHeight);
-          if (rowIndex >= 0 && rowIndex < displayRows.length) {
-            const row = displayRows[rowIndex];
-            setForcingSignal({ id: row.id, name: row.name, isBus: row.isBus, width: row.width });
+          const x = e.clientX - rect.left;
+
+          if (x < gutterWidth) {
+            const hit = rowLayouts.find((l) => y >= l.yTop && y < l.yTop + l.height);
+            if (hit) {
+              setForcingSignal({ id: hit.row.id, name: hit.row.name, isBus: hit.row.isBus, width: hit.row.width });
+            }
           }
         }}
         onMouseLeave={() => {
@@ -1359,6 +2100,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           setActiveCursorDrag(null);
           setHoverTimePs(null);
           setActiveHoverViolation(null);
+          setHoveredMarkerId(null);
         }}
         style={{ flex: 1, cursor: isPanning ? "grabbing" : "crosshair" }}
       />
@@ -1651,6 +2393,125 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
               >
                 <Unlock size={12} />
                 <span>{t.waveforms.release}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Marker Create / Edit Modal Dialog */}
+      {activeMarkerModal && (
+        <div
+          style={{
+            position: "absolute",
+            top: "20%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 300,
+            backgroundColor: "var(--bg-secondary)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
+            padding: 16,
+            zIndex: 60
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Bookmark size={15} color={activeMarkerModal.marker.color} />
+              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                {activeMarkerModal.isNew ? t.waveforms.addMarker : "Edit Marker"}
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveMarkerModal(null)}
+              className="btn btn-ghost btn-icon"
+              style={{ color: "var(--text-muted)", width: 22, height: 22 }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+              Label:
+            </label>
+            <input
+              type="text"
+              value={activeMarkerModal.marker.label}
+              onChange={(e) =>
+                setActiveMarkerModal({
+                  ...activeMarkerModal,
+                  marker: { ...activeMarkerModal.marker, label: e.target.value }
+                })
+              }
+              style={{
+                width: "100%",
+                padding: "6px 8px",
+                fontSize: 12,
+                backgroundColor: "var(--bg-tertiary)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-sm)",
+                color: "#f1f5f9"
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+              Color:
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["#f59e0b", "#10b981", "#38bdf8", "#a855f7", "#ec4899", "#ef4444"].map((c) => (
+                <div
+                  key={c}
+                  onClick={() =>
+                    setActiveMarkerModal({
+                      ...activeMarkerModal,
+                      marker: { ...activeMarkerModal.marker, color: c }
+                    })
+                  }
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    backgroundColor: c,
+                    cursor: "pointer",
+                    border:
+                      activeMarkerModal.marker.color === c ? "2px solid #ffffff" : "2px solid transparent"
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => {
+                if (activeMarkerModal.isNew) {
+                  setMarkers((prev) => [...prev, activeMarkerModal.marker]);
+                } else {
+                  setMarkers((prev) =>
+                    prev.map((m) => (m.id === activeMarkerModal.marker.id ? activeMarkerModal.marker : m))
+                  );
+                }
+                setActiveMarkerModal(null);
+              }}
+              className="btn btn-primary"
+              style={{ flex: 1, fontSize: 12 }}
+            >
+              Save Marker
+            </button>
+            {!activeMarkerModal.isNew && (
+              <button
+                onClick={() => {
+                  setMarkers((prev) => prev.filter((m) => m.id !== activeMarkerModal.marker.id));
+                  setActiveMarkerModal(null);
+                }}
+                className="btn btn-secondary"
+                style={{ color: "#ef4444", borderColor: "#ef4444", fontSize: 12 }}
+              >
+                Delete
               </button>
             )}
           </div>

@@ -237,6 +237,16 @@ export interface Translations {
     targetNet: string;
     applyForce: string;
     release: string;
+    analogMode: string;
+    digitalMode: string;
+    steppedMode: string;
+    linearMode: string;
+    explodeBuses: string;
+    collapseBuses: string;
+    addMarker: string;
+    deleteMarker: string;
+    jumpToMarker: string;
+    clockCycles: string;
   };
   timing: {
     title: string;
