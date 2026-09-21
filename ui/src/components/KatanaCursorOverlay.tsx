@@ -53,11 +53,6 @@ export const KatanaCursorOverlay: React.FC<KatanaCursorOverlayProps> = ({
     let trailY = 0;
     let trailH = 20;
 
-    // Previous position for strike detection
-    let prevX = 0;
-    let prevY = 0;
-    let prevH = 20;
-
     // Active slash strikes (from jumps / fast cursor moves)
     let strikes: KatanaSlashStrike[] = [];
 
@@ -244,9 +239,6 @@ export const KatanaCursorOverlay: React.FC<KatanaCursorOverlayProps> = ({
         trailX = newTargetX;
         trailY = newTargetY;
         trailH = newTargetH;
-        prevX = newTargetX;
-        prevY = newTargetY;
-        prevH = newTargetH;
         hasTarget = true;
         return;
       }
@@ -263,21 +255,19 @@ export const KatanaCursorOverlay: React.FC<KatanaCursorOverlayProps> = ({
         targetX = newTargetX;
         targetY = newTargetY;
         targetH = newTargetH;
-        prevX = newTargetX;
-        prevY = newTargetY;
-        prevH = newTargetH;
         wakeLoop();
         return;
       }
 
-      const moveDx = newTargetX - prevX;
-      const moveDy = newTargetY - prevY;
+      const moveDx = newTargetX - targetX;
+      const moveDy = newTargetY - targetY;
       const moveDist = Math.sqrt(moveDx * moveDx + moveDy * moveDy);
 
       // Trigger Katana Slash Strike when jumping or moving fast (distance > 12px)
+      // Strike strictly connects the previous cursor position (targetX/Y) to current position (newTargetX/Y)
       if (moveDist > 12) {
-        const startX = prevX;
-        const startY = prevY + prevH * 0.5;
+        const startX = targetX;
+        const startY = targetY + targetH * 0.5;
         const endX = newTargetX;
         const endY = newTargetY + newTargetH * 0.5;
 
@@ -303,7 +293,8 @@ export const KatanaCursorOverlay: React.FC<KatanaCursorOverlayProps> = ({
           });
         }
 
-        strikes.push({
+        // Replace strikes with latest strike so only the transition from previous to current position is shown
+        strikes = [{
           startX,
           startY,
           ctrlX,
@@ -313,12 +304,8 @@ export const KatanaCursorOverlay: React.FC<KatanaCursorOverlayProps> = ({
           startTime: performance.now(),
           duration: 180, // 180ms crisp katana strike duration
           glints
-        });
+        }];
       }
-
-      prevX = targetX;
-      prevY = targetY;
-      prevH = targetH;
 
       targetX = newTargetX;
       targetY = newTargetY;
