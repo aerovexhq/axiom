@@ -247,6 +247,12 @@ export interface Translations {
     deleteMarker: string;
     jumpToMarker: string;
     clockCycles: string;
+    goldenDiff: string;
+    importVcd: string;
+    showGoldenTraces: string;
+    clearGolden: string;
+    perfectMatch: string;
+    mismatchesFound: string;
   };
   timing: {
     title: string;

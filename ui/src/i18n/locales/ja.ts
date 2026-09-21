@@ -231,6 +231,12 @@ export const ja: Translations = {
     deleteMarker: "マーカー削除",
     jumpToMarker: "マーカーへ移動",
     clockCycles: "サイクル",
+    goldenDiff: "ゴールデン比較",
+    importVcd: "VCDインポート",
+    showGoldenTraces: "ゴースト波形表示",
+    clearGolden: "ゴールデン消去",
+    perfectMatch: "100% 一致",
+    mismatchesFound: "不一致検出",
   },
   timing: {
     title: "タイミング概要",

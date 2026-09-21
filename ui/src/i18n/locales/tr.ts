@@ -231,6 +231,12 @@ export const tr: Translations = {
     deleteMarker: "İşareti Sil",
     jumpToMarker: "İşarete Git",
     clockCycles: "Döngü",
+    goldenDiff: "Altın Model Farkı",
+    importVcd: "VCD İçe Aktar",
+    showGoldenTraces: "Gölge İzleri Göster",
+    clearGolden: "Altın Modeli Temizle",
+    perfectMatch: "%100 Eşleşme",
+    mismatchesFound: "Uyumsuzluk Bulundu",
   },
   timing: {
     title: "Zamanlama Özeti",

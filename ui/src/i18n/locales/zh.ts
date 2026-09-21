@@ -231,6 +231,12 @@ export const zh: Translations = {
     deleteMarker: "删除标记",
     jumpToMarker: "跳转至标记",
     clockCycles: "时钟周期",
+    goldenDiff: "黄金模型比对",
+    importVcd: "导入 VCD",
+    showGoldenTraces: "显示参考幽灵波形",
+    clearGolden: "清除黄金模型",
+    perfectMatch: "100% 完全匹配",
+    mismatchesFound: "发现波形差异",
   },
   timing: {
     title: "时序汇总",

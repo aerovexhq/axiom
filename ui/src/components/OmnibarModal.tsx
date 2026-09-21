@@ -13,7 +13,8 @@ import {
   BookOpen,
   ArrowRight,
   Sparkles,
-  X
+  X,
+  GitCompare
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { SAMPLE_DESIGNS, SampleDesign } from "../engine/sampleDesigns";
@@ -153,6 +154,19 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
         a.download = `${state.topModule}.saif`;
         a.click();
         URL.revokeObjectURL(url);
+        onClose();
+      }
+    });
+
+    items.push({
+      id: "act_golden_vcd",
+      category: "Actions",
+      title: "Golden Model VCD Waveform Diffing",
+      subtitle: "Import golden IEEE 1364 VCD trace and highlight silicon mismatches",
+      icon: <GitCompare size={14} color="var(--accent-cyan)" />,
+      action: () => {
+        onSelectView("waveform");
+        window.dispatchEvent(new CustomEvent("axiom_open_vcd_import"));
         onClose();
       }
     });

@@ -378,106 +378,73 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             )}
           </div>
 
-          {/* Project Location (Desktop vs Web) */}
-          {isDesktop() ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  color: "var(--text-secondary)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em"
-                }}
-              >
-                Project Location:
-              </label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  type="text"
-                  value={projectLocation}
-                  onChange={(e) => setProjectLocation(e.target.value)}
-                  className="input"
-                  style={{ flex: 1 }}
-                />
-                <Button variant="secondary" size="sm" onClick={handleBrowseFolder} icon={<Folder size={13} />}>
-                  Browse...
-                </Button>
+          {/* Project Location (Desktop only: Physical Filesystem) */}
+          {isDesktop() && (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.03em"
+                  }}
+                >
+                  Project Location:
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="text"
+                    value={projectLocation}
+                    onChange={(e) => setProjectLocation(e.target.value)}
+                    className="input"
+                    style={{ flex: 1 }}
+                  />
+                  <Button variant="secondary" size="sm" onClick={handleBrowseFolder} icon={<Folder size={13} />}>
+                    Browse...
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  color: "var(--text-secondary)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em"
-                }}
-              >
-                Virtual Storage Workspace:
-              </label>
+
+              {/* Create Project Subdirectory Checkbox */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="checkbox"
+                  id="create_subdir"
+                  checked={createSubdir}
+                  onChange={(e) => setCreateSubdir(e.target.checked)}
+                  style={{ cursor: "pointer" }}
+                />
+                <label htmlFor="create_subdir" style={{ fontSize: 12, color: "var(--text-primary)", cursor: "pointer" }}>
+                  Create project subdirectory
+                </label>
+              </div>
+
+              {/* Directory Preview */}
               <div
                 style={{
-                  padding: "8px 12px",
-                  backgroundColor: "var(--bg-tertiary)",
-                  borderRadius: "var(--radius-sm)",
+                  padding: "10px 14px",
+                  backgroundColor: "var(--bg-primary)",
+                  borderRadius: "var(--radius-md)",
                   border: "1px solid var(--border-subtle)",
-                  fontSize: 12,
-                  color: "var(--text-secondary)",
+                  fontSize: 11.5,
+                  color: "var(--text-muted)",
                   display: "flex",
                   alignItems: "center",
-                  gap: 6
+                  gap: 8
                 }}
               >
-                <Folder size={14} color="var(--accent-cyan)" />
+                <Folder size={14} color="var(--accent-blue)" />
                 <span>
-                  Browser IndexedDB Virtual FileSystem:{" "}
-                  <strong style={{ color: "var(--text-primary)" }}>
-                    /projects/{sanitizeProjectName(projectName)}
-                  </strong>
+                  Project will be created at:{" "}
+                  <span className="mono-num" style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
+                    {projectLocation.replace(/\/$/, "")}/{createSubdir ? sanitizeProjectName(projectName) : ""}
+                  </span>
                 </span>
               </div>
-            </div>
+            </>
           )}
-
-          {/* Create Project Subdirectory Checkbox */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              id="create_subdir"
-              checked={createSubdir}
-              onChange={(e) => setCreateSubdir(e.target.checked)}
-              style={{ cursor: "pointer" }}
-            />
-            <label htmlFor="create_subdir" style={{ fontSize: 12, color: "var(--text-primary)", cursor: "pointer" }}>
-              Create project subdirectory
-            </label>
-          </div>
-
-          {/* Directory Preview */}
-          <div
-            style={{
-              padding: "10px 14px",
-              backgroundColor: "var(--bg-primary)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border-subtle)",
-              fontSize: 11.5,
-              color: "var(--text-muted)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8
-            }}
-          >
-            <Folder size={14} color="var(--accent-blue)" />
-            <span>
-              Project will be created at:{" "}
-              <span className="mono-num" style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
-                {projectLocation.replace(/\/$/, "")}/{createSubdir ? sanitizeProjectName(projectName) : ""}
-              </span>
-            </span>
-          </div>
         </div>
       )}
 
@@ -936,10 +903,14 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 {projectName}
               </span>
 
-              <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Project Location:</span>
-              <span className="mono-num" style={{ color: "var(--text-secondary)" }}>
-                {projectLocation.replace(/\/$/, "")}/{createSubdir ? sanitizeProjectName(projectName) : ""}
-              </span>
+              {isDesktop() && (
+                <>
+                  <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Project Location:</span>
+                  <span className="mono-num" style={{ color: "var(--text-secondary)" }}>
+                    {projectLocation.replace(/\/$/, "")}/{createSubdir ? sanitizeProjectName(projectName) : ""}
+                  </span>
+                </>
+              )}
 
               <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Project Type:</span>
               <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>

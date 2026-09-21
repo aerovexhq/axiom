@@ -34,7 +34,8 @@ import {
   ExternalLink,
   Layers,
   Sparkles,
-  Box
+  Box,
+  GitCompare
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -793,6 +794,21 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Activity size={13} color="var(--accent-cyan)" />
                 <span>Protocol Packet Decoder (AXI/SPI/I2C/UART)...</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSwitchVisualizer("waveform");
+                window.dispatchEvent(new CustomEvent("axiom_open_vcd_import"));
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <GitCompare size={13} color="var(--accent-cyan)" />
+                <span>Golden VCD Waveform Diffing...</span>
               </div>
             </div>
 

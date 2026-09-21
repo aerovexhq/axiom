@@ -231,6 +231,12 @@ export const en: Translations = {
     deleteMarker: "Delete Marker",
     jumpToMarker: "Jump to Marker",
     clockCycles: "Cycles",
+    goldenDiff: "Golden Diff",
+    importVcd: "Import VCD",
+    showGoldenTraces: "Show Ghost Traces",
+    clearGolden: "Clear Golden",
+    perfectMatch: "100% Match",
+    mismatchesFound: "Mismatches Found",
   },
   timing: {
     title: "Timing Summary",

@@ -231,6 +231,12 @@ export const fr: Translations = {
     deleteMarker: "Supprimer Marqueur",
     jumpToMarker: "Aller au Marqueur",
     clockCycles: "Cycles",
+    goldenDiff: "Diff Modèle Doré",
+    importVcd: "Importer VCD",
+    showGoldenTraces: "Afficher Traces Fantômes",
+    clearGolden: "Effacer Modèle Doré",
+    perfectMatch: "100% Correspondance",
+    mismatchesFound: "Divergences Détectées",
   },
   timing: {
     title: "Résumé Temporel",

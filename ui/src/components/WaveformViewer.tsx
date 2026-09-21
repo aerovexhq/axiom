@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import {
   ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X,
   Search, History, Cpu, ShieldAlert, Bookmark, Activity, ChevronDown,
-  Plus, Trash2, Edit2
+  Plus, Trash2, Edit2, GitCompare, CheckCircle2
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
@@ -13,6 +13,8 @@ import { useTranslation } from "../i18n/i18nContext";
 import { DecodedTransaction } from "../engine/protocolDecoders";
 import { ProtocolDecoderModal } from "./ProtocolDecoderModal";
 import { AssertionViolation, getViolationTimePs } from "../engine/assertionModel";
+import { ParsedVcd, GoldenDiffReport } from "../engine/vcdModel";
+import { ImportVcdModal } from "./ImportVcdModal";
 
 const formatTimeCompact = (ps: number) => {
   if (ps >= 1_000_000) return `${(ps / 1_000_000).toFixed(2)}μs`;
@@ -127,6 +129,15 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     window.addEventListener("axiom_seek_waveform", handleSeekWaveform);
     return () => window.removeEventListener("axiom_seek_waveform", handleSeekWaveform);
   }, [pixelsPerPs, gutterWidth]);
+
+  // Listen for external VCD import modal request (e.g. from MenuBar or Omnibar)
+  useEffect(() => {
+    const handleOpenVcd = () => {
+      setIsVcdModalOpen(true);
+    };
+    window.addEventListener("axiom_open_vcd_import", handleOpenVcd);
+    return () => window.removeEventListener("axiom_open_vcd_import", handleOpenVcd);
+  }, []);
 
   // Modern Drag-to-Measure Window Selection System
   const [cursorAPrivate, setCursorAPrivate] = useState<number | null>(null);
@@ -248,6 +259,12 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   const [isProtocolModalOpen, setIsProtocolModalOpen] = useState<boolean>(false);
   const [decodedTransactions, setDecodedTransactions] = useState<DecodedTransaction[]>([]);
   const [activeHoverTx, setActiveHoverTx] = useState<DecodedTransaction | null>(null);
+
+  // Phase 38: Golden Model VCD Import & Waveform Diffing State
+  const [isVcdModalOpen, setIsVcdModalOpen] = useState<boolean>(false);
+  const [goldenVcd, setGoldenVcd] = useState<ParsedVcd | null>(null);
+  const [goldenDiffReport, setGoldenDiffReport] = useState<GoldenDiffReport | null>(null);
+  const [showGoldenTraces, setShowGoldenTraces] = useState<boolean>(false);
 
   // Active base signals from parent selection
   const baseSignals = useMemo(() => {
@@ -866,6 +883,22 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       }
     }
 
+    // Golden Diff Mismatch Markers on Ruler
+    if (goldenDiffReport && goldenDiffReport.allMismatches.length > 0) {
+      for (const mm of goldenDiffReport.allMismatches) {
+        const mmX = plotX + (mm.startTimePs - startTimePs) * pixelsPerPs;
+        if (mmX >= plotX && mmX <= width) {
+          ctx.fillStyle = "#ef4444";
+          ctx.beginPath();
+          ctx.moveTo(mmX, 0);
+          ctx.lineTo(mmX - 4, 6);
+          ctx.lineTo(mmX + 4, 6);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    }
+
     // Render Signal Waveforms using rowLayouts
     rowLayouts.forEach(({ row, yTop, height: rowH, isAnalog }, index) => {
       const yMid = yTop + rowH / 2;
@@ -887,6 +920,85 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       ctx.moveTo(0, yTop + rowH);
       ctx.lineTo(width, yTop + rowH);
       ctx.stroke();
+
+      // Crimson Golden Model Mismatch Overlay
+      if (goldenDiffReport) {
+        const sigMismatches =
+          goldenDiffReport.signalMismatches.get(row.id) ||
+          goldenDiffReport.signalMismatches.get(row.name);
+        if (sigMismatches && sigMismatches.length > 0) {
+          for (const mm of sigMismatches) {
+            const mmStartX = plotX + (mm.startTimePs - startTimePs) * pixelsPerPs;
+            const mmEndX = plotX + (mm.endTimePs - startTimePs) * pixelsPerPs;
+            const drawStart = Math.max(plotX, mmStartX);
+            const drawEnd = Math.min(width, Math.max(drawStart + 2, mmEndX));
+
+            if (drawEnd >= plotX && drawStart <= width) {
+              // Shaded crimson background
+              ctx.fillStyle = "rgba(239, 68, 68, 0.22)";
+              ctx.fillRect(drawStart, yTop + 2, drawEnd - drawStart, rowH - 4);
+
+              // Top and bottom accent lines
+              ctx.fillStyle = "rgba(239, 68, 68, 0.85)";
+              ctx.fillRect(drawStart, yTop + 2, drawEnd - drawStart, 1.5);
+              ctx.fillRect(drawStart, yTop + rowH - 3.5, drawEnd - drawStart, 1.5);
+
+              // Micro mismatch badge if span is wide enough
+              if (drawEnd - drawStart > 45) {
+                ctx.font = "bold 8px JetBrains Mono, monospace";
+                ctx.fillStyle = "#fca5a5";
+                ctx.textAlign = "left";
+                ctx.fillText(`DIFF:${mm.axiomValue}≠${mm.goldenValue}`, drawStart + 4, yMid - (isAnalog ? 12 : 5));
+              }
+            }
+          }
+        }
+      }
+
+      // Golden Reference Ghost Waveform
+      if (showGoldenTraces && goldenVcd) {
+        const goldSig = goldenVcd.signals.find(
+          (g) => g.name === row.name || g.fullName === row.fullName
+        );
+        if (goldSig && goldSig.samples.length > 0) {
+          ctx.save();
+          ctx.setLineDash([3, 3]);
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = "#f59e0b"; // Amber reference color
+
+          if (!row.isBus) {
+            let lastGoldVal = goldSig.samples[0].value;
+            for (let i = 0; i < goldSig.samples.length; i++) {
+              const gs = goldSig.samples[i];
+              const currX = plotX + (gs.timePs - startTimePs) * pixelsPerPs;
+              const nextTime =
+                i < goldSig.samples.length - 1 ? goldSig.samples[i + 1].timePs : state.currentSimTimePs;
+              const nextX = plotX + (nextTime - startTimePs) * pixelsPerPs;
+              const isHigh = gs.value === "1";
+              const currentY = isHigh ? yHigh + 2 : yLow - 2;
+
+              if (i > 0) {
+                const prevY = lastGoldVal === "1" ? yHigh + 2 : yLow - 2;
+                ctx.beginPath();
+                ctx.moveTo(Math.max(plotX, currX), prevY);
+                ctx.lineTo(Math.max(plotX, currX), currentY);
+                ctx.stroke();
+              }
+
+              const drawStartX = Math.max(plotX, currX);
+              const drawEndX = Math.min(width, Math.max(drawStartX, nextX));
+              if (drawEndX >= plotX && drawStartX <= width) {
+                ctx.beginPath();
+                ctx.moveTo(drawStartX, currentY);
+                ctx.lineTo(drawEndX, currentY);
+                ctx.stroke();
+              }
+              lastGoldVal = gs.value;
+            }
+          }
+          ctx.restore();
+        }
+      }
 
       const samples = row.samples;
       if (samples.length === 0) return;
@@ -1288,6 +1400,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     decodedTransactions,
     activeHoverTx,
     activeHoverViolation,
+    goldenDiffReport,
+    goldenVcd,
+    showGoldenTraces,
     t
   ]);
 
@@ -1946,6 +2061,49 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 : ""}
             </span>
           </button>
+
+          {/* Golden Model Waveform Diff Trigger */}
+          <button
+            onClick={() => setIsVcdModalOpen(true)}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              padding: "2px 8px",
+              height: "auto",
+              minHeight: 22,
+              borderRadius: "var(--radius-sm)",
+              backgroundColor:
+                goldenDiffReport
+                  ? goldenDiffReport.totalMismatches > 0
+                    ? "rgba(239, 68, 68, 0.2)"
+                    : "rgba(16, 185, 129, 0.2)"
+                  : "var(--bg-tertiary)",
+              color:
+                goldenDiffReport
+                  ? goldenDiffReport.totalMismatches > 0
+                    ? "#ef4444"
+                    : "#10b981"
+                  : "var(--text-muted)",
+              border: `1px solid ${
+                goldenDiffReport
+                  ? goldenDiffReport.totalMismatches > 0
+                    ? "#ef4444"
+                    : "#10b981"
+                  : "var(--border-subtle)"
+              }`
+            }}
+            title="Import Golden IEEE 1364 VCD & Run Silicon Waveform Diffing"
+          >
+            <GitCompare size={12} />
+            <span>
+              {goldenDiffReport
+                ? `Diff: ${goldenDiffReport.overallMatchPercentage}% (${goldenDiffReport.totalMismatches} diffs)`
+                : t.waveforms.goldenDiff}
+            </span>
+          </button>
         </div>
 
         {/* Measurement HUD & Zoom Controls */}
@@ -2072,6 +2230,134 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           </div>
         </div>
       </div>
+
+      {/* Golden Model Diff HUD Banner */}
+      {goldenDiffReport && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "5px 12px",
+            backgroundColor:
+              goldenDiffReport.totalMismatches > 0
+                ? "rgba(239, 68, 68, 0.12)"
+                : "rgba(16, 185, 129, 0.12)",
+            borderBottom: `1px solid ${
+              goldenDiffReport.totalMismatches > 0
+                ? "rgba(239, 68, 68, 0.3)"
+                : "rgba(16, 185, 129, 0.3)"
+            }`,
+            fontSize: 11.5,
+            gap: 12,
+            flexWrap: "wrap"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontWeight: 700,
+                color: goldenDiffReport.totalMismatches > 0 ? "#f87171" : "#34d399"
+              }}
+            >
+              {goldenDiffReport.totalMismatches > 0 ? (
+                <>
+                  <AlertTriangle size={13} />
+                  <span>
+                    Diff: {goldenDiffReport.overallMatchPercentage}% Match ({goldenDiffReport.totalMismatches} mismatch{goldenDiffReport.totalMismatches === 1 ? "" : "es"} in {goldenDiffReport.comparedSignals} signals)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={13} />
+                  <span>
+                    Golden Model: 100% Match ({goldenDiffReport.comparedSignals} signals verified)
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Quick mismatch seek navigation */}
+            {goldenDiffReport.allMismatches.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>Seek:</span>
+                {goldenDiffReport.allMismatches.slice(0, 3).map((mm, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      jumpToTime(mm.startTimePs);
+                      setCursorAPrivate(mm.startTimePs);
+                      setCursorBPrivate(mm.endTimePs);
+                    }}
+                    className="btn btn-ghost"
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      height: "auto",
+                      minHeight: 20,
+                      borderRadius: 3,
+                      backgroundColor: "rgba(239, 68, 68, 0.2)",
+                      color: "#fca5a5",
+                      border: "1px solid rgba(239, 68, 68, 0.35)",
+                      fontFamily: "JetBrains Mono, monospace",
+                      cursor: "pointer"
+                    }}
+                    title={`Jump to mismatch on ${mm.signalName} at ${formatTimeCompact(mm.startTimePs)}`}
+                  >
+                    {mm.signalName} @ {formatTimeCompact(mm.startTimePs)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Toggle Golden Ghost Traces */}
+            <button
+              onClick={() => setShowGoldenTraces(!showGoldenTraces)}
+              className="btn btn-ghost"
+              style={{
+                fontSize: 10.5,
+                padding: "2px 8px",
+                height: "auto",
+                minHeight: 20,
+                borderRadius: 3,
+                backgroundColor: showGoldenTraces ? "rgba(245, 158, 11, 0.2)" : "var(--bg-tertiary)",
+                color: showGoldenTraces ? "#f59e0b" : "var(--text-muted)",
+                border: `1px solid ${showGoldenTraces ? "#f59e0b" : "var(--border-subtle)"}`,
+                cursor: "pointer"
+              }}
+              title="Overlay reference waveform ghost traces directly on signal tracks"
+            >
+              Ghost: {showGoldenTraces ? "ON" : "OFF"}
+            </button>
+
+            {/* Dismiss / Clear Golden Model */}
+            <button
+              onClick={() => {
+                setGoldenVcd(null);
+                setGoldenDiffReport(null);
+                setShowGoldenTraces(false);
+              }}
+              className="btn btn-ghost"
+              style={{
+                fontSize: 10.5,
+                padding: "2px 6px",
+                height: "auto",
+                minHeight: 20,
+                color: "var(--text-muted)",
+                cursor: "pointer"
+              }}
+              title="Clear Golden Model Diff"
+            >
+              Clear Diff ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Canvas Area */}
       <canvas
@@ -2531,6 +2817,19 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         }}
         onTransactionsUpdated={(txs) => {
           setDecodedTransactions(txs);
+        }}
+      />
+
+      {/* Golden Model VCD Importer Modal */}
+      <ImportVcdModal
+        isOpen={isVcdModalOpen}
+        onClose={() => setIsVcdModalOpen(false)}
+        simSignals={state.signals}
+        topModule={state.topModule}
+        onImportGolden={(vcd, report) => {
+          setGoldenVcd(vcd);
+          setGoldenDiffReport(report);
+          setShowGoldenTraces(true);
         }}
       />
     </div>

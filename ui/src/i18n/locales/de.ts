@@ -231,6 +231,12 @@ export const de: Translations = {
     deleteMarker: "Marker löschen",
     jumpToMarker: "Zu Marker springen",
     clockCycles: "Zyklen",
+    goldenDiff: "Golden-Diff",
+    importVcd: "VCD importieren",
+    showGoldenTraces: "Geisterspuren anzeigen",
+    clearGolden: "Golden-Modell löschen",
+    perfectMatch: "100% Übereinstimmung",
+    mismatchesFound: "Abweichungen gefunden",
   },
   timing: {
     title: "Timing-Übersicht",
