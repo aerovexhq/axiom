@@ -13,12 +13,15 @@ import {
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { StimulusPainterModal } from "./StimulusPainterModal";
+import { Basys3BoardBay } from "./Basys3BoardBay";
+import type { AxiomProject } from "../engine/projectModel";
 import { useTranslation } from "../i18n";
 import { Select, SelectGroup } from "./ui";
 
 interface VirtualLabRackProps {
   state: SimulationState;
   activeDesignId: string;
+  project?: AxiomProject | null;
 }
 
 // 7-Segment Hex Map (a, b, c, d, e, f, g)
@@ -41,12 +44,22 @@ const SEVEN_SEG_HEX: Record<string, boolean[]> = {
   "F": [true, false, false, false, true, true, true]
 };
 
-export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDesignId }) => {
+export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDesignId, project }) => {
   const { t } = useTranslation();
   const [isPainterOpen, setIsPainterOpen] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
   });
+
+  const hasBoardConstraints = Boolean(
+    project?.files.some((f) => f.fileSet === "constrs_1" || f.name.endsWith(".xdc")) ||
+    project?.targetDevice?.toLowerCase().includes("basys") ||
+    project?.targetDevice?.toLowerCase().includes("artix") ||
+    project?.templateId === "class_examples_project" ||
+    Boolean(project?.lessonId)
+  );
+
+  const [viewMode, setViewMode] = useState<"board" | "bays">(() => (hasBoardConstraints ? "board" : "bays"));
 
   useEffect(() => {
     const handleResize = () => {
@@ -1058,47 +1071,108 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
           )}
         </div>
 
-        {/* Trigger Stimulus Painter Modal */}
-        <button
-          onClick={() => setIsPainterOpen(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            fontSize: 11,
-            fontWeight: 600,
-            padding: "3px 9px",
-            borderRadius: "var(--radius-sm)",
-            backgroundColor: "var(--accent-blue)",
-            color: "#fff",
-            border: "none",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            flexShrink: 0
-          }}
-        >
-          <Sparkles size={12} />
-          <span>{isMobile ? "Paint TB" : "Paint Waveforms & Export TB"}</span>
-        </button>
+        {/* View Mode Toggle & Stimulus Painter */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              display: "inline-flex",
+              backgroundColor: "var(--bg-primary)",
+              padding: 2,
+              borderRadius: "var(--radius-xs)",
+              border: "1px solid var(--border-medium)"
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode("board")}
+              style={{
+                fontSize: 10.5,
+                fontWeight: viewMode === "board" ? 700 : 500,
+                padding: "2px 8px",
+                borderRadius: 2,
+                border: "none",
+                cursor: "pointer",
+                backgroundColor: viewMode === "board" ? "var(--bg-elevated)" : "transparent",
+                color: viewMode === "board" ? "var(--accent-cyan)" : "var(--text-muted)",
+                transition: "all var(--transition-fast)"
+              }}
+            >
+              Basys 3 Board
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("bays")}
+              style={{
+                fontSize: 10.5,
+                fontWeight: viewMode === "bays" ? 700 : 500,
+                padding: "2px 8px",
+                borderRadius: 2,
+                border: "none",
+                cursor: "pointer",
+                backgroundColor: viewMode === "bays" ? "var(--bg-elevated)" : "transparent",
+                color: viewMode === "bays" ? "var(--accent-blue)" : "var(--text-muted)",
+                transition: "all var(--transition-fast)"
+              }}
+            >
+              Logic Bays
+            </button>
+          </div>
+
+          {/* Trigger Stimulus Painter Modal */}
+          <button
+            onClick={() => setIsPainterOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "3px 9px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "var(--accent-blue)",
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0
+            }}
+          >
+            <Sparkles size={12} />
+            <span>{isMobile ? "Paint TB" : "Paint Waveforms & Export TB"}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Virtual Lab Modular Bays Container */}
-      <div
-        style={{
-          flex: 1,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: 14,
-          padding: 14,
-          paddingBottom: isMobile ? 32 : 14,
-          overflowY: "auto"
-        }}
-      >
-        {(activeDesignId === "logic_circuit" || activeDesignId.includes("logic_circuit") || activeDesignId.includes("class_examples") || activeDesignId.includes("uygulama_0")) && renderLogicCircuitBays()}
-        {activeDesignId === "uart" && renderUartBays()}
-        {activeDesignId === "spi" && renderSpiBays()}
-        {activeDesignId === "pwm" && renderPwmBays()}
-        {activeDesignId === "riscv" && renderRiscvBays()}
+      {/* Main View: Either Authentic Basys 3 Board Emulator or Modular Logic Bays */}
+      {viewMode === "board" ? (
+        <div
+          style={{
+            flex: 1,
+            padding: 14,
+            paddingBottom: isMobile ? 32 : 14,
+            overflowY: "auto"
+          }}
+        >
+          <Basys3BoardBay state={state} project={project} />
+        </div>
+      ) : (
+        /* Virtual Lab Modular Bays Container */
+        <div
+          style={{
+            flex: 1,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 14,
+            padding: 14,
+            paddingBottom: isMobile ? 32 : 14,
+            overflowY: "auto"
+          }}
+        >
+          {(activeDesignId === "logic_circuit" || activeDesignId.includes("logic_circuit") || activeDesignId.includes("class_examples") || activeDesignId.includes("uygulama_0")) && renderLogicCircuitBays()}
+          {activeDesignId === "uart" && renderUartBays()}
+          {activeDesignId === "spi" && renderSpiBays()}
+          {activeDesignId === "pwm" && renderPwmBays()}
+          {activeDesignId === "riscv" && renderRiscvBays()}
 
         {!["uart", "spi", "pwm", "riscv", "logic_circuit", "class_examples", "uygulama_0"].some(k => activeDesignId.includes(k)) && (
           <>
@@ -1520,9 +1594,10 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
             })}
           </div>
         </div>
-      </>
-    )}
-      </div>
+        </>
+      )}
+        </div>
+      )}
 
       {/* Waveform Stimulus Painter Modal */}
       <StimulusPainterModal

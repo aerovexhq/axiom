@@ -996,6 +996,7 @@ export const App: React.FC = () => {
               <VirtualLabRack
                 state={state}
                 activeDesignId={project.templateId ?? "logic_circuit_project"}
+                project={project}
               />
             </div>
           ) : activeMobilePanel === "waveform" ? (
@@ -1189,7 +1190,7 @@ export const App: React.FC = () => {
               </div>
             ) : maximizedPanel === "virtuallab" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
               </div>
             ) : maximizedPanel === "timing" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -1555,7 +1556,7 @@ export const App: React.FC = () => {
                           />
                         )}
                         {splitActiveVisualizer === "virtuallab" && (
-                          <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                          <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
                         )}
                         {splitActiveVisualizer === "timing" && (
                           <TimingRadarViewer
@@ -1625,7 +1626,7 @@ export const App: React.FC = () => {
                         />
                       )}
                       {splitActiveVisualizer === "virtuallab" && (
-                        <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                        <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
                       )}
                       {splitActiveVisualizer === "waveform" && (
                         <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
@@ -1802,7 +1803,7 @@ export const App: React.FC = () => {
                   onDoubleClick={() => setEditorWidthPercent(42)}
                 />
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} />
+                  <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
                 </div>
               </div>
             ) : centerView === "multidie" ? (
