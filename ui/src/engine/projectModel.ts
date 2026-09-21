@@ -1,9 +1,6 @@
 // Axiom EDA — Vivado-Style Project Model & Multi-File Architecture
 // Conforming to IEEE 1800 SystemVerilog & Xilinx Vivado project structures
 
-import lesson1DesignSlide from "../assets/class_examples/lesson_1/uygulama_0_design.jpg";
-import lesson1BenchtestSlide from "../assets/class_examples/lesson_1/tb_uygulama_0_benchtest.jpg";
-
 export type FileSetType = "sources_1" | "sim_1" | "constrs_1";
 export type FileFormat = "verilog" | "systemverilog" | "vhdl" | "mem" | "xdc";
 
@@ -33,7 +30,7 @@ export interface TemplateLesson {
   description: string;
   institution?: string;
   course?: string;
-  screenshots: TemplateScreenshot[];
+  screenshots?: TemplateScreenshot[];
   files: Omit<ProjectFile, "id">[];
   defaultTopModule: string;
 }
@@ -1152,22 +1149,6 @@ create_clock -period 10.000 -name clk [get_ports clk]
         institution: "Istanbul University - Cerrahpasa",
         course: "Logic Circuits",
         defaultTopModule: "uygulama_0",
-        screenshots: [
-          {
-            id: "uygulama_0_design",
-            title: "Design Source (uygulama_0.v)",
-            description: "Primitive gate-level implementation with NOT, AND, OR gates (g1..g5) computing F = ((~A & B) & C) | ~B.",
-            src: lesson1DesignSlide,
-            type: "design"
-          },
-          {
-            id: "tb_uygulama_0_benchtest",
-            title: "Benchtest Source (tb_uygulama_0.v)",
-            description: "Testbench applying stimulus vectors at #0, #25, #25, #25 intervals and stopping at #100.",
-            src: lesson1BenchtestSlide,
-            type: "benchtest"
-          }
-        ],
         files: [
           {
             name: "uygulama_0.v",

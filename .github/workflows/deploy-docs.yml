@@ -45,8 +45,6 @@ jobs:
           npm --prefix ui run build
           mkdir -p docs/public/studio
           cp -r ui/dist/* docs/public/studio/
-          mkdir -p docs/public/class_examples
-          cp -r ui/public/class_examples/* docs/public/class_examples/
 
       - name: Ensure CNAME file
         run: |

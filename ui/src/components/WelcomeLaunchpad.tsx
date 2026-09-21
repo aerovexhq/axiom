@@ -19,10 +19,9 @@ import {
   Sliders,
   Activity,
   Box,
-  GraduationCap,
-  Image as ImageIcon
+  GraduationCap
 } from "lucide-react";
-import { PROJECT_TEMPLATES, ProjectTemplate, TemplateLesson } from "../engine/projectModel";
+import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
 import { useTranslation } from "../i18n";
 import {
@@ -34,7 +33,6 @@ import {
   DropdownMenuItem
 } from "./ui";
 import { toast } from "../engine/toast";
-import { ClassLectureReferenceModal } from "./ClassLectureReferenceModal";
 
 interface WelcomeLaunchpadProps {
   onOpenNewProject: (templateId?: string) => void;
@@ -64,9 +62,6 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   const [projectsTab, setProjectsTab] = useState<"active" | "trash">("active");
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
   const [selectedClassLessonId, setSelectedClassLessonId] = useState<string>("lesson_1");
-  const [isLectureModalOpen, setIsLectureModalOpen] = useState<boolean>(false);
-  const [classModalLesson, setClassModalLesson] = useState<TemplateLesson | null>(null);
-  const [activeScreenshotId, setActiveScreenshotId] = useState<string | undefined>(undefined);
 
   const activeProjects = projects.filter((p) => !p.isTrashed);
   const trashedProjects = projects.filter((p) => p.isTrashed);
@@ -586,8 +581,6 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
         >
           {PROJECT_TEMPLATES.map((tmpl: ProjectTemplate) => {
             if (tmpl.id === "class_examples_project") {
-              const selectedLesson =
-                tmpl.lessons?.find((l) => l.id === selectedClassLessonId) ?? tmpl.lessons?.[0];
               return (
                 <div
                   key={tmpl.id}
@@ -665,124 +658,6 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                       ))}
                     </select>
                   </div>
-
-                  {/* Screenshots in the Selected Element (Lesson 1) */}
-                  {selectedLesson && selectedLesson.screenshots.length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
-                          <ImageIcon size={11} color="var(--accent-blue)" />
-                          <span>Lecture Reference Slides</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setClassModalLesson(selectedLesson);
-                            setActiveScreenshotId(selectedLesson.screenshots[0].id);
-                            setIsLectureModalOpen(true);
-                          }}
-                          className="btn btn-ghost"
-                          style={{ height: 20, padding: "0 6px", fontSize: 10.5, color: "var(--accent-cyan)" }}
-                        >
-                          View High-Res
-                        </button>
-                      </div>
-
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        {selectedLesson.screenshots.map((shot) => (
-                          <div
-                            key={shot.id}
-                            onClick={() => {
-                              setClassModalLesson(selectedLesson);
-                              setActiveScreenshotId(shot.id);
-                              setIsLectureModalOpen(true);
-                            }}
-                            title={`Click to preview ${shot.title}`}
-                            style={{
-                              position: "relative",
-                              borderRadius: "var(--radius-sm)",
-                              overflow: "hidden",
-                              border: "1px solid var(--border-subtle)",
-                              backgroundColor: "#06090e",
-                              cursor: "pointer",
-                              display: "flex",
-                              flexDirection: "column"
-                            }}
-                            className="axiom-card-hover"
-                          >
-                            <div style={{ height: 62, width: "100%", overflow: "hidden", position: "relative" }}>
-                              <img
-                                src={shot.src}
-                                alt={shot.title}
-                                onError={(e) => {
-                                  const target = e.currentTarget;
-                                  if (!target.dataset.triedFallback) {
-                                    target.dataset.triedFallback = "1";
-                                    target.src = shot.type === "design"
-                                      ? "./class_examples/lesson_1/uygulama_0_design.jpg"
-                                      : "./class_examples/lesson_1/tb_uygulama_0_benchtest.jpg";
-                                  } else if (target.dataset.triedFallback === "1") {
-                                    target.dataset.triedFallback = "2";
-                                    target.src = shot.type === "design"
-                                      ? "/studio/class_examples/lesson_1/uygulama_0_design.jpg"
-                                      : "/studio/class_examples/lesson_1/tb_uygulama_0_benchtest.jpg";
-                                  }
-                                }}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                  filter: "brightness(0.9)"
-                                }}
-                              />
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  inset: 0,
-                                  backgroundColor: "rgba(0, 0, 0, 0.35)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  opacity: 0,
-                                  transition: "opacity 0.15s ease"
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    fontWeight: 600,
-                                    color: "#fff",
-                                    backgroundColor: "rgba(0,0,0,0.6)",
-                                    padding: "2px 6px",
-                                    borderRadius: 3
-                                  }}
-                                >
-                                  Preview
-                                </span>
-                              </div>
-                            </div>
-                            <div
-                              style={{
-                                padding: "4px 6px",
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: "var(--text-secondary)",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                backgroundColor: "var(--bg-secondary)",
-                                borderTop: "1px solid var(--border-subtle)"
-                              }}
-                            >
-                              {shot.type === "design" ? "uygulama_0.v" : "tb_uygulama_0.v"}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
                     <span className="mono-num" style={{ fontSize: 10.5, color: "var(--accent-cyan)" }}>
@@ -926,13 +801,6 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
           <ChevronRight size={12} />
         </a>
       </div>
-
-      <ClassLectureReferenceModal
-        isOpen={isLectureModalOpen}
-        onClose={() => setIsLectureModalOpen(false)}
-        lesson={classModalLesson}
-        initialScreenshotId={activeScreenshotId}
-      />
     </div>
   );
 };
