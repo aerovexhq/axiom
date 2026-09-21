@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import {
   Folder,
   FolderOpen,
@@ -23,7 +23,14 @@ import {
 import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
 import { useTranslation } from "../i18n";
-import { GithubIcon, confirmDialog } from "./ui";
+import {
+  GithubIcon,
+  confirmDialog,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from "./ui";
 import { toast } from "../engine/toast";
 
 interface WelcomeLaunchpadProps {
@@ -53,14 +60,6 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectsTab, setProjectsTab] = useState<"active" | "trash">("active");
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
-
-  // Close card menu when clicking anywhere outside
-  useEffect(() => {
-    if (!openMenuProjectId) return;
-    const handleClickOutside = () => setOpenMenuProjectId(null);
-    window.addEventListener("click", handleClickOutside);
-    return () => window.removeEventListener("click", handleClickOutside);
-  }, [openMenuProjectId]);
 
   const activeProjects = projects.filter((p) => !p.isTrashed);
   const trashedProjects = projects.filter((p) => p.isTrashed);
@@ -363,80 +362,48 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                       </span>
                     </div>
                     {onTrashProject && (
-                      <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuProjectId((prev) => (prev === p.id ? null : p.id));
-                          }}
-                          title="Project Options"
-                          className="btn-icon"
-                          style={{
-                            padding: "3px 4px",
-                            borderRadius: "var(--radius-sm)",
-                            color: openMenuProjectId === p.id ? "var(--text-primary)" : "var(--text-muted)",
-                            backgroundColor: openMenuProjectId === p.id ? "var(--bg-hover)" : "transparent"
-                          }}
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-
-                        {openMenuProjectId === p.id && (
-                          <div
-                            className="axiom-card"
+                      <DropdownMenu
+                        open={openMenuProjectId === p.id}
+                        onOpenChange={(isOpen) => setOpenMenuProjectId(isOpen ? p.id : null)}
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Project Options"
+                            className="btn-icon"
                             style={{
-                              position: "absolute",
-                              top: "calc(100% + 4px)",
-                              right: 0,
-                              zIndex: 60,
-                              minWidth: 150,
-                              padding: "4px 0",
-                              backgroundColor: "var(--bg-surface)",
-                              border: "1px solid var(--border-subtle)",
-                              borderRadius: "var(--radius-md)",
-                              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.65)",
-                              display: "flex",
-                              flexDirection: "column"
+                              padding: "3px 4px",
+                              borderRadius: "var(--radius-sm)",
+                              color: openMenuProjectId === p.id ? "var(--text-primary)" : "var(--text-muted)",
+                              backgroundColor: openMenuProjectId === p.id ? "var(--bg-hover)" : "transparent"
                             }}
                           >
-                            <button
-                              type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                setOpenMenuProjectId(null);
-                                const confirmed = await confirmDialog({
-                                  title: t("launchpad.moveToTrash"),
-                                  message: t("launchpad.confirmTrash").replace("{name}", p.name),
-                                  confirmText: t("launchpad.moveToTrash"),
-                                  variant: "danger"
-                                });
-                                if (confirmed) {
-                                  onTrashProject(p.id);
-                                  toast.info(`Moved "${p.name}" to Trash`);
-                                }
-                              }}
-                              className="axiom-menu-item"
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                width: "100%",
-                                padding: "7px 12px",
-                                fontSize: 12,
-                                color: "var(--accent-rose)",
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                textAlign: "left"
-                              }}
-                            >
-                              <Trash2 size={13} color="var(--accent-rose)" />
-                              <span>{t("launchpad.moveToTrash")}</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                            <MoreVertical size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent align="end" minWidth={150}>
+                          <DropdownMenuItem
+                            variant="danger"
+                            icon={<Trash2 size={13} />}
+                            onClick={async () => {
+                              const confirmed = await confirmDialog({
+                                title: t("launchpad.moveToTrash"),
+                                message: t("launchpad.confirmTrash").replace("{name}", p.name),
+                                confirmText: t("launchpad.moveToTrash"),
+                                variant: "danger"
+                              });
+                              if (confirmed) {
+                                onTrashProject(p.id);
+                                toast.info(`Moved "${p.name}" to Trash`);
+                              }
+                            }}
+                          >
+                            {t("launchpad.moveToTrash")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
 

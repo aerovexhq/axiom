@@ -9,3 +9,4 @@ export * from "./Tabs";
 export * from "./GithubIcon";
 export * from "./ToastContainer";
 export * from "./ConfirmModal";
+export * from "./DropdownMenu";

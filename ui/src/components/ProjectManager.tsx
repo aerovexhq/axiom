@@ -24,7 +24,13 @@ import {
   setProjectTopModule
 } from "../engine/projectModel";
 import { useTranslation } from "../i18n";
-import { confirmDialog } from "./ui";
+import {
+  confirmDialog,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from "./ui";
 import { toast } from "../engine/toast";
 
 interface ProjectManagerProps {
@@ -96,18 +102,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     } catch {}
   }, [project?.id]);
 
-  // Click outside to close file kebab context menu
-  useEffect(() => {
-    if (!activeMenuFileId) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-file-menu]")) {
-        setActiveMenuFileId(null);
-      }
-    };
-    window.addEventListener("mousedown", handleClickOutside);
-    return () => window.removeEventListener("mousedown", handleClickOutside);
-  }, [activeMenuFileId]);
 
   // Render empty state if no project is currently loaded (matches Netlist panel design)
   if (!project) {
@@ -255,108 +249,52 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           style={{ position: "relative", display: "flex", alignItems: "center", flexShrink: 0, marginLeft: 4 }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveMenuFileId((prev) => (prev === file.id ? null : file.id));
-            }}
-            title="File actions"
-            className="btn-icon"
-            style={{
-              padding: "2px 4px",
-              color: activeMenuFileId === file.id ? "#fff" : "var(--text-muted)",
-              backgroundColor: activeMenuFileId === file.id ? "rgba(255, 255, 255, 0.12)" : "transparent",
-              borderRadius: 3,
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
+          <DropdownMenu
+            open={activeMenuFileId === file.id}
+            onOpenChange={(isOpen) => setActiveMenuFileId(isOpen ? file.id : null)}
           >
-            <MoreVertical size={13} />
-          </button>
-
-          {/* Context menu popup */}
-          {activeMenuFileId === file.id && (
-            <div
-              style={{
-                position: "absolute",
-                right: 0,
-                top: "calc(100% + 4px)",
-                minWidth: 155,
-                backgroundColor: "#161b22",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                boxShadow: "0 8px 24px rgba(0, 0, 0, 0.7)",
-                zIndex: 200,
-                padding: "4px 0",
-                display: "flex",
-                flexDirection: "column"
-              }}
-            >
-              {file.fileSet === "sources_1" && !isTop && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    setActiveMenuFileId(null);
-                    handleSetTop(file, e);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    padding: "6px 12px",
-                    fontSize: 11.5,
-                    color: "var(--text-primary)",
-                    backgroundColor: "transparent",
-                    border: "none",
-                    textAlign: "left",
-                    cursor: "pointer"
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                >
-                  <Star size={12} color="var(--accent-amber)" />
-                  <span>{t("sidebar.setAsTop")}</span>
-                </button>
-              )}
-
+            <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                disabled={project.files.length <= 1}
-                onClick={(e) => {
-                  setActiveMenuFileId(null);
-                  handleDeleteFile(file.id, e);
-                }}
+                onClick={(e) => e.stopPropagation()}
+                title="File actions"
+                className="btn-icon"
                 style={{
+                  padding: "2px 4px",
+                  color: activeMenuFileId === file.id ? "#fff" : "var(--text-muted)",
+                  backgroundColor: activeMenuFileId === file.id ? "rgba(255, 255, 255, 0.12)" : "transparent",
+                  borderRadius: 3,
+                  border: "none",
+                  cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  width: "100%",
-                  padding: "6px 12px",
-                  fontSize: 11.5,
-                  color: project.files.length <= 1 ? "var(--text-muted)" : "var(--accent-rose)",
-                  backgroundColor: "transparent",
-                  border: "none",
-                  textAlign: "left",
-                  cursor: project.files.length <= 1 ? "not-allowed" : "pointer",
-                  opacity: project.files.length <= 1 ? 0.5 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (project.files.length > 1) e.currentTarget.style.backgroundColor = "rgba(244, 63, 94, 0.12)";
-                }}
-                onMouseLeave={(e) => {
-                  if (project.files.length > 1) e.currentTarget.style.backgroundColor = "transparent";
+                  justifyContent: "center"
                 }}
               >
-                <Trash2 size={12} />
-                <span>{t("common.delete")}</span>
+                <MoreVertical size={13} />
               </button>
-            </div>
-          )}
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" minWidth={155} zIndex={200}>
+              {file.fileSet === "sources_1" && !isTop && (
+                <DropdownMenuItem
+                  icon={<Star size={12} color="var(--accent-amber)" />}
+                  onClick={(e) => handleSetTop(file, e)}
+                >
+                  {t("sidebar.setAsTop")}
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuItem
+                variant="danger"
+                disabled={project.files.length <= 1}
+                icon={<Trash2 size={12} />}
+                onClick={(e) => handleDeleteFile(file.id, e)}
+              >
+                {t("common.delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     );
