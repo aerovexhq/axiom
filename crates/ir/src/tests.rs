@@ -221,4 +221,36 @@ endmodule
         assert_eq!(circuit.primitive_instances[0].primitive_kind, PrimitiveKind::Ramb36e2);
         assert!(circuit.get_net_by_name("bram_top.dout").is_some());
     }
+
+    #[test]
+    fn test_elaborate_gate_primitives_uygulama_0() {
+        let src = r#"
+module uygulama_0 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+endmodule
+"#;
+        let (ast, diags) = parse_hdl(FileId(5), src);
+        assert!(diags.is_empty(), "Parsing diagnostics: {diags:?}");
+
+        let circuit = elaborate(&ast, "uygulama_0").expect("Elaboration failed");
+        assert_eq!(circuit.top_name, "uygulama_0");
+        assert_eq!(circuit.nets.len(), 8);
+        assert_eq!(circuit.continuous_assigns.len(), 5);
+        assert!(circuit.get_net_by_name("uygulama_0.F").is_some());
+        assert!(circuit.get_net_by_name("uygulama_0.w1").is_some());
+        assert!(circuit.get_net_by_name("uygulama_0.w2").is_some());
+        assert!(circuit.get_net_by_name("uygulama_0.w3").is_some());
+        assert!(circuit.get_net_by_name("uygulama_0.w4").is_some());
+    }
 }

@@ -4,6 +4,19 @@ use crate::types::CompletionItem;
 
 /// Returns Markdown documentation for a Xilinx hardware primitive if recognized.
 pub fn primitive_doc(name: &str) -> Option<&'static str> {
+    let lower = name.to_ascii_lowercase();
+    match lower.as_str() {
+        "not" => return Some(NOT_GATE_DOC),
+        "and" => return Some(AND_GATE_DOC),
+        "nand" => return Some(NAND_GATE_DOC),
+        "or" => return Some(OR_GATE_DOC),
+        "nor" => return Some(NOR_GATE_DOC),
+        "xor" => return Some(XOR_GATE_DOC),
+        "xnor" => return Some(XNOR_GATE_DOC),
+        "buf" => return Some(BUF_GATE_DOC),
+        _ => {}
+    }
+
     let upper = name.to_ascii_uppercase();
     match upper.as_str() {
         "LUT6_2" => Some(LUT6_2_DOC),
@@ -82,6 +95,11 @@ pub fn primitive_completions() -> Vec<CompletionItem> {
 /// Returns true if a given port name of a primitive is an output driver.
 pub fn is_primitive_output_port(prim_name: &str, port_name: &str) -> bool {
     let p_upper = port_name.to_ascii_uppercase();
+
+    if axiom_syntax::is_gate_primitive(prim_name) {
+        return p_upper == "OUT" || p_upper == "0" || p_upper == "Y";
+    }
+
     let m_upper = prim_name.to_ascii_uppercase();
 
     match m_upper.as_str() {
@@ -245,3 +263,59 @@ High-speed dedicated carry propagation logic for adders, subtractors, and compar
 const CARRY8_DOC: &str = r#"### Xilinx UltraScale+ Primitive: `CARRY8`
 **Fast 8-Bit Lookahead Carry Arithmetic Chain**
 High-performance 8-bit carry lookahead block in UltraScale and UltraScale+ CLB slices."#;
+
+const NOT_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `not`
+**Inverter Gate (IEEE 1364 / IEEE 1800)**
+
+Computes the bitwise inversion of its input logic value.
+- **Output:** Terminal 0 (`out`)
+- **Input:** Terminal 1 (`in`)"#;
+
+const AND_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `and`
+**N-Input AND Gate (IEEE 1364 / IEEE 1800)**
+
+Computes the bitwise conjunction of all its inputs.
+- **Output:** Terminal 0 (`out`)
+- **Inputs:** Terminals 1..N (`in0`, `in1`, ...)"#;
+
+const NAND_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `nand`
+**N-Input NAND Gate (IEEE 1364 / IEEE 1800)**
+
+Computes the inverted bitwise conjunction of all its inputs.
+- **Output:** Terminal 0 (`out`)
+- **Inputs:** Terminals 1..N (`in0`, `in1`, ...)"#;
+
+const OR_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `or`
+**N-Input OR Gate (IEEE 1364 / IEEE 1800)**
+
+Computes the bitwise disjunction of all its inputs.
+- **Output:** Terminal 0 (`out`)
+- **Inputs:** Terminals 1..N (`in0`, `in1`, ...)"#;
+
+const NOR_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `nor`
+**N-Input NOR Gate (IEEE 1364 / IEEE 1800)**
+
+Computes the inverted bitwise disjunction of all its inputs.
+- **Output:** Terminal 0 (`out`)
+- **Inputs:** Terminals 1..N (`in0`, `in1`, ...)"#;
+
+const XOR_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `xor`
+**N-Input Exclusive-OR Gate (IEEE 1364 / IEEE 1800)**
+
+Computes the bitwise exclusive-OR of all its inputs.
+- **Output:** Terminal 0 (`out`)
+- **Inputs:** Terminals 1..N (`in0`, `in1`, ...)"#;
+
+const XNOR_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `xnor`
+**N-Input Exclusive-NOR Gate (IEEE 1364 / IEEE 1800)**
+
+Computes the inverted bitwise exclusive-OR of all its inputs.
+- **Output:** Terminal 0 (`out`)
+- **Inputs:** Terminals 1..N (`in0`, `in1`, ...)"#;
+
+const BUF_GATE_DOC: &str = r#"### Built-in Verilog Primitive: `buf`
+**Non-Inverting Buffer Gate (IEEE 1364 / IEEE 1800)**
+
+Passes its input logic state directly to its output.
+- **Output:** Terminal 0 (`out`)
+- **Input:** Terminal 1 (`in`)"#;

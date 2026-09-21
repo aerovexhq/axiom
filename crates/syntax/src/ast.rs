@@ -268,3 +268,11 @@ pub enum BinaryOp {
     ShlArith,
     ShrArith,
 }
+
+/// Returns true if the identifier is a standard Verilog built-in gate primitive.
+pub fn is_gate_primitive(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "not" | "buf" | "and" | "nand" | "or" | "nor" | "xor" | "xnor" | "bufif0" | "bufif1" | "notif0" | "notif1"
+    )
+}

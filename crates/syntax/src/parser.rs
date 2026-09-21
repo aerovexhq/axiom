@@ -3,7 +3,7 @@ use crate::token::{Token, TokenKind};
 use axiom_core::{Diagnostic, FileId, Span};
 
 pub struct Parser<'a> {
-    file_id: FileId,
+    _file_id: FileId,
     tokens: &'a [Token],
     cursor: usize,
     diagnostics: Vec<Diagnostic>,
@@ -29,7 +29,7 @@ enum Precedence {
 impl<'a> Parser<'a> {
     pub fn new(file_id: FileId, tokens: &'a [Token]) -> Self {
         Self {
-            file_id,
+            _file_id: file_id,
             tokens,
             cursor: 0,
             diagnostics: Vec::new(),
@@ -726,29 +726,43 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instance_or_assign(&mut self) -> Option<ModuleItem> {
+        let start_span = self.current_span();
         let module_name = match self.advance().kind.clone() {
             TokenKind::Ident(s) => s,
             _ => return None,
         };
 
-        // Parameters on instance: #(.WIDTH(8))
+        // Parameters or delay on instance: #(.WIDTH(8)), #(8), or #10
         let mut param_bindings = Vec::new();
         if self.match_token(&TokenKind::Hash) {
-            if self.expect(&TokenKind::LParen, "instance parameter list '('").is_some() {
-                param_bindings = self.parse_named_bindings();
+            if self.match_token(&TokenKind::LParen) {
+                param_bindings = self.parse_instance_param_bindings();
                 self.expect(&TokenKind::RParen, "instance parameter list ')'");
+            } else if let Some(expr) = self.parse_expr() {
+                param_bindings.push(("delay".to_string(), expr));
             }
         }
 
-        // Instance name: u_alu
-        let instance_name = match self.advance().kind.clone() {
-            TokenKind::Ident(s) => s,
-            _ => return None,
+        // Instance name: u_alu, g1, or omitted for gate primitives
+        let instance_name = if self.check(&TokenKind::LParen) {
+            // Anonymous instance (standard in Verilog gate primitives)
+            format!("{}_{}", module_name, self.current_span().start)
+        } else if matches!(self.peek(), TokenKind::Ident(_)) {
+            match self.advance().kind.clone() {
+                TokenKind::Ident(s) => s,
+                _ => unreachable!(),
+            }
+        } else {
+            self.diagnostics.push(Diagnostic::error(
+                "Expected instance name or '(' for port connections",
+                self.current_span(),
+            ));
+            return None;
         };
 
-        // Port bindings: (.a(din_a), .b(din_b))
+        // Port bindings: (.a(din_a), .b(din_b)) or (din_a, din_b)
         self.expect(&TokenKind::LParen, "instance port connections '('")?;
-        let port_bindings = self.parse_named_bindings();
+        let port_bindings = self.parse_port_connections(&module_name);
         self.expect(&TokenKind::RParen, "instance port connections ')'")?;
         let end_span = self.expect(&TokenKind::Semicolon, "instance declaration ';'")?;
 
@@ -757,25 +771,104 @@ impl<'a> Parser<'a> {
             instance_name,
             param_bindings,
             port_bindings,
-            span: Span::new(self.file_id, 0, end_span.end),
+            span: start_span.merge(end_span),
         }))
     }
 
-    fn parse_named_bindings(&mut self) -> Vec<(String, Expr)> {
+    fn parse_instance_param_bindings(&mut self) -> Vec<(String, Expr)> {
         let mut bindings = Vec::new();
-        while self.match_token(&TokenKind::Dot) {
-            if let TokenKind::Ident(port_name) = self.advance().kind.clone() {
-                if self.expect(&TokenKind::LParen, "port binding '('").is_some() {
-                    if let Some(expr) = self.parse_expr() {
-                        bindings.push((port_name, expr));
+        if self.check(&TokenKind::Dot) {
+            // Named parameter bindings: #(.WIDTH(8))
+            while self.match_token(&TokenKind::Dot) {
+                if let TokenKind::Ident(param_name) = self.advance().kind.clone() {
+                    if self.expect(&TokenKind::LParen, "parameter binding '('").is_some() {
+                        if !self.check(&TokenKind::RParen) {
+                            if let Some(expr) = self.parse_expr() {
+                                bindings.push((param_name, expr));
+                            }
+                        }
+                        self.expect(&TokenKind::RParen, "parameter binding ')'");
                     }
-                    self.expect(&TokenKind::RParen, "port binding ')'");
+                }
+                if !self.match_token(&TokenKind::Comma) {
+                    break;
                 }
             }
-            if !self.match_token(&TokenKind::Comma) {
-                break;
+        } else {
+            // Positional parameter bindings: #(8, 16)
+            let mut idx = 0;
+            while !self.check(&TokenKind::RParen) && !self.check(&TokenKind::Eof) {
+                if let Some(expr) = self.parse_expr() {
+                    bindings.push((idx.to_string(), expr));
+                    idx += 1;
+                } else {
+                    break;
+                }
+                if !self.match_token(&TokenKind::Comma) {
+                    break;
+                }
             }
         }
+        bindings
+    }
+
+    fn parse_port_connections(&mut self, module_name: &str) -> Vec<(String, Expr)> {
+        let mut bindings = Vec::new();
+        let is_gate = is_gate_primitive(module_name);
+
+        if self.check(&TokenKind::RParen) {
+            return bindings;
+        }
+
+        if self.check(&TokenKind::Dot) {
+            // Named port bindings: .port(expr)
+            while self.match_token(&TokenKind::Dot) {
+                if let TokenKind::Ident(port_name) = self.advance().kind.clone() {
+                    if self.expect(&TokenKind::LParen, "port binding '('").is_some() {
+                        if !self.check(&TokenKind::RParen) {
+                            if let Some(expr) = self.parse_expr() {
+                                bindings.push((port_name, expr));
+                            }
+                        }
+                        self.expect(&TokenKind::RParen, "port binding ')'");
+                    }
+                }
+                if !self.match_token(&TokenKind::Comma) {
+                    break;
+                }
+            }
+        } else {
+            // Positional port bindings: expr, expr, ...
+            let mut index = 0;
+            while !self.check(&TokenKind::RParen) && !self.check(&TokenKind::Eof) {
+                if self.check(&TokenKind::Comma) {
+                    // Empty positional port slot (e.g. `(a, , c)`)
+                    index += 1;
+                    self.advance();
+                    continue;
+                }
+                if let Some(expr) = self.parse_expr() {
+                    let port_name = if is_gate {
+                        if index == 0 {
+                            "out".to_string()
+                        } else {
+                            format!("in{}", index - 1)
+                        }
+                    } else {
+                        index.to_string()
+                    };
+                    bindings.push((port_name, expr));
+                    index += 1;
+                } else {
+                    break;
+                }
+
+                if !self.match_token(&TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+
         bindings
     }
 

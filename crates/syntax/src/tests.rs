@@ -165,4 +165,54 @@ endmodule
             panic!("Expected ModuleItem::Assertion");
         }
     }
+
+    #[test]
+    fn test_parse_gate_primitives_and_positional_bindings() {
+        let src = r#"
+module gate_demo (
+    input wire A,
+    input wire B,
+    input wire C,
+    output wire F
+);
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+
+    // Anonymous gate primitives
+    and (w1, w2, B);
+    or  (F, w4, w3);
+endmodule
+"#;
+        let (file, diags) = parse_hdl(FileId(1), src);
+        assert!(diags.is_empty(), "Diagnostics should be empty, got: {diags:?}");
+        assert_eq!(file.modules.len(), 1);
+        let m = &file.modules[0];
+        assert_eq!(m.items.len(), 8);
+
+        if let ModuleItem::Instance(ref inst) = m.items[1] {
+            assert_eq!(inst.module_name, "not");
+            assert_eq!(inst.instance_name, "g1");
+            assert_eq!(inst.port_bindings.len(), 2);
+            assert_eq!(inst.port_bindings[0].0, "out");
+            assert_eq!(inst.port_bindings[1].0, "in0");
+        } else {
+            panic!("Expected ModuleItem::Instance for g1");
+        }
+
+        if let ModuleItem::Instance(ref inst) = m.items[6] {
+            assert_eq!(inst.module_name, "and");
+            assert!(inst.instance_name.starts_with("and_"));
+            assert_eq!(inst.port_bindings.len(), 3);
+            assert_eq!(inst.port_bindings[0].0, "out");
+            assert_eq!(inst.port_bindings[1].0, "in0");
+            assert_eq!(inst.port_bindings[2].0, "in1");
+        } else {
+            panic!("Expected anonymous gate primitive");
+        }
+    }
 }

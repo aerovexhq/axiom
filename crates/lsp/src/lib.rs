@@ -1076,6 +1076,91 @@ endmodule
         let diags = VerilogLinter::lint(code);
         assert!(diags.is_empty(), "Should have 0 diagnostics for clean primitive design, got: {diags:?}");
     }
+
+    #[test]
+    fn test_lint_class_example_uygulama_0() {
+        let code = r#"`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: Uygulama 0 (Design Source)
+module uygulama_0 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+
+endmodule
+"#;
+        let diags = VerilogLinter::lint(code);
+        assert!(diags.is_empty(), "uygulama_0.v should have 0 diagnostics, got: {diags:?}");
+    }
+
+    #[test]
+    fn test_lint_class_example_tb_uygulama_0() {
+        let code = r#"`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: tb_uygulama_0 (Benchtest / Testbench Source)
+module tb_uygulama_0 ();
+    reg A;
+    reg B;
+    reg C;
+    wire F;
+
+    uygulama_0 uut (
+        .A(A),
+        .B(B),
+        .C(C),
+        .F(F)
+    );
+
+    initial begin
+        #0
+        A = 1'b1;
+        B = 1'b0;
+        C = 1'b1;
+
+        #25
+        A = 1'b0;
+        B = 1'b0;
+        C = 1'b1;
+
+        #25
+        A = 1'b0;
+        B = 1'b0;
+        C = 1'b0;
+
+        #25
+        A = 1'b1;
+        B = 1'b1;
+        C = 1'b1;
+    end
+
+    initial #100 $stop;
+endmodule
+"#;
+        let diags = VerilogLinter::lint(code);
+        assert!(diags.is_empty(), "tb_uygulama_0.v should have 0 diagnostics, got: {diags:?}");
+    }
+
+    #[test]
+    fn test_gate_primitive_hover() {
+        let src = "module test; not g1 (w2, A); and g2 (w1, w2, B); or g3 (F, w4, w3); endmodule";
+        let hover_not = VerilogHover::hover(src, 1, 14).expect("Should hover not");
+        assert!(hover_not.contents.contains("Inverter Gate"));
+
+        let hover_and = VerilogHover::hover(src, 1, 31).expect("Should hover and");
+        assert!(hover_and.contents.contains("AND Gate"));
+
+        let hover_or = VerilogHover::hover(src, 1, 52).expect("Should hover or");
+        assert!(hover_or.contents.contains("OR Gate"));
+    }
 }
 
 

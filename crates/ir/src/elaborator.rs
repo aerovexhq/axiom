@@ -76,13 +76,21 @@ impl<'a> Elaborator<'a> {
         }
 
         // Connect formal ports to actual parent nets
+        let port_dirs: HashMap<String, PortDirection> = module.ports.iter().map(|p| (p.name.clone(), p.direction)).collect();
         for (port_name, parent_net_id) in port_connections {
             if let Some(&child_net_id) = local_nets.get(port_name) {
-                // Buffer driving child from parent
-                self.circuit.add_continuous_assign(
-                    child_net_id,
-                    BirExpr::Net(*parent_net_id),
-                );
+                let dir = port_dirs.get(port_name).copied().unwrap_or(PortDirection::Input);
+                if dir == PortDirection::Output {
+                    self.circuit.add_continuous_assign(
+                        *parent_net_id,
+                        BirExpr::Net(child_net_id),
+                    );
+                } else {
+                    self.circuit.add_continuous_assign(
+                        child_net_id,
+                        BirExpr::Net(*parent_net_id),
+                    );
+                }
             }
         }
 
@@ -138,14 +146,24 @@ impl<'a> Elaborator<'a> {
                         }
 
                         let mut child_port_conns = Vec::new();
-                        for (pname, expr) in &inst.port_bindings {
+                        for (i, (pname, expr)) in inst.port_bindings.iter().enumerate() {
+                            let port_key = if let Ok(idx) = pname.parse::<usize>() {
+                                child_module.ports.get(idx).map(|p| p.name.clone()).unwrap_or_else(|| pname.clone())
+                            } else if pname.is_empty() {
+                                child_module.ports.get(i).map(|p| p.name.clone()).unwrap_or_default()
+                            } else {
+                                pname.clone()
+                            };
+
                             if let Some(net_id) = self.resolve_port_expr_to_net(expr, &local_nets, scope_prefix)? {
-                                child_port_conns.push((pname.clone(), net_id));
+                                child_port_conns.push((port_key, net_id));
                             }
                         }
 
                         let child_prefix = format!("{scope_prefix}.{}", inst.instance_name);
                         self.elaborate_instance(child_module, &child_prefix, &child_param_overrides, &child_port_conns)?;
+                    } else if axiom_syntax::is_gate_primitive(&inst.module_name) {
+                        self.elaborate_gate_primitive(inst, &local_nets, &resolved_params)?;
                     } else if let Some(prim_kind) = crate::primitives::PrimitiveCatalog::lookup(&inst.module_name) {
                         self.elaborate_primitive_instance(prim_kind, inst, scope_prefix, &local_nets, &resolved_params)?;
                     } else {
@@ -601,5 +619,132 @@ impl<'a> Elaborator<'a> {
             }
             _ => Ok(None),
         }
+    }
+
+    fn elaborate_gate_primitive(
+        &mut self,
+        inst: &'a InstanceDef,
+        local_nets: &HashMap<String, NetId>,
+        params: &HashMap<String, u64>,
+    ) -> Result<(), ElaborationError> {
+        if inst.port_bindings.is_empty() {
+            return Ok(());
+        }
+
+        // Identify output port: first check named 'out'/'0'/'y', otherwise first element (index 0)
+        let out_idx = inst
+            .port_bindings
+            .iter()
+            .position(|(p, _)| {
+                p == "0" || p.eq_ignore_ascii_case("out") || p.eq_ignore_ascii_case("y")
+            })
+            .unwrap_or(0);
+
+        let out_expr = &inst.port_bindings[out_idx].1;
+        let target_net = self.resolve_lvalue_net(out_expr, local_nets)?;
+
+        // Collect input expressions
+        let mut in_exprs = Vec::new();
+        for (i, (_, pexpr)) in inst.port_bindings.iter().enumerate() {
+            if i != out_idx {
+                let bir = self.lower_expr(pexpr, local_nets, params)?;
+                in_exprs.push(bir);
+            }
+        }
+
+        if in_exprs.is_empty() {
+            return Ok(());
+        }
+
+        let gate_type = inst.module_name.to_ascii_lowercase();
+        let final_expr = match gate_type.as_str() {
+            "buf" => in_exprs.remove(0),
+            "not" => {
+                let inner = in_exprs.remove(0);
+                BirExpr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(inner),
+                }
+            }
+            "and" => {
+                let mut acc = in_exprs.remove(0);
+                for next in in_exprs {
+                    acc = BirExpr::Binary {
+                        op: BinaryOp::BitAnd,
+                        lhs: Box::new(acc),
+                        rhs: Box::new(next),
+                    };
+                }
+                acc
+            }
+            "nand" => {
+                let mut acc = in_exprs.remove(0);
+                for next in in_exprs {
+                    acc = BirExpr::Binary {
+                        op: BinaryOp::BitAnd,
+                        lhs: Box::new(acc),
+                        rhs: Box::new(next),
+                    };
+                }
+                BirExpr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(acc),
+                }
+            }
+            "or" => {
+                let mut acc = in_exprs.remove(0);
+                for next in in_exprs {
+                    acc = BirExpr::Binary {
+                        op: BinaryOp::BitOr,
+                        lhs: Box::new(acc),
+                        rhs: Box::new(next),
+                    };
+                }
+                acc
+            }
+            "nor" => {
+                let mut acc = in_exprs.remove(0);
+                for next in in_exprs {
+                    acc = BirExpr::Binary {
+                        op: BinaryOp::BitOr,
+                        lhs: Box::new(acc),
+                        rhs: Box::new(next),
+                    };
+                }
+                BirExpr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(acc),
+                }
+            }
+            "xor" => {
+                let mut acc = in_exprs.remove(0);
+                for next in in_exprs {
+                    acc = BirExpr::Binary {
+                        op: BinaryOp::BitXor,
+                        lhs: Box::new(acc),
+                        rhs: Box::new(next),
+                    };
+                }
+                acc
+            }
+            "xnor" => {
+                let mut acc = in_exprs.remove(0);
+                for next in in_exprs {
+                    acc = BirExpr::Binary {
+                        op: BinaryOp::BitXor,
+                        lhs: Box::new(acc),
+                        rhs: Box::new(next),
+                    };
+                }
+                BirExpr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(acc),
+                }
+            }
+            _ => in_exprs.remove(0),
+        };
+
+        self.circuit.add_continuous_assign(target_net, final_expr);
+        Ok(())
     }
 }

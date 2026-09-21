@@ -29,14 +29,20 @@ impl VerilogLinter {
         }
 
         // 2. Semantic & Design Quality Rules on AST
+        let modules_map: HashMap<String, &ModuleDef> = ast.modules.iter().map(|m| (m.name.clone(), m)).collect();
         for module in &ast.modules {
-            Self::lint_module(source, module, &mut diagnostics);
+            Self::lint_module(source, module, &modules_map, &mut diagnostics);
         }
 
         diagnostics
     }
 
-    fn lint_module(source: &str, module: &ModuleDef, diags: &mut Vec<LspDiagnostic>) {
+    fn lint_module(
+        source: &str,
+        module: &ModuleDef,
+        all_modules: &HashMap<String, &ModuleDef>,
+        diags: &mut Vec<LspDiagnostic>,
+    ) {
         let mut declared_signals: HashMap<String, (DataType, Option<Range>, Span)> = HashMap::new();
         let mut input_ports: HashSet<String> = HashSet::new();
         let mut output_ports: HashSet<String> = HashSet::new();
@@ -144,9 +150,24 @@ impl VerilogLinter {
         let mut instance_connected_signals = HashSet::new();
         for item in &module.items {
             if let ModuleItem::Instance(inst) = item {
-                let is_prim = crate::primitives_doc::primitive_doc(&inst.module_name).is_some();
-                for (port_name, expr) in &inst.port_bindings {
-                    let is_output = is_prim && crate::primitives_doc::is_primitive_output_port(&inst.module_name, port_name);
+                let is_gate = axiom_syntax::is_gate_primitive(&inst.module_name);
+                let is_prim = is_gate || crate::primitives_doc::primitive_doc(&inst.module_name).is_some();
+                let child_def = all_modules.get(&inst.module_name).copied();
+
+                for (_idx, (port_name, expr)) in inst.port_bindings.iter().enumerate() {
+                    let is_output = if is_prim {
+                        crate::primitives_doc::is_primitive_output_port(&inst.module_name, port_name)
+                    } else if let Some(target_mod) = child_def {
+                        let formal_port = if let Ok(i) = port_name.parse::<usize>() {
+                            target_mod.ports.get(i)
+                        } else {
+                            target_mod.ports.iter().find(|p| &p.name == port_name)
+                        };
+                        formal_port.map(|p| p.direction == PortDirection::Output).unwrap_or(false)
+                    } else {
+                        false
+                    };
+
                     if is_output {
                         for sig in Self::collect_expr_targets(expr) {
                             assigned_signals.entry(sig.clone()).or_default().push(inst.span);
