@@ -12,7 +12,8 @@ import {
   Menu,
   Search,
   Columns,
-  Minimize2
+  Minimize2,
+  GraduationCap
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
@@ -40,6 +41,7 @@ interface HeaderProps {
   onRestoreMaximizedPanel?: () => void;
   activeCrossProbeSignal?: string | null;
   onOpenOmnibar?: () => void;
+  onOpenLabGrader?: () => void;
   isSplitView?: boolean;
 }
 
@@ -62,6 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
   onRestoreMaximizedPanel,
   activeCrossProbeSignal,
   onOpenOmnibar,
+  onOpenLabGrader,
   isSplitView = true
 }) => {
   const { t } = useTranslation();
@@ -574,6 +577,43 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </>
         )}
+
+        {/* Curriculum Lab Auto-Grader Button */}
+        {project &&
+          onOpenLabGrader &&
+          (project.templateId === "class_examples_project" ||
+            Boolean(project.lessonId) ||
+            project.files.some((f) =>
+              ["uygulama", "mux_4to1", "alu_4bit", "counter_up_down", "sequence_detector"].some((k) =>
+                f.name.toLowerCase().includes(k)
+              )
+            )) && (
+            <>
+              <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
+              <button
+                type="button"
+                onClick={onOpenLabGrader}
+                title="Verify and grade curriculum laboratory assignment"
+                aria-label="Verify and grade curriculum laboratory assignment"
+                className="btn btn-secondary"
+                style={{
+                  height: 28,
+                  padding: "0 10px",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  color: "var(--accent-cyan)",
+                  borderColor: "rgba(6, 182, 212, 0.4)",
+                  backgroundColor: "rgba(6, 182, 212, 0.08)"
+                }}
+              >
+                <GraduationCap size={14} />
+                <span>Grade Lab</span>
+              </button>
+            </>
+          )}
 
         {/* Omnibar & Command Palette (Single Icon Button) */}
         {onOpenOmnibar && (

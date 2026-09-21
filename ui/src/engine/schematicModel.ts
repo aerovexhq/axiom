@@ -400,11 +400,15 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
   if (
     sampleDesignId === "logic_circuit" ||
     sampleDesignId.includes("logic_circuit") ||
-    sampleDesignId.includes("class_examples") ||
-    sampleDesignId.includes("uygulama_0")
+    sampleDesignId.includes("uygulama_0") ||
+    sampleDesignId.includes("lesson_1")
   ) {
     return generateLogicCircuitGraph();
-  } else if (sampleDesignId === "counter" || sampleDesignId.includes("counter")) {
+  } else if (sampleDesignId.includes("mux_4to1") || sampleDesignId.includes("lesson_2")) {
+    return generateMuxGraph();
+  } else if (sampleDesignId.includes("sequence_detector") || sampleDesignId.includes("lesson_5")) {
+    return generateFsmGraph();
+  } else if (sampleDesignId === "counter" || sampleDesignId.includes("counter") || sampleDesignId.includes("lesson_4")) {
     return generateCounterGraph();
   } else if (sampleDesignId === "hierarchy") {
     return generateHierarchyGraph();
@@ -416,7 +420,7 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
     return generatePwmGraph();
   } else if (sampleDesignId === "riscv" || sampleDesignId.includes("riscv")) {
     return generateRiscvGraph();
-  } else if (sampleDesignId === "alu" || sampleDesignId.includes("alu")) {
+  } else if (sampleDesignId === "alu" || sampleDesignId.includes("alu") || sampleDesignId.includes("lesson_3")) {
     return generateAluGraph();
   } else if (sampleDesignId === "dsp_bram_mac" || sampleDesignId.includes("dsp") || sampleDesignId.includes("bram")) {
     return generateDspBramMacGraph();
@@ -2335,3 +2339,64 @@ function generateRiscvGraph(): SchematicGraph {
   const graph: SchematicGraph = { id: "riscv_graph", topModule: "riscv_mini_core", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
   return layoutAndRouteGraph(graph);
 }
+
+/**
+ * 4:1 Multiplexer with Enable (Lesson 2) DAG
+ */
+function generateMuxGraph(): SchematicGraph {
+  const nodes: SchematicNode[] = [
+    { id: "in_en", label: "en", kind: "port_in", scope: "mux_4to1", inputs: [], outputs: [{ id: "out", name: "en", width: 1, direction: "out" }], x: 0, y: 0, width: 70, height: 28, layer: 0, fixedY: 28, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 5, lineEnd: 5 } },
+    { id: "in_sel", label: "sel[1:0]", kind: "port_in", scope: "mux_4to1", inputs: [], outputs: [{ id: "out", name: "sel", width: 2, direction: "out" }], x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 88, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 6, lineEnd: 6 } },
+    { id: "in_data", label: "in[3:0]", kind: "port_in", scope: "mux_4to1", inputs: [], outputs: [{ id: "out", name: "in", width: 4, direction: "out" }], x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 158, delayPs: 0, dynamicPowerMw: 0.03, sourceSpan: { lineStart: 7, lineEnd: 7 } },
+
+    { id: "mux_core", label: "4:1 MUX", sublabel: "in[sel]", kind: "mux", scope: "mux_4to1", inputs: [{ id: "sel", name: "sel", width: 2, direction: "in" }, { id: "data", name: "in", width: 4, direction: "in" }], outputs: [{ id: "out", name: "mux_val", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 60, layer: 1, fixedY: 100, delayPs: 45, dynamicPowerMw: 0.15, sourceSpan: { lineStart: 12, lineEnd: 24 } },
+    { id: "gate_and_en", label: "AND", sublabel: "en & mux_val", kind: "gate", scope: "mux_4to1", inputs: [{ id: "in1", name: "en", width: 1, direction: "in" }, { id: "in2", name: "mux_val", width: 1, direction: "in" }], outputs: [{ id: "out", name: "out", width: 1, direction: "out" }], x: 0, y: 0, width: 70, height: 38, layer: 2, fixedY: 60, delayPs: 30, dynamicPowerMw: 0.10, sourceSpan: { lineStart: 13, lineEnd: 15 } },
+
+    { id: "out_port", label: "out", kind: "port_out", scope: "mux_4to1", inputs: [{ id: "in", name: "out", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 70, height: 28, layer: 3, fixedY: 65, delayPs: 5, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 8, lineEnd: 8 } }
+  ];
+
+  const edges: SchematicEdge[] = [
+    { id: "e_sel_mux", netName: "sel", sourceNodeId: "in_sel", sourcePortId: "out", targetNodeId: "mux_core", targetPortId: "sel", width: 2, isBus: true, wirePoints: [], delayPs: 10, signalId: "mux_4to1.sel", fanout: 1 },
+    { id: "e_in_mux", netName: "in", sourceNodeId: "in_data", sourcePortId: "out", targetNodeId: "mux_core", targetPortId: "data", width: 4, isBus: true, wirePoints: [], delayPs: 10, signalId: "mux_4to1.in", fanout: 1 },
+    { id: "e_mux_gate", netName: "mux_val", sourceNodeId: "mux_core", sourcePortId: "out", targetNodeId: "gate_and_en", targetPortId: "in2", width: 1, isBus: false, wirePoints: [], delayPs: 12, signalId: "mux_4to1.mux_val", fanout: 1 },
+    { id: "e_en_gate", netName: "en", sourceNodeId: "in_en", sourcePortId: "out", targetNodeId: "gate_and_en", targetPortId: "in1", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "mux_4to1.en", fanout: 1 },
+    { id: "e_gate_out", netName: "out", sourceNodeId: "gate_and_en", sourcePortId: "out", targetNodeId: "out_port", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 8, signalId: "mux_4to1.out", fanout: 1 }
+  ];
+
+  const graph: SchematicGraph = { id: "mux_graph", topModule: "mux_4to1", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
+  return layoutAndRouteGraph(graph);
+}
+
+/**
+ * Finite State Machine Sequence Detector '1011' (Lesson 5) DAG
+ */
+function generateFsmGraph(): SchematicGraph {
+  const nodes: SchematicNode[] = [
+    { id: "in_clk", label: "clk", kind: "port_in", scope: "sequence_detector_1011", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out", isClock: true }], x: 0, y: 0, width: 70, height: 28, layer: 0, fixedY: 28, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 5, lineEnd: 5 } },
+    { id: "in_rst", label: "rst_n", kind: "port_in", scope: "sequence_detector_1011", inputs: [], outputs: [{ id: "out", name: "rst_n", width: 1, direction: "out", isReset: true }], x: 0, y: 0, width: 70, height: 28, layer: 0, fixedY: 88, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 6, lineEnd: 6 } },
+    { id: "in_din", label: "din", kind: "port_in", scope: "sequence_detector_1011", inputs: [], outputs: [{ id: "out", name: "din", width: 1, direction: "out" }], x: 0, y: 0, width: 70, height: 28, layer: 0, fixedY: 158, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 7, lineEnd: 7 } },
+
+    { id: "fsm_comb", label: "Next State Logic", sublabel: "case (state)", kind: "operator", scope: "sequence_detector_1011", inputs: [{ id: "state", name: "state", width: 2, direction: "in" }, { id: "din", name: "din", width: 1, direction: "in" }], outputs: [{ id: "next_state", name: "next_state", width: 2, direction: "out" }], x: 0, y: 0, width: 130, height: 56, layer: 1, fixedY: 120, delayPs: 60, dynamicPowerMw: 0.25, sourceSpan: { lineStart: 25, lineEnd: 55 } },
+    { id: "state_ff", label: "State Register", sublabel: "FDCE [1:0]", kind: "register", scope: "sequence_detector_1011", inputs: [{ id: "clk", name: "clk", width: 1, direction: "in" }, { id: "rst_n", name: "rst_n", width: 1, direction: "in" }, { id: "d", name: "next_state", width: 2, direction: "in" }], outputs: [{ id: "q", name: "state", width: 2, direction: "out" }], x: 0, y: 0, width: 120, height: 64, layer: 2, fixedY: 60, delayPs: 50, dynamicPowerMw: 0.35, sourceSpan: { lineStart: 18, lineEnd: 24 } },
+    { id: "out_logic", label: "Output Decode", sublabel: "state==S3 & din", kind: "gate", scope: "sequence_detector_1011", inputs: [{ id: "state", name: "state", width: 2, direction: "in" }, { id: "din", name: "din", width: 1, direction: "in" }], outputs: [{ id: "det", name: "detected", width: 1, direction: "out" }], x: 0, y: 0, width: 110, height: 46, layer: 3, fixedY: 140, delayPs: 35, dynamicPowerMw: 0.15, sourceSpan: { lineStart: 58, lineEnd: 60 } },
+
+    { id: "out_det", label: "detected", kind: "port_out", scope: "sequence_detector_1011", inputs: [{ id: "in", name: "detected", width: 1, direction: "in" }], outputs: [], x: 0, y: 0, width: 80, height: 28, layer: 4, fixedY: 149, delayPs: 5, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 8, lineEnd: 8 } },
+    { id: "out_state", label: "state[1:0]", kind: "port_out", scope: "sequence_detector_1011", inputs: [{ id: "in", name: "state", width: 2, direction: "in" }], outputs: [], x: 0, y: 0, width: 85, height: 28, layer: 4, fixedY: 60, delayPs: 5, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 9, lineEnd: 9 } }
+  ];
+
+  const edges: SchematicEdge[] = [
+    { id: "e_clk_ff", netName: "clk", sourceNodeId: "in_clk", sourcePortId: "out", targetNodeId: "state_ff", targetPortId: "clk", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "sequence_detector_1011.clk", fanout: 1 },
+    { id: "e_rst_ff", netName: "rst_n", sourceNodeId: "in_rst", sourcePortId: "out", targetNodeId: "state_ff", targetPortId: "rst_n", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "sequence_detector_1011.rst_n", fanout: 1 },
+    { id: "e_din_comb", netName: "din", sourceNodeId: "in_din", sourcePortId: "out", targetNodeId: "fsm_comb", targetPortId: "din", width: 1, isBus: false, wirePoints: [], delayPs: 12, signalId: "sequence_detector_1011.din", fanout: 2 },
+    { id: "e_din_out", netName: "din", sourceNodeId: "in_din", sourcePortId: "out", targetNodeId: "out_logic", targetPortId: "din", width: 1, isBus: false, wirePoints: [], delayPs: 12, signalId: "sequence_detector_1011.din", fanout: 2 },
+    { id: "e_next_ff", netName: "next_state", sourceNodeId: "fsm_comb", sourcePortId: "next_state", targetNodeId: "state_ff", targetPortId: "d", width: 2, isBus: true, wirePoints: [], delayPs: 15, signalId: "sequence_detector_1011.next_state", fanout: 1 },
+    { id: "e_state_comb", netName: "state", sourceNodeId: "state_ff", sourcePortId: "q", targetNodeId: "fsm_comb", targetPortId: "state", width: 2, isBus: true, wirePoints: [], delayPs: 18, signalId: "sequence_detector_1011.state", fanout: 3 },
+    { id: "e_state_outl", netName: "state", sourceNodeId: "state_ff", sourcePortId: "q", targetNodeId: "out_logic", targetPortId: "state", width: 2, isBus: true, wirePoints: [], delayPs: 15, signalId: "sequence_detector_1011.state", fanout: 3 },
+    { id: "e_state_port", netName: "state", sourceNodeId: "state_ff", sourcePortId: "q", targetNodeId: "out_state", targetPortId: "in", width: 2, isBus: true, wirePoints: [], delayPs: 8, signalId: "sequence_detector_1011.state", fanout: 3 },
+    { id: "e_det_port", netName: "detected", sourceNodeId: "out_logic", sourcePortId: "det", targetNodeId: "out_det", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 8, signalId: "sequence_detector_1011.detected", fanout: 1 }
+  ];
+
+  const graph: SchematicGraph = { id: "fsm_graph", topModule: "sequence_detector_1011", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
+  return layoutAndRouteGraph(graph);
+}
+

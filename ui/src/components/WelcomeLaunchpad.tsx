@@ -631,7 +631,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                         Course Lessons
                       </span>
                       <span className="mono-num" style={{ fontSize: 10, color: "var(--accent-cyan)" }}>
-                        {tmpl.lessons?.length ?? 1} Lesson
+                        {tmpl.lessons?.length ?? 1} {(tmpl.lessons?.length ?? 1) === 1 ? "Lesson" : "Lessons"}
                       </span>
                     </div>
 

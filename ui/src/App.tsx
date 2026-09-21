@@ -24,6 +24,7 @@ import { WindowFrame } from "./components/WindowFrame";
 import { UpdatePromptModal } from "./components/UpdatePromptModal";
 import { AboutModal } from "./components/AboutModal";
 import { ProtocolDecoderModal } from "./components/ProtocolDecoderModal";
+import { LabGraderModal } from "./components/LabGraderModal";
 import { checkForUpdates, ReleaseManifest } from "./engine/updateChecker";
 import { isDesktop } from "./engine/platform";
 import { scheduleAutoSave, isAutoSaveEnabled, notifySaveState } from "./engine/autoSaveManager";
@@ -151,10 +152,11 @@ export const App: React.FC = () => {
   const [timingSlackPs, setTimingSlackPs] = useState<number | null>(null);
   const [predictedFmaxGainMhz, setPredictedFmaxGainMhz] = useState<number | null>(null);
 
-  // New Modals: Protocol Decoder, About, and Software Update Prompt
+  // New Modals: Protocol Decoder, About, Software Update Prompt, and Lab Grader
   const [isProtocolDecoderOpen, setIsProtocolDecoderOpen] = useState<boolean>(false);
   const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
   const [isUpdatePromptOpen, setIsUpdatePromptOpen] = useState<boolean>(false);
+  const [isLabGraderOpen, setIsLabGraderOpen] = useState<boolean>(false);
   const [updateManifest, setUpdateManifest] = useState<ReleaseManifest | null>(null);
   const [updateCurrentCommit, setUpdateCurrentCommit] = useState<string>("a9a90cc");
 
@@ -854,6 +856,7 @@ export const App: React.FC = () => {
           onRestoreMaximizedPanel={() => setMaximizedPanel(null)}
           activeCrossProbeSignal={activeCrossProbeSignal}
           onOpenOmnibar={() => setIsOmnibarOpen(true)}
+          onOpenLabGrader={() => setIsLabGraderOpen(true)}
           isSplitView={centerView === "split"}
         />
       )}
@@ -2028,6 +2031,15 @@ export const App: React.FC = () => {
       <AboutModal
         isOpen={isAboutOpen}
         onClose={() => setIsAboutOpen(false)}
+      />
+
+      {/* Curriculum Lab Auto-Grader Modal */}
+      <LabGraderModal
+        isOpen={isLabGraderOpen}
+        onClose={() => setIsLabGraderOpen(false)}
+        project={project}
+        diagnostics={diagnostics}
+        state={state}
       />
 
       {/* Global Aerospace Toast & Confirmation Dialog Containers */}

@@ -1232,6 +1232,635 @@ set_property IOSTANDARD LVCMOS33 [get_ports {F}]
 `
           }
         ]
+      },
+      {
+        id: "lesson_2",
+        lessonNumber: 2,
+        title: "Lesson 2",
+        subtitle: "Multiplexers & Decoders",
+        description: "4-to-1 data multiplexer with enable and 2-to-4 active-low decoder with testbench and Basys 3 switch/LED constraints.",
+        institution: "Istanbul University - Cerrahpasa",
+        course: "Logic Circuits",
+        defaultTopModule: "mux_4to1",
+        files: [
+          {
+            name: "mux_4to1.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            isTop: true,
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 2: 4-to-1 Multiplexer with Enable (Design Source)
+
+module mux_4to1 (
+    input  wire       en,
+    input  wire [1:0] sel,
+    input  wire [3:0] in,
+    output reg        out
+);
+
+    always @(*) begin
+        if (!en) begin
+            out = 1'b0;
+        end else begin
+            case (sel)
+                2'b00: out = in[0];
+                2'b01: out = in[1];
+                2'b10: out = in[2];
+                2'b11: out = in[3];
+                default: out = 1'b0;
+            endcase
+        end
+    end
+
+endmodule
+`
+          },
+          {
+            name: "decoder_2to4.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 2: 2-to-4 Active-Low Decoder with Enable
+
+module decoder_2to4 (
+    input  wire       en_n,
+    input  wire [1:0] a,
+    output reg  [3:0] y_n
+);
+
+    always @(*) begin
+        if (en_n) begin
+            y_n = 4'b1111;
+        end else begin
+            case (a)
+                2'b00: y_n = 4'b1110;
+                2'b01: y_n = 4'b1101;
+                2'b10: y_n = 4'b1011;
+                2'b11: y_n = 4'b0111;
+                default: y_n = 4'b1111;
+            endcase
+        end
+    end
+
+endmodule
+`
+          },
+          {
+            name: "tb_mux_4to1.v",
+            fileType: "verilog",
+            fileSet: "sim_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 2: tb_mux_4to1 (Testbench)
+
+module tb_mux_4to1;
+    reg       en;
+    reg [1:0] sel;
+    reg [3:0] in;
+    wire      out;
+
+    mux_4to1 uut (
+        .en(en),
+        .sel(sel),
+        .in(in),
+        .out(out)
+    );
+
+    initial begin
+        en = 1'b0; sel = 2'b00; in = 4'b1010;
+        #20 en = 1'b1; sel = 2'b00;
+        #20 sel = 2'b01;
+        #20 sel = 2'b10;
+        #20 sel = 2'b11;
+        #20 en = 1'b0;
+        #20 $stop;
+    end
+endmodule
+`
+          },
+          {
+            name: "constraints.xdc",
+            fileType: "xdc",
+            fileSet: "constrs_1",
+            content: `## Istanbul University - Cerrahpasa | Logic Circuits (Lesson 2: MUX & Decoder)
+## Basys 3 Artix-7 Pin Assignments
+## Data Inputs: SW0..SW3 -> in[0..3]
+## Select: SW4..SW5 -> sel[0..1]
+## Enable: SW6 -> en
+## Output: LD0 -> out
+set_property PACKAGE_PIN V17 [get_ports {in[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {in[0]}]
+set_property PACKAGE_PIN V16 [get_ports {in[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {in[1]}]
+set_property PACKAGE_PIN W16 [get_ports {in[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {in[2]}]
+set_property PACKAGE_PIN W17 [get_ports {in[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {in[3]}]
+
+set_property PACKAGE_PIN W15 [get_ports {sel[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {sel[0]}]
+set_property PACKAGE_PIN V15 [get_ports {sel[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {sel[1]}]
+
+set_property PACKAGE_PIN W14 [get_ports {en}]
+set_property IOSTANDARD LVCMOS33 [get_ports {en}]
+
+set_property PACKAGE_PIN U16 [get_ports {out}]
+set_property IOSTANDARD LVCMOS33 [get_ports {out}]
+`
+          }
+        ]
+      },
+      {
+        id: "lesson_3",
+        lessonNumber: 3,
+        title: "Lesson 3",
+        subtitle: "Adders & Arithmetic Logic Unit (ALU)",
+        description: "1-bit full adder and 4-bit multi-function Arithmetic Logic Unit with arithmetic and bitwise operations and status flags.",
+        institution: "Istanbul University - Cerrahpasa",
+        course: "Logic Circuits",
+        defaultTopModule: "alu_4bit",
+        files: [
+          {
+            name: "full_adder.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 3: 1-Bit Full Adder
+
+module full_adder (
+    input  wire a,
+    input  wire b,
+    input  wire cin,
+    output wire sum,
+    output wire cout
+);
+    assign sum  = a ^ b ^ cin;
+    assign cout = (a & b) | (cin & (a ^ b));
+endmodule
+`
+          },
+          {
+            name: "alu_4bit.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            isTop: true,
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 3: 4-Bit Arithmetic Logic Unit (ALU)
+
+module alu_4bit (
+    input  wire [3:0] a,
+    input  wire [3:0] b,
+    input  wire [2:0] op,
+    output reg  [3:0] alu_out,
+    output wire       zero,
+    output reg        carry,
+    output wire       negative,
+    output reg        overflow
+);
+
+    reg [4:0] sum_ext;
+
+    always @(*) begin
+        carry = 1'b0;
+        overflow = 1'b0;
+        case (op)
+            3'b000: begin // ADD
+                sum_ext = {1'b0, a} + {1'b0, b};
+                alu_out = sum_ext[3:0];
+                carry = sum_ext[4];
+                overflow = (a[3] == b[3]) && (alu_out[3] != a[3]);
+            end
+            3'b001: begin // SUB
+                sum_ext = {1'b0, a} - {1'b0, b};
+                alu_out = sum_ext[3:0];
+                carry = sum_ext[4];
+                overflow = (a[3] != b[3]) && (alu_out[3] != a[3]);
+            end
+            3'b010: begin // AND
+                alu_out = a & b;
+            end
+            3'b011: begin // OR
+                alu_out = a | b;
+            end
+            3'b100: begin // XOR
+                alu_out = a ^ b;
+            end
+            3'b101: begin // NOT A
+                alu_out = ~a;
+            end
+            3'b110: begin // INC A
+                sum_ext = {1'b0, a} + 5'b00001;
+                alu_out = sum_ext[3:0];
+                carry = sum_ext[4];
+            end
+            3'b111: begin // DEC A
+                sum_ext = {1'b0, a} - 5'b00001;
+                alu_out = sum_ext[3:0];
+                carry = sum_ext[4];
+            end
+            default: begin
+                alu_out = 4'b0000;
+            end
+        endcase
+    end
+
+    assign zero = (alu_out == 4'b0000);
+    assign negative = alu_out[3];
+
+endmodule
+`
+          },
+          {
+            name: "tb_alu_4bit.v",
+            fileType: "verilog",
+            fileSet: "sim_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 3: tb_alu_4bit (Testbench)
+
+module tb_alu_4bit;
+    reg  [3:0] a;
+    reg  [3:0] b;
+    reg  [2:0] op;
+    wire [3:0] alu_out;
+    wire       zero;
+    wire       carry;
+    wire       negative;
+    wire       overflow;
+
+    alu_4bit uut (
+        .a(a),
+        .b(b),
+        .op(op),
+        .alu_out(alu_out),
+        .zero(zero),
+        .carry(carry),
+        .negative(negative),
+        .overflow(overflow)
+    );
+
+    initial begin
+        a = 4'h3; b = 4'h5; op = 3'b000;
+        #25 a = 4'h7; b = 4'h2; op = 3'b001;
+        #25 a = 4'hA; b = 4'h5; op = 3'b010;
+        #25 a = 4'hC; b = 4'h3; op = 3'b011;
+        #25 a = 4'hF; b = 4'h1; op = 3'b000;
+        #25 $stop;
+    end
+endmodule
+`
+          },
+          {
+            name: "constraints.xdc",
+            fileType: "xdc",
+            fileSet: "constrs_1",
+            content: `## Istanbul University - Cerrahpasa | Logic Circuits (Lesson 3: 4-Bit ALU)
+## Basys 3 Artix-7 Pin Assignments
+## Operands: SW0..SW3 -> a[0..3], SW4..SW7 -> b[0..3], SW8..SW10 -> op[0..2]
+## Outputs: LD0..LD3 -> alu_out[0..3], LD4 -> zero, LD5 -> carry, LD6 -> negative, LD7 -> overflow
+set_property PACKAGE_PIN V17 [get_ports {a[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {a[0]}]
+set_property PACKAGE_PIN V16 [get_ports {a[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {a[1]}]
+set_property PACKAGE_PIN W16 [get_ports {a[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {a[2]}]
+set_property PACKAGE_PIN W17 [get_ports {a[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {a[3]}]
+
+set_property PACKAGE_PIN W15 [get_ports {b[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {b[0]}]
+set_property PACKAGE_PIN V15 [get_ports {b[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {b[1]}]
+set_property PACKAGE_PIN W14 [get_ports {b[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {b[2]}]
+set_property PACKAGE_PIN W13 [get_ports {b[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {b[3]}]
+
+set_property PACKAGE_PIN V2  [get_ports {op[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {op[0]}]
+set_property PACKAGE_PIN T3  [get_ports {op[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {op[1]}]
+set_property PACKAGE_PIN T2  [get_ports {op[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {op[2]}]
+
+set_property PACKAGE_PIN U16 [get_ports {alu_out[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {alu_out[0]}]
+set_property PACKAGE_PIN E19 [get_ports {alu_out[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {alu_out[1]}]
+set_property PACKAGE_PIN U19 [get_ports {alu_out[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {alu_out[2]}]
+set_property PACKAGE_PIN V19 [get_ports {alu_out[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {alu_out[3]}]
+
+set_property PACKAGE_PIN W18 [get_ports {zero}]
+set_property IOSTANDARD LVCMOS33 [get_ports {zero}]
+set_property PACKAGE_PIN U15 [get_ports {carry}]
+set_property IOSTANDARD LVCMOS33 [get_ports {carry}]
+set_property PACKAGE_PIN U14 [get_ports {negative}]
+set_property IOSTANDARD LVCMOS33 [get_ports {negative}]
+set_property PACKAGE_PIN V14 [get_ports {overflow}]
+set_property IOSTANDARD LVCMOS33 [get_ports {overflow}]
+`
+          }
+        ]
+      },
+      {
+        id: "lesson_4",
+        lessonNumber: 4,
+        title: "Lesson 4",
+        subtitle: "Sequential Latches & Synchronous Counters",
+        description: "JK flip-flop and 4-bit synchronous binary up/down counter with active-low synchronous reset and terminal count flag.",
+        institution: "Istanbul University - Cerrahpasa",
+        course: "Logic Circuits",
+        defaultTopModule: "counter_up_down_4bit",
+        files: [
+          {
+            name: "jk_flip_flop.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 4: JK Flip-Flop with Active-Low Asynchronous Reset
+
+module jk_flip_flop (
+    input  wire clk,
+    input  wire rst_n,
+    input  wire j,
+    input  wire k,
+    output reg  q,
+    output wire q_n
+);
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            q <= 1'b0;
+        end else begin
+            case ({j, k})
+                2'b00: q <= q;
+                2'b01: q <= 1'b0;
+                2'b10: q <= 1'b1;
+                2'b11: q <= ~q;
+                default: q <= 1'b0;
+            endcase
+        end
+    end
+
+    assign q_n = ~q;
+
+endmodule
+`
+          },
+          {
+            name: "counter_up_down_4bit.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            isTop: true,
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 4: 4-Bit Synchronous Up/Down Counter (Design Source)
+
+module counter_up_down_4bit (
+    input  wire       clk,
+    input  wire       rst_n,
+    input  wire       en,
+    input  wire       up_down,
+    output reg  [3:0] count,
+    output wire       tc
+);
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            count <= 4'b0000;
+        end else if (en) begin
+            if (up_down) begin
+                count <= count + 1'b1;
+            end else begin
+                count <= count - 1'b1;
+            end
+        end
+    end
+
+    assign tc = en & (up_down ? (count == 4'hF) : (count == 4'h0));
+
+endmodule
+`
+          },
+          {
+            name: "tb_counter_up_down_4bit.v",
+            fileType: "verilog",
+            fileSet: "sim_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 4: tb_counter_up_down_4bit (Testbench)
+
+module tb_counter_up_down_4bit;
+    reg        clk;
+    reg        rst_n;
+    reg        en;
+    reg        up_down;
+    wire [3:0] count;
+    wire       tc;
+
+    counter_up_down_4bit uut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .en(en),
+        .up_down(up_down),
+        .count(count),
+        .tc(tc)
+    );
+
+    always #5 clk = ~clk;
+
+    initial begin
+        clk = 0; rst_n = 0; en = 0; up_down = 1;
+        #20 rst_n = 1; en = 1;
+        #160 up_down = 0;
+        #100 en = 0;
+        #30 $stop;
+    end
+endmodule
+`
+          },
+          {
+            name: "constraints.xdc",
+            fileType: "xdc",
+            fileSet: "constrs_1",
+            content: `## Istanbul University - Cerrahpasa | Logic Circuits (Lesson 4: Counter)
+## Basys 3 Artix-7 Pin Assignments
+## Clock: W5 (100MHz), Reset: BTNC (U18), Enable: SW0 (V17), Up/Down: SW1 (V16)
+## Count Outputs: LD0..LD3 -> count[0..3], LD4 -> tc
+set_property PACKAGE_PIN W5 [get_ports {clk}]
+set_property IOSTANDARD LVCMOS33 [get_ports {clk}]
+create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} [get_ports {clk}]
+
+set_property PACKAGE_PIN U18 [get_ports {rst_n}]
+set_property IOSTANDARD LVCMOS33 [get_ports {rst_n}]
+
+set_property PACKAGE_PIN V17 [get_ports {en}]
+set_property IOSTANDARD LVCMOS33 [get_ports {en}]
+set_property PACKAGE_PIN V16 [get_ports {up_down}]
+set_property IOSTANDARD LVCMOS33 [get_ports {up_down}]
+
+set_property PACKAGE_PIN U16 [get_ports {count[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {count[0]}]
+set_property PACKAGE_PIN E19 [get_ports {count[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {count[1]}]
+set_property PACKAGE_PIN U19 [get_ports {count[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {count[2]}]
+set_property PACKAGE_PIN V19 [get_ports {count[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {count[3]}]
+
+set_property PACKAGE_PIN W18 [get_ports {tc}]
+set_property IOSTANDARD LVCMOS33 [get_ports {tc}]
+`
+          }
+        ]
+      },
+      {
+        id: "lesson_5",
+        lessonNumber: 5,
+        title: "Lesson 5",
+        subtitle: "Finite State Machines (FSM)",
+        description: "Synchronous Mealy sequence detector recognizing bit pattern '1011' with overlapping detection capability.",
+        institution: "Istanbul University - Cerrahpasa",
+        course: "Logic Circuits",
+        defaultTopModule: "sequence_detector_1011",
+        files: [
+          {
+            name: "sequence_detector_1011.v",
+            fileType: "verilog",
+            fileSet: "sources_1",
+            isTop: true,
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 5: Sequence Detector '1011' (Design Source)
+
+module sequence_detector_1011 (
+    input  wire       clk,
+    input  wire       rst_n,
+    input  wire       din,
+    output reg        detected,
+    output reg  [1:0] state
+);
+
+    localparam [1:0] S_IDLE = 2'b00,
+                     S_1    = 2'b01,
+                     S_10   = 2'b10,
+                     S_101  = 2'b11;
+
+    reg [1:0] next_state;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state <= S_IDLE;
+        end else begin
+            state <= next_state;
+        end
+    end
+
+    always @(*) begin
+        next_state = state;
+        detected = 1'b0;
+
+        case (state)
+            S_IDLE: begin
+                if (din) next_state = S_1;
+                else     next_state = S_IDLE;
+            end
+            S_1: begin
+                if (!din) next_state = S_10;
+                else      next_state = S_1;
+            end
+            S_10: begin
+                if (din) next_state = S_101;
+                else     next_state = S_IDLE;
+            end
+            S_101: begin
+                if (din) begin
+                    detected = 1'b1;
+                    next_state = S_1;
+                end else begin
+                    next_state = S_10;
+                end
+            end
+            default: begin
+                next_state = S_IDLE;
+                detected = 1'b0;
+            end
+        endcase
+    end
+
+endmodule
+`
+          },
+          {
+            name: "tb_sequence_detector_1011.v",
+            fileType: "verilog",
+            fileSet: "sim_1",
+            content: `\`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 5: tb_sequence_detector_1011 (Testbench)
+
+module tb_sequence_detector_1011;
+    reg        clk;
+    reg        rst_n;
+    reg        din;
+    wire       detected;
+    wire [1:0] state;
+
+    sequence_detector_1011 uut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .din(din),
+        .detected(detected),
+        .state(state)
+    );
+
+    always #5 clk = ~clk;
+
+    initial begin
+        clk = 0; rst_n = 0; din = 0;
+        #15 rst_n = 1;
+        #10 din = 1;
+        #10 din = 0;
+        #10 din = 1;
+        #10 din = 1; // 1011 detected!
+        #10 din = 0;
+        #10 din = 1;
+        #10 din = 1; // 1011 detected!
+        #20 $stop;
+    end
+endmodule
+`
+          },
+          {
+            name: "constraints.xdc",
+            fileType: "xdc",
+            fileSet: "constrs_1",
+            content: `## Istanbul University - Cerrahpasa | Logic Circuits (Lesson 5: FSM)
+## Basys 3 Artix-7 Pin Assignments
+## Clock: W5, Reset: BTNC (U18), Serial Din: SW0 (V17), Output: LD0 (U16)
+set_property PACKAGE_PIN W5 [get_ports {clk}]
+set_property IOSTANDARD LVCMOS33 [get_ports {clk}]
+create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} [get_ports {clk}]
+
+set_property PACKAGE_PIN U18 [get_ports {rst_n}]
+set_property IOSTANDARD LVCMOS33 [get_ports {rst_n}]
+
+set_property PACKAGE_PIN V17 [get_ports {din}]
+set_property IOSTANDARD LVCMOS33 [get_ports {din}]
+
+set_property PACKAGE_PIN U16 [get_ports {detected}]
+set_property IOSTANDARD LVCMOS33 [get_ports {detected}]
+`
+          }
+        ]
       }
     ],
     files: [
