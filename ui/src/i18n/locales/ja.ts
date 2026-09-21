@@ -311,6 +311,7 @@ export const ja: Translations = {
     menu: "メニュー",
     code: "コード",
     schematic: "回路図",
+    fsm: "FSM",
     lab: "実機ラック",
     waves: "波形",
     console: "コンソール",

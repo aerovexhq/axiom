@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box } from "lucide-react";
+import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
 import { WaveformViewer } from "./components/WaveformViewer";
 import { SchematicViewer } from "./components/SchematicViewer";
+import { FsmViewer } from "./components/FsmViewer";
 import { PackageVisualizer } from "./components/PackageVisualizer";
 import { MicroarchViewer } from "./components/MicroarchViewer";
 import { MultiDieViewer } from "./components/MultiDieViewer";
@@ -113,8 +114,8 @@ function getInitialProject(): AxiomProject | null {
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "split">("split");
-  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | null>(null);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "split">("split");
+  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | null>(null);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -722,7 +723,7 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa">("schematic");
+  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa">("schematic");
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
@@ -749,7 +750,7 @@ export const App: React.FC = () => {
   }, []);
 
   // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa") => {
+  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa") => {
     setMaximizedPanel((prev) => (prev === panel ? null : panel));
   };
 
@@ -963,6 +964,20 @@ export const App: React.FC = () => {
                 }}
               />
             </div>
+          ) : activeMobilePanel === "fsm" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <FsmViewer
+                state={state}
+                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                verilogSource={activeFile?.content}
+                onSelectSignal={handleSchematicSelectSignal}
+                onOpenAutoPipeline={handleOpenAutoPipeline}
+                onJumpToCode={(line) => {
+                  handleJumpToCode(line, line);
+                  setActiveMobilePanel("editor");
+                }}
+              />
+            </div>
           ) : activeMobilePanel === "package" ? (
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <PackageVisualizer
@@ -1166,6 +1181,17 @@ export const App: React.FC = () => {
                   onOpenAutoPipeline={handleOpenAutoPipeline}
                 />
               </div>
+            ) : maximizedPanel === "fsm" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <FsmViewer
+                  state={state}
+                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  verilogSource={activeFile?.content}
+                  onSelectSignal={handleSchematicSelectSignal}
+                  onJumpToCode={handleJumpToCode}
+                  onOpenAutoPipeline={handleOpenAutoPipeline}
+                />
+              </div>
             ) : maximizedPanel === "package" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <PackageVisualizer
@@ -1297,6 +1323,29 @@ export const App: React.FC = () => {
                       >
                         <Cpu size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Schematic</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("fsm")}
+                        title="Interactive Finite State Machine (FSM) Bubble Diagram & Live State Tracker"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "fsm" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "fsm" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "fsm" ? "var(--accent-cyan)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "fsm" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Workflow size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>FSM</span>
                       </button>
 
                       <button
@@ -1535,6 +1584,16 @@ export const App: React.FC = () => {
                             onOpenAutoPipeline={handleOpenAutoPipeline}
                           />
                         )}
+                        {splitActiveVisualizer === "fsm" && (
+                          <FsmViewer
+                            state={state}
+                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            verilogSource={activeFile?.content}
+                            onSelectSignal={handleSchematicSelectSignal}
+                            onJumpToCode={handleJumpToCode}
+                            onOpenAutoPipeline={handleOpenAutoPipeline}
+                          />
+                        )}
                         {splitActiveVisualizer === "package" && (
                           <PackageVisualizer
                             project={project}
@@ -1600,6 +1659,16 @@ export const App: React.FC = () => {
                           state={state}
                           activeDesignId={project.templateId ?? "logic_circuit_project"}
                           selectedSignalId={activeCrossProbeSignal}
+                          onSelectSignal={handleSchematicSelectSignal}
+                          onJumpToCode={handleJumpToCode}
+                          onOpenAutoPipeline={handleOpenAutoPipeline}
+                        />
+                      )}
+                      {splitActiveVisualizer === "fsm" && (
+                        <FsmViewer
+                          state={state}
+                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          verilogSource={activeFile?.content}
                           onSelectSignal={handleSchematicSelectSignal}
                           onJumpToCode={handleJumpToCode}
                           onOpenAutoPipeline={handleOpenAutoPipeline}

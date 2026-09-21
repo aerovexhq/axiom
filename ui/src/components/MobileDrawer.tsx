@@ -21,9 +21,9 @@ import { AxiomProject } from "../engine/projectModel";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { Badge, Button } from "./ui";
 import { useTranslation } from "../i18n/i18nContext";
-import { Boxes, Layers, Gauge, Box } from "lucide-react";
+import { Boxes, Layers, Gauge, Box, Workflow } from "lucide-react";
 
-export type MobilePanelType = "editor" | "schematic" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "dock";
+export type MobilePanelType = "editor" | "schematic" | "fsm" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "dock";
 
 export interface MobileDrawerProps {
   isOpen: boolean;
@@ -85,6 +85,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       label: t.mobile.schematic,
       sublabel: "IEEE gate symbols & netlist",
       icon: <Cpu size={18} />,
+      color: "var(--accent-cyan)"
+    },
+    {
+      id: "fsm",
+      label: "FSM",
+      sublabel: "State bubbles & transition graph",
+      icon: <Workflow size={18} />,
       color: "var(--accent-cyan)"
     },
     {

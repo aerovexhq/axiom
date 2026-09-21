@@ -391,11 +391,7 @@ impl<'a> Parser<'a> {
                 self.parse_non_ansi_port_decl_into(ports);
             }
             TokenKind::Parameter | TokenKind::LocalParam => {
-                if let Some(item) = self.parse_param_decl() {
-                    items.push(item);
-                } else {
-                    self.synchronize_to_semicolon();
-                }
+                self.parse_param_decls_into(items);
             }
             TokenKind::Generate => {
                 if let Some(item) = self.parse_generate_block() {
@@ -573,7 +569,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_param_decl(&mut self) -> Option<ModuleItem> {
+    fn parse_param_decls_into(&mut self, items: &mut Vec<ModuleItem>) {
         let tok = self.advance();
         let start_span = tok.span;
         let is_local = tok.kind == TokenKind::LocalParam;
@@ -600,30 +596,45 @@ impl<'a> Parser<'a> {
 
         if let TokenKind::Ident(name) = self.peek().clone() {
             self.advance();
-            self.expect(&TokenKind::AssignEq, "parameter '='")?;
-            let value = self.parse_expr()?;
+            if self.expect(&TokenKind::AssignEq, "parameter '='").is_none() {
+                self.synchronize_to_semicolon();
+                return;
+            }
+            let Some(value) = self.parse_expr() else {
+                self.synchronize_to_semicolon();
+                return;
+            };
+
+            items.push(ModuleItem::ParamDecl(ParamDecl {
+                is_local,
+                name,
+                value,
+                span: start_span,
+            }));
 
             // Support comma-separated parameter lists: localparam A = 1, B = 2;
             while self.match_token(&TokenKind::Comma) {
-                if let TokenKind::Ident(_) = self.peek().clone() {
-                    self.advance();
+                if let TokenKind::Ident(next_name) = self.peek().clone() {
+                    let item_tok = self.advance();
+                    let item_start = item_tok.span;
                     if self.expect(&TokenKind::AssignEq, "parameter '='").is_some() {
-                        let _ = self.parse_expr();
+                        if let Some(next_val) = self.parse_expr() {
+                            items.push(ModuleItem::ParamDecl(ParamDecl {
+                                is_local,
+                                name: next_name,
+                                value: next_val,
+                                span: item_start,
+                            }));
+                        }
                     }
                 } else {
                     break;
                 }
             }
 
-            let end_span = self.expect(&TokenKind::Semicolon, "parameter ';'")?;
-            Some(ModuleItem::ParamDecl(ParamDecl {
-                is_local,
-                name,
-                value,
-                span: start_span.merge(end_span),
-            }))
+            let _ = self.expect(&TokenKind::Semicolon, "parameter ';'");
         } else {
-            None
+            self.synchronize_to_semicolon();
         }
     }
 

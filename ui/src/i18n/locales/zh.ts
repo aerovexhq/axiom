@@ -311,6 +311,7 @@ export const zh: Translations = {
     menu: "菜单",
     code: "代码",
     schematic: "原理图",
+    fsm: "FSM",
     lab: "实验台",
     waves: "波形",
     console: "控制台",

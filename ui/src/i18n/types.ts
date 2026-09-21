@@ -327,6 +327,7 @@ export interface Translations {
     menu: string;
     code: string;
     schematic: string;
+    fsm: string;
     lab: string;
     waves: string;
     console: string;

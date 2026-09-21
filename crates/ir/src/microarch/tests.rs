@@ -224,3 +224,106 @@ endmodule
     assert_eq!(graph.blocks.len(), 1);
     assert_eq!(graph.blocks[0].name, "logic_circuit");
 }
+
+#[test]
+fn test_fsm_detection_2always_sequence_detector() {
+    let src = r#"
+module sequence_detector_1011 (
+    input  wire       clk,
+    input  wire       rst_n,
+    input  wire       din,
+    output reg        detected,
+    output reg  [1:0] state
+);
+    localparam [1:0] S_IDLE = 2'b00,
+                     S_1    = 2'b01,
+                     S_10   = 2'b10,
+                     S_101  = 2'b11;
+
+    reg [1:0] next_state;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state <= S_IDLE;
+        end else begin
+            state <= next_state;
+        end
+    end
+
+    always @(*) begin
+        next_state = state;
+        detected = 1'b0;
+
+        case (state)
+            S_IDLE: begin
+                if (din) next_state = S_1;
+                else     next_state = S_IDLE;
+            end
+            S_1: begin
+                if (!din) next_state = S_10;
+                else      next_state = S_1;
+            end
+            S_10: begin
+                if (din) next_state = S_101;
+                else     next_state = S_IDLE;
+            end
+            S_101: begin
+                if (din) begin
+                    detected = 1'b1;
+                    next_state = S_1;
+                end else begin
+                    next_state = S_10;
+                end
+            end
+            default: begin
+                next_state = S_IDLE;
+                detected = 1'b0;
+            end
+        endcase
+    end
+endmodule
+"#;
+    let (ast, diags) = parse_hdl(FileId(1), src);
+    assert!(diags.is_empty(), "Parse diags: {:?}", diags);
+
+    let circuit = elaborate(&ast, "sequence_detector_1011").expect("Elab failed");
+    let graph = synthesize_microarch(&circuit, Some(&ast));
+
+    let fsm_block = graph.blocks.iter().find(|b| matches!(b.kind, MacroKind::Fsm(_)));
+    assert!(fsm_block.is_some(), "Expected FSM block for sequence_detector_1011");
+
+    if let Some(MacroBlock { kind: MacroKind::Fsm(fsm), .. }) = fsm_block {
+        assert_eq!(fsm.state_reg, "state");
+        assert_eq!(fsm.reset_state, "S_IDLE");
+        assert_eq!(fsm.states.len(), 4, "Expected 4 states");
+
+        let state_names: Vec<&str> = fsm.states.iter().map(|s| s.name.as_str()).collect();
+        assert!(state_names.contains(&"S_IDLE"));
+        assert!(state_names.contains(&"S_1"));
+        assert!(state_names.contains(&"S_10"));
+        assert!(state_names.contains(&"S_101"));
+
+        // Check that state values are distinct and match 0, 1, 2, 3
+        let idle_state = fsm.states.iter().find(|s| s.name == "S_IDLE").unwrap();
+        assert_eq!(idle_state.value, 0);
+        assert!(idle_state.is_reset);
+
+        let s1_state = fsm.states.iter().find(|s| s.name == "S_1").unwrap();
+        assert_eq!(s1_state.value, 1);
+
+        let s10_state = fsm.states.iter().find(|s| s.name == "S_10").unwrap();
+        assert_eq!(s10_state.value, 2);
+
+        let s101_state = fsm.states.iter().find(|s| s.name == "S_101").unwrap();
+        assert_eq!(s101_state.value, 3);
+
+        // Check transitions exist and Mealy output exists on S_101 -> S_1
+        assert!(!fsm.transitions.is_empty());
+        let mealy_trans = fsm.transitions.iter().find(|t| !t.mealy_outputs.is_empty());
+        assert!(mealy_trans.is_some(), "Expected transition with Mealy output 'detected'");
+        let mealy_t = mealy_trans.unwrap();
+        assert_eq!(mealy_t.from_state, "S_101");
+        assert_eq!(mealy_t.to_state, "S_1");
+    }
+}
+

@@ -311,6 +311,7 @@ export const tr: Translations = {
     menu: "Menü",
     code: "Kod",
     schematic: "Şematik",
+    fsm: "FSM",
     lab: "Laboratuvar",
     waves: "Dalgalar",
     console: "Konsol",

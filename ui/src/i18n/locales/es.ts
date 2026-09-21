@@ -311,6 +311,7 @@ export const es: Translations = {
     menu: "Menú",
     code: "Código",
     schematic: "Esquema",
+    fsm: "FSM",
     lab: "Laboratorio",
     waves: "Ondas",
     console: "Consola",

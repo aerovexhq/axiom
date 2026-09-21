@@ -42,6 +42,76 @@ export interface FsmMacro {
   outputs: string[];
 }
 
+export interface FsmAuditReport {
+  unreachableStates: string[];
+  trapStates: string[];
+  totalStates: number;
+  totalTransitions: number;
+  hasDefault: boolean;
+  hasReset: boolean;
+  warnings: string[];
+  inDegrees: Record<string, number>;
+  outDegrees: Record<string, number>;
+}
+
+export function auditFsm(fsm: FsmMacro): FsmAuditReport {
+  const inDegrees: Record<string, number> = {};
+  const outDegrees: Record<string, number> = {};
+
+  for (const s of fsm.states) {
+    inDegrees[s.name] = 0;
+    outDegrees[s.name] = 0;
+  }
+
+  for (const t of fsm.transitions) {
+    if (outDegrees[t.from_state] !== undefined) {
+      outDegrees[t.from_state]++;
+    }
+    if (inDegrees[t.to_state] !== undefined) {
+      inDegrees[t.to_state]++;
+    }
+  }
+
+  const unreachableStates: string[] = [];
+  const trapStates: string[] = [];
+  const warnings: string[] = [];
+
+  for (const s of fsm.states) {
+    if (inDegrees[s.name] === 0 && !s.is_reset && s.name !== fsm.reset_state) {
+      unreachableStates.push(s.name);
+      warnings.push(`State '${s.name}' is unreachable (no incoming transition paths).`);
+    }
+    const outgoingToOther = fsm.transitions.some(
+      (t) => t.from_state === s.name && t.to_state !== s.name
+    );
+    if (!outgoingToOther && fsm.states.length > 1) {
+      trapStates.push(s.name);
+      warnings.push(`State '${s.name}' is a terminal trap state (no exit transitions to other states).`);
+    }
+  }
+
+  const hasDefault = fsm.transitions.some(
+    (t) => t.condition.toLowerCase().includes("default") || t.from_state === "DEFAULT"
+  );
+  const hasReset = fsm.states.some((s) => s.is_reset) || Boolean(fsm.reset_state);
+
+  if (!hasReset) {
+    warnings.push("FSM has no designated synchronous or asynchronous reset state.");
+  }
+
+  return {
+    unreachableStates,
+    trapStates,
+    totalStates: fsm.states.length,
+    totalTransitions: fsm.transitions.length,
+    hasDefault,
+    hasReset,
+    warnings,
+    inDegrees,
+    outDegrees
+  };
+}
+
 export interface AluFlag {
   name: string;
   signal: string;
@@ -199,6 +269,8 @@ export function synthesizeMicroarchGraph(sampleDesignId: string): MicroarchGraph
     return generateAluMicroarchGraph();
   } else if (id.includes("dsp") || id.includes("bram") || id.includes("mac")) {
     return generateDspMacMicroarchGraph();
+  } else if (id.includes("sequence") || id.includes("detector") || id.includes("lesson_5")) {
+    return generateSequenceDetectorMicroarchGraph();
   } else if (id.includes("counter")) {
     return generateCounterMicroarchGraph();
   }
@@ -1087,6 +1159,71 @@ function generateDspMacMicroarchGraph(): MicroarchGraph {
     buses,
     control_wires: [],
     bounds: { min_x: 0, min_y: 0, max_x: 880, max_y: 380, width: 880, height: 380 }
+  };
+}
+
+/**
+ * Sequence Detector '1011' Mealy FSM Block Diagram
+ */
+function generateSequenceDetectorMicroarchGraph(): MicroarchGraph {
+  const blocks: MacroBlock[] = [
+    {
+      id: "fsm_seq_det",
+      name: "state",
+      label: "Sequence Detector '1011' FSM",
+      sublabel: "4 States | Mealy Sequential Machine",
+      category: "Control",
+      kind: {
+        type: "Fsm",
+        data: {
+          state_reg: "state",
+          state_width: 2,
+          reset_state: "S_IDLE",
+          current_state_default: "S_IDLE",
+          states: [
+            { id: "s0", name: "S_IDLE", value: 0, binary_str: "00", is_reset: true },
+            { id: "s1", name: "S_1", value: 1, binary_str: "01", is_reset: false },
+            { id: "s2", name: "S_10", value: 2, binary_str: "10", is_reset: false },
+            { id: "s3", name: "S_101", value: 3, binary_str: "11", is_reset: false }
+          ],
+          transitions: [
+            { from_state: "S_IDLE", to_state: "S_1", condition: "din" },
+            { from_state: "S_IDLE", to_state: "S_IDLE", condition: "!din" },
+            { from_state: "S_1", to_state: "S_10", condition: "!din" },
+            { from_state: "S_1", to_state: "S_1", condition: "din" },
+            { from_state: "S_10", to_state: "S_101", condition: "din" },
+            { from_state: "S_10", to_state: "S_IDLE", condition: "!din" },
+            { from_state: "S_101", to_state: "S_1", condition: "din", mealy_outputs: [["detected", "1'b1"]] },
+            { from_state: "S_101", to_state: "S_10", condition: "!din" }
+          ],
+          inputs: ["din"],
+          outputs: ["detected", "state"]
+        }
+      },
+      inputs: [
+        { id: "in_clk", name: "clk", width: 1, direction: "In", is_clock: true, offset_x: 20, offset_y: 80 },
+        { id: "in_rst", name: "rst_n", width: 1, direction: "In", is_reset: true, offset_x: 40, offset_y: 80 },
+        { id: "in_din", name: "din", width: 1, direction: "In", offset_x: 0, offset_y: 35 }
+      ],
+      outputs: [
+        { id: "out_det", name: "detected", width: 1, direction: "Out", offset_x: 180, offset_y: 35 },
+        { id: "out_state", name: "state[1:0]", width: 2, direction: "Out", offset_x: 180, offset_y: 65 }
+      ],
+      x: 120,
+      y: 60,
+      width: 220,
+      height: 120,
+      clock_domain: "clk",
+      latency_cycles: 1
+    }
+  ];
+
+  return {
+    top_module: "sequence_detector_1011",
+    blocks,
+    buses: [],
+    control_wires: [],
+    bounds: { min_x: 0, min_y: 0, max_x: 460, max_y: 240, width: 460, height: 240 }
   };
 }
 
