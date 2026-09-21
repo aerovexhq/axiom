@@ -884,21 +884,24 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               </div>
             </a>
 
-            <div style={dividerStyle} />
-
-            <div
-              style={menuItemStyle}
-              className="menu-item-hover"
-              onClick={() => {
-                onCheckForUpdates();
-                setActiveMenu(null);
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <RefreshCw size={13} color="var(--accent-emerald)" />
-                <span>Check for Updates...</span>
-              </div>
-            </div>
+            {isDesktop() && (
+              <>
+                <div style={dividerStyle} />
+                <div
+                  style={menuItemStyle}
+                  className="menu-item-hover"
+                  onClick={() => {
+                    onCheckForUpdates();
+                    setActiveMenu(null);
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <RefreshCw size={13} color="var(--accent-emerald)" />
+                    <span>Check for Updates...</span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div style={dividerStyle} />
 

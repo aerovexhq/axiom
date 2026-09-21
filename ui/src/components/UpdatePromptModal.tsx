@@ -1,7 +1,7 @@
-import React from "react";
-import { ArrowUpCircle, ExternalLink, RefreshCw, Sparkles, X } from "lucide-react";
+import React, { useState } from "react";
+import { ArrowUpCircle, ExternalLink, RefreshCw, Sparkles, X, AlertCircle } from "lucide-react";
 import { ReleaseManifest } from "../engine/updateChecker";
-import { isDesktop } from "../engine/platform";
+import { isDesktop, applyDesktopUpdate } from "../engine/platform";
 import { Button } from "./ui";
 
 interface UpdatePromptModalProps {
@@ -17,31 +17,31 @@ export const UpdatePromptModal: React.FC<UpdatePromptModalProps> = ({
   manifest,
   currentCommit
 }) => {
-  if (!isOpen || !manifest) return null;
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [updateStatus, setUpdateStatus] = useState<string>("");
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
-  const handleApplyUpdate = () => {
-    if (isDesktop()) {
-      // Desktop: Open GitHub releases page or download link
-      const url = manifest.downloadUrl || "https://github.com/larvance/axiom/releases";
-      window.open(url, "_blank");
-      onClose();
-    } else {
-      // Web: Force cache clear and reload
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          for (const reg of registrations) {
-            reg.unregister();
-          }
-        });
+  // Strictly disabled in web environment
+  if (!isOpen || !manifest || !isDesktop()) return null;
+
+  const handleApplyUpdate = async () => {
+    setIsUpdating(true);
+    setUpdateError(null);
+    setUpdateStatus("Initiating updater helper process...");
+
+    try {
+      const res = await applyDesktopUpdate({
+        downloadUrl: manifest.downloadUrl
+      });
+      if (!res.success) {
+        setUpdateError(res.message);
+        setIsUpdating(false);
+      } else {
+        setUpdateStatus("Closing Axiom to replace executable and restart...");
       }
-      if ("caches" in window) {
-        caches.keys().then((names) => {
-          for (const name of names) {
-            caches.delete(name);
-          }
-        });
-      }
-      window.location.reload();
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : String(err));
+      setIsUpdating(false);
     }
   };
 
@@ -184,6 +184,56 @@ export const UpdatePromptModal: React.FC<UpdatePromptModalProps> = ({
             </div>
           </div>
 
+          {/* Live Progress or Error State */}
+          {updateStatus && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 12px",
+                backgroundColor: "rgba(59, 130, 246, 0.1)",
+                border: "1px solid rgba(59, 130, 246, 0.3)",
+                borderRadius: "var(--radius-sm)",
+                fontSize: 12,
+                color: "var(--accent-blue)"
+              }}
+            >
+              <RefreshCw size={14} className={isUpdating ? "spin-fast" : ""} />
+              <span>{updateStatus}</span>
+            </div>
+          )}
+
+          {updateError && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                padding: "10px 12px",
+                backgroundColor: "rgba(244, 63, 94, 0.1)",
+                border: "1px solid rgba(244, 63, 94, 0.3)",
+                borderRadius: "var(--radius-sm)",
+                fontSize: 12,
+                color: "#f43f5e"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <AlertCircle size={14} />
+                <span style={{ fontWeight: 600 }}>Update Failed</span>
+              </div>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{updateError}</span>
+              <a
+                href={manifest.downloadUrl || "https://github.com/larvance/axiom/releases"}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: 11, color: "var(--accent-cyan)", display: "inline-flex", alignItems: "center", gap: 4, marginTop: 2 }}
+              >
+                Download manually from GitHub Releases <ExternalLink size={11} />
+              </a>
+            </div>
+          )}
+
           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
             Published: {manifest.timestamp ? new Date(manifest.timestamp).toLocaleDateString(undefined, { dateStyle: "long" }) : "Recent"}
           </div>
@@ -201,16 +251,17 @@ export const UpdatePromptModal: React.FC<UpdatePromptModalProps> = ({
             gap: 10
           }}
         >
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={isUpdating}>
             Remind Me Later
           </Button>
           <Button
             variant="primary"
             size="sm"
             onClick={handleApplyUpdate}
-            icon={isDesktop() ? <ExternalLink size={14} /> : <RefreshCw size={14} />}
+            disabled={isUpdating}
+            icon={isUpdating ? <RefreshCw size={14} className="spin-fast" /> : <ArrowUpCircle size={14} />}
           >
-            {isDesktop() ? "Download Latest Release" : "Update to Latest Version"}
+            {isUpdating ? "Restarting..." : "Install Update & Restart"}
           </Button>
         </div>
       </div>

@@ -518,6 +518,235 @@ fn pick_files(title: Option<String>, extensions: Option<Vec<String>>) -> Option<
         .map(|paths| paths.into_iter().map(|p| p.to_string_lossy().to_string()).collect())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+/// Generates the cross-platform updater helper script.
+/// The script waits for the old parent PID to exit, overwrites the target executable with the new one,
+/// launches the newly replaced executable, and exits cleanly.
+pub fn generate_updater_script(
+    parent_pid: u32,
+    new_exe: &std::path::Path,
+    target_exe: &std::path::Path,
+) -> (String, &'static str) {
+    let new_exe_str = new_exe.to_string_lossy().to_string();
+    let target_exe_str = target_exe.to_string_lossy().to_string();
+
+    #[cfg(windows)]
+    {
+        let script = format!(
+            r#"$oldPid = {parent_pid}
+$newExe = '{new_exe_str}'
+$targetExe = '{target_exe_str}'
+
+# 1. Wait for old parent Tauri process to exit
+$proc = Get-Process -Id $oldPid -ErrorAction SilentlyContinue
+if ($proc) {{
+    $proc.WaitForExit(15000)
+    Start-Sleep -Milliseconds 250
+}}
+
+# 2. Replace executable with retry loop in case file lock takes a moment to release
+$retries = 15
+$success = $false
+while ($retries -gt 0 -and -not $success) {{
+    try {{
+        Copy-Item -Force -Path $newExe -Destination $targetExe
+        $success = $true
+    }} catch {{
+        Start-Sleep -Milliseconds 500
+        $retries--
+    }}
+}}
+
+# Clean up temp replacement artifact
+Remove-Item -Force -Path $newExe -ErrorAction SilentlyContinue
+
+# 3. Start the newly replaced executable
+Start-Process -FilePath $targetExe
+
+# 4. Stop the updater
+exit 0
+"#
+        );
+        (script, "axiom_updater.ps1")
+    }
+
+    #[cfg(not(windows))]
+    {
+        let script = format!(
+            r#"#!/bin/sh
+set -e
+OLD_PID="{parent_pid}"
+NEW_EXE="{new_exe_str}"
+TARGET_EXE="{target_exe_str}"
+
+# 1. Wait for old parent Tauri process to exit
+while kill -0 "$OLD_PID" 2>/dev/null; do
+    sleep 0.1
+done
+
+# 2. Replace executable
+cp -f "$NEW_EXE" "$TARGET_EXE" || mv -f "$NEW_EXE" "$TARGET_EXE"
+chmod +x "$TARGET_EXE"
+
+# Clean up temp replacement artifact
+rm -f "$NEW_EXE" 2>/dev/null || true
+
+# 3. Start the newly replaced executable detached
+"$TARGET_EXE" >/dev/null 2>&1 &
+
+# 4. Stop the updater
+exit 0
+"#
+        );
+        (script, "axiom_updater.sh")
+    }
+}
+
+/// Dispatches self-update process:
+/// 1. Resolves running executable and parent PID.
+/// 2. Downloads or locates the new replacement binary.
+/// 3. Creates the detached helper script.
+/// 4. Launches the helper process.
+/// 5. Terminates the running Tauri application to allow executable replacement.
+#[tauri::command]
+fn apply_desktop_update(
+    app: tauri::AppHandle,
+    download_url: Option<String>,
+    new_binary_path: Option<String>,
+) -> Result<UpdateResponse, String> {
+    let target_exe = std::env::current_exe().map_err(|e| format!("Cannot resolve current executable: {e}"))?;
+    let parent_pid = std::process::id();
+
+    let temp_dir = std::env::temp_dir().join(format!(
+        "axiom_update_{}_{}",
+        parent_pid,
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+    ));
+    std::fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temporary update directory: {e}"))?;
+
+    let new_exe = if let Some(path_str) = new_binary_path {
+        let p = std::path::PathBuf::from(path_str);
+        if !p.exists() {
+            return Err(format!("Provided replacement binary does not exist at '{}'", p.display()));
+        }
+        p
+    } else if let Some(url) = download_url {
+        let payload_file = temp_dir.join("download.payload");
+
+        #[cfg(windows)]
+        {
+            let status = std::process::Command::new("powershell.exe")
+                .args(["-NoProfile", "-Command", &format!("Invoke-WebRequest -Uri '{url}' -OutFile '{}'", payload_file.display())])
+                .status()
+                .map_err(|e| format!("Failed to download update payload via PowerShell: {e}"))?;
+            if !status.success() {
+                return Err("Download failed via PowerShell".to_string());
+            }
+        }
+
+        #[cfg(not(windows))]
+        {
+            let status = std::process::Command::new("curl")
+                .args(["-fsSL", &url, "-o", payload_file.to_str().unwrap()])
+                .status()
+                .map_err(|e| format!("Failed to download update payload via curl: {e}"))?;
+            if !status.success() {
+                return Err("Download failed via curl".to_string());
+            }
+        }
+
+        // If it is a tar.gz archive, extract it
+        if url.ends_with(".tar.gz") || url.ends_with(".tgz") {
+            let status = std::process::Command::new("tar")
+                .args(["-xzf", payload_file.to_str().unwrap(), "-C", temp_dir.to_str().unwrap()])
+                .status()
+                .map_err(|e| format!("Failed to extract archive: {e}"))?;
+            if !status.success() {
+                return Err("Archive extraction failed".to_string());
+            }
+
+            // Search for binary in extracted folder
+            let mut candidate = None;
+            let target_name = target_exe.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                        if name == target_name || name == "axiom-desktop" || name == "axiom" || name == "axiom-desktop.exe" {
+                            candidate = Some(path);
+                            break;
+                        }
+                    }
+                }
+            }
+            candidate.unwrap_or(payload_file)
+        } else {
+            payload_file
+        }
+    } else {
+        return Err("No update source provided (either new_binary_path or download_url required)".to_string());
+    };
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(&new_exe) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o755);
+            let _ = std::fs::set_permissions(&new_exe, perms);
+        }
+    }
+
+    let (script_content, script_name) = generate_updater_script(parent_pid, &new_exe, &target_exe);
+    let script_path = temp_dir.join(script_name);
+    std::fs::write(&script_path, script_content).map_err(|e| format!("Failed to write updater script: {e}"))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&script_path).unwrap().permissions();
+        perms.set_mode(0o755);
+        let _ = std::fs::set_permissions(&script_path, perms);
+        std::process::Command::new("sh")
+            .args(["-c", &format!("nohup \"{}\" >/dev/null 2>&1 &", script_path.display())])
+            .spawn()
+            .map_err(|e| format!("Failed to launch updater helper process: {e}"))?;
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        std::process::Command::new("powershell.exe")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", script_path.to_str().unwrap()])
+            .creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
+            .spawn()
+            .map_err(|e| format!("Failed to launch updater helper process: {e}"))?;
+    }
+
+    // Schedule clean exit of old Tauri process
+    let app_handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        app_handle.exit(0);
+    });
+
+    Ok(UpdateResponse {
+        success: true,
+        message: format!("Updater helper process launched. Restarting '{}'...", target_exe.display()),
+    })
+}
+
 pub fn run_desktop_app() {
     let engine: EngineState = Arc::new(Mutex::new(MultiEngineManager::new()));
     static WINDOW_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(2);
@@ -590,7 +819,8 @@ pub fn run_desktop_app() {
             export_synthesized_verilog,
             pick_folder,
             pick_files,
-            get_app_version
+            get_app_version,
+            apply_desktop_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running Axiom EDA desktop application");
@@ -1092,5 +1322,16 @@ mod tests {
         assert_eq!(aid, "a_test");
         let rep = engine.get_assertion_report().unwrap();
         assert_eq!(rep.total_assertions, 1);
+    }
+
+    #[test]
+    fn test_generate_updater_script() {
+        let new_exe = std::path::PathBuf::from("/tmp/axiom_new");
+        let target_exe = std::path::PathBuf::from("/usr/local/bin/axiom");
+        let (script, name) = generate_updater_script(9876, &new_exe, &target_exe);
+        assert!(name.contains("axiom_updater"));
+        assert!(script.contains("9876"));
+        assert!(script.contains("/tmp/axiom_new"));
+        assert!(script.contains("/usr/local/bin/axiom"));
     }
 }

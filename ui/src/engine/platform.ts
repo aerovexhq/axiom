@@ -128,3 +128,29 @@ export function toggleBrowserFullscreen(): void {
     });
   }
 }
+
+/**
+ * Initiates the desktop self-updater:
+ * Spawns a detached updater helper process, closes the running Tauri application,
+ * replaces the executable, launches the new executable, and stops the updater process.
+ */
+export async function applyDesktopUpdate(params: {
+  downloadUrl?: string;
+  newBinaryPath?: string;
+}): Promise<{ success: boolean; message: string }> {
+  if (!isDesktop()) {
+    return { success: false, message: "Self-update is only available on desktop runtime." };
+  }
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return await invoke<{ success: boolean; message: string }>("apply_desktop_update", {
+      downloadUrl: params.downloadUrl,
+      newBinaryPath: params.newBinaryPath
+    });
+  } catch (err) {
+    return {
+      success: false,
+      message: err instanceof Error ? err.message : String(err)
+    };
+  }
+}

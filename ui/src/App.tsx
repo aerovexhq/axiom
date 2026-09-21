@@ -25,6 +25,7 @@ import { UpdatePromptModal } from "./components/UpdatePromptModal";
 import { AboutModal } from "./components/AboutModal";
 import { ProtocolDecoderModal } from "./components/ProtocolDecoderModal";
 import { checkForUpdates, ReleaseManifest } from "./engine/updateChecker";
+import { isDesktop } from "./engine/platform";
 import { scheduleAutoSave, isAutoSaveEnabled, notifySaveState } from "./engine/autoSaveManager";
 import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBridge";
 import {
@@ -156,8 +157,9 @@ export const App: React.FC = () => {
   const [updateManifest, setUpdateManifest] = useState<ReleaseManifest | null>(null);
   const [updateCurrentCommit, setUpdateCurrentCommit] = useState<string>("a9a90cc");
 
-  // Non-blocking auto-update check on app startup
+  // Non-blocking auto-update check on desktop app startup only (disabled on web)
   useEffect(() => {
+    if (!isDesktop()) return;
     checkForUpdates().then((res) => {
       if (res.updateAvailable && res.latestManifest) {
         setUpdateManifest(res.latestManifest);
@@ -171,6 +173,7 @@ export const App: React.FC = () => {
   }, []);
 
   const handleManualCheckUpdates = async () => {
+    if (!isDesktop()) return;
     toast.info("Checking for Axiom EDA updates...");
     const res = await checkForUpdates();
     if (res.updateAvailable && res.latestManifest) {
