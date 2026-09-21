@@ -173,10 +173,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     }
   }, [activeDesignId, synthCircuit]);
 
-  // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale) with local persistence
+  // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale) with local persistence per mode
   const [scale, setScale] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.scale === "number" && !isNaN(parsed.scale) && parsed.scale > 0) {
@@ -188,7 +188,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   });
   const [offsetX, setOffsetX] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.offsetX === "number" && !isNaN(parsed.offsetX)) {
@@ -200,7 +200,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   });
   const [offsetY, setOffsetY] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.offsetY === "number" && !isNaN(parsed.offsetY)) {
@@ -267,18 +267,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     } catch {}
   }, [hideClockNets]);
 
-  // Debounced camera state persistence
+  // Debounced camera state persistence per design and schematic mode
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
         localStorage.setItem(
-          `axiom_schematic_cam_${activeDesignId || "default"}`,
+          `axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`,
           JSON.stringify({ scale, offsetX, offsetY })
         );
       } catch {}
     }, 200);
     return () => clearTimeout(timer);
-  }, [scale, offsetX, offsetY, activeDesignId]);
+  }, [scale, offsetX, offsetY, activeDesignId, schematicMode]);
 
   // Map signal names to live logic values
   const liveValuesMap = useMemo(() => {
@@ -349,10 +349,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     }
   }, [graph]);
 
-  // Load saved camera state or fit to screen if no cached camera exists
+  // Load saved camera state per design & mode, or fit to screen if no cached camera exists
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.scale === "number" && !isNaN(parsed.scale) && parsed.scale > 0) {
@@ -364,7 +364,19 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       }
     } catch {}
     fitToScreen();
-  }, [activeDesignId, fitToScreen]);
+  }, [activeDesignId, schematicMode, fitToScreen]);
+
+  // When synth graph finishes loading for the first time, auto-fit if not yet cached
+  useEffect(() => {
+    if (schematicMode === "synth" && synthGraph) {
+      const key = `axiom_schematic_cam_${activeDesignId || "default"}_synth`;
+      try {
+        if (!localStorage.getItem(key)) {
+          fitToScreen();
+        }
+      } catch {}
+    }
+  }, [schematicMode, synthGraph, activeDesignId, fitToScreen]);
 
   // Handle external signal selection (e.g. from Waveform or Sidebar)
   useEffect(() => {

@@ -44,6 +44,83 @@ pub fn primitive_doc(name: &str) -> Option<&'static str> {
     }
 }
 
+/// Returns port names and directions for a Xilinx hardware primitive if recognized.
+pub fn primitive_ports(name: &str) -> Option<Vec<(&'static str, &'static str)>> {
+    let upper = name.to_ascii_uppercase();
+    match upper.as_str() {
+        "LUT6_2" => Some(vec![
+            ("I0", "input"), ("I1", "input"), ("I2", "input"),
+            ("I3", "input"), ("I4", "input"), ("I5", "input"),
+            ("O5", "output"), ("O6", "output"),
+        ]),
+        "LUT6" => Some(vec![
+            ("I0", "input"), ("I1", "input"), ("I2", "input"),
+            ("I3", "input"), ("I4", "input"), ("I5", "input"),
+            ("O", "output"),
+        ]),
+        "LUT5" => Some(vec![
+            ("I0", "input"), ("I1", "input"), ("I2", "input"),
+            ("I3", "input"), ("I4", "input"), ("O", "output"),
+        ]),
+        "LUT4" => Some(vec![
+            ("I0", "input"), ("I1", "input"), ("I2", "input"),
+            ("I3", "input"), ("O", "output"),
+        ]),
+        "LUT3" => Some(vec![
+            ("I0", "input"), ("I1", "input"), ("I2", "input"),
+            ("O", "output"),
+        ]),
+        "LUT2" => Some(vec![
+            ("I0", "input"), ("I1", "input"), ("O", "output"),
+        ]),
+        "LUT1" => Some(vec![
+            ("I0", "input"), ("O", "output"),
+        ]),
+        "BUFG" | "IBUF" | "OBUF" => Some(vec![
+            ("I", "input"), ("O", "output"),
+        ]),
+        "BUFGCE" => Some(vec![
+            ("I", "input"), ("CE", "input clock enable"), ("O", "output"),
+        ]),
+        "FDRE" => Some(vec![
+            ("C", "input clock"), ("D", "input data"), ("CE", "input clock enable"),
+            ("R", "input sync reset"), ("Q", "output data"),
+        ]),
+        "FDSE" => Some(vec![
+            ("C", "input clock"), ("D", "input data"), ("CE", "input clock enable"),
+            ("S", "input sync set"), ("Q", "output data"),
+        ]),
+        "FDCE" => Some(vec![
+            ("C", "input clock"), ("D", "input data"), ("CE", "input clock enable"),
+            ("CLR", "input async clear"), ("Q", "output data"),
+        ]),
+        "FDPE" => Some(vec![
+            ("C", "input clock"), ("D", "input data"), ("CE", "input clock enable"),
+            ("PRE", "input async preset"), ("Q", "output data"),
+        ]),
+        "CARRY4" => Some(vec![
+            ("CI", "input carry-in"), ("CYINIT", "input init carry"),
+            ("DI", "input data (generate)"), ("S", "input select (propagate)"),
+            ("CO", "output carry"), ("O", "output sum"),
+        ]),
+        "CARRY8" => Some(vec![
+            ("CI", "input carry-in"), ("CI_TOP", "input carry-in top"),
+            ("DI", "input data"), ("S", "input select"),
+            ("CO", "output carry"), ("O", "output sum"),
+        ]),
+        "DSP48E2" => Some(vec![
+            ("CLK", "input clock"), ("A", "input [29:0] data A"), ("B", "input [17:0] data B"),
+            ("C", "input [47:0] data C"), ("D", "input [26:0] data D"), ("P", "output [47:0] product/acc"),
+            ("ALUMODE", "input [3:0]"), ("OPMODE", "input [8:0]"), ("INMODE", "input [4:0]"),
+            ("CEA1", "input"), ("CEA2", "input"), ("CEB1", "input"), ("CEB2", "input"),
+            ("CEC", "input"), ("CED", "input"), ("CEM", "input"), ("CEP", "input"),
+            ("RSTA", "input"), ("RSTB", "input"), ("RSTC", "input"), ("RSTD", "input"),
+            ("RSTM", "input"), ("RSTP", "input"),
+        ]),
+        _ => None,
+    }
+}
+
 /// Returns completion items for Xilinx hardware primitives with port mapping snippets.
 pub fn primitive_completions() -> Vec<CompletionItem> {
     vec![

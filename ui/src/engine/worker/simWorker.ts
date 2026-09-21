@@ -746,12 +746,16 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
       case "SYNTHESIZE_DESIGN": {
         let result: any = null;
-        if (typeof (wasmModule as any).wasm_synthesize_netlist === "function") {
-          result = (wasmModule as any).wasm_synthesize_netlist(
-            req.source,
-            req.topModule ?? null,
-            req.device ?? null
-          );
+        try {
+          if (typeof wasmModule.wasm_synthesize_netlist === "function") {
+            result = wasmModule.wasm_synthesize_netlist(
+              req.source,
+              req.topModule ?? null,
+              req.device ?? null
+            );
+          }
+        } catch (err) {
+          console.warn("[simWorker] wasm_synthesize_netlist error:", err);
         }
         self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
         break;
@@ -759,12 +763,16 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
       case "EXPORT_SYNTHESIZED_VERILOG": {
         let result: string = "";
-        if (typeof (wasmModule as any).wasm_export_synthesized_verilog === "function") {
-          result = (wasmModule as any).wasm_export_synthesized_verilog(
-            req.source,
-            req.topModule ?? null,
-            req.device ?? null
-          );
+        try {
+          if (typeof wasmModule.wasm_export_synthesized_verilog === "function") {
+            result = wasmModule.wasm_export_synthesized_verilog(
+              req.source,
+              req.topModule ?? null,
+              req.device ?? null
+            );
+          }
+        } catch (err) {
+          console.warn("[simWorker] wasm_export_synthesized_verilog error:", err);
         }
         self.postMessage({ type: "RESPONSE", id: req.id, success: true, data: result });
         break;

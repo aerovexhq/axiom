@@ -1155,6 +1155,48 @@ endmodule
         assert!(labels.contains(&"repeat"));
         assert!(labels.contains(&"while"));
     }
+
+    #[test]
+    fn test_named_port_completion_in_instantiation() {
+        let code = r#"
+module uygulama_0 (input wire A, input wire B, input wire C, output wire F);
+endmodule
+
+module tb;
+    uygulama_0 uut (
+        .
+    );
+endmodule
+"#;
+        // Line 7 is "        ." (column 10 is after .)
+        let items = VerilogCompletion::complete(code, 7, 10);
+        let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
+        assert!(labels.contains(&".A"), "Should contain .A port completion, got: {labels:?}");
+        assert!(labels.contains(&".B"), "Should contain .B port completion");
+        assert!(labels.contains(&".C"), "Should contain .C port completion");
+        assert!(labels.contains(&".F"), "Should contain .F port completion");
+        assert!(labels.contains(&".*"), "Should contain .* wildcard completion");
+
+        // Verify snippet insert_text when preceded by dot
+        let item_a = items.iter().find(|i| i.label == ".A").expect(".A should exist");
+        assert_eq!(item_a.insert_text, "A(${1:A})", "Insert text should not duplicate leading dot");
+
+        // Test Xilinx primitive named port completion
+        let prim_code = r#"
+module top;
+    FDRE u_ff (
+        .
+    );
+endmodule
+"#;
+        let prim_items = VerilogCompletion::complete(prim_code, 4, 10);
+        let prim_labels: Vec<&str> = prim_items.iter().map(|i| i.label.as_str()).collect();
+        assert!(prim_labels.contains(&".D"), "Primitive FDRE should suggest .D, got: {prim_labels:?}");
+        assert!(prim_labels.contains(&".C"), "Primitive FDRE should suggest .C");
+        assert!(prim_labels.contains(&".Q"), "Primitive FDRE should suggest .Q");
+        assert!(prim_labels.contains(&".CE"), "Primitive FDRE should suggest .CE");
+        assert!(prim_labels.contains(&".R"), "Primitive FDRE should suggest .R");
+    }
 }
 
 

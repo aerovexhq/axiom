@@ -862,6 +862,66 @@ export function wasm_verify_assertions(source, top_module, sim_time_ps) {
     }
     return takeFromExternrefTable0(ret[0]);
 }
+
+/**
+ * Standalone WebAssembly function to synthesize HDL source into technology-mapped netlist.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {string | null} [device]
+ * @returns {any}
+ */
+export function wasm_synthesize_netlist(source, top_module, device) {
+    if (typeof wasm.wasm_synthesize_netlist === "function") {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasm_synthesize_netlist(ptr0, len0, ptr1, len1, ptr2, len2);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    return null;
+}
+
+/**
+ * Standalone WebAssembly function to export structural Verilog from synthesized netlist.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {string | null} [device]
+ * @returns {string}
+ */
+export function wasm_export_synthesized_verilog(source, top_module, device) {
+    if (typeof wasm.wasm_export_synthesized_verilog === "function") {
+        let deferred3_0;
+        let deferred3_1;
+        try {
+            const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len1 = WASM_VECTOR_LEN;
+            var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len2 = WASM_VECTOR_LEN;
+            const ret = wasm.wasm_export_synthesized_verilog(ptr0, len0, ptr1, len1, ptr2, len2);
+            var ptr3 = ret[0];
+            var len3 = ret[1];
+            if (ret[3]) {
+                ptr3 = 0; len3 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred3_0 = ptr3;
+            deferred3_1 = len3;
+            return getStringFromWasm0(ptr3, len3);
+        } finally {
+            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        }
+    }
+    return "";
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

@@ -262,12 +262,199 @@ impl VerilogCompletion {
             }
         }
 
+        // 4. Named Module Port Autocompletion in Instantiations
+        let target_offset = line_col_to_offset(source, line, column);
+        if let Some(off) = target_offset {
+            if let Some(ctx) = find_instantiation_context(source, off) {
+                let mut port_items = Vec::new();
+
+                // Check user-defined modules in AST
+                if let Some(target_mod) = ast.modules.iter().find(|m| m.name == ctx.module_name) {
+                    for port in &target_mod.ports {
+                        let dir_str = match port.direction {
+                            PortDirection::Input => "input",
+                            PortDirection::Output => "output",
+                            PortDirection::Inout => "inout",
+                        };
+                        let insert_text = if ctx.has_dot {
+                            format!("{}(${{1:{}}})", port.name, port.name)
+                        } else {
+                            format!(".{}(${{1:{}}})", port.name, port.name)
+                        };
+                        port_items.push(CompletionItem {
+                            label: format!(".{}", port.name),
+                            kind: 27, // Snippet
+                            detail: format!("Port ({}) of `{}`", dir_str, target_mod.name),
+                            insert_text,
+                            documentation: Some(format!(
+                                "Named port connection to `{}` port `{}` ({})",
+                                target_mod.name, port.name, dir_str
+                            )),
+                        });
+                    }
+
+                    // SystemVerilog wildcard .*
+                    let sv_star_insert = if ctx.has_dot { "*".to_string() } else { ".*".to_string() };
+                    port_items.push(CompletionItem {
+                        label: ".*".to_string(),
+                        kind: 14, // Keyword
+                        detail: "Wildcard Port Connection (SystemVerilog)".to_string(),
+                        insert_text: sv_star_insert,
+                        documentation: Some(format!(
+                            "Connects all identically-named signals to `{}` ports automatically.",
+                            target_mod.name
+                        )),
+                    });
+                } else if let Some(prim_ports) = crate::primitives_doc::primitive_ports(ctx.module_name) {
+                    for (port_name, dir_str) in prim_ports {
+                        let insert_text = if ctx.has_dot {
+                            format!("{}(${{1:{}}})", port_name, port_name.to_ascii_lowercase())
+                        } else {
+                            format!(".{}(${{1:{}}})", port_name, port_name.to_ascii_lowercase())
+                        };
+                        port_items.push(CompletionItem {
+                            label: format!(".{}", port_name),
+                            kind: 27, // Snippet
+                            detail: format!("Primitive Port ({}) of `{}`", dir_str, ctx.module_name),
+                            insert_text,
+                            documentation: Some(format!(
+                                "Named connection to Xilinx primitive `{}` port `{}` ({})",
+                                ctx.module_name, port_name, dir_str
+                            )),
+                        });
+                    }
+                }
+
+                if !port_items.is_empty() {
+                    items.splice(0..0, port_items);
+                }
+            }
+        }
+
         // Deduplicate items by label
         let mut seen = std::collections::HashSet::new();
         items.retain(|item| seen.insert(item.label.clone()));
 
         items
     }
+}
+
+struct InstantiationContext<'a> {
+    pub module_name: &'a str,
+    pub has_dot: bool,
+}
+
+fn find_instantiation_context<'a>(source: &'a str, target_offset: usize) -> Option<InstantiationContext<'a>> {
+    let prefix = &source[..target_offset.min(source.len())];
+    let bytes = prefix.as_bytes();
+    let mut i = bytes.len();
+
+    // Skip trailing identifier characters being typed
+    while i > 0 && (bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_' || bytes[i - 1] == b'$') {
+        i -= 1;
+    }
+
+    // Check if preceded by '.'
+    let has_dot = i > 0 && bytes[i - 1] == b'.';
+
+    // Scan backwards to find matching unclosed '('
+    let mut depth = 0;
+    let mut scan = if has_dot { i - 1 } else { i };
+    let mut open_paren_idx = None;
+
+    while scan > 0 {
+        scan -= 1;
+        let b = bytes[scan];
+        if b == b')' {
+            depth += 1;
+        } else if b == b'(' {
+            if depth == 0 {
+                open_paren_idx = Some(scan);
+                break;
+            } else {
+                depth -= 1;
+            }
+        } else if b == b';' {
+            return None;
+        }
+    }
+
+    let paren_idx = open_paren_idx?;
+    let before_paren = prefix[..paren_idx].trim_end();
+    let p_bytes = before_paren.as_bytes();
+    let mut p_len = p_bytes.len();
+
+    // Extract instance name (token right before '(')
+    let inst_end = p_len;
+    while p_len > 0 && (p_bytes[p_len - 1].is_ascii_alphanumeric() || p_bytes[p_len - 1] == b'_') {
+        p_len -= 1;
+    }
+    let inst_start = p_len;
+    if inst_start == inst_end {
+        return None;
+    }
+
+    let before_inst = before_paren[..inst_start].trim_end();
+
+    // If before_inst ends with ')', it could be a parameter list: ModuleName #( ... )
+    let before_inst = if before_inst.ends_with(')') {
+        let mut p_depth = 0;
+        let b_bytes = before_inst.as_bytes();
+        let mut b_scan = b_bytes.len();
+        let mut hash_idx = None;
+        while b_scan > 0 {
+            b_scan -= 1;
+            if b_bytes[b_scan] == b')' {
+                p_depth += 1;
+            } else if b_bytes[b_scan] == b'(' {
+                p_depth -= 1;
+                if p_depth == 0 {
+                    let before_op = before_inst[..b_scan].trim_end();
+                    if before_op.ends_with('#') {
+                        hash_idx = Some(before_op.len() - 1);
+                        break;
+                    }
+                }
+            }
+        }
+        if let Some(h_idx) = hash_idx {
+            before_inst[..h_idx].trim_end()
+        } else {
+            before_inst
+        }
+    } else {
+        before_inst
+    };
+
+    // Extract module name (token before instance name or before '#')
+    let mod_bytes = before_inst.as_bytes();
+    let mut m_len = mod_bytes.len();
+    let mod_end = m_len;
+    while m_len > 0 && (mod_bytes[m_len - 1].is_ascii_alphanumeric() || mod_bytes[m_len - 1] == b'_') {
+        m_len -= 1;
+    }
+    let mod_start = m_len;
+    if mod_start == mod_end {
+        return None;
+    }
+    let module_name = &before_inst[mod_start..mod_end];
+
+    // Exclude control-flow / procedural keywords
+    let is_keyword = matches!(
+        module_name,
+        "if" | "else" | "case" | "casex" | "casez" | "for" | "forever" | "repeat" | "while"
+            | "initial" | "always" | "always_comb" | "always_ff" | "always_latch"
+            | "function" | "task" | "begin" | "end" | "assert" | "cover" | "assume"
+            | "module" | "endmodule" | "generate" | "endgenerate"
+    );
+    if is_keyword {
+        return None;
+    }
+
+    Some(InstantiationContext {
+        module_name,
+        has_dot,
+    })
 }
 
 fn line_col_to_offset(source: &str, line: u32, column: u32) -> Option<usize> {
