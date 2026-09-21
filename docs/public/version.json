@@ -5,5 +5,5 @@
   "releaseName": "Axiom EDA LTS Release",
   "timestamp": "2026-09-20T12:13:00Z",
   "releaseNotes": "Phase 21: Live PPA (Power-Performance-Area) Pareto Frontier & Multi-Part Silicon Cost Forecaster. Direct ASIC SkyWater 130nm / IHP SG13G2 mapping, multi-FPGA capacity analysis, and what-if sensitivity sliders.",
-  "downloadUrl": "https://github.com/larvance/axiom/releases"
+  "downloadUrl": "https://github.com/aerovexsim/axiom/releases"
 }

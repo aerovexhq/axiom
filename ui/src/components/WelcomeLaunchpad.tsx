@@ -785,7 +785,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
           <span>Axiom is free, open-source software (MIT & Apache 2.0).</span>
         </span>
         <a
-          href="https://github.com/larvance/axiom"
+          href="https://github.com/aerovexsim/axiom"
           target="_blank"
           rel="noopener noreferrer"
           style={{

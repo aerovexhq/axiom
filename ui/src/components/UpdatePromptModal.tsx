@@ -224,7 +224,7 @@ export const UpdatePromptModal: React.FC<UpdatePromptModalProps> = ({
               </div>
               <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{updateError}</span>
               <a
-                href={manifest.downloadUrl || "https://github.com/larvance/axiom/releases"}
+                href={manifest.downloadUrl || "https://github.com/aerovexsim/axiom/releases"}
                 target="_blank"
                 rel="noreferrer"
                 style={{ fontSize: 11, color: "var(--accent-cyan)", display: "inline-flex", alignItems: "center", gap: 4, marginTop: 2 }}

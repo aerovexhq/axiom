@@ -124,7 +124,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               <span>Documentation Portal</span>
             </a>
             <a
-              href="https://github.com/larvance/axiom"
+              href="https://github.com/aerovexsim/axiom"
               target="_blank"
               rel="noreferrer"
               className="btn btn-secondary"
