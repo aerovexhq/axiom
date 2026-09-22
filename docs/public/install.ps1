@@ -215,4 +215,4 @@ Write-Host "  axiom compile tests\fixtures\alu.v -t alu" -ForegroundColor Cyan
 Write-Host "  axiom run tests\fixtures\counter.v -t counter --ticks 100 --vcd wave.vcd" -ForegroundColor Cyan
 Write-Host "  axiom --help" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Documentation: https://axiom.aerovex.net" -ForegroundColor White
+Write-Host "Documentation: https://docs.axiom.aerovex.net" -ForegroundColor White

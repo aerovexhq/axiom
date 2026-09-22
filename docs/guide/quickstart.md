@@ -196,7 +196,7 @@ axiom gui
 ```
 
 ### In-Browser WebAssembly Studio
-Open the live zero-install studio deployed at **[https://axiom.aerovex.net/studio/](https://axiom.aerovex.net/studio/)**.
+Open the live zero-install studio deployed at **[https://axiom.aerovex.net](https://axiom.aerovex.net)**.
 
 ### Local UI Development Server
 ```bash

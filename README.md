@@ -6,7 +6,7 @@
 
 **High-Performance In-RAM HDL Processor, Cranelift JIT Hardware Simulator & Silicon Telemetry Engine**
 
-[![Documentation](https://img.shields.io/badge/docs-axiom.aerovex.net-blue?style=flat-square)](https://axiom.aerovex.net)
+[![Documentation](https://img.shields.io/badge/docs-docs.axiom.aerovex.net-blue?style=flat-square)](https://docs.axiom.aerovex.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.80%2B-orange?style=flat-square&logo=rust)](https://www.rust-lang.org)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?style=flat-square&logo=tauri)](https://v2.tauri.app)
@@ -142,7 +142,7 @@ axiom-desktop
 axiom gui
 ```
 
-Alternatively, open the zero-install in-browser WebAssembly Studio directly at **[https://axiom.aerovex.net/studio/](https://axiom.aerovex.net/studio/)**.
+Alternatively, open the zero-install in-browser WebAssembly Studio directly at **[https://axiom.aerovex.net](https://axiom.aerovex.net)**.
 
 For local web UI development:
 ```bash
@@ -158,14 +158,14 @@ Explore waveforms, single-step delta cycles, and analyze real-time power dissipa
 
 Comprehensive guides, architectural specifications, and Vivado migration manuals are available on the official documentation portal:
 
-**[https://axiom.aerovex.net](https://axiom.aerovex.net)**
+**[https://docs.axiom.aerovex.net](https://docs.axiom.aerovex.net)**
 
-- [Getting Started & Quickstart](https://axiom.aerovex.net/guide/quickstart)
-- [In-RAM Cranelift JIT Architecture](https://axiom.aerovex.net/architecture/in-ram-jit)
-- [Stratified Event Scheduler & Delta Stepping](https://axiom.aerovex.net/architecture/stratified-scheduler)
-- [Physics Power & PDN Telemetry](https://axiom.aerovex.net/architecture/power-pdn-telemetry)
-- [Vivado Migration Guide](https://axiom.aerovex.net/vivado/migration)
-- [CLI Reference Manual](https://axiom.aerovex.net/reference/cli)
+- [Getting Started & Quickstart](https://docs.axiom.aerovex.net/guide/quickstart)
+- [In-RAM Cranelift JIT Architecture](https://docs.axiom.aerovex.net/architecture/in-ram-jit)
+- [Stratified Event Scheduler & Delta Stepping](https://docs.axiom.aerovex.net/architecture/stratified-scheduler)
+- [Physics Power & PDN Telemetry](https://docs.axiom.aerovex.net/architecture/power-pdn-telemetry)
+- [Vivado Migration Guide](https://docs.axiom.aerovex.net/vivado/migration)
+- [CLI Reference Manual](https://docs.axiom.aerovex.net/reference/cli)
 
 ---
 

@@ -283,7 +283,7 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
       subtitle: "Direct compilation of Verilog to native machine code with zero disk IO",
       icon: <BookOpen size={14} color="var(--text-muted)" />,
       action: () => {
-        window.open("https://axiom.aerovex.net/guide/architecture", "_blank");
+        window.open("https://docs.axiom.aerovex.net/architecture/in-ram-jit", "_blank");
         onClose();
       }
     });
@@ -295,7 +295,7 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
       subtitle: "Dynamic switching capacitance (P = 1/2 C V^2 f alpha) and PDN droop",
       icon: <BookOpen size={14} color="var(--text-muted)" />,
       action: () => {
-        window.open("https://axiom.aerovex.net/guide/power-and-voltage", "_blank");
+        window.open("https://docs.axiom.aerovex.net/architecture/power-pdn-telemetry", "_blank");
         onClose();
       }
     });

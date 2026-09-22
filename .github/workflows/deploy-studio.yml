@@ -1,0 +1,42 @@
+name: Deploy Axiom Web Studio
+# Deploys Axiom In-Browser Studio at https://axiom.aerovex.net
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ui/**"
+      - ".github/workflows/deploy-studio.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Web Studio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies & Build Studio
+        run: |
+          npm --prefix ui install
+          npm --prefix ui run build
+          echo "axiom.aerovex.net" > ui/dist/CNAME
+
+      - name: Upload Studio Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: axiom-studio-bundle
+          path: ui/dist
+          retention-days: 14

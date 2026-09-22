@@ -50,7 +50,7 @@ export default defineConfig({
       { text: "Architecture", link: "/architecture/in-ram-jit" },
       { text: "Vivado Migration", link: "/vivado/migration" },
       { text: "CLI Reference", link: "/reference/cli" },
-      { text: "Web Studio", link: "/studio/", target: "_blank" },
+      { text: "Web Studio", link: "https://axiom.aerovex.net", target: "_blank" },
       {
         text: "v1.0.0",
         items: [
