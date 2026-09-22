@@ -1,7 +1,7 @@
 // Axiom Hardware Protocol Decoder Subsystem
 // Decodes physical pin transitions into structured packet streams (UART, SPI, I2C, AXI)
 
-export type ProtocolKind = "uart" | "spi" | "i2c" | "axi_stream" | "axi4_lite";
+export type ProtocolKind = "uart" | "spi" | "i2c" | "axi_stream" | "axi4_lite" | "can" | "usb" | "ethernet";
 
 export type TransactionStatus = "ok" | { warning: string } | { error: string };
 
@@ -41,12 +41,35 @@ export interface AxiConfig {
   data_width_bytes: number;
 }
 
+export interface CanConfig {
+  baud_rate: number;
+  sample_point_percent: number;
+  is_extended_id_allowed: boolean;
+}
+
+export type UsbSpeed = "low_speed" | "full_speed";
+
+export interface UsbConfig {
+  speed: UsbSpeed;
+  check_crc: boolean;
+}
+
+export type EthernetInterface = "mii" | "rmii" | "parallel_byte";
+
+export interface EthernetConfig {
+  interface: EthernetInterface;
+  fcs_check: boolean;
+}
+
 export interface ProtocolDecodeRequest {
   protocol: ProtocolKind;
   uart_config?: UartConfig;
   spi_config?: SpiConfig;
   i2c_config?: I2cConfig;
   axi_config?: AxiConfig;
+  can_config?: CanConfig;
+  usb_config?: UsbConfig;
+  ethernet_config?: EthernetConfig;
   signals: Record<string, Array<[number, string]>>;
   pin_map: Record<string, string>;
 }
@@ -93,7 +116,7 @@ export const PROTOCOL_SPECS: Record<
       { role: "tvalid", label: "TVALID", required: true, hint: "Master data valid indicator" },
       { role: "tready", label: "TREADY", required: true, hint: "Slave ready indicator" },
       { role: "tdata", label: "TDATA", required: true, hint: "Numeric data transfer bus" },
-      { role: "tlast", label: "TLAST", required: false, hint: "Packet boundary boundary delimiter" }
+      { role: "tlast", label: "TLAST", required: false, hint: "Packet boundary delimiter" }
     ]
   },
   axi4_lite: {
@@ -105,6 +128,31 @@ export const PROTOCOL_SPECS: Record<
       { role: "tready", label: "AWREADY / WREADY", required: true, hint: "Write ready strobe" },
       { role: "tdata", label: "WDATA", required: true, hint: "Write data bus" },
       { role: "tlast", label: "BVALID", required: false, hint: "Write response valid" }
+    ]
+  },
+  can: {
+    name: "CAN Bus 2.0A/2.0B",
+    description: "Automotive & aerospace differential serial bus with bit-stuffing and 15-bit CRC",
+    roles: [
+      { role: "can_rx", label: "CAN_RX", required: true, hint: "CAN controller receive input" },
+      { role: "can_tx", label: "CAN_TX", required: false, hint: "CAN controller transmit output" }
+    ]
+  },
+  usb: {
+    name: "USB 1.1 / 2.0 (FS/LS)",
+    description: "Universal Serial Bus with NRZI encoding, bit-unstuffing, token/data/handshake PIDs",
+    roles: [
+      { role: "dp", label: "D+ (DP)", required: true, hint: "USB positive differential data line" },
+      { role: "dm", label: "D- (DM)", required: true, hint: "USB negative differential data line" }
+    ]
+  },
+  ethernet: {
+    name: "Fast Ethernet (MII/RMII)",
+    description: "10/100M Ethernet MAC frame dissector with SFD alignment, IPv4/UDP/ARP and FCS CRC-32",
+    roles: [
+      { role: "rx_clk", label: "RX_CLK (Clock)", required: true, hint: "Ethernet receiver reference clock" },
+      { role: "rx_dv", label: "RX_DV (Valid)", required: true, hint: "Carrier sense / data valid strobe" },
+      { role: "rxd", label: "RXD (Data)", required: true, hint: "Nibble (MII), dibit (RMII), or byte data bus" }
     ]
   }
 };
@@ -158,6 +206,29 @@ export function guessPinMap(protocol: ProtocolKind, availableSignalNames: string
       if (tready) pinMap["tready"] = tready;
       if (tdata) pinMap["tdata"] = tdata;
       if (tlast) pinMap["tlast"] = tlast;
+      break;
+    }
+    case "can": {
+      const canRx = findMatch(/^(?:.*[\._])?can(?:_rx|_in)?$/i) ?? findMatch(/can_rx/i) ?? findMatch(/rx/i);
+      const canTx = findMatch(/^(?:.*[\._])?can(?:_tx|_out)?$/i) ?? findMatch(/can_tx/i) ?? findMatch(/tx/i);
+      if (canRx) pinMap["can_rx"] = canRx;
+      if (canTx) pinMap["can_tx"] = canTx;
+      break;
+    }
+    case "usb": {
+      const dp = findMatch(/^(?:.*[\._])?(?:dp|usb_dp|d_plus|d_p)$/i) ?? findMatch(/dp/i);
+      const dm = findMatch(/^(?:.*[\._])?(?:dm|usb_dm|d_minus|d_m)$/i) ?? findMatch(/dm/i);
+      if (dp) pinMap["dp"] = dp;
+      if (dm) pinMap["dm"] = dm;
+      break;
+    }
+    case "ethernet": {
+      const rxClk = findMatch(/^(?:.*[\._])?(?:rx_clk|eth_clk|mii_clk|ref_clk|clk)$/i) ?? findMatch(/clk/i);
+      const rxDv = findMatch(/^(?:.*[\._])?(?:rx_dv|crs_dv|eth_rx_dv|valid)$/i) ?? findMatch(/dv|valid/i);
+      const rxd = findMatch(/^(?:.*[\._])?(?:rxd|eth_rxd|mii_rxd|data)$/i) ?? findMatch(/rxd|data/i);
+      if (rxClk) pinMap["rx_clk"] = rxClk;
+      if (rxDv) pinMap["rx_dv"] = rxDv;
+      if (rxd) pinMap["rxd"] = rxd;
       break;
     }
   }
@@ -260,6 +331,155 @@ export function generateSyntheticTransactions(protocol: ProtocolKind, topModule:
         data_payload: [0x00, 0x80],
         status: "ok",
         fields: { address: "0x3C", direction: "WR", ack: "true" }
+      }
+    ];
+  }
+
+  if (protocol === "can") {
+    return [
+      {
+        id: 1,
+        protocol: "can",
+        start_time_ps: 50000,
+        end_time_ps: 310000,
+        summary: "CAN ID: 0x123 (Standard 11-bit) DLC: 8 [11 22 33 44 55 66 77 88] [ACK]",
+        data_payload: [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88],
+        status: "ok",
+        fields: {
+          id: "291",
+          id_hex: "0x123",
+          frame_type: "Standard 11-bit",
+          rtr: "DATA",
+          dlc: "8",
+          crc_calc: "0x4A12",
+          crc_recv: "0x4A12",
+          ack: "ACK"
+        }
+      },
+      {
+        id: 2,
+        protocol: "can",
+        start_time_ps: 420000,
+        end_time_ps: 750000,
+        summary: "CAN ID: 0x18DAF110 (Extended 29-bit) DLC: 8 [02 10 01 00 00 00 00 00] [ACK]",
+        data_payload: [0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00],
+        status: "ok",
+        fields: {
+          id: "416993552",
+          id_hex: "0x18DAF110",
+          frame_type: "Extended 29-bit",
+          rtr: "DATA",
+          dlc: "8",
+          crc_calc: "0x2B90",
+          crc_recv: "0x2B90",
+          ack: "ACK"
+        }
+      }
+    ];
+  }
+
+  if (protocol === "usb") {
+    return [
+      {
+        id: 1,
+        protocol: "usb",
+        start_time_ps: 20000,
+        end_time_ps: 45000,
+        summary: "USB SETUP Token [Addr: 0, Endp: 0] CRC5: 0x02",
+        data_payload: [],
+        status: "ok",
+        fields: {
+          pid: "0x2D",
+          pid_name: "SETUP",
+          addr: "0",
+          endp: "0",
+          crc5_calc: "0x02",
+          crc5_recv: "0x02"
+        }
+      },
+      {
+        id: 2,
+        protocol: "usb",
+        start_time_ps: 55000,
+        end_time_ps: 180000,
+        summary: "USB DATA0 (8 B) [80 06 00 01 00 00 12 00] CRC16: 0xDD25",
+        data_payload: [0x80, 0x06, 0x00, 0x01, 0x00, 0x00, 0x12, 0x00],
+        status: "ok",
+        fields: {
+          pid: "0xC3",
+          pid_name: "DATA0",
+          bytes: "8",
+          crc16_calc: "0xDD25",
+          crc16_recv: "0xDD25"
+        }
+      },
+      {
+        id: 3,
+        protocol: "usb",
+        start_time_ps: 190000,
+        end_time_ps: 205000,
+        summary: "USB ACK Handshake",
+        data_payload: [],
+        status: "ok",
+        fields: {
+          pid: "0xD2",
+          pid_name: "ACK"
+        }
+      }
+    ];
+  }
+
+  if (protocol === "ethernet") {
+    return [
+      {
+        id: 1,
+        protocol: "ethernet",
+        start_time_ps: 40000,
+        end_time_ps: 320000,
+        summary: "Ethernet IPv4 UDP [192.168.1.100 -> 192.168.1.1] Ports: 5000 -> 8080 (48 B)",
+        data_payload: [
+          0x00, 0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x00, 0x50, 0x56, 0xc0, 0x00, 0x08, 0x08, 0x00,
+          0x45, 0x00, 0x00, 0x2c, 0x12, 0x34, 0x00, 0x00, 0x40, 0x11, 0x00, 0x00,
+          192, 168, 1, 100, 192, 168, 1, 1,
+          0x13, 0x88, 0x1f, 0x90, 0x00, 0x18, 0x00, 0x00,
+          0x41, 0x58, 0x49, 0x4f, 0x4d, 0x5f, 0x45, 0x44, 0x41, 0x31,
+          0xde, 0xad, 0xbe, 0xef
+        ],
+        status: "ok",
+        fields: {
+          dest_mac: "00:1A:2B:3C:4D:5E",
+          src_mac: "00:50:56:C0:00:08",
+          ethertype: "0x0800",
+          src_ip: "192.168.1.100",
+          dst_ip: "192.168.1.1",
+          src_port: "5000",
+          dst_port: "8080",
+          fcs_calc: "0xDEADBEEF",
+          fcs_recv: "0xDEADBEEF"
+        }
+      },
+      {
+        id: 2,
+        protocol: "ethernet",
+        start_time_ps: 450000,
+        end_time_ps: 680000,
+        summary: "Ethernet ARP Request: Who has 192.168.1.1? Tell 192.168.1.100",
+        data_payload: [
+          0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x50, 0x56, 0xc0, 0x00, 0x08, 0x08, 0x06,
+          0x00, 0x01, 0x08, 0x00, 0x06, 0x04, 0x00, 0x01,
+          0x00, 0x50, 0x56, 0xc0, 0x00, 0x08, 192, 168, 1, 100,
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 192, 168, 1, 1,
+          0x12, 0x34, 0x56, 0x78
+        ],
+        status: "ok",
+        fields: {
+          dest_mac: "FF:FF:FF:FF:FF:FF",
+          src_mac: "00:50:56:C0:00:08",
+          ethertype: "0x0806",
+          arp_opcode: "1",
+          sender_ip: "192.168.1.100",
+          target_ip: "192.168.1.1"
+        }
       }
     ];
   }

@@ -10,6 +10,9 @@ pub enum ProtocolKind {
     I2c,
     AxiStream,
     Axi4Lite,
+    Can,
+    Usb,
+    Ethernet,
 }
 
 impl ProtocolKind {
@@ -20,6 +23,9 @@ impl ProtocolKind {
             Self::I2c => "I2C",
             Self::AxiStream => "AXI-Stream",
             Self::Axi4Lite => "AXI4-Lite",
+            Self::Can => "CAN Bus",
+            Self::Usb => "USB",
+            Self::Ethernet => "Ethernet",
         }
     }
 }
@@ -124,6 +130,73 @@ impl Default for AxiConfig {
     }
 }
 
+/// Configuration parameters for CAN Bus decoding.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CanConfig {
+    pub baud_rate: u64,
+    pub sample_point_percent: u8,
+    pub is_extended_id_allowed: bool,
+}
+
+impl Default for CanConfig {
+    fn default() -> Self {
+        Self {
+            baud_rate: 500_000,
+            sample_point_percent: 75,
+            is_extended_id_allowed: true,
+        }
+    }
+}
+
+/// USB Bus Operating Speed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UsbSpeed {
+    LowSpeed,  // 1.5 Mbps
+    FullSpeed, // 12 Mbps
+}
+
+/// Configuration parameters for USB decoding.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UsbConfig {
+    pub speed: UsbSpeed,
+    pub check_crc: bool,
+}
+
+impl Default for UsbConfig {
+    fn default() -> Self {
+        Self {
+            speed: UsbSpeed::FullSpeed,
+            check_crc: true,
+        }
+    }
+}
+
+/// Ethernet Physical / Media Interface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EthernetInterface {
+    Mii,          // 4-bit nibbles @ 25 MHz
+    Rmii,         // 2-bit dibits @ 50 MHz
+    ParallelByte, // 8-bit bytes with clock and valid
+}
+
+/// Configuration parameters for Ethernet decoding.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EthernetConfig {
+    pub interface: EthernetInterface,
+    pub fcs_check: bool,
+}
+
+impl Default for EthernetConfig {
+    fn default() -> Self {
+        Self {
+            interface: EthernetInterface::Mii,
+            fcs_check: true,
+        }
+    }
+}
+
 /// Request payload to decode digital transitions into high-level transactions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProtocolDecodeRequest {
@@ -132,6 +205,9 @@ pub struct ProtocolDecodeRequest {
     pub spi_config: Option<SpiConfig>,
     pub i2c_config: Option<I2cConfig>,
     pub axi_config: Option<AxiConfig>,
+    pub can_config: Option<CanConfig>,
+    pub usb_config: Option<UsbConfig>,
+    pub ethernet_config: Option<EthernetConfig>,
     #[serde(default)]
     pub signals: HashMap<String, Vec<(u64, String)>>,
     #[serde(default)]

@@ -21,9 +21,9 @@ import { AxiomProject } from "../engine/projectModel";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { Badge, Button } from "./ui";
 import { useTranslation } from "../i18n/i18nContext";
-import { Boxes, Layers, Gauge, Box, Workflow } from "lucide-react";
+import { Boxes, Layers, Gauge, Box, Workflow, Radio } from "lucide-react";
 
-export type MobilePanelType = "editor" | "schematic" | "fsm" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "dock";
+export type MobilePanelType = "editor" | "schematic" | "fsm" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "protocol" | "dock";
 
 export interface MobileDrawerProps {
   isOpen: boolean;
@@ -121,6 +121,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       sublabel: "Pareto frontier & silicon cost advisor",
       icon: <Gauge size={18} />,
       color: "var(--accent-purple, #a855f7)"
+    },
+    {
+      id: "protocol",
+      label: "Protocol",
+      sublabel: "CAN, USB, Ethernet packet inspector",
+      icon: <Radio size={18} />,
+      color: "var(--accent-cyan)"
     },
     {
       id: "virtuallab",

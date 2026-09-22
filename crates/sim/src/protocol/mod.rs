@@ -1,14 +1,20 @@
 pub mod axi;
+pub mod can;
+pub mod ethernet;
 pub mod i2c;
 pub mod spi;
 pub mod types;
 pub mod uart;
+pub mod usb;
 
 pub use axi::AxiDecoder;
+pub use can::CanDecoder;
+pub use ethernet::EthernetDecoder;
 pub use i2c::I2cDecoder;
 pub use spi::SpiDecoder;
 pub use types::*;
 pub use uart::UartDecoder;
+pub use usb::UsbDecoder;
 
 use axiom_core::Logic4;
 
@@ -107,6 +113,72 @@ pub fn decode_protocol_request(req: &ProtocolDecodeRequest) -> Vec<DecodedTransa
             let tdata = get_series_u64("tdata");
             let tlast = get_series_logic("tlast");
             decoder.decode_stream(&aclk, &tvalid, &tready, &tdata, &tlast)
+        }
+        ProtocolKind::Can => {
+            let config = req.can_config.clone().unwrap_or_default();
+            let decoder = CanDecoder::new(config);
+            let mut trans = get_series_logic("can_rx");
+            if trans.is_empty() {
+                trans = get_series_logic("rx");
+            }
+            if trans.is_empty() {
+                trans = get_series_logic("can_tx");
+            }
+            if trans.is_empty() {
+                trans = get_series_logic("tx");
+            }
+            if trans.is_empty() {
+                trans = get_series_logic("data");
+            }
+            decoder.decode(&trans)
+        }
+        ProtocolKind::Usb => {
+            let config = req.usb_config.clone().unwrap_or_default();
+            let decoder = UsbDecoder::new(config);
+            let mut dp = get_series_logic("dp");
+            if dp.is_empty() {
+                dp = get_series_logic("usb_dp");
+            }
+            if dp.is_empty() {
+                dp = get_series_logic("d_plus");
+            }
+            let mut dm = get_series_logic("dm");
+            if dm.is_empty() {
+                dm = get_series_logic("usb_dm");
+            }
+            if dm.is_empty() {
+                dm = get_series_logic("d_minus");
+            }
+            decoder.decode(&dp, &dm)
+        }
+        ProtocolKind::Ethernet => {
+            let config = req.ethernet_config.clone().unwrap_or_default();
+            let decoder = EthernetDecoder::new(config);
+            let mut clk = get_series_logic("rx_clk");
+            if clk.is_empty() {
+                clk = get_series_logic("clk");
+            }
+            if clk.is_empty() {
+                clk = get_series_logic("ref_clk");
+            }
+            if clk.is_empty() {
+                clk = get_series_logic("eth_clk");
+            }
+            let mut valid = get_series_logic("rx_dv");
+            if valid.is_empty() {
+                valid = get_series_logic("crs_dv");
+            }
+            if valid.is_empty() {
+                valid = get_series_logic("valid");
+            }
+            let mut data = get_series_u64("rxd");
+            if data.is_empty() {
+                data = get_series_u64("data");
+            }
+            if data.is_empty() {
+                data = get_series_u64("eth_rxd");
+            }
+            decoder.decode(&clk, &valid, &data)
         }
     }
 }

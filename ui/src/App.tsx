@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow } from "lucide-react";
+import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow, Radio } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -10,6 +10,7 @@ import { PackageVisualizer } from "./components/PackageVisualizer";
 import { MicroarchViewer } from "./components/MicroarchViewer";
 import { MultiDieViewer } from "./components/MultiDieViewer";
 import { PpaParetoViewer } from "./components/PpaParetoViewer";
+import { ProtocolAnalyzer } from "./components/ProtocolAnalyzer";
 import { VirtualLabRack } from "./components/VirtualLabRack";
 import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { UnifiedBottomDock } from "./components/UnifiedBottomDock";
@@ -114,8 +115,8 @@ function getInitialProject(): AxiomProject | null {
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "split">("split");
-  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | null>(null);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "split">("split");
+  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | null>(null);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -728,7 +729,7 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa">("schematic");
+  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol">("schematic");
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
@@ -755,7 +756,7 @@ export const App: React.FC = () => {
   }, []);
 
   // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa") => {
+  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol") => {
     setMaximizedPanel((prev) => (prev === panel ? null : panel));
   };
 
@@ -1077,6 +1078,13 @@ export const App: React.FC = () => {
                 }}
               />
             </div>
+          ) : activeMobilePanel === "protocol" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <ProtocolAnalyzer
+                state={state}
+                activeDesignId={activeDesignId}
+              />
+            </div>
           ) : (
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <UnifiedBottomDock
@@ -1257,6 +1265,13 @@ export const App: React.FC = () => {
                     setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
                   }}
                   onJumpToCode={handleJumpToCode}
+                />
+              </div>
+            ) : maximizedPanel === "protocol" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <ProtocolAnalyzer
+                  state={state}
+                  activeDesignId={activeDesignId}
                 />
               </div>
             ) : centerView === "split" ? (
@@ -1513,6 +1528,29 @@ export const App: React.FC = () => {
                         <Gauge size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>PPA</span>
                       </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("protocol")}
+                        title="Live Hardware Protocol Analyzer & Wireshark PCAP Inspector (CAN, USB, Ethernet, UART, SPI, I2C, AXI)"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "protocol" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "protocol" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "protocol" ? "var(--accent-cyan)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "protocol" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Radio size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>Protocol</span>
+                      </button>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, whiteSpace: "nowrap" }}>
@@ -1655,6 +1693,12 @@ export const App: React.FC = () => {
                             onJumpToCode={handleJumpToCode}
                           />
                         )}
+                        {splitActiveVisualizer === "protocol" && (
+                          <ProtocolAnalyzer
+                            state={state}
+                            activeDesignId={activeDesignId}
+                          />
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1736,6 +1780,12 @@ export const App: React.FC = () => {
                             setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
                           }}
                           onJumpToCode={handleJumpToCode}
+                        />
+                      )}
+                      {splitActiveVisualizer === "protocol" && (
+                        <ProtocolAnalyzer
+                          state={state}
+                          activeDesignId={activeDesignId}
                         />
                       )}
                     </div>
@@ -1994,6 +2044,40 @@ export const App: React.FC = () => {
                     activeDesignId={activeDesignId}
                     onUpdateXdc={handleUpdateXdc}
                     onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
+                  />
+                </div>
+              </div>
+            ) : centerView === "protocol" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <ProtocolAnalyzer
+                    state={state}
+                    activeDesignId={activeDesignId}
                   />
                 </div>
               </div>

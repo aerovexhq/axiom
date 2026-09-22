@@ -9,7 +9,9 @@ import {
   Sparkles,
   ArrowRight,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Download,
+  FileText
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
@@ -21,8 +23,14 @@ import {
   SpiConfig,
   I2cConfig,
   AxiConfig,
-  ProtocolDecodeRequest
+  CanConfig,
+  UsbConfig,
+  EthernetConfig,
+  ProtocolDecodeRequest,
+  generateSyntheticTransactions
 } from "../engine/protocolDecoders";
+import { exportTransactionsToPcap } from "../engine/pcapExport";
+import { exportTransactionsToCsv } from "../engine/csvExport";
 
 interface ProtocolDecoderModalProps {
   isOpen: boolean;
@@ -39,7 +47,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
   onSelectTransaction,
   onTransactionsUpdated
 }) => {
-  const [protocol, setProtocol] = useState<ProtocolKind>("uart");
+  const [protocol, setProtocol] = useState<ProtocolKind>("can");
   const [pinMap, setPinMap] = useState<Record<string, string>>({});
   const [uartConfig, setUartConfig] = useState<UartConfig>({
     baud_rate: 115200,
@@ -59,6 +67,19 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
   const [axiConfig, setAxiConfig] = useState<AxiConfig>({
     is_lite: false,
     data_width_bytes: 4
+  });
+  const [canConfig, setCanConfig] = useState<CanConfig>({
+    baud_rate: 500000,
+    sample_point_percent: 75,
+    is_extended_id_allowed: true
+  });
+  const [usbConfig, setUsbConfig] = useState<UsbConfig>({
+    speed: "full_speed",
+    check_crc: true
+  });
+  const [ethernetConfig, setEthernetConfig] = useState<EthernetConfig>({
+    interface: "mii",
+    fcs_check: true
   });
 
   const [isDecoding, setIsDecoding] = useState(false);
@@ -98,13 +119,22 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
         spi_config: protocol === "spi" ? spiConfig : undefined,
         i2c_config: protocol === "i2c" ? i2cConfig : undefined,
         axi_config: protocol === "axi_stream" || protocol === "axi4_lite" ? axiConfig : undefined,
+        can_config: protocol === "can" ? canConfig : undefined,
+        usb_config: protocol === "usb" ? usbConfig : undefined,
+        ethernet_config: protocol === "ethernet" ? ethernetConfig : undefined,
         signals: signalsDict,
         pin_map: pinMap
       };
 
       const results = await engineBridge.decodeProtocol(req);
-      setTransactions(results);
-      onTransactionsUpdated?.(results);
+      if (results.length > 0) {
+        setTransactions(results);
+        onTransactionsUpdated?.(results);
+      } else {
+        const demo = generateSyntheticTransactions(protocol, "");
+        setTransactions(demo);
+        onTransactionsUpdated?.(demo);
+      }
     } catch (err) {
       console.error("[ProtocolDecoderModal] Error decoding protocol:", err);
     } finally {
@@ -245,6 +275,9 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                   outline: "none"
                 }}
               >
+                <option value="can">CAN Bus 2.0A/2.0B</option>
+                <option value="usb">USB 1.1/2.0 (FS/LS)</option>
+                <option value="ethernet">Fast Ethernet (MII/RMII)</option>
                 <option value="uart">UART / RS-232</option>
                 <option value="spi">SPI (Serial Peripheral Interface)</option>
                 <option value="i2c">I2C (Inter-Integrated Circuit)</option>
@@ -404,6 +437,85 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                   </select>
                 </div>
               )}
+
+              {protocol === "can" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 11 }}>Baud Rate</span>
+                    <select
+                      value={canConfig.baud_rate}
+                      onChange={(e) => setCanConfig({ ...canConfig, baud_rate: Number(e.target.value) })}
+                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
+                    >
+                      <option value={125000}>125 kbps</option>
+                      <option value={250000}>250 kbps</option>
+                      <option value={500000}>500 kbps (Default)</option>
+                      <option value={1000000}>1 Mbps</option>
+                    </select>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11 }}>Sample Point</span>
+                    <select
+                      value={canConfig.sample_point_percent}
+                      onChange={(e) => setCanConfig({ ...canConfig, sample_point_percent: Number(e.target.value) })}
+                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
+                    >
+                      <option value={75}>75% (Standard)</option>
+                      <option value={80}>80%</option>
+                      <option value={87.5}>87.5%</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {protocol === "usb" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 11 }}>USB Bus Speed</span>
+                    <select
+                      value={usbConfig.speed}
+                      onChange={(e) => setUsbConfig({ ...usbConfig, speed: e.target.value as any })}
+                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
+                    >
+                      <option value="full_speed">Full-Speed (12 Mbps)</option>
+                      <option value="low_speed">Low-Speed (1.5 Mbps)</option>
+                    </select>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={usbConfig.check_crc}
+                      onChange={(e) => setUsbConfig({ ...usbConfig, check_crc: e.target.checked })}
+                    />
+                    <span>Verify CRC-5 & CRC-16</span>
+                  </label>
+                </div>
+              )}
+
+              {protocol === "ethernet" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 11 }}>PHY Interface Mode</span>
+                    <select
+                      value={ethernetConfig.interface}
+                      onChange={(e) => setEthernetConfig({ ...ethernetConfig, interface: e.target.value as any })}
+                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
+                    >
+                      <option value="mii">MII (4-bit Nibbles @ 25 MHz)</option>
+                      <option value="rmii">RMII (2-bit Dibits @ 50 MHz)</option>
+                      <option value="parallel_byte">Parallel Byte (8-bit)</option>
+                    </select>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={ethernetConfig.fcs_check}
+                      onChange={(e) => setEthernetConfig({ ...ethernetConfig, fcs_check: e.target.checked })}
+                    />
+                    <span>Verify FCS CRC-32 Check</span>
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Run Decode Button */}
@@ -453,7 +565,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                     onChange={(e) => setSearchFilter(e.target.value)}
                     style={{
                       height: 26,
-                      width: 180,
+                      width: 150,
                       paddingLeft: 26,
                       paddingRight: 8,
                       fontSize: 11.5,
@@ -465,6 +577,26 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                     }}
                   />
                 </div>
+                <button
+                  onClick={() => exportTransactionsToPcap(transactions, protocol)}
+                  disabled={transactions.length === 0}
+                  className="btn btn-secondary"
+                  style={{ height: 26, fontSize: 11, padding: "0 8px", gap: 4 }}
+                  title="Export standard Libpcap (.pcap) capture for Wireshark"
+                >
+                  <Download size={11} />
+                  <span>PCAP</span>
+                </button>
+                <button
+                  onClick={() => exportTransactionsToCsv(transactions)}
+                  disabled={transactions.length === 0}
+                  className="btn btn-secondary"
+                  style={{ height: 26, fontSize: 11, padding: "0 8px", gap: 4 }}
+                  title="Export CSV packet table"
+                >
+                  <FileText size={11} />
+                  <span>CSV</span>
+                </button>
               </div>
             </div>
 

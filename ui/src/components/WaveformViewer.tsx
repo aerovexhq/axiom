@@ -862,8 +862,26 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
 
         if (bX2 >= plotX && bX1 <= width) {
           const isHovered = activeHoverTx?.id === tx.id;
-          ctx.fillStyle = isHovered ? "rgba(6, 182, 212, 0.45)" : "rgba(6, 182, 212, 0.22)";
-          ctx.strokeStyle = isHovered ? "#22d3ee" : "#06b6d4";
+          const isError = tx.status !== "ok";
+          let fillCol = isHovered ? "rgba(6, 182, 212, 0.45)" : "rgba(6, 182, 212, 0.22)";
+          let strokeCol = isHovered ? "#22d3ee" : "#06b6d4";
+
+          if (isError) {
+            fillCol = isHovered ? "rgba(239, 68, 68, 0.5)" : "rgba(239, 68, 68, 0.25)";
+            strokeCol = isHovered ? "#f87171" : "#ef4444";
+          } else if (tx.protocol === "can") {
+            fillCol = isHovered ? "rgba(245, 158, 11, 0.45)" : "rgba(245, 158, 11, 0.22)";
+            strokeCol = isHovered ? "#fbbf24" : "#f59e0b";
+          } else if (tx.protocol === "ethernet") {
+            fillCol = isHovered ? "rgba(168, 85, 247, 0.45)" : "rgba(168, 85, 247, 0.22)";
+            strokeCol = isHovered ? "#c084fc" : "#a855f7";
+          } else if (tx.protocol === "spi") {
+            fillCol = isHovered ? "rgba(16, 185, 129, 0.45)" : "rgba(16, 185, 129, 0.22)";
+            strokeCol = isHovered ? "#34d399" : "#10b981";
+          }
+
+          ctx.fillStyle = fillCol;
+          ctx.strokeStyle = strokeCol;
           ctx.lineWidth = 1;
           ctx.beginPath();
           if (typeof (ctx as any).roundRect === "function") {

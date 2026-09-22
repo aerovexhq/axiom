@@ -1347,7 +1347,10 @@ pub fn execute_decode(cfg: &DecodeCliConfig) -> Result<(), String> {
         "i2c" => axiom_sim::ProtocolKind::I2c,
         "axi" | "axi-stream" | "axis" => axiom_sim::ProtocolKind::AxiStream,
         "axi4lite" | "axi-lite" => axiom_sim::ProtocolKind::Axi4Lite,
-        other => return Err(format!("Unsupported protocol: '{}'. Supported: uart, spi, i2c, axi", other)),
+        "can" | "canbus" => axiom_sim::ProtocolKind::Can,
+        "usb" => axiom_sim::ProtocolKind::Usb,
+        "ethernet" | "eth" | "mii" | "rmii" => axiom_sim::ProtocolKind::Ethernet,
+        other => return Err(format!("Unsupported protocol: '{}'. Supported: uart, spi, i2c, axi, can, usb, ethernet", other)),
     };
 
     let mut signals: hashbrown::HashMap<String, Vec<(u64, String)>> = hashbrown::HashMap::new();
@@ -1362,6 +1365,9 @@ pub fn execute_decode(cfg: &DecodeCliConfig) -> Result<(), String> {
         spi_config: Some(axiom_sim::SpiConfig::default()),
         i2c_config: Some(axiom_sim::I2cConfig::default()),
         axi_config: Some(axiom_sim::AxiConfig::default()),
+        can_config: Some(axiom_sim::CanConfig::default()),
+        usb_config: Some(axiom_sim::UsbConfig::default()),
+        ethernet_config: Some(axiom_sim::EthernetConfig::default()),
         signals,
         pin_map: hashbrown::HashMap::new(),
     };

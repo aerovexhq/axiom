@@ -20,9 +20,10 @@ pub use event::{EventPayload, SchedRegion, SimEvent, StratifiedEventQueue};
 pub use glitch::{GlitchDetector, GlitchEvent, GlitchKind};
 pub use listener::{SimEventListener, SimTraceRecorder, TraceEntry};
 pub use protocol::{
-    decode_protocol_request, AxiConfig, AxiDecoder, DecodedTransaction, I2cConfig, I2cDecoder,
+    decode_protocol_request, AxiConfig, AxiDecoder, CanConfig, CanDecoder, DecodedTransaction,
+    EthernetConfig, EthernetDecoder, EthernetInterface, I2cConfig, I2cDecoder,
     ProtocolDecodeRequest, ProtocolKind, SpiConfig, SpiDecoder, TransactionStatus, UartConfig,
-    UartDecoder, UartParity,
+    UartDecoder, UartParity, UsbConfig, UsbDecoder, UsbSpeed,
 };
 pub use simulator::{AxiomSimulator, DeltaSummary, SimError, TickSummary};
 pub type BetteradoSimulator = AxiomSimulator;
