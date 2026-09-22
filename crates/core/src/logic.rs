@@ -160,7 +160,7 @@ impl LogicVector {
     /// Creates a new LogicVector with the given width, filled with the specified Logic4 state.
     pub fn fill(width: u32, state: Logic4) -> Self {
         assert!(width > 0, "LogicVector width must be at least 1 bit");
-        let num_words = (width as usize + 63) / 64;
+        let num_words = (width as usize).div_ceil(64);
         let (val_pattern, mask_pattern) = match state {
             Logic4::Zero => (0u64, 0u64),
             Logic4::One => (u64::MAX, 0u64),
@@ -467,11 +467,11 @@ impl LogicVector {
 
     /// Formats as a hexadecimal string if fully known, or with X/Z where applicable.
     pub fn to_hex_string(&self) -> String {
-        if self.width % 4 == 0 && self.is_all_known() {
+        if self.width.is_multiple_of(4) && self.is_all_known() {
             let mut s = String::new();
             for word_idx in (0..self.num_words()).rev() {
                 let val = self.values[word_idx];
-                let nibbles = if word_idx == self.num_words() - 1 && self.width % 64 != 0 {
+                let nibbles = if word_idx == self.num_words() - 1 && !self.width.is_multiple_of(64) {
                     (self.width % 64) / 4
                 } else {
                     16

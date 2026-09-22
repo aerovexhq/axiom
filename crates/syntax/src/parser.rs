@@ -199,11 +199,11 @@ impl<'a> Parser<'a> {
 
         // Optional parameters: #(parameter WIDTH = 32)
         let mut params = Vec::new();
-        if self.match_token(&TokenKind::Hash) {
-            if self.expect(&TokenKind::LParen, "parameter list opening '('").is_some() {
-                params = self.parse_parameter_list();
-                self.expect(&TokenKind::RParen, "parameter list closing ')'");
-            }
+        if self.match_token(&TokenKind::Hash)
+            && self.expect(&TokenKind::LParen, "parameter list opening '('").is_some()
+        {
+            params = self.parse_parameter_list();
+            self.expect(&TokenKind::RParen, "parameter list closing ')'");
         }
 
         // Port list: (input clk, output [7:0] dout)
