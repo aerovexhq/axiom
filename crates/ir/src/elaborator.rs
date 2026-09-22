@@ -391,6 +391,30 @@ impl<'a> Elaborator<'a> {
                 }
                 Ok(BirExpr::Concat(items))
             }
+            Expr::Ternary { cond, then_expr, else_expr, .. } => {
+                let c = self.lower_expr(cond, nets, params)?;
+                let t = self.lower_expr(then_expr, nets, params)?;
+                let e = self.lower_expr(else_expr, nets, params)?;
+                let not_c = BirExpr::Unary {
+                    op: axiom_syntax::UnaryOp::Not,
+                    expr: Box::new(c.clone()),
+                };
+                let branch_then = BirExpr::Binary {
+                    op: axiom_syntax::BinaryOp::BitAnd,
+                    lhs: Box::new(c),
+                    rhs: Box::new(t),
+                };
+                let branch_else = BirExpr::Binary {
+                    op: axiom_syntax::BinaryOp::BitAnd,
+                    lhs: Box::new(not_c),
+                    rhs: Box::new(e),
+                };
+                Ok(BirExpr::Binary {
+                    op: axiom_syntax::BinaryOp::BitOr,
+                    lhs: Box::new(branch_then),
+                    rhs: Box::new(branch_else),
+                })
+            }
             _ => Ok(BirExpr::Const(LogicVector::zeros(1))),
         }
     }

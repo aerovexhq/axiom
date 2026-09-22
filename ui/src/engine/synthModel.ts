@@ -8,6 +8,21 @@ export type FpgaFamily =
   | "UltraScalePlus"
   | "VirtualSilicon";
 
+export interface TargetDeviceInfo {
+  id: string;
+  name: string;
+  family: FpgaFamily;
+}
+
+export const TARGET_DEVICES: TargetDeviceInfo[] = [
+  { id: "xc7a35tcpg236-1", name: "Artix-7 (XC7A35T - Basys 3)", family: "Artix7" },
+  { id: "xc7a100tcsg324-1", name: "Artix-7 (XC7A100T - Nexys A7)", family: "Artix7" },
+  { id: "xc7z020clg484-1", name: "Zynq-7000 (XC7Z020 - PYNQ / ZedBoard)", family: "Zynq7000" },
+  { id: "xc7k325tffg900-2", name: "Kintex-7 (XC7K325T - Genesys 2)", family: "Kintex7" },
+  { id: "xcku5p-ffvb676-2-e", name: "Kintex UltraScale+ (XCKU5P)", family: "UltraScalePlus" },
+  { id: "axiom-virtual-silicon-v1", name: "Axiom Virtual Silicon ASIC", family: "VirtualSilicon" },
+];
+
 export interface SynthesizedPort {
   name: string;
   direction: "Input" | "Output" | "Inout";

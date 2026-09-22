@@ -11,6 +11,7 @@ import { MicroarchViewer } from "./components/MicroarchViewer";
 import { MultiDieViewer } from "./components/MultiDieViewer";
 import { PpaParetoViewer } from "./components/PpaParetoViewer";
 import { ProtocolAnalyzer } from "./components/ProtocolAnalyzer";
+import { TechMappingViewer } from "./components/TechMappingViewer";
 import { VirtualLabRack } from "./components/VirtualLabRack";
 import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { UnifiedBottomDock } from "./components/UnifiedBottomDock";
@@ -115,8 +116,8 @@ function getInitialProject(): AxiomProject | null {
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "split">("split");
-  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | null>(null);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "split">("split");
+  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | null>(null);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -729,7 +730,7 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol">("schematic");
+  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping">("schematic");
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
@@ -756,7 +757,7 @@ export const App: React.FC = () => {
   }, []);
 
   // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol") => {
+  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping") => {
     setMaximizedPanel((prev) => (prev === panel ? null : panel));
   };
 
@@ -1085,6 +1086,18 @@ export const App: React.FC = () => {
                 activeDesignId={activeDesignId}
               />
             </div>
+          ) : activeMobilePanel === "techmapping" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <TechMappingViewer
+                activeDesignId={activeDesignId}
+                topModule={project?.topModule}
+                sourceCode={activeFile?.content ?? ""}
+                targetDevice={project?.targetDevice}
+                onDeviceChange={(dev) => {
+                  setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                }}
+              />
+            </div>
           ) : (
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <UnifiedBottomDock
@@ -1272,6 +1285,18 @@ export const App: React.FC = () => {
                 <ProtocolAnalyzer
                   state={state}
                   activeDesignId={activeDesignId}
+                />
+              </div>
+            ) : maximizedPanel === "techmapping" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <TechMappingViewer
+                  activeDesignId={activeDesignId}
+                  topModule={project.topModule}
+                  sourceCode={activeFile?.content ?? ""}
+                  targetDevice={project.targetDevice}
+                  onDeviceChange={(dev) => {
+                    setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                  }}
                 />
               </div>
             ) : centerView === "split" ? (
@@ -1551,6 +1576,29 @@ export const App: React.FC = () => {
                         <Radio size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Protocol</span>
                       </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("techmapping")}
+                        title="FPGA Technology Mapping, LUT Truth Tables, Primitive Synthesis & Structural Verilog Netlist"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "techmapping" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "techmapping" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "techmapping" ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "techmapping" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <Cpu size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>Tech Map</span>
+                      </button>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, whiteSpace: "nowrap" }}>
@@ -1699,6 +1747,17 @@ export const App: React.FC = () => {
                             activeDesignId={activeDesignId}
                           />
                         )}
+                        {splitActiveVisualizer === "techmapping" && (
+                          <TechMappingViewer
+                            activeDesignId={activeDesignId}
+                            topModule={project.topModule}
+                            sourceCode={activeFile?.content ?? ""}
+                            targetDevice={project.targetDevice}
+                            onDeviceChange={(dev) => {
+                              setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                            }}
+                          />
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1786,6 +1845,17 @@ export const App: React.FC = () => {
                         <ProtocolAnalyzer
                           state={state}
                           activeDesignId={activeDesignId}
+                        />
+                      )}
+                      {splitActiveVisualizer === "techmapping" && (
+                        <TechMappingViewer
+                          activeDesignId={activeDesignId}
+                          topModule={project.topModule}
+                          sourceCode={activeFile?.content ?? ""}
+                          targetDevice={project.targetDevice}
+                          onDeviceChange={(dev) => {
+                            setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                          }}
                         />
                       )}
                     </div>
@@ -2078,6 +2148,45 @@ export const App: React.FC = () => {
                   <ProtocolAnalyzer
                     state={state}
                     activeDesignId={activeDesignId}
+                  />
+                </div>
+              </div>
+            ) : centerView === "techmapping" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <TechMappingViewer
+                    activeDesignId={activeDesignId}
+                    topModule={project.topModule}
+                    sourceCode={activeFile?.content ?? ""}
+                    targetDevice={project.targetDevice}
+                    onDeviceChange={(dev) => {
+                      setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                    }}
                   />
                 </div>
               </div>

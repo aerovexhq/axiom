@@ -30,6 +30,75 @@ impl LutMapper {
 
         let k = input_net_ids.len();
 
+        // Multi-bit bus bit-blasting into parallel slice LUTs
+        if target_net.width > 1 && !input_net_ids.is_empty() {
+            let mut cells = Vec::new();
+            for bit in 0..target_net.width {
+                let bit_target = format!("{}[{bit}]", target_net.name);
+                let mut ports = HashMap::new();
+                let mut net_to_pin = HashMap::new();
+
+                for (idx, &net_id) in input_net_ids.iter().enumerate() {
+                    let pin_name = format!("I{idx}");
+                    let net = circuit.get_net(net_id);
+                    let net_name = if let Some(n) = net {
+                        if n.width > 1 && bit < n.width {
+                            format!("{}[{bit}]", n.name)
+                        } else {
+                            n.name.clone()
+                        }
+                    } else {
+                        format!("net_{}_{bit}", net_id.0)
+                    };
+                    ports.insert(pin_name.clone(), net_name);
+                    net_to_pin.insert(net_id, pin_name);
+                }
+
+                let k = input_net_ids.len().max(1);
+                let num_combinations = 1usize << k;
+                let mut init: u64 = 0;
+                for combo in 0..num_combinations {
+                    let mut env = HashMap::new();
+                    for (idx, &net_id) in input_net_ids.iter().enumerate() {
+                        let bit_val = ((combo >> idx) & 1) == 1;
+                        env.insert(net_id, bit_val);
+                    }
+                    if Self::eval_bir_expr(&assign.expr, &env) {
+                        init |= 1u64 << combo;
+                    }
+                }
+
+                let kind = match k {
+                    1 => PrimitiveKind::Lut1,
+                    2 => PrimitiveKind::Lut2,
+                    3 => PrimitiveKind::Lut3,
+                    4 => PrimitiveKind::Lut4,
+                    5 => PrimitiveKind::Lut5,
+                    _ => PrimitiveKind::Lut6,
+                };
+
+                let mut params = HashMap::new();
+                params.insert("INIT".to_string(), init);
+                ports.insert("O".to_string(), bit_target.clone());
+
+                let eq = format!("O = {}", Self::format_boolean_equation(&assign.expr, &net_to_pin));
+                let cell_name = format!("lut_{}_bit{}", target_net.name.replace('.', "_"), bit);
+
+                cells.push(SynthesizedCell {
+                    id: format!("cell_{cell_name}"),
+                    name: cell_name,
+                    kind,
+                    scope: "top".to_string(),
+                    ports,
+                    params,
+                    equation: Some(eq),
+                    source_line: None,
+                    delay_ps: 45.0 + (k as f32 * 5.0),
+                });
+            }
+            return MappedLutResult { cells };
+        }
+
         if k <= 6 {
             let cell = Self::build_single_lut(
                 circuit,

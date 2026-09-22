@@ -1,4 +1,6 @@
 pub mod arith_mapper;
+pub mod bram_mapper;
+pub mod dsp_mapper;
 pub mod io_mapper;
 pub mod lut_mapper;
 pub mod seq_mapper;
@@ -9,6 +11,8 @@ pub mod verilog_gen;
 pub mod tests;
 
 pub use arith_mapper::ArithMapper;
+pub use bram_mapper::BramMapper;
+pub use dsp_mapper::DspMapper;
 pub use io_mapper::IoMapper;
 pub use lut_mapper::LutMapper;
 pub use seq_mapper::SeqMapper;
@@ -52,10 +56,21 @@ fn synthesize_internal(
     let io_result = IoMapper::map_ports(&ports);
     let mut all_cells = io_result.cells;
 
-    // 3. Map Combinational & Arithmetic Continuous Assignments
-    let mut mapped_assign_targets = HashSet::new();
+    // 3. Infer Dedicated Block RAM primitives (RAMB18E2 / RAMB36E2)
+    let bram_result = BramMapper::map_bram_blocks(circuit, top_module, config.target_family);
+    all_cells.extend(bram_result.cells);
 
+    // 4. Infer Dedicated DSP slices (DSP48E1 / DSP48E2)
+    let dsp_result = DspMapper::map_dsp_blocks(circuit, config.target_family);
+    all_cells.extend(dsp_result.cells);
+    let mut mapped_assign_targets: HashSet<crate::bir::NetId> = dsp_result.mapped_assign_targets.into_iter().collect();
+
+    // 5. Map Combinational & Arithmetic Continuous Assignments
     for (idx, assign) in circuit.continuous_assigns.iter().enumerate() {
+        if mapped_assign_targets.contains(&assign.target) {
+            continue;
+        }
+
         // Try arithmetic carry chains first for multi-bit operations
         if let Some(arith) = ArithMapper::try_map_arithmetic(circuit, assign, config.target_family, idx) {
             all_cells.extend(arith.carry_cells);
@@ -70,13 +85,13 @@ fn synthesize_internal(
         mapped_assign_targets.insert(assign.target);
     }
 
-    // 4. Map Sequential Clocked Processes (FDRE / FDCE)
+    // 6. Map Sequential Clocked Processes (FDRE / FDCE)
     for (idx, proc) in circuit.processes.iter().enumerate() {
         let seq_result = SeqMapper::map_clocked_process(circuit, proc, idx);
         all_cells.extend(seq_result.cells);
     }
 
-    // 5. Preserve existing primitives (e.g. DSP48, RAMB36, pre-instantiated primitives)
+    // 7. Preserve existing primitives (e.g. DSP48, RAMB36, pre-instantiated primitives)
     for prim in &circuit.primitive_instances {
         let mut port_map = HashMap::new();
         for (pname, net_id) in &prim.ports {
