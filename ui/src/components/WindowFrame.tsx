@@ -195,9 +195,23 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({
         )}
 
         {/* Global Language Selector */}
-        <LanguageDropdown align="right" buttonStyle={{ width: 22, height: 22 }} />
+        <div style={{ margin: "0 4px", display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+          <LanguageDropdown
+            align="right"
+            buttonStyle={{
+              height: 22,
+              padding: "0 8px",
+              backgroundColor: "var(--bg-tertiary)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-sm)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5
+            }}
+          />
+        </div>
 
-        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 1px" }} />
+        <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 4px", flexShrink: 0 }} />
 
         {/* Window Controls: Desktop Minimize/Maximize/Close vs Web Fullscreen */}
         {isDesktopApp ? (

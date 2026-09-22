@@ -69,14 +69,19 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
         title={`${t("header.language")} (${currentLanguageInfo?.nativeName ?? "English"})`}
         style={{
           height: 28,
-          padding: "0 7px",
-          display: "flex",
+          padding: "0 8px",
+          display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 5,
+          width: "auto",
+          minWidth: "fit-content",
+          boxSizing: "border-box",
+          flexShrink: 0,
+          whiteSpace: "nowrap",
           backgroundColor: isOpen ? "rgba(56, 189, 248, 0.12)" : "rgba(255, 255, 255, 0.03)",
           border: isOpen ? "1px solid rgba(56, 189, 248, 0.45)" : "1px solid var(--border-subtle)",
-          borderRadius: 6,
+          borderRadius: "var(--radius-sm)",
           cursor: "pointer",
           transition: "all 0.15s ease",
           outline: "none",
@@ -91,12 +96,14 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
         }}
         onMouseLeave={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
+            e.currentTarget.style.backgroundColor = buttonStyle?.backgroundColor
+              ? (buttonStyle.backgroundColor as string)
+              : "rgba(255, 255, 255, 0.03)";
             e.currentTarget.style.borderColor = "var(--border-subtle)";
           }
         }}
       >
-        <Globe size={13} style={{ color: isOpen ? "var(--accent-cyan)" : "var(--text-secondary)", flexShrink: 0 }} />
+        <Globe size={12} style={{ color: isOpen ? "var(--accent-cyan)" : "var(--text-secondary)", flexShrink: 0 }} />
         <span
           style={{
             fontFamily: "var(--font-mono)",

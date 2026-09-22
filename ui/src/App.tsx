@@ -332,6 +332,45 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSaveProject]);
 
+  // Global Native Context Menu Suppression (Prevent browser default context menu, preserve Monaco & editable inputs)
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      if (e.defaultPrevented) return;
+
+      const target = e.target as HTMLElement | null;
+      if (!target) {
+        e.preventDefault();
+        return;
+      }
+
+      // Allow Monaco editor built-in context menu
+      if (target.closest(".monaco-editor") || target.closest(".context-view")) {
+        return;
+      }
+
+      // Allow standard text input fields and content-editable elements for native copy/paste
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        target.closest("[contenteditable='true']")
+      ) {
+        return;
+      }
+
+      // Allow elements explicitly requesting custom context menu behavior
+      if (target.closest("[data-allow-contextmenu]")) {
+        return;
+      }
+
+      // Suppress redundant native browser context menu
+      e.preventDefault();
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu);
+    return () => document.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
+
   // Project Modification Handlers
   const handleUpdateProject = (updated: AxiomProject) => {
     setProject(updated);
