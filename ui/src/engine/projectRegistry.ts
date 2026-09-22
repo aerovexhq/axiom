@@ -16,6 +16,8 @@ export interface ProjectMetadata {
   updatedAt: string;      // ISO string
   isTrashed?: boolean;    // Soft-delete flag
   trashedAt?: string;     // ISO string when moved to trash
+  isTrusted?: boolean;    // Trust permission status (true = full trust, false = restricted mode)
+  storageQuotaMb?: number;// Per-project storage quota in MB
 }
 
 export const REGISTRY_STORAGE_KEY = "axiom_projects_registry";
@@ -163,6 +165,7 @@ export async function createAndPersistProject(project: AxiomProject): Promise<vo
     await fs.mkdir(`${projDir}/sources_1`);
     await fs.mkdir(`${projDir}/sim_1`);
     await fs.mkdir(`${projDir}/constrs_1`);
+    await fs.mkdir(`${projDir}/.axiom/data`);
 
     // Write manifest and source files
     await fs.writeFile(`${projDir}/project.json`, JSON.stringify(project, null, 2));
@@ -192,7 +195,9 @@ export async function createAndPersistProject(project: AxiomProject): Promise<vo
       templateId: project.templateId,
       createdAt: project.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      isTrashed: false
+      isTrashed: false,
+      isTrusted: project.security?.isTrusted ?? true,
+      storageQuotaMb: project.security?.storageQuotaMb ?? 50
     };
 
     if (existingIdx >= 0) {

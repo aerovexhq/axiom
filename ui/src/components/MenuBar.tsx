@@ -37,6 +37,7 @@ import {
   Box,
   GitCompare,
   ShieldCheck,
+  Shield,
   LayoutGrid
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
@@ -51,6 +52,7 @@ export interface MenuBarProps {
   onSaveAll: () => void;
   onAddSources: () => void;
   onExportProjectJson: () => void;
+  onOpenProjectSecurity?: () => void;
   onToggleSidebar: () => void;
   onToggleBottomDock: () => void;
   onSwitchVisualizer: (view: "schematic" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "package" | "floorplan") => void;
@@ -80,6 +82,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onSaveAll,
   onAddSources,
   onExportProjectJson,
+  onOpenProjectSecurity,
   onToggleSidebar,
   onToggleBottomDock,
   onSwitchVisualizer,
@@ -346,6 +349,22 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Download size={13} color="var(--text-secondary)" />
                 <span>{t("menu.exportProjectJson")}</span>
+              </div>
+            </div>
+
+            <div
+              style={{ ...menuItemStyle, opacity: hasActiveProject ? 1 : 0.5 }}
+              className={hasActiveProject ? "menu-item-hover" : undefined}
+              onClick={() => {
+                if (hasActiveProject && onOpenProjectSecurity) {
+                  onOpenProjectSecurity();
+                  setActiveMenu(null);
+                }
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Shield size={13} color="var(--accent-emerald)" />
+                <span>{t("security.projectSettingsTitle")}</span>
               </div>
             </div>
 

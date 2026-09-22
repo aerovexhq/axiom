@@ -13,7 +13,8 @@ import {
   Search,
   Columns,
   Minimize2,
-  GraduationCap
+  GraduationCap,
+  ShieldAlert
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
@@ -31,6 +32,7 @@ interface HeaderProps {
   onSaveProject?: () => void;
   onExportProjectJson?: () => void;
   onOpenAddSource?: () => void;
+  onOpenProjectSecurity?: () => void;
   isSaved?: boolean;
   isMobile?: boolean;
   onToggleMobileDrawer?: () => void;
@@ -54,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSaveProject,
   onExportProjectJson,
   onOpenAddSource,
+  onOpenProjectSecurity,
   isSaved = true,
   isMobile = false,
   onToggleMobileDrawer,
@@ -135,13 +138,33 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {project ? (
-            <span
-              className="badge badge-cyan"
-              style={{ maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis" }}
-              title={project.name}
-            >
-              {project.name}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+              <span
+                className="badge badge-cyan"
+                style={{ maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis" }}
+                title={project.name}
+              >
+                {project.name}
+              </span>
+              {project.security && !project.security.isTrusted && (
+                <button
+                  onClick={onOpenProjectSecurity}
+                  className="badge"
+                  style={{
+                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                    color: "var(--accent-amber)",
+                    border: "1px solid rgba(245, 158, 11, 0.35)",
+                    cursor: "pointer",
+                    padding: "2px 5px",
+                    display: "inline-flex",
+                    alignItems: "center"
+                  }}
+                  title={t("security.restrictedDesc")}
+                >
+                  <ShieldAlert size={10} />
+                </button>
+              )}
+            </div>
           ) : (
             <span
               style={{
@@ -248,8 +271,35 @@ export const Header: React.FC<HeaderProps> = ({
               onOpenAddSource={onOpenAddSource ?? (() => {})}
               onExportProjectJson={onExportProjectJson ?? (() => {})}
               onSaveProject={onSaveProject ?? (() => {})}
+              onOpenProjectSecurity={onOpenProjectSecurity}
               isSaved={isSaved}
             />
+
+            {/* Restricted Mode Badge */}
+            {project.security && !project.security.isTrusted && (
+              <button
+                onClick={onOpenProjectSecurity}
+                className="badge"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  height: 26,
+                  padding: "0 8px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--accent-amber)",
+                  backgroundColor: "rgba(245, 158, 11, 0.12)",
+                  border: "1px solid rgba(245, 158, 11, 0.35)",
+                  borderRadius: "var(--radius-sm)",
+                  cursor: "pointer"
+                }}
+                title={t("security.restrictedDesc")}
+              >
+                <ShieldAlert size={12} />
+                <span>{t("security.restrictedBadge")}</span>
+              </button>
+            )}
 
             {/* Compile Button */}
             <button

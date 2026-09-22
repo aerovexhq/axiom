@@ -1,8 +1,5 @@
-// Axiom EDA — Browser IndexedDB Virtual FileSystem
-// Implements FileSystem interface using IndexedDB (idb) with hierarchical POSIX paths
-
 import { openDB, IDBPDatabase } from "idb";
-import { FileSystem, FileEntry } from "./fileSystem";
+import { FileSystem, FileEntry, ProjectStorageUsage } from "./fileSystem";
 import { withLock } from "../sessionSync";
 
 interface StoredFileRecord {
@@ -18,6 +15,25 @@ interface StoredFileRecord {
 const DB_NAME = "axiom_vfs";
 const DB_VERSION = 1;
 const STORE_NAME = "files";
+
+function getCachedQuotaMb(projectId: string): number {
+  if (typeof window === "undefined") return 50;
+  try {
+    const raw = localStorage.getItem("axiom_projects_registry");
+    if (raw) {
+      const projects = JSON.parse(raw);
+      if (Array.isArray(projects)) {
+        const p = projects.find((x: { id: string; storageQuotaMb?: number }) => x.id === projectId);
+        if (p && typeof p.storageQuotaMb === "number") {
+          return p.storageQuotaMb;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return 50;
+}
 
 export class BrowserIndexedDbFileSystem extends FileSystem {
   private dbPromise: Promise<IDBPDatabase> | null = null;
@@ -66,18 +82,41 @@ export class BrowserIndexedDbFileSystem extends FileSystem {
     return withLock(`vfs_file_${norm}`, async () => {
       const { parentDir, name } = this.splitPath(norm);
 
+      let projectId: string | null = null;
+      const parts = norm.split("/").filter(Boolean);
+      if (parts[0] === "projects" && parts.length > 1 && parts[1] !== "registry.json") {
+        projectId = parts[1];
+      }
+
+      const contentSize = new Blob([content]).size;
+      const db = await this.getDB();
+
+      if (projectId) {
+        const quotaMb = getCachedQuotaMb(projectId);
+        if (quotaMb > 0) {
+          const quotaBytes = quotaMb * 1024 * 1024;
+          const usage = await this.getProjectStorageUsage(projectId);
+          const existingRecord = await db.get(STORE_NAME, norm);
+          const oldSize = existingRecord ? existingRecord.size : 0;
+          if (usage.totalBytes + contentSize - oldSize > quotaBytes) {
+            throw new Error(
+              `[StorageQuota] Storage quota exceeded for project '${projectId}' (${quotaMb} MB limit). Purge generated data or increase quota in Project Settings.`
+            );
+          }
+        }
+      }
+
       if (parentDir !== "/" && parentDir !== "") {
         await this.mkdir(parentDir);
       }
 
-      const db = await this.getDB();
       const record: StoredFileRecord = {
         path: norm,
         name,
         parentDir,
         content,
         isDirectory: false,
-        size: new Blob([content]).size,
+        size: contentSize,
         updatedAt: Date.now()
       };
 
@@ -167,6 +206,51 @@ export class BrowserIndexedDbFileSystem extends FileSystem {
         }
       }
       await tx.done;
+    });
+  }
+
+  async getProjectStorageUsage(projectId: string): Promise<ProjectStorageUsage> {
+    const db = await this.getDB();
+    const prefix = `/projects/${projectId}/`;
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const allRecords: StoredFileRecord[] = await tx.store.getAll();
+
+    let totalBytes = 0;
+    let dataDirBytes = 0;
+    let sourceBytes = 0;
+    let fileCount = 0;
+
+    for (const rec of allRecords) {
+      if (rec.path.startsWith(prefix) && !rec.isDirectory) {
+        totalBytes += rec.size;
+        fileCount += 1;
+        if (rec.path.includes("/.axiom/data/") || rec.path.endsWith("/.axiom/data")) {
+          dataDirBytes += rec.size;
+        } else {
+          sourceBytes += rec.size;
+        }
+      }
+    }
+
+    return { totalBytes, dataDirBytes, sourceBytes, fileCount };
+  }
+
+  async purgeProjectData(projectId: string): Promise<number> {
+    return withLock(`vfs_purge_${projectId}`, async () => {
+      const db = await this.getDB();
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const allRecords: StoredFileRecord[] = await tx.store.getAll();
+      const prefix = `/projects/${projectId}/.axiom/data/`;
+
+      let freed = 0;
+      for (const rec of allRecords) {
+        if (rec.path.startsWith(prefix)) {
+          freed += rec.size;
+          await tx.store.delete(rec.path);
+        }
+      }
+      await tx.done;
+      return freed;
     });
   }
 }

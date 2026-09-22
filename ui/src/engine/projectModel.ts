@@ -35,6 +35,28 @@ export interface TemplateLesson {
   defaultTopModule: string;
 }
 
+export interface ProjectSecuritySettings {
+  isTrusted: boolean;              // User explicitly trusted this project
+  trustedAt?: string;              // ISO timestamp of trust grant
+  storageQuotaMb: number;          // Quota in MB: 10, 25, 50, 100, 250, 500, 0 (0 = unlimited)
+  isolateDataDir: boolean;         // Quarantine generated outputs in .axiom/data/
+  maxDeltaCycles: number;          // Max delta cycles per timestep (default: 10,000; restricted: 2,000)
+  maxMemoryAllocWords: number;     // Memory array word allocation limit (default: 16,777,216)
+  allowExternalFsExport: boolean;  // Allow file export outside project directory
+}
+
+export function getDefaultSecuritySettings(isTrusted = true): ProjectSecuritySettings {
+  return {
+    isTrusted,
+    trustedAt: isTrusted ? new Date().toISOString() : undefined,
+    storageQuotaMb: isTrusted ? 50 : 10,
+    isolateDataDir: true,
+    maxDeltaCycles: isTrusted ? 10_000 : 2_000,
+    maxMemoryAllocWords: isTrusted ? 16_777_216 : 1_048_576,
+    allowExternalFsExport: isTrusted
+  };
+}
+
 export interface AxiomProject {
   id: string;
   name: string;           // e.g. "riscv_core_soc", "uart_comm_hub"
@@ -45,6 +67,7 @@ export interface AxiomProject {
   files: ProjectFile[];
   templateId?: string;
   lessonId?: string;
+  security?: ProjectSecuritySettings;
   createdAt: string;
   updatedAt: string;
 }
@@ -1352,6 +1375,7 @@ export function createProjectFromTemplate(
     files,
     templateId: template.id,
     lessonId: selectedLesson?.id,
+    security: getDefaultSecuritySettings(true),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -1498,6 +1522,7 @@ export async function saveProjectToFs(project: AxiomProject): Promise<void> {
     await fs.mkdir(`${projDir}/sources_1`);
     await fs.mkdir(`${projDir}/sim_1`);
     await fs.mkdir(`${projDir}/constrs_1`);
+    await fs.mkdir(`${projDir}/.axiom/data`);
 
     // Write project manifest JSON
     await fs.writeFile(`${projDir}/project.json`, JSON.stringify(project, null, 2));

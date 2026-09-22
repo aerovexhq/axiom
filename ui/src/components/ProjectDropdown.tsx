@@ -9,7 +9,9 @@ import {
   FolderPlus,
   X,
   Cpu,
-  Check
+  Check,
+  Shield,
+  ShieldAlert
 } from "lucide-react";
 import { AxiomProject } from "../engine/projectModel";
 import { useTranslation } from "../i18n";
@@ -21,6 +23,7 @@ interface ProjectDropdownProps {
   onOpenAddSource: () => void;
   onExportProjectJson: () => void;
   onSaveProject: () => void;
+  onOpenProjectSecurity?: () => void;
   isSaved?: boolean;
 }
 
@@ -31,6 +34,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
   onOpenAddSource,
   onExportProjectJson,
   onSaveProject,
+  onOpenProjectSecurity,
   isSaved = true
 }) => {
   const { t } = useTranslation();
@@ -83,7 +87,11 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
         }}
         title={`${project.name} (${project.targetDevice}) — Click for Project Menu`}
       >
-        <Folder size={12} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
+        {project.security && !project.security.isTrusted ? (
+          <ShieldAlert size={12} color="var(--accent-amber)" style={{ flexShrink: 0 }} />
+        ) : (
+          <Folder size={12} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
+        )}
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600, flex: 1, minWidth: 0 }}>
           {project.name}
         </span>
@@ -261,6 +269,33 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
               <FilePlus size={13} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
               <span style={{ whiteSpace: "nowrap" }}>Add Source to Project...</span>
             </button>
+
+            {onOpenProjectSecurity && (
+              <button
+                onClick={() => {
+                  onOpenProjectSecurity();
+                  setIsOpen(false);
+                }}
+                className="axiom-menu-item"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 12px",
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  whiteSpace: "nowrap",
+                  transition: "background 0.1s ease, color 0.1s ease"
+                }}
+              >
+                <Shield size={13} color="var(--accent-emerald)" style={{ flexShrink: 0 }} />
+                <span style={{ whiteSpace: "nowrap" }}>Project Settings & Security...</span>
+              </button>
+            )}
 
             <button
               onClick={() => {

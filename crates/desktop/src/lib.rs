@@ -503,37 +503,145 @@ fn run_formal_verification(
     Ok(axiom_sim::formal::run_formal_verification(&circuit, &config, &assertions))
 }
 
+/// Validates and sanitizes a file path to prevent path traversal and access to sensitive OS locations.
+pub fn validate_sandboxed_path(
+    path_str: &str,
+    project_root: Option<&str>,
+) -> Result<std::path::PathBuf, String> {
+    if path_str.trim().is_empty() {
+        return Err("Path cannot be empty".to_string());
+    }
+
+    // Reject null bytes and control characters
+    if path_str.chars().any(|c| c == '\0' || ((c as u32) < 32 && c != '\t' && c != '\n' && c != '\r')) {
+        return Err("Invalid control characters in path".to_string());
+    }
+
+    let path = std::path::Path::new(path_str);
+
+    // Normalize path to check for directory traversal (..)
+    let mut depth: i32 = 0;
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                depth -= 1;
+                if depth < 0 {
+                    return Err(format!("Access Denied: Path traversal detected in '{path_str}'"));
+                }
+            }
+            std::path::Component::Normal(_) => {
+                depth += 1;
+            }
+            _ => {}
+        }
+    }
+
+    // Normalize path string across POSIX and Windows formats for prefix checks
+    let raw_posix = path_str.to_lowercase().replace('\\', "/");
+    let forbidden_prefixes = [
+        "/etc", "/proc", "/sys", "/dev", "/boot", "/root",
+        "/var/run", "/var/log",
+        "c:/windows", "c:/system32", "c:/boot", "c:/pagefile.sys",
+    ];
+    for prefix in forbidden_prefixes {
+        if raw_posix.starts_with(prefix) {
+            return Err(format!("Access Denied: Access to system directory '{prefix}' is forbidden"));
+        }
+    }
+
+    // Resolve relative path against current directory if relative
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().map_err(|e| e.to_string())?.join(path)
+    };
+
+    // Check against forbidden sensitive system directories on resolved path
+    let path_lossy = candidate.to_string_lossy().to_lowercase().replace('\\', "/");
+    for prefix in forbidden_prefixes {
+        if path_lossy.starts_with(prefix) {
+            return Err(format!("Access Denied: Access to system directory '{prefix}' is forbidden"));
+        }
+    }
+
+    // Also protect user sensitive credential folders (.ssh, .gnupg, .aws)
+    if path_lossy.contains("/.ssh/") || path_lossy.ends_with("/.ssh")
+        || path_lossy.contains("\\.ssh\\") || path_lossy.ends_with("\\.ssh")
+        || path_lossy.contains("/.gnupg/") || path_lossy.ends_with("/.gnupg")
+        || path_lossy.contains("\\.gnupg\\") || path_lossy.ends_with("\\.gnupg")
+        || path_lossy.contains("/.aws/") || path_lossy.ends_with("/.aws")
+        || path_lossy.contains("\\.aws\\") || path_lossy.ends_with("\\.aws")
+    {
+        return Err("Access Denied: Access to sensitive credential directory is forbidden".to_string());
+    }
+
+    // If a project_root boundary is specified, verify candidate is within project_root
+    if let Some(root) = project_root {
+        if !root.is_empty() {
+            let root_path = std::path::Path::new(root);
+            let root_buf = if root_path.is_absolute() {
+                root_path.to_path_buf()
+            } else {
+                std::env::current_dir().map_err(|e| e.to_string())?.join(root_path)
+            };
+            if !candidate.starts_with(&root_buf) {
+                return Err(format!("Access Denied: Path '{path_str}' is outside project root '{root}'"));
+            }
+        }
+    }
+
+    Ok(candidate)
+}
+
+fn compute_dir_size(p: &std::path::Path) -> u64 {
+    let mut total = 0;
+    if let Ok(read_dir) = std::fs::read_dir(p) {
+        for entry in read_dir.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                total += compute_dir_size(&path);
+            } else if let Ok(meta) = entry.metadata() {
+                total += meta.len();
+            }
+        }
+    }
+    total
+}
+
 #[tauri::command]
 fn fs_read_file(path: String) -> Result<String, String> {
+    let valid_path = validate_sandboxed_path(&path, None)?;
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
-    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+    std::fs::read_to_string(&valid_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn fs_write_file(path: String, content: String) -> Result<(), String> {
+    let valid_path = validate_sandboxed_path(&path, None)?;
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
-    if let Some(parent) = std::path::Path::new(&path).parent() {
+    if let Some(parent) = valid_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&path, content).map_err(|e| e.to_string())
+    std::fs::write(&valid_path, content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn fs_remove_file(path: String) -> Result<(), String> {
+    let valid_path = validate_sandboxed_path(&path, None)?;
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
-    let p = std::path::Path::new(&path);
-    if p.is_dir() {
-        std::fs::remove_dir_all(p).map_err(|e| e.to_string())
+    if valid_path.is_dir() {
+        std::fs::remove_dir_all(&valid_path).map_err(|e| e.to_string())
     } else {
-        std::fs::remove_file(p).map_err(|e| e.to_string())
+        std::fs::remove_file(&valid_path).map_err(|e| e.to_string())
     }
 }
 
 #[tauri::command]
 fn fs_list_dir(path: String) -> Result<Vec<String>, String> {
+    let valid_path = validate_sandboxed_path(&path, None)?;
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
-    let read_dir = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
+    let read_dir = std::fs::read_dir(&valid_path).map_err(|e| e.to_string())?;
     for entry in read_dir.flatten() {
         if let Some(name) = entry.file_name().to_str() {
             entries.push(name.to_string());
@@ -544,14 +652,51 @@ fn fs_list_dir(path: String) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 fn fs_create_dir(path: String) -> Result<(), String> {
+    let valid_path = validate_sandboxed_path(&path, None)?;
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
+    std::fs::create_dir_all(&valid_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn fs_exists(path: String) -> Result<bool, String> {
+    let valid_path = match validate_sandboxed_path(&path, None) {
+        Ok(p) => p,
+        Err(_) => return Ok(false),
+    };
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
-    Ok(std::path::Path::new(&path).exists())
+    Ok(valid_path.exists())
+}
+
+#[tauri::command]
+fn get_directory_size(path: String) -> Result<u64, String> {
+    let valid_path = validate_sandboxed_path(&path, None)?;
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
+    if valid_path.is_file() {
+        let meta = std::fs::metadata(&valid_path).map_err(|e| e.to_string())?;
+        Ok(meta.len())
+    } else {
+        Ok(compute_dir_size(&valid_path))
+    }
+}
+
+#[tauri::command]
+fn purge_data_directory(project_path: String) -> Result<u64, String> {
+    let valid_path = validate_sandboxed_path(&project_path, None)?;
+    let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
+    let data_dir = if valid_path.ends_with(".axiom/data") || valid_path.ends_with(".axiom\\data") {
+        valid_path
+    } else {
+        valid_path.join(".axiom").join("data")
+    };
+
+    if !data_dir.exists() {
+        return Ok(0);
+    }
+
+    let freed = compute_dir_size(&data_dir);
+    let _ = std::fs::remove_dir_all(&data_dir);
+    let _ = std::fs::create_dir_all(&data_dir);
+    Ok(freed)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -899,7 +1044,9 @@ pub fn run_desktop_app() {
             pick_folder,
             pick_files,
             get_app_version,
-            apply_desktop_update
+            apply_desktop_update,
+            get_directory_size,
+            purge_data_directory
         ])
         .run(tauri::generate_context!())
         .expect("error while running Axiom EDA desktop application");
@@ -1412,5 +1559,37 @@ mod tests {
         assert!(script.contains("9876"));
         assert!(script.contains("/tmp/axiom_new"));
         assert!(script.contains("/usr/local/bin/axiom"));
+    }
+
+    #[test]
+    fn test_validate_sandboxed_path_traversal() {
+        assert!(validate_sandboxed_path("../../etc/passwd", None).is_err());
+        assert!(validate_sandboxed_path("../secret", None).is_err());
+        assert!(validate_sandboxed_path("/etc/shadow", None).is_err());
+        assert!(validate_sandboxed_path("/var/log/syslog", None).is_err());
+        assert!(validate_sandboxed_path("c:\\windows\\system32\\calc.exe", None).is_err());
+        assert!(validate_sandboxed_path("/home/user/.ssh/id_rsa", None).is_err());
+        assert!(validate_sandboxed_path("/home/user/.aws/credentials", None).is_err());
+        assert!(validate_sandboxed_path("/home/user/.gnupg/secring.gpg", None).is_err());
+        assert!(validate_sandboxed_path("", None).is_err());
+        assert!(validate_sandboxed_path("   ", None).is_err());
+    }
+
+    #[test]
+    fn test_validate_sandboxed_path_valid() {
+        let tmp = std::env::temp_dir();
+        let valid = tmp.join("axiom_sandbox_test");
+        let res = validate_sandboxed_path(valid.to_str().unwrap(), None);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_validate_sandboxed_path_project_root() {
+        let root = std::env::temp_dir().join("axiom_proj_root");
+        let inside = root.join("sources_1").join("top.v");
+        let outside = std::env::temp_dir().join("other_folder").join("file.v");
+
+        assert!(validate_sandboxed_path(inside.to_str().unwrap(), Some(root.to_str().unwrap())).is_ok());
+        assert!(validate_sandboxed_path(outside.to_str().unwrap(), Some(root.to_str().unwrap())).is_err());
     }
 }

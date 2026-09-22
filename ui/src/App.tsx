@@ -30,6 +30,8 @@ import { UpdatePromptModal } from "./components/UpdatePromptModal";
 import { AboutModal } from "./components/AboutModal";
 import { ProtocolDecoderModal } from "./components/ProtocolDecoderModal";
 import { LabGraderModal } from "./components/LabGraderModal";
+import { ProjectTrustModal } from "./components/ProjectTrustModal";
+import { ProjectSecurityModal } from "./components/ProjectSecurityModal";
 import { checkForUpdates, ReleaseManifest } from "./engine/updateChecker";
 import { isDesktop } from "./engine/platform";
 import { scheduleAutoSave, isAutoSaveEnabled, notifySaveState } from "./engine/autoSaveManager";
@@ -51,7 +53,8 @@ import {
   addFilesToProject,
   loadSavedProject,
   saveProjectToStorage,
-  clearSavedProject
+  clearSavedProject,
+  getDefaultSecuritySettings
 } from "./engine/projectModel";
 import {
   ProjectMetadata,
@@ -157,11 +160,14 @@ export const App: React.FC = () => {
   const [timingSlackPs, setTimingSlackPs] = useState<number | null>(null);
   const [predictedFmaxGainMhz, setPredictedFmaxGainMhz] = useState<number | null>(null);
 
-  // New Modals: Protocol Decoder, About, Software Update Prompt, and Lab Grader
+  // Modals: Protocol Decoder, About, Software Update Prompt, Lab Grader, Trust, and Security
   const [isProtocolDecoderOpen, setIsProtocolDecoderOpen] = useState<boolean>(false);
   const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
   const [isUpdatePromptOpen, setIsUpdatePromptOpen] = useState<boolean>(false);
   const [isLabGraderOpen, setIsLabGraderOpen] = useState<boolean>(false);
+  const [isTrustModalOpen, setIsTrustModalOpen] = useState<boolean>(false);
+  const [pendingUntrustedProject, setPendingUntrustedProject] = useState<AxiomProject | null>(null);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState<boolean>(false);
   const [updateManifest, setUpdateManifest] = useState<ReleaseManifest | null>(null);
   const [updateCurrentCommit, setUpdateCurrentCommit] = useState<string>("a9a90cc");
 
@@ -691,8 +697,16 @@ export const App: React.FC = () => {
     try {
       const parsed = JSON.parse(jsonStr) as AxiomProject;
       if (parsed && parsed.files && Array.isArray(parsed.files) && parsed.files.length > 0) {
-        handleCreateProject(parsed);
-        toast.success(`Imported project "${parsed.name}" successfully`);
+        const untrustedProject: AxiomProject = {
+          ...parsed,
+          security: {
+            ...getDefaultSecuritySettings(false),
+            ...(parsed.security || {}),
+            isTrusted: false
+          }
+        };
+        setPendingUntrustedProject(untrustedProject);
+        setIsTrustModalOpen(true);
       } else {
         toast.error("Invalid project JSON: Missing valid files array.");
       }
@@ -700,6 +714,47 @@ export const App: React.FC = () => {
       toast.error("Failed to parse project JSON: " + String(err));
     }
   };
+
+  const handleTrustPendingProject = async () => {
+    if (!pendingUntrustedProject) return;
+    const trusted: AxiomProject = {
+      ...pendingUntrustedProject,
+      security: {
+        ...pendingUntrustedProject.security,
+        ...getDefaultSecuritySettings(true),
+        isTrusted: true,
+        trustedAt: new Date().toISOString()
+      }
+    };
+    await handleCreateProject(trusted);
+    setIsTrustModalOpen(false);
+    setPendingUntrustedProject(null);
+    toast.success(`Trusted and imported project "${trusted.name}"`);
+  };
+
+  const handleOpenRestrictedPendingProject = async () => {
+    if (!pendingUntrustedProject) return;
+    const restricted: AxiomProject = {
+      ...pendingUntrustedProject,
+      security: {
+        ...pendingUntrustedProject.security,
+        ...getDefaultSecuritySettings(false),
+        isTrusted: false
+      }
+    };
+    await handleCreateProject(restricted);
+    setIsTrustModalOpen(false);
+    setPendingUntrustedProject(null);
+    toast.info(`Opened "${restricted.name}" in Restricted Mode`);
+  };
+
+  const handleUpdateProjectSecurity = useCallback(async (updated: AxiomProject) => {
+    setProject(updated);
+    saveProjectToStorage(updated);
+    await createAndPersistProject(updated);
+    setProjects(loadProjectRegistry());
+    setIsSaved(true);
+  }, []);
 
   const handleSelectDesign = (design: SampleDesign) => {
     const tmpl = PROJECT_TEMPLATES.find((t) => t.id === design.id || t.defaultTopModule === design.topModule);
@@ -861,6 +916,7 @@ export const App: React.FC = () => {
           onOpenOmnibar={() => setIsOmnibarOpen(true)}
           onCheckForUpdates={handleManualCheckUpdates}
           onOpenAbout={() => setIsAboutOpen(true)}
+          onOpenProjectSecurity={() => setIsSecurityModalOpen(true)}
         />
       )}
 
@@ -875,6 +931,7 @@ export const App: React.FC = () => {
           onSaveProject={handleSaveProject}
           onExportProjectJson={handleExportProjectJson}
           onOpenAddSource={() => handleOpenAddSource()}
+          onOpenProjectSecurity={() => setIsSecurityModalOpen(true)}
           isSaved={isSaved}
           isMobile={isMobile}
           onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
@@ -2534,6 +2591,30 @@ export const App: React.FC = () => {
         diagnostics={diagnostics}
         state={state}
       />
+
+      {/* Project Trust Permission Prompt Modal */}
+      {pendingUntrustedProject && (
+        <ProjectTrustModal
+          isOpen={isTrustModalOpen}
+          onClose={() => {
+            setIsTrustModalOpen(false);
+            setPendingUntrustedProject(null);
+          }}
+          project={pendingUntrustedProject}
+          onTrust={handleTrustPendingProject}
+          onOpenRestricted={handleOpenRestrictedPendingProject}
+        />
+      )}
+
+      {/* Project Settings & Security Modal */}
+      {project && (
+        <ProjectSecurityModal
+          isOpen={isSecurityModalOpen}
+          onClose={() => setIsSecurityModalOpen(false)}
+          project={project}
+          onUpdateProject={handleUpdateProjectSecurity}
+        />
+      )}
 
       {/* Global Aerospace Toast & Confirmation Dialog Containers */}
       <ToastContainer />

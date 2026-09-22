@@ -16,6 +16,13 @@ export interface FsStat {
   updatedAt: number;
 }
 
+export interface ProjectStorageUsage {
+  totalBytes: number;
+  dataDirBytes: number;
+  sourceBytes: number;
+  fileCount: number;
+}
+
 export abstract class FileSystem {
   /**
    * Reads a text file from the filesystem.
@@ -59,6 +66,19 @@ export abstract class FileSystem {
    * @param path Directory path
    */
   abstract rmdir(path: string): Promise<void>;
+
+  /**
+   * Computes storage usage breakdown for a given project.
+   * @param projectId Project identifier
+   */
+  abstract getProjectStorageUsage(projectId: string): Promise<ProjectStorageUsage>;
+
+  /**
+   * Purges temporary/generated simulation & synthesis data in .axiom/data/.
+   * @param projectId Project identifier
+   * @returns Number of bytes reclaimed
+   */
+  abstract purgeProjectData(projectId: string): Promise<number>;
 
   /**
    * Normalizes a path string to POSIX format (/ separated, no trailing slash unless root).

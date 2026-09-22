@@ -701,4 +701,30 @@ export interface Translations {
     device: string;
     density: string;
   };
+  security: {
+    trustModalTitle: string;
+    trustModalSubtitle: string;
+    trustModalDesc: string;
+    trustButton: string;
+    restrictedButton: string;
+    restrictedBadge: string;
+    trustedBadge: string;
+    projectSettingsTitle: string;
+    trustStatus: string;
+    trustedDesc: string;
+    restrictedDesc: string;
+    grantTrust: string;
+    revokeTrust: string;
+    storageQuota: string;
+    storageUsage: string;
+    unlimited: string;
+    purgeData: string;
+    purgeSuccess: string;
+    quotaExceeded: string;
+    dataIsolation: string;
+    dataIsolationDesc: string;
+    maxDeltaCycles: string;
+    maxDeltaCyclesDesc: string;
+    savedSuccess: string;
+  };
 }

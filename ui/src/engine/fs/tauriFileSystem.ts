@@ -1,7 +1,4 @@
-// Axiom EDA — Native Desktop Tauri IPC FileSystem
-// Interacts directly with host operating system files via Tauri IPC
-
-import { FileSystem } from "./fileSystem";
+import { FileSystem, ProjectStorageUsage } from "./fileSystem";
 
 export class TauriIpcFileSystem extends FileSystem {
   private async getInvoke() {
@@ -78,6 +75,35 @@ export class TauriIpcFileSystem extends FileSystem {
       await invoke("fs_remove_file", { path: norm });
     } catch (err: unknown) {
       throw new Error(`[TauriFS] Error removing directory '${norm}': ${String(err)}`);
+    }
+  }
+
+  async getProjectStorageUsage(projectId: string): Promise<ProjectStorageUsage> {
+    const invoke = await this.getInvoke();
+    const projDir = `/projects/${projectId}`;
+    try {
+      const totalBytes = await invoke<number>("get_directory_size", { path: projDir });
+      const dataDirBytes = await invoke<number>("get_directory_size", { path: `${projDir}/.axiom/data` }).catch(() => 0);
+      const files = await this.listDir(projDir).catch(() => []);
+      return {
+        totalBytes,
+        dataDirBytes,
+        sourceBytes: Math.max(0, totalBytes - dataDirBytes),
+        fileCount: files.length
+      };
+    } catch {
+      return { totalBytes: 0, dataDirBytes: 0, sourceBytes: 0, fileCount: 0 };
+    }
+  }
+
+  async purgeProjectData(projectId: string): Promise<number> {
+    const invoke = await this.getInvoke();
+    const projDir = `/projects/${projectId}`;
+    try {
+      const freed = await invoke<number>("purge_data_directory", { projectPath: projDir });
+      return freed;
+    } catch {
+      return 0;
     }
   }
 }
