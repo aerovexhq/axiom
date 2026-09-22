@@ -23,7 +23,7 @@ import {
   loadProjectRegistry,
   ProjectMetadata
 } from "../engine/projectRegistry";
-import { FPGA_PARTS_DATABASE } from "../engine/partsCatalog";
+import { FPGA_PARTS_DATABASE, DEFAULT_PART_ID } from "../engine/partsCatalog";
 import { FPGA_BOARDS_DATABASE, FpgaBoard } from "../engine/boardsCatalog";
 import { isDesktop, openFolderDialog } from "../engine/platform";
 import { Modal, Input, Button, Card, Badge } from "./ui";
@@ -76,7 +76,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
   // Step 3: Default Part & Boards
   const [catalogTab, setCatalogTab] = useState<"parts" | "boards">("parts");
-  const [selectedPartId, setSelectedPartId] = useState<string>("xc7a100t-csg324-1");
+  const [selectedPartId, setSelectedPartId] = useState<string>(DEFAULT_PART_ID);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
 
   // Parts filtering
@@ -97,7 +97,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       setProjectType("rtl");
       setDoNotSpecifySources(false);
       setSelectedTemplateId(initialTemplateId);
-      setSelectedPartId("xc7a100t-csg324-1");
+      setSelectedPartId(DEFAULT_PART_ID);
       setSelectedBoardId(null);
       setCatalogTab("parts");
       if (typeof window !== "undefined") {
@@ -695,6 +695,9 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
               <span className="mono-num" style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>
                 {selectedPart.name}
               </span>
+              {selectedPart.id === DEFAULT_PART_ID && (
+                <Badge color="blue" size="sm">Default</Badge>
+              )}
             </div>
           </div>
 
@@ -785,9 +788,29 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                             fontWeight: isSelected ? 600 : 400
                           }}
                         >
-                          <td style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: 6 }}>
-                            {isSelected && <CheckCircle2 size={12} color="var(--accent-blue)" />}
+                          <td style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                            {isSelected ? (
+                              <CheckCircle2 size={12} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 12, height: 12, flexShrink: 0 }} />
+                            )}
                             <span className="mono-num">{part.name}</span>
+                            {part.id === DEFAULT_PART_ID && (
+                              <Badge
+                                color="blue"
+                                size="sm"
+                                style={{
+                                  fontSize: 9.5,
+                                  padding: "1px 6px",
+                                  height: 16,
+                                  lineHeight: "12px",
+                                  marginLeft: 4,
+                                  flexShrink: 0
+                                }}
+                              >
+                                Default
+                              </Badge>
+                            )}
                           </td>
                           <td style={{ padding: "6px 8px", color: "var(--text-secondary)" }}>{part.family}</td>
                           <td style={{ padding: "6px 8px" }}>{part.package}</td>
@@ -940,9 +963,14 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
               </span>
 
               <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Target Device:</span>
-              <span className="mono-num" style={{ fontWeight: 600, color: "var(--accent-blue)" }}>
-                {selectedPart.name} ({selectedPart.family})
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="mono-num" style={{ fontWeight: 600, color: "var(--accent-blue)" }}>
+                  {selectedPart.name} ({selectedPart.family})
+                </span>
+                {selectedPart.id === DEFAULT_PART_ID && (
+                  <Badge color="blue" size="sm">Default</Badge>
+                )}
+              </div>
 
               <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Hardware Specs:</span>
               <span style={{ color: "var(--text-muted)", fontSize: 11.5 }}>

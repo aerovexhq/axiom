@@ -317,3 +317,7 @@ export const FPGA_PARTS_DATABASE: FpgaPart[] = [
     dspSlices: 16384
   }
 ];
+
+export const DEFAULT_PART_ID = "xc7a100t-csg324-1";
+export const DEFAULT_PART: FpgaPart =
+  FPGA_PARTS_DATABASE.find((p) => p.id === DEFAULT_PART_ID) || FPGA_PARTS_DATABASE[2];
