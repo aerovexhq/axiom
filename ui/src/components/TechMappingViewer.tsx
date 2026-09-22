@@ -15,6 +15,7 @@ import {
   synthesizeClientFallback
 } from "../engine/synthModel";
 import { engineBridge } from "../engine/engineBridge";
+import { useTranslation } from "../i18n";
 
 interface TechMappingViewerProps {
   activeDesignId?: string;
@@ -31,6 +32,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
   targetDevice = "xcku5p-ffvb676-2-e",
   onDeviceChange
 }) => {
+  const { t } = useTranslation();
   const [selectedDevice, setSelectedDevice] = useState<string>(targetDevice);
   const [circuit, setCircuit] = useState<SynthesizedCircuit | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -228,7 +230,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-              <span>FPGA Technology Mapping</span>
+              <span>{t("techMapping.title")}</span>
               <span
                 style={{
                   fontSize: 10,
@@ -240,7 +242,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
                   border: "1px solid var(--border-subtle)"
                 }}
               >
-                {circuit?.target_family || "Target Silicon"}
+                {circuit?.target_family || t("techMapping.targetDevice")}
               </span>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -252,7 +254,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
         {/* Device Selector & Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Target Silicon:</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{t("techMapping.targetDevice")}:</span>
             <select
               value={selectedDevice}
               onChange={(e) => handleDeviceSelect(e.target.value)}
@@ -280,20 +282,20 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
             disabled={isLoading}
             className="btn btn-ghost"
             style={{ height: 28, fontSize: 11.5, gap: 5, padding: "0 10px" }}
-            title="Re-run Technology Mapping"
+            title={t("techMapping.mapNetlist")}
           >
             <RefreshCw size={13} className={isLoading ? "spin" : ""} />
-            <span>Map Netlist</span>
+            <span>{isLoading ? t("techMapping.mapping") : t("techMapping.mapNetlist")}</span>
           </button>
 
           <button
             onClick={handleOpenVerilogModal}
             className="btn btn-primary"
             style={{ height: 28, fontSize: 11.5, gap: 5, padding: "0 10px" }}
-            title="Inspect structural Verilog netlist"
+            title={t("techMapping.exportVerilog")}
           >
             <FileCode size={13} />
-            <span>Export Verilog</span>
+            <span>{t("techMapping.exportVerilog")}</span>
           </button>
         </div>
       </div>
@@ -323,7 +325,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "var(--text-muted)" }}>
-              <span>Slice LUTs</span>
+              <span>{t("techMapping.sliceLuts")}</span>
               <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{stats.lut_utilization_pct.toFixed(2)}%</span>
             </div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>
@@ -352,7 +354,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "var(--text-muted)" }}>
-              <span>Registers (FF)</span>
+              <span>{t("techMapping.registers")}</span>
               <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{stats.ff_utilization_pct.toFixed(2)}%</span>
             </div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>
@@ -380,7 +382,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               gap: 3
             }}
           >
-            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>Carry Chains</div>
+            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{t("techMapping.carryChains")}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: stats.total_carries > 0 ? "var(--accent-green)" : "var(--text-primary)" }}>
               {stats.total_carries} <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400 }}>{stats.carry8_count > 0 ? "CARRY8" : "CARRY4"}</span>
             </div>
@@ -398,7 +400,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               gap: 3
             }}
           >
-            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>DSP Slices</div>
+            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{t("techMapping.dspSlices")}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: stats.dsp_count > 0 ? "var(--accent-amber)" : "var(--text-primary)" }}>
               {stats.dsp_count} <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400 }}>DSP48</span>
             </div>
@@ -416,7 +418,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               gap: 3
             }}
           >
-            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>Block RAM</div>
+            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{t("techMapping.blockRams")}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: stats.bram_count > 0 ? "var(--accent-cyan)" : "var(--text-primary)" }}>
               {stats.bram_count} <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400 }}>BRAM</span>
             </div>
@@ -434,7 +436,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               gap: 3
             }}
           >
-            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>I/O Buffers</div>
+            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{t("techMapping.ioBuffers")}</div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>
               {stats.total_iobs} <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400 }}>Pins</span>
             </div>
@@ -452,11 +454,11 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               gap: 3
             }}
           >
-            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>Logic Depth / Delay</div>
+            <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{t("techMapping.logicDepth")}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--accent-cyan)" }}>
               {stats.logic_depth} <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400 }}>levels &bull; {stats.estimated_delay_ps.toFixed(0)} ps</span>
             </div>
-            <div style={{ fontSize: 9.5, color: "var(--text-muted)" }}>Est. Critical Path</div>
+            <div style={{ fontSize: 9.5, color: "var(--text-muted)" }}>{t("techMapping.estDelay")}</div>
           </div>
         </div>
       )}
@@ -505,7 +507,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               />
               <input
                 type="text"
-                placeholder="Search mapped cells..."
+                placeholder={t("techMapping.searchCells")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -525,22 +527,30 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
 
             {/* Type Filter Pills */}
             <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-              {["ALL", "LUT", "FF", "CARRY", "DSP", "BRAM", "IO"].map((type) => (
+              {[
+                { key: "ALL", label: t("techMapping.filterAll") },
+                { key: "LUT", label: t("techMapping.filterLut") },
+                { key: "FF", label: t("techMapping.filterFf") },
+                { key: "CARRY", label: t("techMapping.filterCarry") },
+                { key: "DSP", label: t("techMapping.filterDsp") },
+                { key: "BRAM", label: t("techMapping.filterBram") },
+                { key: "IO", label: t("techMapping.filterIo") },
+              ].map(({ key, label }) => (
                 <button
-                  key={type}
-                  onClick={() => setTypeFilter(type)}
+                  key={key}
+                  onClick={() => setTypeFilter(key)}
                   style={{
                     padding: "2px 8px",
                     fontSize: 10.5,
-                    fontWeight: typeFilter === type ? 600 : 400,
+                    fontWeight: typeFilter === key ? 600 : 400,
                     borderRadius: 3,
                     border: "none",
                     cursor: "pointer",
-                    backgroundColor: typeFilter === type ? "var(--bg-tertiary)" : "transparent",
-                    color: typeFilter === type ? "var(--accent-cyan)" : "var(--text-muted)"
+                    backgroundColor: typeFilter === key ? "var(--bg-tertiary)" : "transparent",
+                    color: typeFilter === key ? "var(--accent-cyan)" : "var(--text-muted)"
                   }}
                 >
-                  {type}
+                  {label}
                 </button>
               ))}
             </div>
@@ -715,7 +725,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               {/* Port Connectivity Table */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 }}>
-                  Pin & Net Connectivity
+                  {t("techMapping.pinsMapping")}
                 </div>
                 <div
                   style={{
@@ -757,7 +767,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               {Object.keys(selectedCell.params).length > 0 && (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 }}>
-                    Primitive Attributes / Parameters
+                    {t("techMapping.parameters")}
                   </div>
                   <div
                     style={{
@@ -793,7 +803,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)" }}>
-                      LUT Truth Table ({truthTableData.k}-Input)
+                      {t("techMapping.truthTableTitle")} ({truthTableData.k}-Input)
                     </span>
                     <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
                       INIT = 0x{truthTableData.initVal.toString(16).toUpperCase()}
@@ -855,7 +865,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
             </div>
           ) : (
             <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
-              Select a cell from the list to inspect its physical pin connections and boolean equations.
+              {t("techMapping.noCellSelected")}
             </div>
           )}
         </div>
@@ -904,7 +914,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <FileCode size={16} style={{ color: "var(--accent-cyan)" }} />
                 <span style={{ fontWeight: 700, fontSize: 13 }}>
-                  Structural Verilog Gate-Level Netlist ({topModule}.v)
+                  {t("techMapping.verilogModalTitle")} ({topModule}.v)
                 </span>
               </div>
               <button
@@ -951,7 +961,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
                 style={{ height: 28, fontSize: 11.5, gap: 5 }}
               >
                 {copied ? <Check size={13} style={{ color: "var(--accent-green)" }} /> : <Copy size={13} />}
-                <span>{copied ? "Copied" : "Copy to Clipboard"}</span>
+                <span>{copied ? t("techMapping.copied") : t("common.copy")}</span>
               </button>
               <button
                 onClick={handleDownloadVerilog}
@@ -959,7 +969,7 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
                 style={{ height: 28, fontSize: 11.5, gap: 5 }}
               >
                 <Download size={13} />
-                <span>Download .v File</span>
+                <span>{t("techMapping.downloadVerilog")}</span>
               </button>
             </div>
           </div>

@@ -20,6 +20,7 @@ import {
   FsmAuditReport,
   synthesizeMicroarchGraph
 } from "../engine/microarchModel";
+import { useTranslation } from "../i18n";
 
 export interface FsmViewerProps {
   state: SimulationState;
@@ -43,6 +44,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
   onJumpToCode,
   onOpenAutoPipeline: _onOpenAutoPipeline
 }) => {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -871,7 +873,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
           </span>
 
           <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-            Active State: <strong style={{ color: "#38bdf8" }}>{activeStateName}</strong>
+            {t("fsm.activeState")}: <strong style={{ color: "#38bdf8" }}>{activeStateName}</strong>
           </span>
         </div>
 
@@ -930,7 +932,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
             }}
           >
             <CheckCircle2 size={11} />
-            States: {coveredStates}/{totalStates} ({stateCovPct.toFixed(0)}%)
+            {t("fsm.stateCount")}: {coveredStates}/{totalStates} ({stateCovPct.toFixed(0)}%)
           </div>
 
           {/* Transition Coverage Pill */}
@@ -965,7 +967,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
             }}
           >
             <Activity size={11} />
-            Arcs: {coveredTrans}/{totalTrans} ({transCovPct.toFixed(0)}%)
+            {t("fsm.transitionCount")}: {coveredTrans}/{totalTrans} ({transCovPct.toFixed(0)}%)
           </div>
         </div>
 
@@ -1078,7 +1080,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
             }}
           >
             <Table size={11} />
-            <span>Audit</span>
+            <span>{t("fsm.auditDrawerTitle")}</span>
             {showAuditDrawer ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
           </button>
         </div>
@@ -1133,7 +1135,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
               )}
             </div>
             <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginBottom: 4 }}>
-              Hits:{" "}
+              {t("fsm.stateHit")}:{" "}
               <strong style={{ color: "var(--accent-emerald)" }}>
                 {coverage?.state_hits?.[hoveredStateName] ?? 0}
               </strong>{" "}
@@ -1230,7 +1232,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
               color: "var(--text-secondary)"
             }}
           >
-            <span>FSM Verification Audit & State Transition Table</span>
+            <span>{t("fsm.auditDrawerTitle")}</span>
             <button
               onClick={() => setShowAuditDrawer(false)}
               style={{
@@ -1254,7 +1256,7 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
               {auditReport && auditReport.warnings.length === 0 ? (
                 <div style={{ fontSize: 11, color: "var(--accent-emerald)", display: "flex", alignItems: "center", gap: 6 }}>
                   <CheckCircle2 size={13} />
-                  0 DRC Violations. All states reachable with valid reset and exit transitions.
+                  {t("fsm.noIssues")}
                 </div>
               ) : (
                 auditReport?.warnings.map((w, idx) => (

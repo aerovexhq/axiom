@@ -14,6 +14,7 @@ import {
   FileText
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
+import { useTranslation } from "../i18n";
 import {
   ProtocolKind,
   DecodedTransaction,
@@ -47,6 +48,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
   onSelectTransaction,
   onTransactionsUpdated
 }) => {
+  const { t } = useTranslation();
   const [protocol, setProtocol] = useState<ProtocolKind>("can");
   const [pinMap, setPinMap] = useState<Record<string, string>>({});
   const [uartConfig, setUartConfig] = useState<UartConfig>({
@@ -217,10 +219,10 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>
-                Live Hardware Protocol Decoder
+                {t("protocol.title")}
               </div>
               <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-                In-engine transaction analyzer (UART, SPI, I2C, AXI) with bit-accurate packet extraction
+                {t("protocol.subtitle")}
               </div>
             </div>
           </div>
@@ -228,7 +230,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
             onClick={onClose}
             className="btn btn-ghost btn-icon"
             style={{ width: 28, height: 28 }}
-            title="Close"
+            title={t("common.close")}
           >
             <X size={16} />
           </button>
@@ -258,7 +260,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
             {/* Protocol Selector */}
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
-                Protocol Standard
+                {t("protocol.selectProtocol")}
               </label>
               <select
                 value={protocol}
@@ -345,7 +347,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
             {/* Protocol-Specific Parameters */}
             <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", display: "block", marginBottom: 8 }}>
-                Protocol Parameters
+                {t("protocol.configTitle")}
               </label>
 
               {protocol === "uart" && (
@@ -527,7 +529,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                 style={{ width: "100%", height: 34, gap: 8, justifyContent: "center" }}
               >
                 {isDecoding ? <RefreshCw size={14} className="spin" /> : <Play size={14} />}
-                <span>{isDecoding ? "Decoding..." : "Run Protocol Decode"}</span>
+                <span>{isDecoding ? t("protocol.decoding") : t("protocol.decodePackets")}</span>
               </button>
             </div>
           </div>
@@ -546,7 +548,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: 13 }}>
-                  Extracted Packets ({filteredTransactions.length})
+                  {t("protocol.packetStream")} ({filteredTransactions.length})
                 </span>
                 {transactions.length > 0 && (
                   <span className="badge badge-cyan" style={{ fontSize: 10.5 }}>
@@ -560,7 +562,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                   <Filter size={12} style={{ position: "absolute", left: 8, top: 7, color: "var(--text-muted)" }} />
                   <input
                     type="text"
-                    placeholder="Filter packets..."
+                    placeholder={t("common.filter")}
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
                     style={{
@@ -585,7 +587,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                   title="Export standard Libpcap (.pcap) capture for Wireshark"
                 >
                   <Download size={11} />
-                  <span>PCAP</span>
+                  <span>{t("protocol.exportPcap")}</span>
                 </button>
                 <button
                   onClick={() => exportTransactionsToCsv(transactions)}
@@ -595,7 +597,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
                   title="Export CSV packet table"
                 >
                   <FileText size={11} />
-                  <span>CSV</span>
+                  <span>{t("protocol.exportCsv")}</span>
                 </button>
               </div>
             </div>
@@ -616,10 +618,7 @@ export const ProtocolDecoderModal: React.FC<ProtocolDecoderModalProps> = ({
               >
                 <Cpu size={36} style={{ opacity: 0.3, marginBottom: 12 }} />
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-                  No Decoded Transactions Yet
-                </div>
-                <div style={{ fontSize: 12, maxWidth: 360, lineHeight: 1.4 }}>
-                  Select a protocol standard and click <strong>Run Protocol Decode</strong> to extract high-level byte transfers, commands, and packet boundaries.
+                  {t("protocol.noTransactions")}
                 </div>
               </div>
             ) : (

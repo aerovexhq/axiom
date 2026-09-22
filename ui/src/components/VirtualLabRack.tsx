@@ -1097,7 +1097,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
                 transition: "all var(--transition-fast)"
               }}
             >
-              Basys 3 Board
+              {t("board.tabBasys3")}
             </button>
             <button
               type="button"
@@ -1114,7 +1114,7 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
                 transition: "all var(--transition-fast)"
               }}
             >
-              Logic Bays
+              {t("board.tabLogicBays")}
             </button>
           </div>
 

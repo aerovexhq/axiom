@@ -14,6 +14,7 @@ import {
 import type { SimulationState } from "../engine/engineBridge";
 import { engineBridge } from "../engine/engineBridge";
 import type { AxiomProject } from "../engine/projectModel";
+import { useTranslation } from "../i18n";
 import {
   BASYS3_PINS,
   parseXdcPinBindings,
@@ -78,6 +79,7 @@ const SevenSegDigit: React.FC<{
 };
 
 export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }) => {
+  const { t } = useTranslation();
   const [showPinMap, setShowPinMap] = useState(false);
   const [switchStates, setSwitchStates] = useState<Record<string, number>>({});
   const [activeButtons, setActiveButtons] = useState<Record<string, boolean>>({});
@@ -210,7 +212,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-primary)" }}>
-                Digilent Basys 3 Hardware Emulator
+                {t("board.title")}
               </span>
               <span
                 style={{
@@ -229,7 +231,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
               XDC Dynamic Auto-Binding:{" "}
               <span style={{ color: connectedCount > 0 ? "var(--accent-cyan)" : "var(--text-secondary)", fontWeight: 600 }}>
-                {connectedCount} / {BASYS3_PINS.length} pins mapped
+                {connectedCount} / {BASYS3_PINS.length} {t("board.mappedPins")}
               </span>
             </div>
           </div>
@@ -289,7 +291,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
             }}
           >
             <Sliders size={12} />
-            <span>{showPinMap ? "Hide Pins" : "Pin Mapping"}</span>
+            <span>{showPinMap ? "Hide Pins" : t("board.pinBindingsTitle")}</span>
             {showPinMap ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         </div>
@@ -358,7 +360,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
               <SevenSegDigit segments={sevenSeg.digits[0]} active={sevenSeg.anodesActive[0]} />
             </div>
             <span style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(255, 255, 255, 0.4)", letterSpacing: "0.05em" }}>
-              4-DIGIT MULTIPLEXED 7-SEGMENT (W7..V7 / U2..W4)
+              {t("board.sevenSegTitle")}
             </span>
           </div>
 
@@ -409,7 +411,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
             }}
           >
             <span style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(255, 255, 255, 0.4)", marginBottom: 4 }}>
-              PUSH BUTTONS
+              {t("board.buttonsTitle")}
             </span>
 
             {/* D-Pad Layout */}
@@ -555,7 +557,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.06em", color: "rgba(255, 255, 255, 0.4)" }}>
-              OUTPUT LEDS (LD15..LD0)
+              {t("board.ledsTitle")} (LD15..LD0)
             </span>
             <span style={{ fontSize: 9, color: "rgba(255, 255, 255, 0.3)" }}>
               Radial Phosphor Glow Shaders
@@ -641,7 +643,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.06em", color: "rgba(255, 255, 255, 0.4)" }}>
-              TACTILE SLIDING DIP SWITCHES (SW15..SW0)
+              {t("board.switchesTitle")} (SW15..SW0)
             </span>
             <span style={{ fontSize: 9, color: "rgba(255, 255, 255, 0.3)" }}>
               Click rocker to toggle UP (1) / DOWN (0)
@@ -779,7 +781,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
               <Info size={13} style={{ color: "var(--accent-cyan)" }} />
-              XDC Physical Pin Constraint Binding Matrix
+              {t("board.pinBindingsTitle")}
             </span>
             <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
               Parsed from constraints.xdc
@@ -793,7 +795,7 @@ export const Basys3BoardBay: React.FC<Basys3BoardBayProps> = ({ state, project }
                   <th style={{ padding: "5px 8px" }}>Peripheral</th>
                   <th style={{ padding: "5px 8px" }}>Type</th>
                   <th style={{ padding: "5px 8px" }}>FPGA Pin</th>
-                  <th style={{ padding: "5px 8px" }}>Bound HDL Port</th>
+                  <th style={{ padding: "5px 8px" }}>{t("board.connectedPort")}</th>
                   <th style={{ padding: "5px 8px", textAlign: "right" }}>Live Value</th>
                 </tr>
               </thead>

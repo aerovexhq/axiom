@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
+import { useTranslation } from "../i18n";
 import {
   ProtocolKind,
   DecodedTransaction,
@@ -48,6 +49,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
   onTransactionsUpdated,
   initialTransactions
 }) => {
+  const { t } = useTranslation();
   const [protocol, setProtocol] = useState<ProtocolKind>("can");
   const [pinMap, setPinMap] = useState<Record<string, string>>({});
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -289,7 +291,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 8 }}>
             <Cpu size={15} style={{ color: "var(--accent-cyan)" }} />
-            <span style={{ fontWeight: 700, fontSize: 12.5, whiteSpace: "nowrap" }}>Protocol Analyzer</span>
+            <span style={{ fontWeight: 700, fontSize: 12.5, whiteSpace: "nowrap" }}>{t("protocol.title")}</span>
           </div>
 
           {(
@@ -336,7 +338,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
             <Filter size={11} style={{ position: "absolute", left: 7, top: 7, color: "var(--text-muted)" }} />
             <input
               type="text"
-              placeholder="Filter packets..."
+              placeholder={t("common.filter")}
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
               style={{
@@ -366,7 +368,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
               backgroundColor: isConfigOpen ? "rgba(6, 182, 212, 0.15)" : undefined,
               borderColor: isConfigOpen ? "var(--accent-cyan)" : undefined
             }}
-            title="Configure channels, pin mapping, and protocol baud parameters"
+            title={t("protocol.configTitle")}
           >
             <Sliders size={12} />
             <span>Config</span>
@@ -378,10 +380,10 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
             disabled={isDecoding}
             className="btn btn-primary"
             style={{ height: 24, fontSize: 11, padding: "0 9px", gap: 5 }}
-            title="Execute in-engine bitstream decode over simulated nets"
+            title={t("protocol.decodePackets")}
           >
             {isDecoding ? <RefreshCw size={11} className="spin" /> : <Play size={11} />}
-            <span>Decode</span>
+            <span>{isDecoding ? t("protocol.decoding") : t("protocol.decodePackets")}</span>
           </button>
 
           {/* Load Demo */}
@@ -404,7 +406,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
             title="Export standard Libpcap binary capture for Wireshark inspection"
           >
             <Download size={11} />
-            <span>PCAP</span>
+            <span>{t("protocol.exportPcap")}</span>
           </button>
 
           {/* Export CSV */}
@@ -416,7 +418,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
             title="Export CSV packet metadata table"
           >
             <FileText size={11} />
-            <span>CSV</span>
+            <span>{t("protocol.exportCsv")}</span>
           </button>
         </div>
       </div>
@@ -454,18 +456,18 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
             >
               <tr style={{ color: "var(--text-muted)", fontSize: 10.5, textTransform: "uppercase" }}>
                 <th style={{ padding: "6px 8px", width: 45 }}>#</th>
-                <th style={{ padding: "6px 8px", width: 95 }}>Time (ps)</th>
-                <th style={{ padding: "6px 8px", width: 75 }}>Proto</th>
-                <th style={{ padding: "6px 8px" }}>Summary / Packet Details</th>
-                <th style={{ padding: "6px 8px", width: 55, textAlign: "right" }}>Bytes</th>
-                <th style={{ padding: "6px 8px", width: 65, textAlign: "center" }}>Status</th>
+                <th style={{ padding: "6px 8px", width: 95 }}>{t("protocol.colTimestamp")}</th>
+                <th style={{ padding: "6px 8px", width: 75 }}>{t("protocol.colProtocol")}</th>
+                <th style={{ padding: "6px 8px" }}>{t("protocol.colSummary")}</th>
+                <th style={{ padding: "6px 8px", width: 55, textAlign: "right" }}>{t("protocol.colData")}</th>
+                <th style={{ padding: "6px 8px", width: 65, textAlign: "center" }}>{t("protocol.colStatus")}</th>
               </tr>
             </thead>
             <tbody>
               {filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-                    No packets detected. Select a protocol and click <strong>Decode</strong> or <strong>Demo</strong>.
+                    {t("protocol.noTransactions")}
                   </td>
                 </tr>
               ) : (
@@ -569,7 +571,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                       cursor: "pointer"
                     }}
                   >
-                    Fields
+                    {t("protocol.fieldsTab")}
                   </button>
                   <button
                     onClick={() => setActiveInspectorTab("hexdump")}
@@ -584,7 +586,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                       cursor: "pointer"
                     }}
                   >
-                    Hex Dump
+                    {t("protocol.hexdumpTab")}
                   </button>
                 </div>
               </div>
@@ -686,7 +688,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
             </div>
           ) : (
             <div style={{ padding: 30, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
-              Select a packet from the table to inspect decoded fields and raw hex payload.
+              {t("protocol.noSelectedTx")}
             </div>
           )}
         </div>
@@ -714,7 +716,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
                 <Sliders size={14} />
-                <span>Protocol Parameters</span>
+                <span>{t("protocol.configTitle")}</span>
               </div>
               <button
                 onClick={() => setIsConfigOpen(false)}
@@ -786,7 +788,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
               {protocol === "can" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
-                    <span style={{ fontSize: 11 }}>Nominal Baud Rate</span>
+                    <span style={{ fontSize: 11 }}>{t("protocol.baudRate")}</span>
                     <select
                       value={canConfig.baud_rate}
                       onChange={(e) => setCanConfig({ ...canConfig, baud_rate: Number(e.target.value) })}
@@ -799,7 +801,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                     </select>
                   </div>
                   <div>
-                    <span style={{ fontSize: 11 }}>Sample Point</span>
+                    <span style={{ fontSize: 11 }}>{t("protocol.samplePoint")}</span>
                     <select
                       value={canConfig.sample_point_percent}
                       onChange={(e) => setCanConfig({ ...canConfig, sample_point_percent: Number(e.target.value) })}
@@ -840,7 +842,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
               {protocol === "ethernet" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
-                    <span style={{ fontSize: 11 }}>PHY Interface Mode</span>
+                    <span style={{ fontSize: 11 }}>{t("protocol.interfaceMode")}</span>
                     <select
                       value={ethernetConfig.interface}
                       onChange={(e) => setEthernetConfig({ ...ethernetConfig, interface: e.target.value as any })}
@@ -945,7 +947,7 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
               {protocol === "uart" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
-                    <span style={{ fontSize: 11 }}>Baud Rate</span>
+                    <span style={{ fontSize: 11 }}>{t("protocol.baudRate")}</span>
                     <select
                       value={uartConfig.baud_rate}
                       onChange={(e) => setUartConfig({ ...uartConfig, baud_rate: Number(e.target.value) })}

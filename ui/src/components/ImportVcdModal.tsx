@@ -7,6 +7,7 @@ import {
   ParsedVcd, GoldenDiffReport, parseVcdText, computeWaveformDiff,
   generateSampleGoldenVcd
 } from "../engine/vcdModel";
+import { useTranslation } from "../i18n";
 
 interface ImportVcdModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
   topModule,
   onImportGolden
 }) => {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [fileName, setFileName] = useState<string>("");
@@ -43,7 +45,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
       setErrorMessage(null);
       const parsed = parseVcdText(content);
       if (parsed.signals.length === 0) {
-        setErrorMessage("No signal definitions ($var) found in this VCD file.");
+        setErrorMessage(t("vcdImport.noSignalsError"));
         return;
       }
       setFileName(name);
@@ -104,16 +106,23 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
   const handleRunDiff = () => {
     if (!parsedVcd) return;
 
-    // Filter to selected signals
-    const activeSimSignals = simSignals.filter((s) => selectedSimIds.has(s.id));
+    // Filter signals based on selection and mapping
     const map = new Map<string, string>();
-    for (const [k, v] of Object.entries(signalMap)) {
-      if (selectedSimIds.has(k)) {
-        map.set(k, v);
+    for (const simId of selectedSimIds) {
+      const goldenId = signalMap[simId];
+      if (goldenId) {
+        map.set(simId, goldenId);
       }
     }
 
-    const report = computeWaveformDiff(activeSimSignals, parsedVcd, map);
+    const filteredSimSignals = simSignals.filter((s) => selectedSimIds.has(s.id) && signalMap[s.id]);
+
+    if (filteredSimSignals.length === 0) {
+      setErrorMessage("No valid signal mappings selected for waveform diff comparison.");
+      return;
+    }
+
+    const report = computeWaveformDiff(filteredSimSignals, parsedVcd, map);
     onImportGolden(parsedVcd, report);
     onClose();
   };
@@ -182,10 +191,10 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
             <FileText size={18} color="var(--accent-cyan, #00f0ff)" />
             <div>
               <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, letterSpacing: "0.02em" }}>
-                Import Golden VCD / Reference Waveform
+                {t("vcdImport.modalTitle")}
               </h2>
               <span style={{ fontSize: 11, color: "var(--text-muted, #8b949e)" }}>
-                IEEE 1364 Value Change Dump golden model silicon diffing
+                {t("vcdImport.modalSubtitle")}
               </span>
             </div>
           </div>
@@ -193,7 +202,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
             onClick={onClose}
             className="btn btn-ghost"
             style={{ padding: 6, color: "var(--text-muted, #8b949e)", cursor: "pointer" }}
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <X size={16} />
           </button>
@@ -228,7 +237,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
           >
             <UploadCloud size={36} color="var(--accent-cyan, #00f0ff)" style={{ margin: "0 auto 10px" }} />
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-              Drag & Drop your <code style={{ color: "var(--accent-cyan, #00f0ff)" }}>.vcd</code> file here
+              {t("vcdImport.dropText")}
             </div>
             <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 14 }}>
               Supports standard Vivado xsim, ModelSim, Verilator, Synopsys, or Cadence VCD traces
@@ -249,7 +258,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
                 style={{ fontSize: 12, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <FileText size={14} />
-                Browse VCD File...
+                {t("vcdImport.browseFile")}
               </button>
 
               <button
@@ -259,7 +268,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
                 style={{ fontSize: 12, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <Check size={14} color="var(--accent-emerald, #10b981)" />
-                Load Golden Sample (Match)
+                {t("vcdImport.sampleDemo")} (Match)
               </button>
 
               <button
@@ -269,7 +278,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
                 style={{ fontSize: 12, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <AlertTriangle size={14} color="var(--accent-rose, #f43f5e)" />
-                Load Fault Demo (Diff)
+                {t("vcdImport.sampleDemo")} (Diff)
               </button>
             </div>
           </div>
@@ -340,7 +349,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
                   }}
                 >
                   <div style={{ fontSize: 10.5, color: "#8b949e", textTransform: "uppercase", fontWeight: 600 }}>
-                    Timescale
+                    {t("vcdImport.timescale")}
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#e6edf3", marginTop: 2 }}>
                     {parsedVcd.timescaleStr || `${parsedVcd.timescalePs}ps`}
@@ -356,7 +365,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
                   }}
                 >
                   <div style={{ fontSize: 10.5, color: "#8b949e", textTransform: "uppercase", fontWeight: 600 }}>
-                    Total Signals
+                    {t("vcdImport.signalsCount")}
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#e6edf3", marginTop: 2 }}>
                     {parsedVcd.signals.length} Signals
@@ -372,7 +381,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
                   }}
                 >
                   <div style={{ fontSize: 10.5, color: "#8b949e", textTransform: "uppercase", fontWeight: 600 }}>
-                    Duration
+                    {t("vcdImport.duration")}
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#e6edf3", marginTop: 2 }}>
                     {parsedVcd.endTimePs >= 1_000_000
@@ -412,7 +421,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
                       onChange={toggleSelectAll}
                       style={{ cursor: "pointer" }}
                     />
-                    <span>Signal Mapping Matrix ({selectedSimIds.size} / {simSignals.length} selected)</span>
+                    <span>{t("vcdImport.mapSignalsTitle")} ({selectedSimIds.size} / {simSignals.length} selected)</span>
                   </div>
                   <span style={{ fontSize: 11, color: "#8b949e" }}>
                     Map simulated net to golden reference VCD
@@ -517,7 +526,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
           }}
         >
           <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -527,7 +536,7 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <Play size={13} />
-            Import & Run Waveform Diff
+            {t("vcdImport.importDiffBtn")}
           </button>
         </div>
       </div>

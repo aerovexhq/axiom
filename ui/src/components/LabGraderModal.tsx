@@ -22,6 +22,7 @@ import {
   exportLabReportMarkdown,
   LabGradeResult
 } from "../engine/graderModel";
+import { useTranslation } from "../i18n";
 
 export interface LabGraderModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
   diagnostics = [],
   state
 }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const result: LabGradeResult | null = useMemo(() => {
@@ -85,7 +87,7 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Curriculum Lab Auto-Grader & Verification Scorecard"
+      title={t("labGrader.modalTitle")}
       subtitle={`${result.lessonTitle}: ${result.lessonSubtitle} — Top Module: ${result.topModule}`}
       icon={<GraduationCap size={18} />}
       width={840}
@@ -114,7 +116,7 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
               }}
             >
               {copied ? <Check size={13} style={{ color: "var(--accent-green)" }} /> : <Copy size={13} />}
-              <span>{copied ? "Copied" : "Copy Markdown"}</span>
+              <span>{copied ? t("labGrader.reportCopied") : t("labGrader.copyReport")}</span>
             </button>
 
             <button
@@ -132,7 +134,7 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
               }}
             >
               <Download size={13} />
-              <span>Download Lab Report</span>
+              <span>{t("labGrader.downloadReport")}</span>
             </button>
 
             <button
@@ -141,7 +143,7 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
               className="btn btn-secondary"
               style={{ height: 30, padding: "0 12px", fontSize: 12 }}
             >
-              Close
+              {t("common.close")}
             </button>
           </div>
         </div>
@@ -242,7 +244,15 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>
-                    {cat.name}
+                    {cat.name === "Functional Accuracy"
+                      ? t("labGrader.functionalAccuracy")
+                      : cat.name === "Linter Cleanliness"
+                        ? t("labGrader.linterCleanliness")
+                        : cat.name === "TB Coverage"
+                          ? t("labGrader.tbCoverage")
+                          : cat.name === "Synthesizability"
+                            ? t("labGrader.synthesizability")
+                            : cat.name}
                   </span>
                   {isPass ? (
                     <CheckCircle2 size={13} style={{ color: statusColor }} />
@@ -275,7 +285,7 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
               <FileCode2 size={14} style={{ color: "var(--accent-cyan)" }} />
-              Test Vector Verification Matrix
+              {t("labGrader.testCasesTitle")}
             </span>
             <span className="mono-num" style={{ fontSize: 11, color: "var(--text-muted)" }}>
               {result.vectors.length} Stimulus Combinations
@@ -360,7 +370,7 @@ export const LabGraderModal: React.FC<LabGraderModalProps> = ({
                           border: `1px solid ${vec.passed ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`
                         }}
                       >
-                        {vec.passed ? "PASS" : "FAIL"}
+                        {vec.passed ? t("labGrader.pass") : t("labGrader.fail")}
                       </span>
                     </td>
                   </tr>

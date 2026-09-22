@@ -2,6 +2,7 @@ import React from "react";
 import { ExternalLink, X } from "lucide-react";
 import { CURRENT_CLIENT_COMMIT, CURRENT_CLIENT_VERSION } from "../engine/updateChecker";
 import { Button } from "./ui";
+import { useTranslation } from "../i18n";
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface AboutModalProps {
 }
 
 export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -59,10 +61,10 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             />
             <div>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>
-                Axiom EDA Studio
+                {t("about.modalTitle")}
               </h3>
               <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-muted)" }}>
-                Aerospace-Grade Hardware Simulation & Analysis Engine
+                {t("about.description")}
               </p>
             </div>
           </div>
@@ -84,17 +86,17 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               gap: 8
             }}
           >
-            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Version:</span>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{t("about.version")}:</span>
             <span className="mono-num" style={{ color: "var(--accent-blue)", fontWeight: 600 }}>
               {CURRENT_CLIENT_VERSION}
             </span>
 
-            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Commit Hash:</span>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{t("about.commit")}:</span>
             <span className="mono-num" style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
               {CURRENT_CLIENT_COMMIT}
             </span>
 
-            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Cranelift JIT:</span>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{t("about.craneliftJit")}:</span>
             <span style={{ color: "var(--accent-emerald)", fontWeight: 600 }}>
               Native x86_64 / AArch64 In-RAM
             </span>
@@ -121,7 +123,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               style={{ fontSize: 11.5, textDecoration: "none" }}
             >
               <ExternalLink size={13} />
-              <span>Documentation Portal</span>
+              <span>{t("about.visitDocs")}</span>
             </a>
             <a
               href="https://github.com/aerovexsim/axiom"
@@ -131,7 +133,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               style={{ fontSize: 11.5, textDecoration: "none" }}
             >
               <ExternalLink size={13} />
-              <span>GitHub Repository</span>
+              <span>{t("about.visitGithub")}</span>
             </a>
           </div>
         </div>
@@ -148,7 +150,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
           }}
         >
           <Button variant="primary" size="sm" onClick={onClose}>
-            Close
+            {t("about.closeBtn")}
           </Button>
         </div>
       </div>

@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
+import { useTranslation } from "../i18n";
 
 export interface MenuBarProps {
   onOpenNewProject: () => void;
@@ -95,6 +96,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   hasActiveProject,
   isSimRunning
 }) => {
+  const { t } = useTranslation();
   const [activeMenu, setActiveMenu] = useState<MenuKey>(null);
   const [autoSave, setAutoSave] = useState<boolean>(() => isAutoSaveEnabled());
   const menuBarRef = useRef<HTMLDivElement>(null);
@@ -204,7 +206,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             backgroundColor: activeMenu === "file" ? "var(--bg-tertiary)" : "transparent"
           }}
         >
-          File
+          {t("menu.file")}
         </button>
 
         {activeMenu === "file" && (
@@ -219,7 +221,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <FolderPlus size={13} color="var(--accent-blue)" />
-                <span>New Project...</span>
+                <span>{t("menu.newProject")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+Shift+N</span>
             </div>
@@ -234,7 +236,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <FolderOpen size={13} color="var(--accent-cyan)" />
-                <span>Open Project (.json)...</span>
+                <span>{t("menu.openProject")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+O</span>
             </div>
@@ -250,7 +252,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <XSquare size={13} color="var(--accent-rose)" />
-                  <span>Close Project</span>
+                  <span>{t("menu.closeProject")}</span>
                 </div>
               </div>
             )}
@@ -269,7 +271,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Save size={13} color="var(--accent-emerald)" />
-                <span>Save File</span>
+                <span>{t("menu.saveFile")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+S</span>
             </div>
@@ -286,7 +288,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Save size={13} color="var(--accent-emerald)" />
-                <span>Save All</span>
+                <span>{t("menu.saveAll")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+Shift+S</span>
             </div>
@@ -303,7 +305,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 ) : (
                   <Square size={13} color="var(--text-muted)" />
                 )}
-                <span style={{ fontWeight: autoSave ? 600 : 400 }}>Auto Save</span>
+                <span style={{ fontWeight: autoSave ? 600 : 400 }}>{t("menu.autoSave")}</span>
               </div>
               <span style={{ fontSize: 10.5, color: autoSave ? "var(--accent-emerald)" : "var(--text-muted)" }}>
                 {autoSave ? "ON" : "OFF"}
@@ -324,7 +326,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <PlusCircle size={13} color="var(--accent-purple)" />
-                <span>Add Sources...</span>
+                <span>{t("menu.addSources")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+A</span>
             </div>
@@ -341,7 +343,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Download size={13} color="var(--text-secondary)" />
-                <span>Export Project Bundle</span>
+                <span>{t("menu.exportProjectJson")}</span>
               </div>
             </div>
 
@@ -358,7 +360,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <LogOut size={13} color="var(--accent-rose)" />
-                    <span>Exit</span>
+                    <span>{t("menu.exit")}</span>
                   </div>
                   <span style={shortcutStyle}>Alt+F4</span>
                 </div>
@@ -382,7 +384,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             backgroundColor: activeMenu === "edit" ? "var(--bg-tertiary)" : "transparent"
           }}
         >
-          Edit
+          {t("menu.edit")}
         </button>
 
         {activeMenu === "edit" && (
@@ -390,7 +392,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             <div style={menuItemStyle} className="menu-item-hover" onClick={() => setActiveMenu(null)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Undo2 size={13} />
-                <span>Undo</span>
+                <span>{t("menu.undo")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+Z</span>
             </div>
@@ -398,7 +400,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             <div style={menuItemStyle} className="menu-item-hover" onClick={() => setActiveMenu(null)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Redo2 size={13} />
-                <span>Redo</span>
+                <span>{t("menu.redo")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+Y</span>
             </div>
@@ -408,7 +410,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             <div style={menuItemStyle} className="menu-item-hover" onClick={() => setActiveMenu(null)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Scissors size={13} />
-                <span>Cut</span>
+                <span>{t("menu.cut")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+X</span>
             </div>
@@ -416,7 +418,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             <div style={menuItemStyle} className="menu-item-hover" onClick={() => setActiveMenu(null)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Copy size={13} />
-                <span>Copy</span>
+                <span>{t("menu.copy")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+C</span>
             </div>
@@ -424,7 +426,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             <div style={menuItemStyle} className="menu-item-hover" onClick={() => setActiveMenu(null)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Clipboard size={13} />
-                <span>Paste</span>
+                <span>{t("menu.paste")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+V</span>
             </div>
@@ -434,7 +436,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             <div style={menuItemStyle} className="menu-item-hover" onClick={() => setActiveMenu(null)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Search size={13} />
-                <span>Find in File</span>
+                <span>{t("menu.findInFile")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+F</span>
             </div>
@@ -456,7 +458,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             backgroundColor: activeMenu === "view" ? "var(--bg-tertiary)" : "transparent"
           }}
         >
-          View
+          {t("menu.view")}
         </button>
 
         {activeMenu === "view" && (
@@ -471,7 +473,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Layout size={13} />
-                <span>Toggle Left Sidebar</span>
+                <span>{t("menu.toggleSidebar")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+B</span>
             </div>
@@ -486,7 +488,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Layout size={13} />
-                <span>Toggle Bottom Dock</span>
+                <span>{t("menu.toggleBottomDock")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+J</span>
             </div>
@@ -501,7 +503,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Maximize size={13} />
-                <span>Toggle Fullscreen</span>
+                <span>{t("menu.fullscreen")}</span>
               </div>
               <span style={shortcutStyle}>F11</span>
             </div>
@@ -518,7 +520,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Cpu size={13} color="var(--accent-cyan)" />
-                <span>Schematic DAG</span>
+                <span>{t("menu.viewSchematic")}</span>
               </div>
             </div>
 
@@ -532,7 +534,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Box size={13} color="var(--accent-cyan)" />
-                <span>Package & Floorplan</span>
+                <span>{t("package.title")}</span>
               </div>
             </div>
 
@@ -546,7 +548,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Boxes size={13} color="var(--accent-purple)" />
-                <span>Architecture Diagram</span>
+                <span>{t("menu.viewArch")}</span>
               </div>
             </div>
 
@@ -560,7 +562,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Sliders size={13} color="var(--accent-amber)" />
-                <span>Virtual Lab Rack</span>
+                <span>{t("menu.viewLab")}</span>
               </div>
             </div>
 
@@ -574,7 +576,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Activity size={13} color="var(--accent-blue)" />
-                <span>Waveform Scope</span>
+                <span>{t("menu.viewWaves")}</span>
               </div>
             </div>
 
@@ -588,7 +590,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Clock size={13} color="var(--accent-rose)" />
-                <span>Timing Radar & Slack</span>
+                <span>{t("menu.viewTiming")}</span>
               </div>
             </div>
 
@@ -602,7 +604,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Layers size={13} color="var(--accent-cyan)" />
-                <span>Multi-Die / Chiplet</span>
+                <span>{t("menu.viewMultiDie")}</span>
               </div>
             </div>
 
@@ -616,7 +618,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Gauge size={13} color="var(--accent-purple)" />
-                <span>PPA & Silicon Costs</span>
+                <span>{t("menu.viewPpa")}</span>
               </div>
             </div>
           </div>
@@ -637,7 +639,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             backgroundColor: activeMenu === "flow" ? "var(--bg-tertiary)" : "transparent"
           }}
         >
-          Flow
+          {t("menu.flow")}
         </button>
 
         {activeMenu === "flow" && (
@@ -653,7 +655,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Pause size={13} color="var(--accent-rose)" />
-                  <span>Pause Simulation</span>
+                  <span>{t("menu.pauseSim")}</span>
                 </div>
                 <span style={shortcutStyle}>F6</span>
               </div>
@@ -668,7 +670,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Play size={13} color="var(--accent-emerald)" />
-                  <span>Run Simulation</span>
+                  <span>{t("menu.runSim")}</span>
                 </div>
                 <span style={shortcutStyle}>F5</span>
               </div>
@@ -684,7 +686,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <FastForward size={13} />
-                <span>Step +1 ns</span>
+                <span>{t("menu.step1ns")}</span>
               </div>
             </div>
 
@@ -698,7 +700,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <FastForward size={13} />
-                <span>Step +100 ps</span>
+                <span>{t("menu.step100ps")}</span>
               </div>
             </div>
 
@@ -712,7 +714,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <FastForward size={13} color="var(--accent-amber)" />
-                <span>Step Delta Cycle (δ)</span>
+                <span>{t("menu.stepDelta")}</span>
               </div>
             </div>
 
@@ -726,7 +728,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <RotateCcw size={13} />
-                <span>Reset Simulation to t=0</span>
+                <span>{t("menu.resetSim")}</span>
               </div>
             </div>
 
@@ -742,7 +744,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Cpu size={13} color="var(--accent-blue)" />
-                <span>Compile / Elaborate Design</span>
+                <span>{t("menu.compileDesign")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+Enter</span>
             </div>
@@ -757,7 +759,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Zap size={13} color="var(--accent-amber)" />
-                <span>Silicon Copilot (Auto-Pipelining)</span>
+                <span>{t("menu.siliconCopilot")}</span>
               </div>
             </div>
           </div>
@@ -778,7 +780,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             backgroundColor: activeMenu === "tools" ? "var(--bg-tertiary)" : "transparent"
           }}
         >
-          Tools
+          {t("menu.tools")}
         </button>
 
         {activeMenu === "tools" && (
@@ -793,7 +795,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Activity size={13} color="var(--accent-cyan)" />
-                <span>Protocol Packet Decoder (AXI/SPI/I2C/UART)...</span>
+                <span>{t("menu.protocolDecoder")}</span>
               </div>
             </div>
 
@@ -808,7 +810,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <GitCompare size={13} color="var(--accent-cyan)" />
-                <span>Golden VCD Waveform Diffing...</span>
+                <span>{t("waveforms.goldenDiff")}</span>
               </div>
             </div>
 
@@ -822,7 +824,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Layers size={13} color="var(--accent-purple)" />
-                <span>Multi-Die / Chiplet Partitioning...</span>
+                <span>{t("menu.multiDieChiplet")}</span>
               </div>
             </div>
 
@@ -836,7 +838,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Gauge size={13} color="var(--accent-emerald)" />
-                <span>PPA Pareto & ASIC Cost Forecaster...</span>
+                <span>{t("menu.ppaParetoCosts")}</span>
               </div>
             </div>
 
@@ -852,7 +854,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Sparkles size={13} color="var(--accent-blue)" />
-                <span>Command Palette & Symbol Finder...</span>
+                <span>{t("menu.commandPalette")}</span>
               </div>
               <span style={shortcutStyle}>Ctrl+K</span>
             </div>
@@ -874,7 +876,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             backgroundColor: activeMenu === "help" ? "var(--bg-tertiary)" : "transparent"
           }}
         >
-          Help
+          {t("menu.help")}
         </button>
 
         {activeMenu === "help" && (
@@ -889,7 +891,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <HelpCircle size={13} color="var(--accent-cyan)" />
-                <span>Axiom Documentation</span>
+                <span>{t("menu.documentation")}</span>
               </div>
               <ExternalLink size={12} color="var(--text-muted)" />
             </a>
@@ -904,7 +906,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <ExternalLink size={13} color="var(--accent-blue)" />
-                <span>GitHub Repository</span>
+                <span>{t("menu.githubRepo")}</span>
               </div>
             </a>
 
@@ -921,7 +923,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <RefreshCw size={13} color="var(--accent-emerald)" />
-                    <span>Check for Updates...</span>
+                    <span>{t("menu.checkForUpdates")}</span>
                   </div>
                 </div>
               </>
@@ -939,7 +941,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Info size={13} color="var(--text-secondary)" />
-                <span>About Axiom EDA Studio</span>
+                <span>{t("menu.aboutAxiom")}</span>
               </div>
             </div>
           </div>
