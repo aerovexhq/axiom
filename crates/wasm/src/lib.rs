@@ -1094,6 +1094,25 @@ pub fn wasm_run_formal(
     serde_wasm_bindgen::to_value(&report).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-
-
-
+/// Standalone WebAssembly function to generate physical FPGA silicon floorplan from HDL source.
+#[wasm_bindgen]
+pub fn wasm_generate_floorplan(
+    source: &str,
+    top_module: Option<String>,
+    device: Option<String>,
+) -> Result<JsValue, JsValue> {
+    let (ast, diags) = parse_hdl(FileId(1), source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(JsValue::from_str(&format!("HDL Syntax Error: {}", err_msgs.join("; "))));
+    }
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+    let dev = device.unwrap_or_else(|| "xc7a35tcpg236-1".to_string());
+    let config = axiom_ir::SynthConfig::for_device(&dev);
+    let synth = axiom_ir::synthesize_from_ast(&ast, &top, &config)
+        .map_err(|e| JsValue::from_str(&format!("Synthesis Error: {e}")))?;
+    let floorplan = axiom_ir::generate_floorplan(&synth, &dev);
+    serde_wasm_bindgen::to_value(&floorplan).map_err(|e| JsValue::from_str(&e.to_string()))
+}

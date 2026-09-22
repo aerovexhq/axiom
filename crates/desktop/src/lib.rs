@@ -425,6 +425,17 @@ fn export_synthesized_verilog(
 }
 
 #[tauri::command]
+fn generate_floorplan(
+    source: String,
+    top_module: Option<String>,
+    device: Option<String>,
+) -> Result<axiom_ir::DieFloorplan, String> {
+    let synth = synthesize_netlist(source, top_module, device.clone())?;
+    let dev = device.unwrap_or_else(|| "xc7a35tcpg236-1".to_string());
+    Ok(axiom_ir::generate_floorplan(&synth, &dev))
+}
+
+#[tauri::command]
 fn run_formal_verification(
     source: String,
     top_module: Option<String>,
@@ -884,6 +895,7 @@ pub fn run_desktop_app() {
             reset_assertions,
             synthesize_netlist,
             export_synthesized_verilog,
+            generate_floorplan,
             run_formal_verification,
             pick_folder,
             pick_files,

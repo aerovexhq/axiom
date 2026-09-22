@@ -4,6 +4,7 @@ pub mod primitives;
 pub mod microarch;
 pub mod multidie;
 pub mod synth;
+pub mod floorplan;
 
 pub use bir::*;
 pub use elaborator::{ElaborationError, Elaborator};
@@ -17,6 +18,10 @@ pub use multidie::{
 pub use synth::{
     synthesize, synthesize_from_ast, FpgaFamily, SynthConfig, SynthError, SynthesisStats,
     SynthesizedCell, SynthesizedCircuit, SynthesizedNet, SynthesizedPort,
+};
+pub use floorplan::{
+    generate_floorplan, ClockRegionDef, CriticalPathHop, DeviceGrid, DieFloorplan, DieSite,
+    HeatmapTile, PlacedCell, PlacedCriticalPath, SiteColumnDef, SiteType,
 };
 pub use axiom_syntax::EdgeKind;
 

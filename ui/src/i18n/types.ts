@@ -349,6 +349,7 @@ export interface Translations {
     console: string;
     timing: string;
     formal: string;
+    floorplan: string;
     closeMenu: string;
     studioTitle: string;
     mobileSubtitle: string;
@@ -455,6 +456,7 @@ export interface Translations {
     siliconCopilot: string;
     protocolDecoder: string;
     formalVerification: string;
+    physicalFloorplan: string;
     multiDieChiplet: string;
     ppaParetoCosts: string;
     stimulusGenerator: string;
@@ -669,5 +671,34 @@ export interface Translations {
     templatesTitle: string;
     useTemplate: string;
     close: string;
+  };
+  floorplan: {
+    title: string;
+    floorplanView: string;
+    netlistView: string;
+    splitView: string;
+    clockRegions: string;
+    siliconGrid: string;
+    placedCells: string;
+    heatmap: string;
+    flightlines: string;
+    criticalPath: string;
+    faninCone: string;
+    fanoutCone: string;
+    dataDelay: string;
+    logicDelay: string;
+    routingDelay: string;
+    slack: string;
+    logicLevels: string;
+    hop: string;
+    site: string;
+    cell: string;
+    pin: string;
+    net: string;
+    focus: string;
+    searchPlaceholder: string;
+    exportSvg: string;
+    device: string;
+    density: string;
   };
 }

@@ -21,9 +21,9 @@ import { AxiomProject } from "../engine/projectModel";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { Badge, Button } from "./ui";
 import { useTranslation } from "../i18n/i18nContext";
-import { Boxes, Layers, Gauge, Box, Workflow, Radio, ShieldCheck } from "lucide-react";
+import { Boxes, Layers, Gauge, Box, Workflow, Radio, ShieldCheck, LayoutGrid } from "lucide-react";
 
-export type MobilePanelType = "editor" | "schematic" | "fsm" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "dock";
+export type MobilePanelType = "editor" | "schematic" | "fsm" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "floorplan" | "dock";
 
 export interface MobileDrawerProps {
   isOpen: boolean;
@@ -142,6 +142,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       sublabel: "Bounded Model Checking & SVA",
       icon: <ShieldCheck size={18} />,
       color: "var(--accent-blue)"
+    },
+    {
+      id: "floorplan",
+      label: t.mobile.floorplan,
+      sublabel: "FPGA die layout & cell placer",
+      icon: <LayoutGrid size={18} />,
+      color: "var(--accent-amber)"
     },
     {
       id: "virtuallab",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow, Radio, ShieldCheck } from "lucide-react";
+import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow, Radio, ShieldCheck, LayoutGrid } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -13,6 +13,7 @@ import { PpaParetoViewer } from "./components/PpaParetoViewer";
 import { ProtocolAnalyzer } from "./components/ProtocolAnalyzer";
 import { TechMappingViewer } from "./components/TechMappingViewer";
 import { FormalVerificationViewer } from "./components/FormalVerificationViewer";
+import { FloorplanStudioViewer } from "./components/FloorplanStudioViewer";
 import { VirtualLabRack } from "./components/VirtualLabRack";
 import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { UnifiedBottomDock } from "./components/UnifiedBottomDock";
@@ -117,8 +118,8 @@ function getInitialProject(): AxiomProject | null {
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "split">("split");
-  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | null>(null);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "floorplan" | "split">("split");
+  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "floorplan" | null>(null);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -315,6 +316,10 @@ export const App: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         handleSaveProject();
+      } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setCenterView("split");
+        setSplitActiveVisualizer("floorplan");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -731,7 +736,7 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal">("schematic");
+  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "floorplan">("schematic");
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
@@ -758,7 +763,7 @@ export const App: React.FC = () => {
   }, []);
 
   // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal") => {
+  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "floorplan") => {
     setMaximizedPanel((prev) => (prev === panel ? null : panel));
   };
 
@@ -1121,6 +1126,21 @@ export const App: React.FC = () => {
                 topModule={project?.topModule}
                 onNavigateToWaveform={() => setActiveMobilePanel("waveform")}
                 onInsertAssertion={handleInsertAssertion}
+              />
+            </div>
+          ) : activeMobilePanel === "floorplan" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <FloorplanStudioViewer
+                state={state}
+                activeDesignId={activeDesignId}
+                verilogSource={project ? bundleProjectSources(project) : (activeFile?.content ?? "")}
+                topModule={project?.topModule}
+                targetDevice={project?.targetDevice}
+                onDeviceChange={(dev) => {
+                  setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                }}
+                onSelectSignal={handleSchematicSelectSignal}
+                onJumpToCode={handleJumpToCode}
               />
             </div>
           ) : (
@@ -1659,6 +1679,29 @@ export const App: React.FC = () => {
                         <ShieldCheck size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Formal</span>
                       </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("floorplan")}
+                        title="Physical Silicon Floorplan & Gate Netlist Studio"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "floorplan" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "floorplan" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "floorplan" ? "var(--accent-green, #2ea043)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "floorplan" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <LayoutGrid size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>Floorplan</span>
+                      </button>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, whiteSpace: "nowrap" }}>
@@ -1826,6 +1869,20 @@ export const App: React.FC = () => {
                             onInsertAssertion={handleInsertAssertion}
                           />
                         )}
+                        {splitActiveVisualizer === "floorplan" && (
+                          <FloorplanStudioViewer
+                            state={state}
+                            activeDesignId={activeDesignId}
+                            verilogSource={activeFile?.content}
+                            topModule={project.topModule}
+                            targetDevice={project.targetDevice}
+                            onDeviceChange={(dev) => {
+                              setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                            }}
+                            onSelectSignal={handleSchematicSelectSignal}
+                            onJumpToCode={handleJumpToCode}
+                          />
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1932,6 +1989,20 @@ export const App: React.FC = () => {
                           topModule={project.topModule}
                           onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
                           onInsertAssertion={handleInsertAssertion}
+                        />
+                      )}
+                      {splitActiveVisualizer === "floorplan" && (
+                        <FloorplanStudioViewer
+                          state={state}
+                          activeDesignId={activeDesignId}
+                          verilogSource={activeFile?.content}
+                          topModule={project.topModule}
+                          targetDevice={project.targetDevice}
+                          onDeviceChange={(dev) => {
+                            setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                          }}
+                          onSelectSignal={handleSchematicSelectSignal}
+                          onJumpToCode={handleJumpToCode}
                         />
                       )}
                     </div>
@@ -2299,6 +2370,48 @@ export const App: React.FC = () => {
                     topModule={project.topModule}
                     onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
                     onInsertAssertion={handleInsertAssertion}
+                  />
+                </div>
+              </div>
+            ) : centerView === "floorplan" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <FloorplanStudioViewer
+                    state={state}
+                    activeDesignId={activeDesignId}
+                    verilogSource={activeFile?.content}
+                    topModule={project.topModule}
+                    targetDevice={project.targetDevice}
+                    onDeviceChange={(dev) => {
+                      setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
+                    }}
+                    onSelectSignal={handleSchematicSelectSignal}
+                    onJumpToCode={handleJumpToCode}
                   />
                 </div>
               </div>

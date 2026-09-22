@@ -36,7 +36,8 @@ import {
   Sparkles,
   Box,
   GitCompare,
-  ShieldCheck
+  ShieldCheck,
+  LayoutGrid
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -52,7 +53,7 @@ export interface MenuBarProps {
   onExportProjectJson: () => void;
   onToggleSidebar: () => void;
   onToggleBottomDock: () => void;
-  onSwitchVisualizer: (view: "schematic" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "package") => void;
+  onSwitchVisualizer: (view: "schematic" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "package" | "floorplan") => void;
   onRunSimulation: () => void;
   onPauseSimulation: () => void;
   onStep1ns: () => void;
@@ -622,6 +623,20 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <span>{t("menu.viewPpa")}</span>
               </div>
             </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSwitchVisualizer("floorplan");
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <LayoutGrid size={13} color="var(--accent-amber)" />
+                <span>{t("floorplan.title")}</span>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -855,6 +870,21 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Gauge size={13} color="var(--accent-emerald)" />
                 <span>{t("menu.ppaParetoCosts")}</span>
               </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSwitchVisualizer("floorplan");
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <LayoutGrid size={13} color="var(--accent-amber)" />
+                <span>{t("menu.physicalFloorplan")}</span>
+              </div>
+              <span style={shortcutStyle}>Ctrl+Alt+F</span>
             </div>
 
             <div style={dividerStyle} />

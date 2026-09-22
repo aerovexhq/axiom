@@ -225,6 +225,11 @@ export function wasm_export_synthesized_verilog(source: string, top_module?: str
  */
 export function wasm_run_formal(source: string, top_module?: string | null, max_depth?: number | null, engine_mode?: string | null, clock_name?: string | null, reset_name?: string | null): any;
 
+/**
+ * Standalone WebAssembly function to generate physical FPGA silicon floorplan from HDL source.
+ */
+export function wasm_generate_floorplan(source: string, top_module?: string | null, device?: string | null): any;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {

@@ -126,6 +126,12 @@ pub enum PrimitiveKind {
     Carry8,
 }
 
+impl std::fmt::Display for PrimitiveKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BirPrimitiveInstance {
     pub name: String,

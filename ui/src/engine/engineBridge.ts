@@ -31,6 +31,8 @@ import {
 } from "./synthModel";
 import type { FormalReport } from "./formalModel";
 import { getFormalReportFallback } from "./formalModel";
+import type { DieFloorplan, FloorplanOptions } from "./floorplanModel";
+import { generateClientFallbackFloorplan } from "./floorplanModel";
 
 export type {
   ProtocolDecodeRequest,
@@ -713,6 +715,47 @@ export class AxiomEngineBridge {
     const synth = await this.synthesizeDesign(options);
     if (synth.verilog_text) return synth.verilog_text;
     return `// Axiom Synthesized Verilog (${synth.target_device})\nmodule ${synth.top_module} ();\nendmodule\n`;
+  }
+
+  public async generateFloorplan(options: FloorplanOptions): Promise<DieFloorplan> {
+    const src = options.source ?? this.activeSourceCode ?? "";
+    const top = options.topModule ?? "top";
+    const dev = options.device ?? "xc7a35tcpg236-1";
+
+    // 1. Desktop Tauri Native IPC
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const res = await invoke<DieFloorplan>("generate_floorplan", {
+          source: src,
+          topModule: top,
+          device: dev
+        });
+        if (res && res.grid_width > 0) {
+          return res;
+        }
+      } catch (e) {
+        console.warn("[engineBridge] Tauri generate_floorplan fallback:", e);
+      }
+    }
+
+    // 2. Main-Thread WASM
+    try {
+      await this.initWasm();
+      const mod = await import("../wasm/axiom_wasm.js");
+      if (typeof (mod as any).wasm_generate_floorplan === "function") {
+        const res = (mod as any).wasm_generate_floorplan(src, top, dev);
+        if (res && res.grid_width > 0) {
+          return res as DieFloorplan;
+        }
+      }
+    } catch (e) {
+      console.warn("[engineBridge] Main WASM generate_floorplan fallback:", e);
+    }
+
+    // 3. Deterministic Client Fallback from Synthesized Circuit
+    const synth = await this.synthesizeDesign({ source: src, topModule: top, device: dev });
+    return generateClientFallbackFloorplan(synth, dev);
   }
 
   private getInitialState(topModule: string): SimulationState {
