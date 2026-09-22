@@ -425,7 +425,13 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
   } else if (sampleDesignId === "dsp_bram_mac" || sampleDesignId.includes("dsp") || sampleDesignId.includes("bram")) {
     return generateDspBramMacGraph();
   }
-  return generateLogicCircuitGraph();
+  return {
+    id: "empty",
+    topModule: "",
+    nodes: [],
+    edges: [],
+    bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+  };
 }
 
 /**

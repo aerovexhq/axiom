@@ -14,7 +14,8 @@ import {
   Zap,
   Download,
   Copy,
-  Check
+  Check,
+  Cpu
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
@@ -1198,6 +1199,46 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     };
   }, [mousePos]);
 
+
+  if (!graph || graph.nodes.length === 0) {
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "var(--bg-primary)",
+          padding: 32,
+          textAlign: "center",
+          userSelect: "none"
+        }}
+      >
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            backgroundColor: "rgba(56, 189, 248, 0.1)",
+            border: "1px solid rgba(56, 189, 248, 0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 16
+          }}
+        >
+          <Cpu size={28} color="var(--accent-cyan)" />
+        </div>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "#f1f5f9", marginBottom: 8 }}>
+          No Schematic to Display
+        </h3>
+        <p style={{ fontSize: 13, color: "#64748b", maxWidth: 420, lineHeight: 1.6 }}>
+          No gate-level schematic netlist is available for the current module. Select a synthesizable hardware design or elaborate your design to view its schematic.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

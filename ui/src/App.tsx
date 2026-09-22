@@ -283,6 +283,11 @@ export const App: React.FC = () => {
     return project.files.find((f) => f.id === project.activeFileId) ?? project.files[0] ?? null;
   }, [project]);
 
+  // Active Design / Module ID for Hardware DAG & Visualizers
+  const activeDesignId = useMemo(() => {
+    return project?.templateId ?? project?.topModule ?? "";
+  }, [project]);
+
   // Initial compilation on mount
   useEffect(() => {
     const unsub = engineBridge.subscribeState((newState) => {
@@ -954,7 +959,7 @@ export const App: React.FC = () => {
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <SchematicViewer
                 state={state}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 selectedSignalId={activeCrossProbeSignal}
                 onSelectSignal={handleSchematicSelectSignal}
                 onOpenAutoPipeline={handleOpenAutoPipeline}
@@ -968,7 +973,7 @@ export const App: React.FC = () => {
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <FsmViewer
                 state={state}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 verilogSource={activeFile?.content}
                 onSelectSignal={handleSchematicSelectSignal}
                 onOpenAutoPipeline={handleOpenAutoPipeline}
@@ -984,7 +989,7 @@ export const App: React.FC = () => {
                 project={project}
                 verilogSource={activeFile?.content}
                 xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 onUpdateXdc={handleUpdateXdc}
                 onNavigateToLine={(line) => {
                   handleJumpToCode(line, line);
@@ -996,7 +1001,7 @@ export const App: React.FC = () => {
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <MicroarchViewer
                 state={state}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 verilogSource={activeFile?.content}
                 selectedSignalId={activeCrossProbeSignal}
                 onSelectSignal={handleSchematicSelectSignal}
@@ -1010,7 +1015,7 @@ export const App: React.FC = () => {
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <VirtualLabRack
                 state={state}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 project={project}
               />
             </div>
@@ -1025,7 +1030,7 @@ export const App: React.FC = () => {
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <TimingRadarViewer
                 state={state}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 project={project}
                 onCrossProbe={(sig) => {
                   handleSchematicSelectSignal(sig);
@@ -1042,7 +1047,7 @@ export const App: React.FC = () => {
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <MultiDieViewer
                 state={state}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 verilogSource={activeFile?.content}
                 targetDevice={project.targetDevice}
                 onSelectSignal={(sig) => {
@@ -1059,7 +1064,7 @@ export const App: React.FC = () => {
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <PpaParetoViewer
                 state={state}
-                activeDesignId={project.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 verilogSource={activeFile?.content}
                 xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
                 targetDevice={project.targetDevice}
@@ -1082,7 +1087,7 @@ export const App: React.FC = () => {
                   setActiveMobilePanel("editor");
                 }}
                 isMobileFullScreen={true}
-                activeDesignId={project?.templateId ?? "logic_circuit_project"}
+                activeDesignId={activeDesignId}
                 targetDevice={project?.targetDevice}
               />
             </div>
@@ -1174,7 +1179,7 @@ export const App: React.FC = () => {
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <SchematicViewer
                   state={state}
-                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  activeDesignId={activeDesignId}
                   selectedSignalId={activeCrossProbeSignal}
                   onSelectSignal={handleSchematicSelectSignal}
                   onJumpToCode={handleJumpToCode}
@@ -1185,7 +1190,7 @@ export const App: React.FC = () => {
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <FsmViewer
                   state={state}
-                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  activeDesignId={activeDesignId}
                   verilogSource={activeFile?.content}
                   onSelectSignal={handleSchematicSelectSignal}
                   onJumpToCode={handleJumpToCode}
@@ -1198,7 +1203,7 @@ export const App: React.FC = () => {
                   project={project}
                   verilogSource={activeFile?.content}
                   xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  activeDesignId={activeDesignId}
                   onUpdateXdc={handleUpdateXdc}
                   onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
                 />
@@ -1207,7 +1212,7 @@ export const App: React.FC = () => {
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <MicroarchViewer
                   state={state}
-                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  activeDesignId={activeDesignId}
                   verilogSource={activeFile?.content}
                   selectedSignalId={activeCrossProbeSignal}
                   onSelectSignal={handleSchematicSelectSignal}
@@ -1216,13 +1221,13 @@ export const App: React.FC = () => {
               </div>
             ) : maximizedPanel === "virtuallab" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
+                <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
               </div>
             ) : maximizedPanel === "timing" ? (
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <TimingRadarViewer
                   state={state}
-                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  activeDesignId={activeDesignId}
                   project={project}
                   onCrossProbe={handleSchematicSelectSignal}
                   onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
@@ -1233,7 +1238,7 @@ export const App: React.FC = () => {
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <MultiDieViewer
                   state={state}
-                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  activeDesignId={activeDesignId}
                   verilogSource={activeFile?.content}
                   targetDevice={project.targetDevice}
                   onSelectSignal={handleSchematicSelectSignal}
@@ -1244,7 +1249,7 @@ export const App: React.FC = () => {
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 <PpaParetoViewer
                   state={state}
-                  activeDesignId={project.templateId ?? "logic_circuit_project"}
+                  activeDesignId={activeDesignId}
                   verilogSource={activeFile?.content}
                   xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
                   targetDevice={project.targetDevice}
@@ -1577,7 +1582,7 @@ export const App: React.FC = () => {
                         {splitActiveVisualizer === "schematic" && (
                           <SchematicViewer
                             state={state}
-                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            activeDesignId={activeDesignId}
                             selectedSignalId={activeCrossProbeSignal}
                             onSelectSignal={handleSchematicSelectSignal}
                             onJumpToCode={handleJumpToCode}
@@ -1587,7 +1592,7 @@ export const App: React.FC = () => {
                         {splitActiveVisualizer === "fsm" && (
                           <FsmViewer
                             state={state}
-                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            activeDesignId={activeDesignId}
                             verilogSource={activeFile?.content}
                             onSelectSignal={handleSchematicSelectSignal}
                             onJumpToCode={handleJumpToCode}
@@ -1599,7 +1604,7 @@ export const App: React.FC = () => {
                             project={project}
                             verilogSource={activeFile?.content}
                             xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            activeDesignId={activeDesignId}
                             onUpdateXdc={handleUpdateXdc}
                             onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
                           />
@@ -1607,7 +1612,7 @@ export const App: React.FC = () => {
                         {splitActiveVisualizer === "microarch" && (
                           <MicroarchViewer
                             state={state}
-                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            activeDesignId={activeDesignId}
                             verilogSource={activeFile?.content}
                             selectedSignalId={activeCrossProbeSignal}
                             onSelectSignal={handleSchematicSelectSignal}
@@ -1615,12 +1620,12 @@ export const App: React.FC = () => {
                           />
                         )}
                         {splitActiveVisualizer === "virtuallab" && (
-                          <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
+                          <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
                         )}
                         {splitActiveVisualizer === "timing" && (
                           <TimingRadarViewer
                             state={state}
-                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            activeDesignId={activeDesignId}
                             project={project}
                             onCrossProbe={handleSchematicSelectSignal}
                             onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
@@ -1630,7 +1635,7 @@ export const App: React.FC = () => {
                         {splitActiveVisualizer === "multidie" && (
                           <MultiDieViewer
                             state={state}
-                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            activeDesignId={activeDesignId}
                             verilogSource={activeFile?.content}
                             targetDevice={project.targetDevice}
                             onSelectSignal={handleSchematicSelectSignal}
@@ -1640,7 +1645,7 @@ export const App: React.FC = () => {
                         {splitActiveVisualizer === "ppa" && (
                           <PpaParetoViewer
                             state={state}
-                            activeDesignId={project.templateId ?? "logic_circuit_project"}
+                            activeDesignId={activeDesignId}
                             verilogSource={activeFile?.content}
                             xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
                             targetDevice={project.targetDevice}
@@ -1657,7 +1662,7 @@ export const App: React.FC = () => {
                       {splitActiveVisualizer === "schematic" && (
                         <SchematicViewer
                           state={state}
-                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          activeDesignId={activeDesignId}
                           selectedSignalId={activeCrossProbeSignal}
                           onSelectSignal={handleSchematicSelectSignal}
                           onJumpToCode={handleJumpToCode}
@@ -1667,7 +1672,7 @@ export const App: React.FC = () => {
                       {splitActiveVisualizer === "fsm" && (
                         <FsmViewer
                           state={state}
-                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          activeDesignId={activeDesignId}
                           verilogSource={activeFile?.content}
                           onSelectSignal={handleSchematicSelectSignal}
                           onJumpToCode={handleJumpToCode}
@@ -1679,7 +1684,7 @@ export const App: React.FC = () => {
                           project={project}
                           verilogSource={activeFile?.content}
                           xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          activeDesignId={activeDesignId}
                           onUpdateXdc={handleUpdateXdc}
                           onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
                         />
@@ -1687,7 +1692,7 @@ export const App: React.FC = () => {
                       {splitActiveVisualizer === "microarch" && (
                         <MicroarchViewer
                           state={state}
-                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          activeDesignId={activeDesignId}
                           verilogSource={activeFile?.content}
                           selectedSignalId={activeCrossProbeSignal}
                           onSelectSignal={handleSchematicSelectSignal}
@@ -1695,7 +1700,7 @@ export const App: React.FC = () => {
                         />
                       )}
                       {splitActiveVisualizer === "virtuallab" && (
-                        <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
+                        <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
                       )}
                       {splitActiveVisualizer === "waveform" && (
                         <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
@@ -1703,7 +1708,7 @@ export const App: React.FC = () => {
                       {splitActiveVisualizer === "timing" && (
                         <TimingRadarViewer
                           state={state}
-                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          activeDesignId={activeDesignId}
                           project={project}
                           onCrossProbe={handleSchematicSelectSignal}
                           onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
@@ -1713,7 +1718,7 @@ export const App: React.FC = () => {
                       {splitActiveVisualizer === "multidie" && (
                         <MultiDieViewer
                           state={state}
-                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          activeDesignId={activeDesignId}
                           verilogSource={activeFile?.content}
                           targetDevice={project.targetDevice}
                           onSelectSignal={handleSchematicSelectSignal}
@@ -1723,7 +1728,7 @@ export const App: React.FC = () => {
                       {splitActiveVisualizer === "ppa" && (
                         <PpaParetoViewer
                           state={state}
-                          activeDesignId={project.templateId ?? "logic_circuit_project"}
+                          activeDesignId={activeDesignId}
                           verilogSource={activeFile?.content}
                           xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
                           targetDevice={project.targetDevice}
@@ -1798,7 +1803,7 @@ export const App: React.FC = () => {
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                   <SchematicViewer
                     state={state}
-                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    activeDesignId={activeDesignId}
                     selectedSignalId={activeCrossProbeSignal}
                     onSelectSignal={handleSchematicSelectSignal}
                     onJumpToCode={handleJumpToCode}
@@ -1836,7 +1841,7 @@ export const App: React.FC = () => {
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                   <MicroarchViewer
                     state={state}
-                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    activeDesignId={activeDesignId}
                     verilogSource={activeFile?.content}
                     selectedSignalId={activeCrossProbeSignal}
                     onSelectSignal={handleSchematicSelectSignal}
@@ -1872,7 +1877,7 @@ export const App: React.FC = () => {
                   onDoubleClick={() => setEditorWidthPercent(42)}
                 />
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <VirtualLabRack state={state} activeDesignId={project.templateId ?? "logic_circuit_project"} project={project} />
+                  <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
                 </div>
               </div>
             ) : centerView === "multidie" ? (
@@ -1905,7 +1910,7 @@ export const App: React.FC = () => {
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                   <MultiDieViewer
                     state={state}
-                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    activeDesignId={activeDesignId}
                     verilogSource={activeFile?.content}
                     targetDevice={project.targetDevice}
                     onSelectSignal={handleSchematicSelectSignal}
@@ -1943,7 +1948,7 @@ export const App: React.FC = () => {
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                   <PpaParetoViewer
                     state={state}
-                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    activeDesignId={activeDesignId}
                     verilogSource={activeFile?.content}
                     xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
                     targetDevice={project.targetDevice}
@@ -1986,7 +1991,7 @@ export const App: React.FC = () => {
                     project={project}
                     verilogSource={activeFile?.content}
                     xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    activeDesignId={activeDesignId}
                     onUpdateXdc={handleUpdateXdc}
                     onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
                   />
@@ -2022,7 +2027,7 @@ export const App: React.FC = () => {
                 <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
                   <TimingRadarViewer
                     state={state}
-                    activeDesignId={project.templateId ?? "logic_circuit_project"}
+                    activeDesignId={activeDesignId}
                     project={project}
                     onCrossProbe={handleSchematicSelectSignal}
                     onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
@@ -2038,7 +2043,7 @@ export const App: React.FC = () => {
             state={state}
             diagnostics={diagnostics}
             onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-            activeDesignId={project?.templateId ?? "logic_circuit_project"}
+            activeDesignId={activeDesignId}
             targetDevice={project?.targetDevice}
           />
         </div>

@@ -87,9 +87,9 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   const [coverageEnabled, setCoverageEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("axiom_coverage_heatmap");
-      return saved !== null ? saved === "true" : true;
+      return saved === "true";
     } catch {
-      return true;
+      return false;
     }
   });
   const [coverageReport, setCoverageReport] = useState<CoverageReport | null>(null);
@@ -306,7 +306,11 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         if (!model) return;
 
         if (report && Array.isArray(report.lines) && report.lines.length > 0) {
-          const decors: monacoPkg.editor.IModelDeltaDecoration[] = report.lines.map((lineInfo) => {
+          const decors: monacoPkg.editor.IModelDeltaDecoration[] = [];
+          for (const lineInfo of report.lines) {
+            // Non-executable lines (comments, module ports, blank lines) must never be decorated
+            if (lineInfo.status === "NonExecutable") continue;
+
             let glyphClass = "axiom-cov-glyph-dead";
             let lineClass = "axiom-cov-line-dead";
             let desc = "Uncovered (0 executions)";
@@ -319,9 +323,15 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               glyphClass = "axiom-cov-glyph-partial";
               lineClass = "axiom-cov-line-partial";
               desc = `Branch Partial: True=${lineInfo.branch_true ?? 0}, False=${lineInfo.branch_false ?? 0} (Total: ${lineInfo.hits})`;
+            } else if (lineInfo.status === "Uncovered") {
+              glyphClass = "axiom-cov-glyph-dead";
+              lineClass = "axiom-cov-line-dead";
+              desc = "Uncovered (0 executions)";
+            } else {
+              continue;
             }
 
-            return {
+            decors.push({
               range: new monacoRef.current!.Range(lineInfo.line, 1, lineInfo.line, 1),
               options: {
                 isWholeLine: true,
@@ -333,8 +343,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                   }`
                 }
               }
-            };
-          });
+            });
+          }
 
           coverageDecorationsRef.current = editorRef.current.deltaDecorations(
             coverageDecorationsRef.current,
