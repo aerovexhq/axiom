@@ -1024,6 +1024,76 @@ pub fn wasm_export_synthesized_verilog(
     Ok(synth.to_verilog())
 }
 
+/// Standalone WebAssembly function to run Bounded Model Checking (BMC) and Formal Property Verification.
+#[wasm_bindgen]
+pub fn wasm_run_formal(
+    source: &str,
+    top_module: Option<String>,
+    max_depth: Option<u32>,
+    engine_mode: Option<String>,
+    clock_name: Option<String>,
+    reset_name: Option<String>,
+) -> Result<JsValue, JsValue> {
+    let (ast, diags) = parse_hdl(FileId(1), source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(JsValue::from_str(&format!("HDL Syntax Error: {}", err_msgs.join("; "))));
+    }
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+    let circuit = elaborate(&ast, &top).map_err(|e| JsValue::from_str(&format!("Elaboration Error: {e}")))?;
+
+    // Collect assertions from AST
+    let mut assertions = Vec::new();
+    for module in &ast.modules {
+        for item in &module.items {
+            if let axiom_syntax::ast::ModuleItem::Assertion(asrt) = item {
+                let mut parser = axiom_sim::assertion::SvaParser::new(&asrt.expr_text);
+                let default_id = format!("asrt_{}", assertions.len());
+                if let Some(mut parsed) = parser.parse_assertion(&default_id) {
+                    parsed.name = asrt.label.clone().unwrap_or(default_id);
+                    parsed.kind = match asrt.kind {
+                        axiom_syntax::ast::AssertionKind::Assert => axiom_sim::assertion::AssertionKind::Assert,
+                        axiom_syntax::ast::AssertionKind::Assume => axiom_sim::assertion::AssertionKind::Assume,
+                        axiom_syntax::ast::AssertionKind::Cover => axiom_sim::assertion::AssertionKind::Cover,
+                    };
+                    if let Some(clk) = &asrt.clock {
+                        let is_posedge = matches!(clk.edge, axiom_syntax::ast::EdgeKind::Posedge);
+                        parsed.edge = if is_posedge {
+                            axiom_sim::assertion::ClockEdge::Posedge
+                        } else {
+                            axiom_sim::assertion::ClockEdge::Negedge
+                        };
+                        if let axiom_syntax::ast::Expr::Ident(name, _) = &clk.signal {
+                            parsed.clock = name.clone();
+                        }
+                    }
+                    assertions.push(parsed);
+                }
+            }
+        }
+    }
+
+    let engine = match engine_mode.as_deref() {
+        Some("k_induction") | Some("kinduction") | Some("k-induction") => {
+            axiom_sim::formal::FormalEngineKind::KInduction
+        }
+        _ => axiom_sim::formal::FormalEngineKind::Bmc,
+    };
+
+    let config = axiom_sim::formal::FormalConfig {
+        max_depth: max_depth.unwrap_or(20),
+        engine,
+        clock_name,
+        reset_name,
+        ..Default::default()
+    };
+
+    let report = axiom_sim::formal::run_formal_verification(&circuit, &config, &assertions);
+    serde_wasm_bindgen::to_value(&report).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
 
 
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow, Radio } from "lucide-react";
+import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow, Radio, ShieldCheck } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -12,6 +12,7 @@ import { MultiDieViewer } from "./components/MultiDieViewer";
 import { PpaParetoViewer } from "./components/PpaParetoViewer";
 import { ProtocolAnalyzer } from "./components/ProtocolAnalyzer";
 import { TechMappingViewer } from "./components/TechMappingViewer";
+import { FormalVerificationViewer } from "./components/FormalVerificationViewer";
 import { VirtualLabRack } from "./components/VirtualLabRack";
 import { TimingRadarViewer } from "./components/TimingRadarViewer";
 import { UnifiedBottomDock } from "./components/UnifiedBottomDock";
@@ -116,8 +117,8 @@ function getInitialProject(): AxiomProject | null {
 export const App: React.FC = () => {
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "split">("split");
-  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | null>(null);
+  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "split">("split");
+  const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | null>(null);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -730,7 +731,7 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping">("schematic");
+  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal">("schematic");
   const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
   const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
@@ -757,9 +758,24 @@ export const App: React.FC = () => {
   }, []);
 
   // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping") => {
+  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal") => {
     setMaximizedPanel((prev) => (prev === panel ? null : panel));
   };
+
+  // Insert formal SVA assertion into active file
+  const handleInsertAssertion = useCallback((snippet: string) => {
+    if (!project || !activeFile) return;
+    const content = activeFile.content;
+    const endModuleIdx = content.lastIndexOf("endmodule");
+    let newCode: string;
+    if (endModuleIdx !== -1) {
+      newCode = content.slice(0, endModuleIdx) + `  // Formal SVA Assertion\n  ${snippet}\n\n` + content.slice(endModuleIdx);
+    } else {
+      newCode = content + `\n\n// Formal SVA Assertion\n${snippet}\n`;
+    }
+    handleCodeChange(newCode);
+    toast.success("Inserted assertion into design source");
+  }, [project, activeFile, handleCodeChange]);
 
   // Synchronize constraints from PackageVisualizer back to project XDC
   const handleUpdateXdc = useCallback((newXdc: string) => {
@@ -1098,6 +1114,15 @@ export const App: React.FC = () => {
                 }}
               />
             </div>
+          ) : activeMobilePanel === "formal" ? (
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <FormalVerificationViewer
+                sourceCode={activeFile?.content ?? ""}
+                topModule={project?.topModule}
+                onNavigateToWaveform={() => setActiveMobilePanel("waveform")}
+                onInsertAssertion={handleInsertAssertion}
+              />
+            </div>
           ) : (
             <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
               <UnifiedBottomDock
@@ -1297,6 +1322,18 @@ export const App: React.FC = () => {
                   onDeviceChange={(dev) => {
                     setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
                   }}
+                />
+              </div>
+            ) : maximizedPanel === "formal" ? (
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <FormalVerificationViewer
+                  sourceCode={activeFile?.content ?? ""}
+                  topModule={project.topModule}
+                  onNavigateToWaveform={() => {
+                    setMaximizedPanel(null);
+                    setSplitActiveVisualizer("waveform");
+                  }}
+                  onInsertAssertion={handleInsertAssertion}
                 />
               </div>
             ) : centerView === "split" ? (
@@ -1599,6 +1636,29 @@ export const App: React.FC = () => {
                         <Cpu size={12} />
                         <span style={{ whiteSpace: "nowrap" }}>Tech Map</span>
                       </button>
+
+                      <button
+                        onClick={() => setSplitActiveVisualizer("formal")}
+                        title="Formal Property Verification, Bounded Model Checking (BMC) & SVA Assertions"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11.5,
+                          fontWeight: splitActiveVisualizer === "formal" ? 600 : 400,
+                          padding: "2px 7px",
+                          borderRadius: "var(--radius-sm)",
+                          backgroundColor: splitActiveVisualizer === "formal" ? "var(--bg-tertiary)" : "transparent",
+                          color: splitActiveVisualizer === "formal" ? "var(--accent-blue, #388bfd)" : "var(--text-muted)",
+                          border: splitActiveVisualizer === "formal" ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}
+                      >
+                        <ShieldCheck size={12} />
+                        <span style={{ whiteSpace: "nowrap" }}>Formal</span>
+                      </button>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, whiteSpace: "nowrap" }}>
@@ -1758,6 +1818,14 @@ export const App: React.FC = () => {
                             }}
                           />
                         )}
+                        {splitActiveVisualizer === "formal" && (
+                          <FormalVerificationViewer
+                            sourceCode={activeFile?.content ?? ""}
+                            topModule={project.topModule}
+                            onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
+                            onInsertAssertion={handleInsertAssertion}
+                          />
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1856,6 +1924,14 @@ export const App: React.FC = () => {
                           onDeviceChange={(dev) => {
                             setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
                           }}
+                        />
+                      )}
+                      {splitActiveVisualizer === "formal" && (
+                        <FormalVerificationViewer
+                          sourceCode={activeFile?.content ?? ""}
+                          topModule={project.topModule}
+                          onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
+                          onInsertAssertion={handleInsertAssertion}
                         />
                       )}
                     </div>
@@ -2187,6 +2263,42 @@ export const App: React.FC = () => {
                     onDeviceChange={(dev) => {
                       setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
                     }}
+                  />
+                </div>
+              </div>
+            ) : centerView === "formal" ? (
+              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
+                  <HdlEditor
+                    code={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onChangeCode={handleCodeChange}
+                    onCompile={handleCompile}
+                    compiled={state.compiled}
+                    highlightLineSpan={highlightLineSpan}
+                    project={project}
+                    onSelectTab={handleSelectFile}
+                    onCloseTab={handleCloseTab}
+                    onAddFileClick={() => setIsAddSourceOpen(true)}
+                    isMaximized={false}
+                    onToggleMaximize={() => toggleMaximizePanel("editor")}
+                    onDiagnosticsChange={setDiagnostics}
+                    onOpenAutoPipeline={handleOpenAutoPipeline}
+                    timingSlackPs={timingSlackPs}
+                    predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  />
+                </div>
+                <ResizableSplitter
+                  orientation="horizontal"
+                  onResize={handleEditorResize}
+                  onDoubleClick={() => setEditorWidthPercent(42)}
+                />
+                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
+                  <FormalVerificationViewer
+                    sourceCode={activeFile?.content ?? ""}
+                    topModule={project.topModule}
+                    onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
+                    onInsertAssertion={handleInsertAssertion}
                   />
                 </div>
               </div>

@@ -425,6 +425,73 @@ fn export_synthesized_verilog(
 }
 
 #[tauri::command]
+fn run_formal_verification(
+    source: String,
+    top_module: Option<String>,
+    max_depth: Option<u32>,
+    engine_mode: Option<String>,
+    clock_name: Option<String>,
+    reset_name: Option<String>,
+) -> Result<axiom_sim::formal::FormalReport, String> {
+    let (ast, diags) = parse_hdl(FileId(1), &source);
+    if !diags.is_empty() {
+        let err_msgs: Vec<String> = diags.iter().map(|d| d.message.clone()).collect();
+        return Err(format!("HDL Syntax Error: {}", err_msgs.join("; ")));
+    }
+    let top = top_module.unwrap_or_else(|| {
+        ast.modules.first().map(|m| m.name.clone()).unwrap_or_else(|| "top".to_string())
+    });
+    let circuit = elaborate(&ast, &top).map_err(|e| format!("Elaboration Error: {e}"))?;
+
+    let mut assertions = Vec::new();
+    for module in &ast.modules {
+        for item in &module.items {
+            if let axiom_syntax::ast::ModuleItem::Assertion(asrt) = item {
+                let mut parser = axiom_sim::assertion::SvaParser::new(&asrt.expr_text);
+                let default_id = format!("asrt_{}", assertions.len());
+                if let Some(mut parsed) = parser.parse_assertion(&default_id) {
+                    parsed.name = asrt.label.clone().unwrap_or(default_id);
+                    parsed.kind = match asrt.kind {
+                        axiom_syntax::ast::AssertionKind::Assert => axiom_sim::assertion::AssertionKind::Assert,
+                        axiom_syntax::ast::AssertionKind::Assume => axiom_sim::assertion::AssertionKind::Assume,
+                        axiom_syntax::ast::AssertionKind::Cover => axiom_sim::assertion::AssertionKind::Cover,
+                    };
+                    if let Some(clk) = &asrt.clock {
+                        let is_posedge = matches!(clk.edge, axiom_syntax::ast::EdgeKind::Posedge);
+                        parsed.edge = if is_posedge {
+                            axiom_sim::assertion::ClockEdge::Posedge
+                        } else {
+                            axiom_sim::assertion::ClockEdge::Negedge
+                        };
+                        if let axiom_syntax::ast::Expr::Ident(name, _) = &clk.signal {
+                            parsed.clock = name.clone();
+                        }
+                    }
+                    assertions.push(parsed);
+                }
+            }
+        }
+    }
+
+    let engine = match engine_mode.as_deref() {
+        Some("k_induction") | Some("kinduction") | Some("k-induction") => {
+            axiom_sim::formal::FormalEngineKind::KInduction
+        }
+        _ => axiom_sim::formal::FormalEngineKind::Bmc,
+    };
+
+    let config = axiom_sim::formal::FormalConfig {
+        max_depth: max_depth.unwrap_or(20),
+        engine,
+        clock_name,
+        reset_name,
+        ..Default::default()
+    };
+
+    Ok(axiom_sim::formal::run_formal_verification(&circuit, &config, &assertions))
+}
+
+#[tauri::command]
 fn fs_read_file(path: String) -> Result<String, String> {
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
@@ -817,6 +884,7 @@ pub fn run_desktop_app() {
             reset_assertions,
             synthesize_netlist,
             export_synthesized_verilog,
+            run_formal_verification,
             pick_folder,
             pick_files,
             get_app_version,

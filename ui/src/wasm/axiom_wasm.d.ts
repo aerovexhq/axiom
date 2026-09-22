@@ -220,6 +220,11 @@ export function wasm_synthesize_netlist(source: string, top_module?: string | nu
  */
 export function wasm_export_synthesized_verilog(source: string, top_module?: string | null, device?: string | null): string;
 
+/**
+ * Standalone WebAssembly function to run Bounded Model Checking (BMC) and Formal Property Verification.
+ */
+export function wasm_run_formal(source: string, top_module?: string | null, max_depth?: number | null, engine_mode?: string | null, clock_name?: string | null, reset_name?: string | null): any;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {

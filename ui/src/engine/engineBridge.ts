@@ -29,6 +29,8 @@ import {
   SynthOptions,
   synthesizeClientFallback
 } from "./synthModel";
+import type { FormalReport } from "./formalModel";
+import { getFormalReportFallback } from "./formalModel";
 
 export type {
   ProtocolDecodeRequest,
@@ -2681,6 +2683,86 @@ export class AxiomEngineBridge {
       overall_pass_rate_pct: 100.0,
       recent_violations: []
     };
+  }
+
+  public async runFormalVerification(
+    source?: string,
+    topModule?: string,
+    maxDepth: number = 20,
+    engine: "bmc" | "k_induction" = "bmc",
+    clockName?: string,
+    resetName?: string
+  ): Promise<FormalReport> {
+    const src = source || this.activeSourceCode || "";
+    const top = topModule || this.state.topModule || "";
+    if (this.isTauri) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        return await invoke<FormalReport>("run_formal_verification", {
+          source: src,
+          topModule: top || null,
+          maxDepth: maxDepth || 20,
+          engineMode: engine || "bmc",
+          clockName: clockName || null,
+          resetName: resetName || null,
+        });
+      } catch (e) {
+        console.warn("Desktop run_formal_verification error, trying WASM fallback:", e);
+      }
+    }
+    try {
+      const wasm = await this.initWasm();
+      if (wasm && typeof (wasm as any).wasm_run_formal === "function") {
+        return (wasm as any).wasm_run_formal(
+          src,
+          top || null,
+          maxDepth || 20,
+          engine || "bmc",
+          clockName || null,
+          resetName || null
+        );
+      }
+    } catch (e) {
+      console.warn("wasm_run_formal error:", e);
+    }
+    return getFormalReportFallback(top, maxDepth);
+  }
+
+  public injectFormalTrace(
+    goalName: string,
+    historyUpdates: Record<string, Array<{ timePs: number; value: string }>>,
+    maxTimePs: number
+  ) {
+    const newSignals: SignalDef[] = [];
+    for (const [sigName, samples] of Object.entries(historyUpdates)) {
+      const leaf = sigName.includes(".") ? sigName.split(".").pop()! : sigName;
+      const scope = sigName.includes(".") ? sigName.substring(0, sigName.lastIndexOf(".")) : (this.state.topModule || "top");
+      const signalSamples: SignalSample[] = samples.map(s => ({
+        timePs: s.timePs,
+        delta: 0,
+        value: s.value
+      }));
+      const isBus = samples.some(s => s.value.length > 1 && s.value !== "0" && s.value !== "1" && s.value !== "x" && s.value !== "z");
+      newSignals.push({
+        id: sigName,
+        name: leaf,
+        scope,
+        fullName: sigName,
+        width: isBus ? 4 : 1,
+        isBus,
+        radix: "hex",
+        samples: signalSamples
+      });
+    }
+
+    if (newSignals.length > 0) {
+      this.state.signals = newSignals;
+      this.state.currentSimTimePs = maxTimePs;
+      this.notify();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("axiom_formal_trace_loaded", { detail: { goalName, signalCount: newSignals.length, maxTimePs } }));
+      }
+    }
   }
 
   public forceSignal(signalId: string, value: string) {

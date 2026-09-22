@@ -453,7 +453,16 @@ impl AxiomSimulator {
         let prev_val = self.prev_net_values.get(&net).cloned();
         let width = new_val.width() as usize;
         for bit_idx in 0..width {
-            let old_b = prev_val.as_ref().map(|p| p.get_bit(bit_idx as u32)).unwrap_or(Logic4::X);
+            let old_b = prev_val
+                .as_ref()
+                .and_then(|p| {
+                    if (bit_idx as u32) < p.width() {
+                        Some(p.get_bit(bit_idx as u32))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(Logic4::X);
             let new_b = new_val.get_bit(bit_idx as u32);
             if old_b == Logic4::Zero && new_b == Logic4::One {
                 self.coverage.record_toggle(net, bit_idx, true);
@@ -880,6 +889,11 @@ impl AxiomSimulator {
                     let mut parser = crate::assertion::SvaParser::new(&asrt.expr_text);
                     if let Some(mut parsed) = parser.parse_assertion(&id) {
                         parsed.name = asrt.label.clone().unwrap_or_else(|| id.clone());
+                        parsed.kind = match asrt.kind {
+                            axiom_syntax::ast::AssertionKind::Assert => crate::assertion::AssertionKind::Assert,
+                            axiom_syntax::ast::AssertionKind::Assume => crate::assertion::AssertionKind::Assume,
+                            axiom_syntax::ast::AssertionKind::Cover => crate::assertion::AssertionKind::Cover,
+                        };
                         parsed.clock = clock_name;
                         parsed.edge = edge;
                         self.assertion_evaluator.add_assertion(parsed);

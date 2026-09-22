@@ -348,6 +348,11 @@ impl<'a> SvaParser<'a> {
             } else if let Some((_, bin)) = s.split_once("'b").or_else(|| s.split_once("'B")) {
                 let clean = bin.replace('_', "");
                 LogicVector::from_bin_str(&clean).ok()
+            } else if let Some((width_str, dec)) = s.split_once("'d").or_else(|| s.split_once("'D")) {
+                let clean = dec.replace('_', "");
+                let width = width_str.parse::<u32>().unwrap_or(32);
+                let val = clean.parse::<u64>().ok()?;
+                Some(LogicVector::from_u64(val, width))
             } else if let Ok(val) = s.parse::<u64>() {
                 Some(LogicVector::from_u64(val, 32))
             } else {
@@ -380,6 +385,24 @@ impl<'a> SvaParser<'a> {
         } else if self.match_str("cover") {
             AssertionKind::Cover
         } else {
+            // Check if this is a raw property expression (e.g. from AST asrt.expr_text)
+            let backup_prop = self.cursor;
+            if let Some(property) = self.parse_property_expr() {
+                let asrt_id = label.clone().unwrap_or_else(|| default_id.to_string());
+                let name = label.unwrap_or_else(|| default_id.to_string());
+                return Some(AssertionDef {
+                    id: asrt_id,
+                    name,
+                    kind: AssertionKind::Assert,
+                    clock: "clk".to_string(),
+                    edge: ClockEdge::Posedge,
+                    property,
+                    source_text: self.chars.trim().to_string(),
+                    line: None,
+                    col: None,
+                });
+            }
+            self.cursor = backup_prop;
             return None;
         };
 
@@ -841,7 +864,7 @@ impl AssertionEvaluator {
                     if let Some(s) = self.stats.get_mut(asrt_id) {
                         s.passes += 1;
                     }
-                } else {
+                } else if asrt.kind != AssertionKind::Cover {
                     if let Some(s) = self.stats.get_mut(asrt_id) {
                         s.failures += 1;
                     }

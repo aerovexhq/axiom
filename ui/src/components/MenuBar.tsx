@@ -35,7 +35,8 @@ import {
   Layers,
   Sparkles,
   Box,
-  GitCompare
+  GitCompare,
+  ShieldCheck
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -796,6 +797,20 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Activity size={13} color="var(--accent-cyan)" />
                 <span>{t("menu.protocolDecoder")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSwitchVisualizer("formal" as any);
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ShieldCheck size={13} color="var(--accent-blue)" />
+                <span>{t("menu.formalVerification")}</span>
               </div>
             </div>
 

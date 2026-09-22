@@ -1,6 +1,7 @@
 pub mod assertion;
 pub mod coverage;
 pub mod event;
+pub mod formal;
 pub mod glitch;
 pub mod listener;
 pub mod protocol;

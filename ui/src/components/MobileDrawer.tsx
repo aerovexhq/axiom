@@ -21,9 +21,9 @@ import { AxiomProject } from "../engine/projectModel";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { Badge, Button } from "./ui";
 import { useTranslation } from "../i18n/i18nContext";
-import { Boxes, Layers, Gauge, Box, Workflow, Radio } from "lucide-react";
+import { Boxes, Layers, Gauge, Box, Workflow, Radio, ShieldCheck } from "lucide-react";
 
-export type MobilePanelType = "editor" | "schematic" | "fsm" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "protocol" | "techmapping" | "dock";
+export type MobilePanelType = "editor" | "schematic" | "fsm" | "package" | "virtuallab" | "waveform" | "timing" | "microarch" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "dock";
 
 export interface MobileDrawerProps {
   isOpen: boolean;
@@ -135,6 +135,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       sublabel: "LUT truth tables & physical netlist",
       icon: <Cpu size={18} />,
       color: "var(--accent-purple, #a855f7)"
+    },
+    {
+      id: "formal",
+      label: t.mobile.formal,
+      sublabel: "Bounded Model Checking & SVA",
+      icon: <ShieldCheck size={18} />,
+      color: "var(--accent-blue)"
     },
     {
       id: "virtuallab",

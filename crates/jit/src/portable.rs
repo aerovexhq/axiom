@@ -109,10 +109,8 @@ impl PortableEvaluator {
             }
             BirExpr::Const(vec) => {
                 if vec.width() != expected_width && expected_width > 0 {
-                    // Resize/zero-extend or replicate ('0, '1)
-                    if vec.width() == 1 {
-                        LogicVector::fill(expected_width, vec.get_bit(0))
-                    } else if vec.width() < expected_width {
+                    // Resize/zero-extend
+                    if vec.width() < expected_width {
                         let mut ext = LogicVector::zeros(expected_width);
                         for i in 0..vec.width() {
                             ext.set_bit(i, vec.get_bit(i));

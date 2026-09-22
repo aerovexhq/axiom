@@ -1191,7 +1191,7 @@ impl<'a> Parser<'a> {
                 let part = match &tok.kind {
                     TokenKind::Ident(s) => s.clone(),
                     TokenKind::UnsizedInt(v) => v.to_string(),
-                    TokenKind::Number(v) => format!("{v:?}"),
+                    TokenKind::Number(v) => v.to_u64().map(|n| n.to_string()).unwrap_or_else(|| "0".to_string()),
                     TokenKind::ImpliesOverlap => "|->".to_string(),
                     TokenKind::ImpliesNonOverlap => "|=>".to_string(),
                     TokenKind::CycleDelay => "##".to_string(),
