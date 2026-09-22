@@ -21,6 +21,7 @@ import {
   synthesizeMicroarchGraph
 } from "../engine/microarchModel";
 import { useTranslation } from "../i18n";
+import { DropdownSelect } from "./ui";
 
 export interface FsmViewerProps {
   state: SimulationState;
@@ -832,26 +833,16 @@ export const FsmViewer: React.FC<FsmViewerProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Workflow size={14} color="var(--accent-cyan)" />
           {fsms.length > 1 ? (
-            <select
+            <DropdownSelect<number>
               value={selectedFsmIdx}
-              onChange={(e) => setSelectedFsmIdx(Number(e.target.value))}
-              style={{
-                backgroundColor: "var(--bg-tertiary)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--text-primary)",
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "2px 8px",
-                cursor: "pointer"
-              }}
-            >
-              {fsms.map((item, idx) => (
-                <option key={idx} value={idx}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedFsmIdx}
+              options={fsms.map((item, idx) => ({
+                value: idx,
+                label: item.label
+              }))}
+              size="xs"
+              minWidth={160}
+            />
           ) : (
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
               {currentLabel}

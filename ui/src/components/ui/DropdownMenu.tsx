@@ -107,6 +107,8 @@ export interface DropdownMenuTriggerProps {
   style?: CSSProperties;
   title?: string;
   disabled?: boolean;
+  onMouseEnter?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onMouseLeave?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({
@@ -115,7 +117,9 @@ export const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({
   className,
   style,
   title,
-  disabled = false
+  disabled = false,
+  onMouseEnter,
+  onMouseLeave
 }) => {
   const { isOpen, setIsOpen } = useDropdownMenu();
 
@@ -142,6 +146,8 @@ export const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({
     <button
       type="button"
       onClick={handleToggle}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       disabled={disabled}
       className={className}
       style={style}
@@ -208,6 +214,7 @@ export interface DropdownMenuItemProps {
   shortcut?: string;
   variant?: "default" | "danger";
   disabled?: boolean;
+  selected?: boolean;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
   style?: CSSProperties;
@@ -220,6 +227,7 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
   shortcut,
   variant = "default",
   disabled = false,
+  selected = false,
   onClick,
   className,
   style,
@@ -239,6 +247,7 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
   const itemClass = [
     "axiom-menu-item",
     variant === "danger" ? "axiom-menu-item-danger" : "",
+    selected ? "axiom-menu-item-selected" : "",
     className
   ]
     .filter(Boolean)
@@ -321,3 +330,7 @@ export const DropdownMenuLabel: React.FC<DropdownMenuLabelProps> = ({
     {children}
   </div>
 );
+
+export { DropdownSelect } from "./DropdownSelect";
+export type { DropdownSelectOption, DropdownSelectProps } from "./DropdownSelect";
+

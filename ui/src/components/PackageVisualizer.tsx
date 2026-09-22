@@ -28,6 +28,7 @@ import {
 } from "../engine/packageModel";
 import { useTranslation } from "../i18n";
 import { toast } from "../engine/toast";
+import { DropdownSelect } from "./ui";
 
 interface PackageVisualizerProps {
   project: AxiomProject | null;
@@ -982,27 +983,22 @@ export const PackageVisualizer: React.FC<PackageVisualizerProps> = ({
 
                       {/* I/O Std Dropdown */}
                       <td style={{ padding: "4px 8px" }}>
-                        <select
+                        <DropdownSelect<string>
                           value={port.ioStandard}
-                          onChange={(e) => {
+                          onChange={(val) => {
                             setPortAssignments((prev) =>
-                              prev.map((p) => (p.name === port.name ? { ...p, ioStandard: e.target.value } : p))
+                              prev.map((p) => (p.name === port.name ? { ...p, ioStandard: val } : p))
                             );
                           }}
-                          style={{
-                            backgroundColor: "var(--bg-tertiary)",
-                            border: "1px solid var(--border-subtle)",
-                            borderRadius: 3,
-                            color: "#fff",
-                            padding: "2px 4px",
-                            fontSize: 10.5
-                          }}
-                        >
-                          <option value="LVCMOS33">LVCMOS33</option>
-                          <option value="LVCMOS25">LVCMOS25</option>
-                          <option value="LVCMOS18">LVCMOS18</option>
-                          <option value="LVDS_25">LVDS_25</option>
-                        </select>
+                          options={[
+                            { value: "LVCMOS33", label: "LVCMOS33" },
+                            { value: "LVCMOS25", label: "LVCMOS25" },
+                            { value: "LVCMOS18", label: "LVCMOS18" },
+                            { value: "LVDS_25", label: "LVDS_25" }
+                          ]}
+                          size="xs"
+                          minWidth={110}
+                        />
                       </td>
 
                       {/* Vcco */}
@@ -1014,27 +1010,22 @@ export const PackageVisualizer: React.FC<PackageVisualizerProps> = ({
                       {/* Drive Strength */}
                       <td style={{ padding: "4px 8px" }}>
                         {port.direction === "OUT" ? (
-                          <select
+                          <DropdownSelect<string>
                             value={port.driveStrength}
-                            onChange={(e) => {
+                            onChange={(val) => {
                               setPortAssignments((prev) =>
-                                prev.map((p) => (p.name === port.name ? { ...p, driveStrength: e.target.value } : p))
+                                prev.map((p) => (p.name === port.name ? { ...p, driveStrength: val } : p))
                               );
                             }}
-                            style={{
-                              backgroundColor: "var(--bg-tertiary)",
-                              border: "1px solid var(--border-subtle)",
-                              borderRadius: 3,
-                              color: "#fff",
-                              padding: "2px 4px",
-                              fontSize: 10.5
-                            }}
-                          >
-                            <option value="4mA">4mA</option>
-                            <option value="8mA">8mA</option>
-                            <option value="12mA">12mA</option>
-                            <option value="16mA">16mA</option>
-                          </select>
+                            options={[
+                              { value: "4mA", label: "4mA" },
+                              { value: "8mA", label: "8mA" },
+                              { value: "12mA", label: "12mA" },
+                              { value: "16mA", label: "16mA" }
+                            ]}
+                            size="xs"
+                            minWidth={80}
+                          />
                         ) : (
                           <span style={{ color: "var(--text-muted)" }}>--</span>
                         )}
@@ -1043,25 +1034,20 @@ export const PackageVisualizer: React.FC<PackageVisualizerProps> = ({
                       {/* Slew Type */}
                       <td style={{ padding: "4px 8px" }}>
                         {port.direction === "OUT" ? (
-                          <select
+                          <DropdownSelect<string>
                             value={port.slewType}
-                            onChange={(e) => {
+                            onChange={(val) => {
                               setPortAssignments((prev) =>
-                                prev.map((p) => (p.name === port.name ? { ...p, slewType: e.target.value } : p))
+                                prev.map((p) => (p.name === port.name ? { ...p, slewType: val } : p))
                               );
                             }}
-                            style={{
-                              backgroundColor: "var(--bg-tertiary)",
-                              border: "1px solid var(--border-subtle)",
-                              borderRadius: 3,
-                              color: "#fff",
-                              padding: "2px 4px",
-                              fontSize: 10.5
-                            }}
-                          >
-                            <option value="SLOW">SLOW</option>
-                            <option value="FAST">FAST</option>
-                          </select>
+                            options={[
+                              { value: "SLOW", label: "SLOW" },
+                              { value: "FAST", label: "FAST" }
+                            ]}
+                            size="xs"
+                            minWidth={80}
+                          />
                         ) : (
                           <span style={{ color: "var(--text-muted)" }}>--</span>
                         )}
@@ -1069,26 +1055,21 @@ export const PackageVisualizer: React.FC<PackageVisualizerProps> = ({
 
                       {/* Pull Type */}
                       <td style={{ padding: "4px 8px" }}>
-                        <select
+                        <DropdownSelect<string>
                           value={port.pullType}
-                          onChange={(e) => {
+                          onChange={(val) => {
                             setPortAssignments((prev) =>
-                              prev.map((p) => (p.name === port.name ? { ...p, pullType: e.target.value } : p))
+                              prev.map((p) => (p.name === port.name ? { ...p, pullType: val } : p))
                             );
                           }}
-                          style={{
-                            backgroundColor: "var(--bg-tertiary)",
-                            border: "1px solid var(--border-subtle)",
-                            borderRadius: 3,
-                            color: "#fff",
-                            padding: "2px 4px",
-                            fontSize: 10.5
-                          }}
-                        >
-                          <option value="NONE">NONE</option>
-                          <option value="PULLUP">PULLUP</option>
-                          <option value="PULLDOWN">PULLDOWN</option>
-                        </select>
+                          options={[
+                            { value: "NONE", label: "NONE" },
+                            { value: "PULLUP", label: "PULLUP" },
+                            { value: "PULLDOWN", label: "PULLDOWN" }
+                          ]}
+                          size="xs"
+                          minWidth={95}
+                        />
                       </td>
                     </tr>
                   );

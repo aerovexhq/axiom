@@ -27,6 +27,7 @@ import {
   sliceFanoutCone
 } from "../engine/schematicModel";
 import { useTranslation } from "../i18n";
+import { DropdownSelect } from "./ui";
 
 interface FloorplanStudioViewerProps {
   state: SimulationState;
@@ -698,17 +699,16 @@ export const FloorplanStudioViewer: React.FC<FloorplanStudioViewerProps> = ({
           </div>
 
           {/* Device Selector */}
-          <select
+          <DropdownSelect
             value={selectedDevice}
-            onChange={(e) => handleDeviceChange(e.target.value)}
-            className="px-2 py-1 text-xs rounded bg-[#21262d] border border-[#30363d] text-white focus:outline-none focus:border-[#58a6ff]"
-          >
-            {TARGET_DEVICES.map((dev) => (
-              <option key={dev.id} value={dev.id}>
-                {dev.name}
-              </option>
-            ))}
-          </select>
+            onChange={handleDeviceChange}
+            options={TARGET_DEVICES.map((dev) => ({
+              value: dev.id,
+              label: dev.name
+            }))}
+            size="xs"
+            minWidth={160}
+          />
 
           {/* View Mode Switcher */}
           <div className="flex items-center p-0.5 rounded bg-[#21262d] border border-[#30363d]">

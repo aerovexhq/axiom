@@ -33,6 +33,7 @@ import { engineBridge } from "../engine/engineBridge";
 import { useTranslation } from "../i18n";
 import { toast } from "../engine/toast";
 import type { AxiomProject } from "../engine/projectModel";
+import { DropdownSelect } from "./ui";
 
 interface StimulusGeneratorModalProps {
   topModule: string;
@@ -329,25 +330,18 @@ export const StimulusGeneratorModal: React.FC<StimulusGeneratorModalProps> = ({
                     <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
                       {t("stimulusGenerator.durationLabel")}
                     </span>
-                    <select
+                    <DropdownSelect<number>
                       value={durationNs}
-                      onChange={(e) => setDurationNs(Number(e.target.value))}
-                      style={{
-                        height: 24,
-                        fontSize: 11,
-                        backgroundColor: "var(--bg-tertiary)",
-                        color: "#fff",
-                        border: "1px solid var(--border-subtle)",
-                        borderRadius: 4,
-                        padding: "0 6px"
-                      }}
-                    >
-                      <option value={50}>50 ns</option>
-                      <option value={100}>100 ns</option>
-                      <option value={200}>200 ns</option>
-                      <option value={500}>500 ns</option>
-                      <option value={1000}>1,000 ns (1 µs)</option>
-                    </select>
+                      onChange={(val) => setDurationNs(Number(val))}
+                      size="xs"
+                      options={[
+                        { value: 50, label: "50 ns" },
+                        { value: 100, label: "100 ns" },
+                        { value: 200, label: "200 ns" },
+                        { value: 500, label: "500 ns" },
+                        { value: 1000, label: "1,000 ns (1 µs)" }
+                      ]}
+                    />
 
                     <div style={{ width: 1, height: 16, backgroundColor: "var(--border-subtle)" }} />
 
@@ -911,33 +905,25 @@ const TrackInspector: React.FC<TrackInspectorProps> = ({ track, durationNs, onCh
         <span style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>
           {t("stimulusGenerator.generatorType")}
         </span>
-        <select
+        <DropdownSelect<StimulusSignalType>
           value={track.type}
-          onChange={(e) => {
-            const nextType = e.target.value as StimulusSignalType;
+          onChange={(nextType) => {
             onChange({
               ...track,
               type: nextType
             });
           }}
-          style={{
-            height: 28,
-            fontSize: 11,
-            backgroundColor: "var(--bg-tertiary)",
-            color: "#fff",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: 4,
-            padding: "0 8px"
-          }}
-        >
-          <option value="clock">Clock Generator</option>
-          <option value="reset">Reset Pulse (rst_n / rst)</option>
-          <option value="pulse_train">Periodic Pulse Train</option>
-          <option value="glitch">Glitch / Hazard Injection</option>
-          <option value="constrained_random">Constrained Random PRNG</option>
-          <option value="pattern">Ramp / Walking / PRBS Pattern</option>
-          <option value="custom">Custom Waveform Drawing</option>
-        </select>
+          size="sm"
+          options={[
+            { value: "clock", label: "Clock Generator" },
+            { value: "reset", label: "Reset Pulse (rst_n / rst)" },
+            { value: "pulse_train", label: "Periodic Pulse Train" },
+            { value: "glitch", label: "Glitch / Hazard Injection" },
+            { value: "constrained_random", label: "Constrained Random PRNG" },
+            { value: "pattern", label: "Ramp / Walking / PRBS Pattern" },
+            { value: "custom", label: "Custom Waveform Drawing" }
+          ]}
+        />
       </div>
 
       {/* CLOCK WIZARD */}
@@ -945,33 +931,26 @@ const TrackInspector: React.FC<TrackInspectorProps> = ({ track, durationNs, onCh
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Frequency (MHz)</span>
-            <select
+            <DropdownSelect<number>
               value={track.clock?.freqMhz ?? 100}
-              onChange={(e) =>
+              onChange={(freq) =>
                 onChange({
                   ...track,
                   clock: {
                     ...(track.clock ?? { freqMhz: 100, dutyCyclePercent: 50, phaseDelayPs: 0, jitterPs: 0 }),
-                    freqMhz: Number(e.target.value)
+                    freqMhz: Number(freq)
                   }
                 })
               }
-              style={{
-                height: 26,
-                fontSize: 11,
-                backgroundColor: "var(--bg-tertiary)",
-                color: "#fff",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: 4,
-                padding: "0 6px"
-              }}
-            >
-              <option value={10}>10 MHz (100 ns period)</option>
-              <option value={50}>50 MHz (20 ns period)</option>
-              <option value={100}>100 MHz (10 ns period)</option>
-              <option value={200}>200 MHz (5 ns period)</option>
-              <option value={500}>500 MHz (2 ns period)</option>
-            </select>
+              size="sm"
+              options={[
+                { value: 10, label: "10 MHz (100 ns period)" },
+                { value: 50, label: "50 MHz (20 ns period)" },
+                { value: 100, label: "100 MHz (10 ns period)" },
+                { value: 200, label: "200 MHz (5 ns period)" },
+                { value: 500, label: "500 MHz (2 ns period)" }
+              ]}
+            />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1125,32 +1104,25 @@ const TrackInspector: React.FC<TrackInspectorProps> = ({ track, durationNs, onCh
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Sequence Type</span>
-            <select
+            <DropdownSelect<PatternKind>
               value={track.pattern?.kind ?? "ramp"}
-              onChange={(e) =>
+              onChange={(kind) =>
                 onChange({
                   ...track,
                   pattern: {
-                    kind: e.target.value as PatternKind,
+                    kind,
                     stepPeriodPs: track.pattern?.stepPeriodPs ?? 10000
                   }
                 })
               }
-              style={{
-                height: 26,
-                fontSize: 11,
-                backgroundColor: "var(--bg-tertiary)",
-                color: "#fff",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: 4,
-                padding: "0 6px"
-              }}
-            >
-              <option value="ramp">Linear Ramp (+1 counter)</option>
-              <option value="alternating">Alternating 0xAA / 0x55 (Max toggle stress)</option>
-              <option value="walking">Walking Ones (Single-hot sweep)</option>
-              <option value="prbs">PRBS7 Pseudo-Random</option>
-            </select>
+              size="sm"
+              options={[
+                { value: "ramp", label: "Linear Ramp (+1 counter)" },
+                { value: "alternating", label: "Alternating 0xAA / 0x55 (Max toggle stress)" },
+                { value: "walking", label: "Walking Ones (Single-hot sweep)" },
+                { value: "prbs", label: "PRBS7 Pseudo-Random" }
+              ]}
+            />
           </div>
         </div>
       )}
@@ -1213,26 +1185,17 @@ const ConstrainedRandomPanel: React.FC<{
         {/* Signal Selector */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>Target Signal:</span>
-          <select
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            style={{
-              height: 28,
-              fontSize: 11,
-              fontFamily: "var(--font-mono)",
-              backgroundColor: "var(--bg-secondary)",
-              color: "var(--accent-cyan)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: 4,
-              padding: "0 10px"
-            }}
-          >
-            {tracks.map((tr) => (
-              <option key={tr.id} value={tr.id}>
-                {tr.name} ({tr.width}-bit)
-              </option>
-            ))}
-          </select>
+          <div style={{ minWidth: 200 }}>
+            <DropdownSelect<string>
+              value={selectedId}
+              onChange={(val) => setSelectedId(val)}
+              size="sm"
+              options={tracks.map((tr) => ({
+                value: tr.id,
+                label: `${tr.name} (${tr.width}-bit)`
+              }))}
+            />
+          </div>
         </div>
 
         {/* Seed & Range */}

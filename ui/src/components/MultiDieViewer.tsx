@@ -20,6 +20,7 @@ import {
   MULTI_DIE_PRESETS,
   synthesizeMultiDiePartition
 } from "../engine/multiDieModel";
+import { DropdownSelect } from "./ui";
 
 interface MultiDieViewerProps {
   state: SimulationState;
@@ -777,26 +778,16 @@ export const MultiDieViewer: React.FC<MultiDieViewerProps> = ({
             <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary, #94a3b8)" }}>
               Multi-Die Device:
             </span>
-            <select
+            <DropdownSelect<string>
               value={selectedDeviceId}
-              onChange={(e) => setSelectedDeviceId(e.target.value)}
-              style={{
-                backgroundColor: "var(--bg-tertiary, #1e293b)",
-                color: "var(--text-primary, #f1f5f9)",
-                border: "1px solid var(--border-subtle, #334155)",
-                borderRadius: "4px",
-                padding: "4px 8px",
-                fontSize: "12px",
-                cursor: "pointer",
-                outline: "none"
-              }}
-            >
-              {MULTI_DIE_PRESETS.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedDeviceId(val)}
+              options={MULTI_DIE_PRESETS.map((d) => ({
+                value: d.id,
+                label: d.name
+              }))}
+              size="sm"
+              minWidth={190}
+            />
           </div>
 
           <div style={{ height: "16px", width: "1px", backgroundColor: "var(--border-subtle, #334155)" }} />
@@ -827,25 +818,18 @@ export const MultiDieViewer: React.FC<MultiDieViewerProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <Sliders size={14} color="var(--accent-purple, #a855f7)" />
             <span style={{ fontSize: "12px", color: "var(--text-muted, #64748b)" }}>TDM Ratio:</span>
-            <select
+            <DropdownSelect<number>
               value={tdmRatio}
-              onChange={(e) => setTdmRatio(Number(e.target.value))}
-              style={{
-                backgroundColor: "var(--bg-tertiary, #1e293b)",
-                color: "var(--text-primary, #f1f5f9)",
-                border: "1px solid var(--border-subtle, #334155)",
-                borderRadius: "4px",
-                padding: "3px 6px",
-                fontSize: "11px",
-                cursor: "pointer",
-                outline: "none"
-              }}
-            >
-              <option value={1}>1:1 (Direct SLL)</option>
-              <option value={4}>4:1 (TDM 4x)</option>
-              <option value={8}>8:1 (TDM 8x)</option>
-              <option value={16}>16:1 (TDM 16x)</option>
-            </select>
+              onChange={(val) => setTdmRatio(val)}
+              options={[
+                { value: 1, label: "1:1 (Direct SLL)" },
+                { value: 4, label: "4:1 (TDM 4x)" },
+                { value: 8, label: "8:1 (TDM 8x)" },
+                { value: 16, label: "16:1 (TDM 16x)" }
+              ]}
+              size="xs"
+              minWidth={140}
+            />
           </div>
 
           {Object.keys(moduleOverrides).length > 0 && (
@@ -1013,28 +997,20 @@ export const MultiDieViewer: React.FC<MultiDieViewerProps> = ({
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)" }}>Assign to SLR:</span>
-              <select
+              <DropdownSelect<string>
                 value={
                   moduleOverrides[selectedModuleName] ||
                   partition.die_utilization.find((u) => u.assigned_modules.includes(selectedModuleName!))?.die_id ||
                   "SLR0"
                 }
-                onChange={(e) => handleReassignModule(selectedModuleName!, e.target.value)}
-                style={{
-                  backgroundColor: "var(--bg-tertiary, #1e293b)",
-                  color: "#f1f5f9",
-                  border: "1px solid #475569",
-                  borderRadius: "4px",
-                  padding: "2px 6px",
-                  fontSize: "11px"
-                }}
-              >
-                {partition.device.dies.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.id} ({d.name})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleReassignModule(selectedModuleName!, val)}
+                options={partition.device.dies.map((d) => ({
+                  value: d.id,
+                  label: `${d.id} (${d.name})`
+                }))}
+                size="xs"
+                minWidth={150}
+              />
             </div>
           </div>
         )}

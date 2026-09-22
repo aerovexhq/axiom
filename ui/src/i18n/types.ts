@@ -97,6 +97,10 @@ export interface Translations {
     confirmTrash: string;
     confirmDelete: string;
     confirmEmptyTrash: string;
+    openInNewWindow: string;
+    activeInWindow: string;
+    alreadyOpenWarning: string;
+    newWindow: string;
     inRamJitTitle: string;
     inRamJitDesc: string;
     deltaSteppingTitle: string;
@@ -421,6 +425,7 @@ export interface Translations {
     tools: string;
     help: string;
     newProject: string;
+    newWindow: string;
     openProject: string;
     saveFile: string;
     saveAll: string;

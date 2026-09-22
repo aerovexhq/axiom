@@ -26,7 +26,7 @@ import {
 import { FPGA_PARTS_DATABASE, DEFAULT_PART_ID } from "../engine/partsCatalog";
 import { FPGA_BOARDS_DATABASE, FpgaBoard } from "../engine/boardsCatalog";
 import { isDesktop, openFolderDialog } from "../engine/platform";
-import { Modal, Input, Button, Card, Badge } from "./ui";
+import { Modal, Input, Button, Card, Badge, DropdownSelect } from "./ui";
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -719,34 +719,38 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 </div>
 
                 {/* Family Filter */}
-                <select
+                <DropdownSelect
                   value={familyFilter}
-                  onChange={(e) => setFamilyFilter(e.target.value)}
-                  className="input"
-                  style={{ height: 28, fontSize: 11.5, padding: "0 8px" }}
-                >
-                  <option value="All">All Families</option>
-                  <option value="Artix-7">Artix-7</option>
-                  <option value="Kintex-7">Kintex-7</option>
-                  <option value="Virtex-7">Virtex-7</option>
-                  <option value="Zynq-7000">Zynq-7000</option>
-                  <option value="Kintex UltraScale+">Kintex UltraScale+</option>
-                  <option value="Virtex UltraScale+">Virtex UltraScale+</option>
-                  <option value="Axiom Virtual">Axiom Virtual</option>
-                </select>
+                  onChange={setFamilyFilter}
+                  options={[
+                    { value: "All", label: "All Families" },
+                    { value: "Artix-7", label: "Artix-7" },
+                    { value: "Kintex-7", label: "Kintex-7" },
+                    { value: "Virtex-7", label: "Virtex-7" },
+                    { value: "Zynq-7000", label: "Zynq-7000" },
+                    { value: "Kintex UltraScale+", label: "Kintex UltraScale+" },
+                    { value: "Virtex UltraScale+", label: "Virtex UltraScale+" },
+                    { value: "Axiom Virtual", label: "Axiom Virtual" }
+                  ]}
+                  size="sm"
+                  minWidth={140}
+                  buttonStyle={{ height: 28 }}
+                />
 
                 {/* Speed Filter */}
-                <select
+                <DropdownSelect
                   value={speedFilter}
-                  onChange={(e) => setSpeedFilter(e.target.value)}
-                  className="input"
-                  style={{ height: 28, fontSize: 11.5, padding: "0 8px" }}
-                >
-                  <option value="All">All Speeds</option>
-                  <option value="-1">-1</option>
-                  <option value="-2">-2</option>
-                  <option value="-3">-3</option>
-                </select>
+                  onChange={setSpeedFilter}
+                  options={[
+                    { value: "All", label: "All Speeds" },
+                    { value: "-1", label: "-1" },
+                    { value: "-2", label: "-2" },
+                    { value: "-3", label: "-3" }
+                  ]}
+                  size="sm"
+                  minWidth={110}
+                  buttonStyle={{ height: 28 }}
+                />
               </div>
 
               {/* Parts Table */}
@@ -846,18 +850,20 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                   />
                 </div>
 
-                <select
+                <DropdownSelect
                   value={boardVendorFilter}
-                  onChange={(e) => setBoardVendorFilter(e.target.value)}
-                  className="input"
-                  style={{ height: 28, fontSize: 11.5, padding: "0 8px" }}
-                >
-                  <option value="All">All Vendors</option>
-                  <option value="digilent.com">digilent.com</option>
-                  <option value="xilinx.com">xilinx.com</option>
-                  <option value="avnet.com">avnet.com</option>
-                  <option value="alpha-data.com">alpha-data.com</option>
-                </select>
+                  onChange={setBoardVendorFilter}
+                  options={[
+                    { value: "All", label: "All Vendors" },
+                    { value: "digilent.com", label: "digilent.com" },
+                    { value: "xilinx.com", label: "xilinx.com" },
+                    { value: "avnet.com", label: "avnet.com" },
+                    { value: "alpha-data.com", label: "alpha-data.com" }
+                  ]}
+                  size="sm"
+                  minWidth={130}
+                  buttonStyle={{ height: 28 }}
+                />
               </div>
 
               {/* Boards Grid */}

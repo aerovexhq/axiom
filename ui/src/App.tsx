@@ -68,6 +68,13 @@ import {
   emptyTrash
 } from "./engine/projectRegistry";
 import { sessionBroadcaster } from "./engine/sessionSync";
+import {
+  openInNewWindow,
+  isProjectActiveInAnotherSession,
+  registerActiveProjectLease,
+  renewActiveProjectLease,
+  releaseActiveProjectLease
+} from "./engine/windowManager";
 import { toast } from "./engine/toast";
 import { ToastContainer, ConfirmDialogContainer } from "./components/ui";
 import { SampleDesign } from "./engine/sampleDesigns";
@@ -94,6 +101,13 @@ function getInitialProject(): AxiomProject | null {
   const slug = getUrlProjectSlug();
   if (!slug) {
     // When visiting without ?project=... (e.g. fresh http://localhost:3000/ or /studio/), start cleanly in Main Menu
+    return null;
+  }
+  if (isProjectActiveInAnotherSession(slug)) {
+    setTimeout(() => {
+      toast.warning(`Project "${slug}" is already active in another window.`);
+    }, 150);
+    setUrlProjectSlug(null);
     return null;
   }
   const registry = loadProjectRegistry();
@@ -316,7 +330,10 @@ export const App: React.FC = () => {
   // Global Keyboard Shortcuts (Ctrl+K / Cmd+K for Omnibar, Ctrl+S / Cmd+S for Save)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "w") {
+        e.preventDefault();
+        openInNewWindow();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsOmnibarOpen((prev) => !prev);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -331,6 +348,26 @@ export const App: React.FC = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSaveProject]);
+
+  // Active Project Lease Heartbeat & Mutual Exclusion Concurrency Management
+  useEffect(() => {
+    if (!project?.id) return;
+    registerActiveProjectLease(project.id, project.name);
+    const interval = setInterval(() => {
+      renewActiveProjectLease(project.id, project.name);
+    }, 3000);
+
+    const handleBeforeUnload = () => {
+      releaseActiveProjectLease(project.id);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      releaseActiveProjectLease(project.id);
+    };
+  }, [project?.id, project?.name]);
 
   // Global Native Context Menu Suppression (Prevent browser default context menu, preserve Monaco & editable inputs)
   useEffect(() => {
@@ -654,6 +691,10 @@ export const App: React.FC = () => {
       toast.warning(`Cannot open "${meta.name}" because it is in Trash. Restore it first.`);
       return;
     }
+    if (isProjectActiveInAnotherSession(id)) {
+      toast.warning(`Cannot open "${meta?.name || id}" because it is already active in another window.`);
+      return;
+    }
 
     const loaded = await loadProjectById(id);
     if (loaded) {
@@ -910,6 +951,7 @@ export const App: React.FC = () => {
           isSimRunning={state.isRunning}
           isSaved={isSaved}
           onOpenNewProject={() => handleOpenNewProject()}
+          onOpenNewWindow={() => openInNewWindow()}
           onOpenProjectFile={() => {
             const input = document.createElement("input");
             input.type = "file";

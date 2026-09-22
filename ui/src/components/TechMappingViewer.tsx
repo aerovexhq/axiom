@@ -16,6 +16,7 @@ import {
 } from "../engine/synthModel";
 import { engineBridge } from "../engine/engineBridge";
 import { useTranslation } from "../i18n";
+import { DropdownSelect } from "./ui";
 
 interface TechMappingViewerProps {
   activeDesignId?: string;
@@ -255,26 +256,16 @@ export const TechMappingViewer: React.FC<TechMappingViewerProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{t("techMapping.targetDevice")}:</span>
-            <select
+            <DropdownSelect
               value={selectedDevice}
-              onChange={(e) => handleDeviceSelect(e.target.value)}
-              style={{
-                height: 28,
-                padding: "0 8px",
-                fontSize: 11.5,
-                backgroundColor: "var(--bg-tertiary)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-sm)",
-                outline: "none"
-              }}
-            >
-              {TARGET_DEVICES.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleDeviceSelect}
+              options={TARGET_DEVICES.map((d) => ({
+                value: d.id,
+                label: d.name
+              }))}
+              size="sm"
+              minWidth={180}
+            />
           </div>
 
           <button

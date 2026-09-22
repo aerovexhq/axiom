@@ -12,7 +12,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { FileSetType, FileFormat, ProjectFile } from "../engine/projectModel";
-import { Modal, Input, Select, Button, Card, Badge } from "./ui";
+import { Modal, Input, Select, Button, Card, Badge, DropdownSelect } from "./ui";
 import { useTranslation } from "../i18n";
 import { isDesktop, openFilesDialog } from "../engine/platform";
 import { toast } from "../engine/toast";
@@ -1098,27 +1098,21 @@ set_property IOSTANDARD LVCMOS33 [get_ports rst_n]
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <select
+                        <DropdownSelect<FileSetType>
                           value={file.fileSet}
-                          onChange={(e) => {
-                            const newSet = e.target.value as FileSetType;
+                          onChange={(newSet) => {
                             setStagedFiles((prev) =>
                               prev.map((f, i) => (i === idx ? { ...f, fileSet: newSet } : f))
                             );
                           }}
-                          style={{
-                            fontSize: 11,
-                            backgroundColor: "var(--bg-card)",
-                            color: "var(--text-primary)",
-                            border: "1px solid var(--border-subtle)",
-                            borderRadius: "var(--radius-xs)",
-                            padding: "3px 6px"
-                          }}
-                        >
-                          <option value="sources_1">Design Sources (sources_1)</option>
-                          <option value="sim_1">Simulation Sources (sim_1)</option>
-                          <option value="constrs_1">Constraints (constrs_1)</option>
-                        </select>
+                          options={[
+                            { value: "sources_1", label: "Design Sources (sources_1)" },
+                            { value: "sim_1", label: "Simulation Sources (sim_1)" },
+                            { value: "constrs_1", label: "Constraints (constrs_1)" }
+                          ]}
+                          size="xs"
+                          minWidth={220}
+                        />
 
                         <button
                           type="button"

@@ -22,6 +22,7 @@ import {
   STANDARD_FPGA_CATALOG,
   evaluateClientFallbackPpa
 } from "../engine/ppaModel";
+import { DropdownSelect } from "./ui";
 
 interface PpaParetoViewerProps {
   state?: SimulationState;
@@ -482,48 +483,34 @@ export const PpaParetoViewer: React.FC<PpaParetoViewerProps> = ({
           {/* Target FPGA Selector */}
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <span style={{ fontSize: "12px", color: "#94a3b8" }}>Device:</span>
-            <select
+            <DropdownSelect
               value={selectedDevice}
-              onChange={(e) => handleDeviceSwitch(e.target.value)}
-              style={{
-                background: "#161d29",
-                color: "#e2e8f0",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                borderRadius: "6px",
-                padding: "5px 10px",
-                fontSize: "12px",
-                outline: "none",
-                cursor: "pointer"
-              }}
-            >
-              {STANDARD_FPGA_CATALOG.map((dev) => (
-                <option key={dev.id} value={dev.id}>
-                  {dev.name} ({dev.family}) — ${dev.reference_cost_usd}
-                </option>
-              ))}
-            </select>
+              onChange={handleDeviceSwitch}
+              options={STANDARD_FPGA_CATALOG.map((dev) => ({
+                value: dev.id,
+                label: `${dev.name} (${dev.family})`,
+                subtitle: `$${dev.reference_cost_usd} est.`
+              }))}
+              size="xs"
+              minWidth={200}
+            />
           </div>
 
           {/* PDK Selector */}
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <span style={{ fontSize: "12px", color: "#94a3b8" }}>ASIC:</span>
-            <select
+            <DropdownSelect
               value={pdkName}
-              onChange={(e) => setPdkName(e.target.value)}
-              style={{
-                background: "#161d29",
-                color: "#e2e8f0",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                borderRadius: "6px",
-                padding: "5px 10px",
-                fontSize: "12px",
-                outline: "none",
-                cursor: "pointer"
-              }}
-            >
-              <option value="sky130_fd_sc_hd">SkyWater 130nm</option>
-              <option value="ihp_sg13g2">IHP SG13G2 (0.13µm)</option>
-            </select>
+              onChange={setPdkName}
+              options={[
+                { value: "sky130_fd_sc_hd", label: "SkyWater 130nm" },
+                { value: "ihp_sg13g2", label: "IHP SG13G2 (0.13µm)" },
+                { value: "asap7_7nm", label: "ASAP7 (7nm Predictive)" },
+                { value: "gf12_12nm", label: "GlobalFoundries 12nm" }
+              ]}
+              size="xs"
+              minWidth={180}
+            />
           </div>
 
           {/* Export Report */}

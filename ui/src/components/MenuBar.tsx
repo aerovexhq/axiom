@@ -38,7 +38,8 @@ import {
   GitCompare,
   ShieldCheck,
   Shield,
-  LayoutGrid
+  LayoutGrid,
+  AppWindow
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -46,6 +47,7 @@ import { useTranslation } from "../i18n";
 
 export interface MenuBarProps {
   onOpenNewProject: () => void;
+  onOpenNewWindow?: () => void;
   onOpenProjectFile: () => void;
   onCloseProject: () => void;
   onSaveFile: () => void;
@@ -76,6 +78,7 @@ type MenuKey = "file" | "edit" | "view" | "flow" | "tools" | "help" | null;
 
 export const MenuBar: React.FC<MenuBarProps> = ({
   onOpenNewProject,
+  onOpenNewWindow,
   onOpenProjectFile,
   onCloseProject,
   onSaveFile,
@@ -230,6 +233,23 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               </div>
               <span style={shortcutStyle}>Ctrl+Shift+N</span>
             </div>
+
+            {onOpenNewWindow && (
+              <div
+                style={menuItemStyle}
+                className="menu-item-hover"
+                onClick={() => {
+                  onOpenNewWindow();
+                  setActiveMenu(null);
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <AppWindow size={13} color="var(--accent-purple)" />
+                  <span>{t("menu.newWindow")}</span>
+                </div>
+                <span style={shortcutStyle}>Ctrl+Shift+W</span>
+              </div>
+            )}
 
             <div
               style={menuItemStyle}

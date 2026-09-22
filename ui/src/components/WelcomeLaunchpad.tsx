@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Folder,
   FolderOpen,
@@ -19,7 +19,9 @@ import {
   Sliders,
   Activity,
   Box,
-  GraduationCap
+  GraduationCap,
+  ExternalLink,
+  AppWindow
 } from "lucide-react";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
@@ -30,9 +32,15 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem
+  DropdownMenuItem,
+  DropdownSelect
 } from "./ui";
 import { toast } from "../engine/toast";
+import {
+  isProjectActiveInAnotherSession,
+  openInNewWindow,
+  subscribeToProjectLeases
+} from "../engine/windowManager";
 
 interface WelcomeLaunchpadProps {
   onOpenNewProject: (templateId?: string) => void;
@@ -62,6 +70,11 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   const [projectsTab, setProjectsTab] = useState<"active" | "trash">("active");
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
   const [selectedClassLessonId, setSelectedClassLessonId] = useState<string>("lesson_1");
+  const [, setLeaseVersion] = useState<number>(0);
+
+  useEffect(() => {
+    return subscribeToProjectLeases(() => setLeaseVersion((v) => v + 1));
+  }, []);
 
   const activeProjects = projects.filter((p) => !p.isTrashed);
   const trashedProjects = projects.filter((p) => p.isTrashed);
@@ -284,9 +297,33 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
               {t("launchpad.yourProjects")}
             </h2>
           </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* New Independent Axiom Window Action */}
+            <button
+              onClick={() => openInNewWindow()}
+              className="btn btn-ghost"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                fontSize: 11.5,
+                fontWeight: 600,
+                borderRadius: "var(--radius-sm)",
+                color: "var(--accent-purple)",
+                backgroundColor: "rgba(168, 85, 247, 0.1)",
+                border: "1px solid rgba(168, 85, 247, 0.25)",
+                cursor: "pointer",
+                transition: "all 0.15s ease"
+              }}
+              title="Open a new independent Axiom window (Ctrl+Shift+W)"
+            >
+              <AppWindow size={13} color="var(--accent-purple)" />
+              <span>{t("launchpad.newWindow")}</span>
+            </button>
 
-          {/* Filter Tabs: Active vs Trash */}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, backgroundColor: "var(--bg-secondary)", padding: "2px 4px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
+            {/* Filter Tabs: Active vs Trash */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4, backgroundColor: "var(--bg-secondary)", padding: "2px 4px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
             <button
               onClick={() => setProjectsTab("active")}
               style={{
@@ -337,6 +374,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
             </button>
           </div>
         </div>
+      </div>
 
         {projectsTab === "active" ? (
           activeProjects.length === 0 ? (
@@ -345,107 +383,156 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-              {activeProjects.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => onOpenProject?.(p.id)}
-                  className="axiom-card axiom-card-hover"
-                  style={{
-                    padding: 14,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    cursor: "pointer"
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-                      <Folder size={16} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.name}
-                      </span>
-                    </div>
-                    {onTrashProject && (
-                      <DropdownMenu
-                        open={openMenuProjectId === p.id}
-                        onOpenChange={(isOpen) => setOpenMenuProjectId(isOpen ? p.id : null)}
-                      >
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={(e) => e.stopPropagation()}
-                            title="Project Options"
-                            className="btn-icon"
+              {activeProjects.map((p) => {
+                const isLocked = isProjectActiveInAnotherSession(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      if (isLocked) {
+                        toast.warning(t("launchpad.alreadyOpenWarning").replace("{name}", p.name));
+                        return;
+                      }
+                      onOpenProject?.(p.id);
+                    }}
+                    className="axiom-card axiom-card-hover"
+                    style={{
+                      padding: 14,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      cursor: isLocked ? "default" : "pointer",
+                      borderColor: isLocked ? "rgba(168, 85, 247, 0.3)" : undefined
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden", minWidth: 0 }}>
+                        <Folder size={16} color={isLocked ? "var(--accent-purple)" : "var(--accent-cyan)"} style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.name}
+                        </span>
+                        {isLocked && (
+                          <span
                             style={{
-                              padding: "3px 4px",
-                              borderRadius: "var(--radius-sm)",
-                              color: openMenuProjectId === p.id ? "var(--text-primary)" : "var(--text-muted)",
-                              backgroundColor: openMenuProjectId === p.id ? "var(--bg-hover)" : "transparent"
+                              fontSize: 9.5,
+                              padding: "1px 6px",
+                              borderRadius: 4,
+                              backgroundColor: "rgba(168, 85, 247, 0.15)",
+                              color: "var(--accent-purple)",
+                              border: "1px solid rgba(168, 85, 247, 0.3)",
+                              fontWeight: 600,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              flexShrink: 0
                             }}
                           >
-                            <MoreVertical size={14} />
-                          </button>
-                        </DropdownMenuTrigger>
+                            <AppWindow size={10} />
+                            {t("launchpad.activeInWindow")}
+                          </span>
+                        )}
+                      </div>
+                      {onTrashProject && (
+                        <DropdownMenu
+                          open={openMenuProjectId === p.id}
+                          onOpenChange={(isOpen) => setOpenMenuProjectId(isOpen ? p.id : null)}
+                        >
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Project Options"
+                              className="btn-icon"
+                              style={{
+                                padding: "3px 4px",
+                                borderRadius: "var(--radius-sm)",
+                                color: openMenuProjectId === p.id ? "var(--text-primary)" : "var(--text-muted)",
+                                backgroundColor: openMenuProjectId === p.id ? "var(--bg-hover)" : "transparent"
+                              }}
+                            >
+                              <MoreVertical size={14} />
+                            </button>
+                          </DropdownMenuTrigger>
 
-                        <DropdownMenuContent align="end" minWidth={150}>
-                          <DropdownMenuItem
-                            variant="danger"
-                            icon={<Trash2 size={13} />}
-                            onClick={async () => {
-                              const confirmed = await confirmDialog({
-                                title: t("launchpad.moveToTrash"),
-                                message: t("launchpad.confirmTrash").replace("{name}", p.name),
-                                confirmText: t("launchpad.moveToTrash"),
-                                variant: "danger"
-                              });
-                              if (confirmed) {
-                                onTrashProject(p.id);
-                                toast.info(`Moved "${p.name}" to Trash`);
-                              }
-                            }}
-                          >
-                            {t("launchpad.moveToTrash")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
+                          <DropdownMenuContent align="end" minWidth={160}>
+                            <DropdownMenuItem
+                              icon={<ExternalLink size={13} color="var(--accent-cyan)" />}
+                              disabled={isLocked}
+                              onClick={() => {
+                                if (isLocked) {
+                                  toast.warning(t("launchpad.alreadyOpenWarning").replace("{name}", p.name));
+                                  return;
+                                }
+                                openInNewWindow(p.id, p.name);
+                              }}
+                            >
+                              {t("launchpad.openInNewWindow")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="danger"
+                              icon={<Trash2 size={13} />}
+                              onClick={async () => {
+                                const confirmed = await confirmDialog({
+                                  title: t("launchpad.moveToTrash"),
+                                  message: t("launchpad.confirmTrash").replace("{name}", p.name),
+                                  confirmText: t("launchpad.moveToTrash"),
+                                  variant: "danger"
+                                });
+                                if (confirmed) {
+                                  onTrashProject(p.id);
+                                  toast.info(`Moved "${p.name}" to Trash`);
+                                }
+                              }}
+                            >
+                              {t("launchpad.moveToTrash")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
-                    <Cpu size={12} color="var(--accent-blue)" />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.targetDevice.split(" ")[0]}</span>
-                    <span>•</span>
-                    <span className="mono-num">[TOP] {p.topModule}</span>
-                  </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
+                      <Cpu size={12} color="var(--accent-blue)" />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.targetDevice.split(" ")[0]}</span>
+                      <span>•</span>
+                      <span className="mono-num">[TOP] {p.topModule}</span>
+                    </div>
 
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}>
-                    <span className="mono-num" style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
-                      {p.fileCount} {p.fileCount === 1 ? "file" : "files"}
-                    </span>
-                    {onOpenProject && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenProject(p.id);
-                        }}
-                        className="btn btn-primary"
-                        style={{
-                          height: 26,
-                          padding: "2px 10px",
-                          fontSize: 11,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 5
-                        }}
-                      >
-                        <FolderOpen size={12} style={{ display: "inline-block", verticalAlign: "middle" }} />
-                        <span style={{ lineHeight: 1 }}>{t("launchpad.openProject")}</span>
-                      </button>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}>
+                      <span className="mono-num" style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+                        {p.fileCount} {p.fileCount === 1 ? "file" : "files"}
+                      </span>
+                      {onOpenProject && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isLocked) {
+                              toast.warning(t("launchpad.alreadyOpenWarning").replace("{name}", p.name));
+                              return;
+                            }
+                            onOpenProject(p.id);
+                          }}
+                          className="btn btn-primary"
+                          style={{
+                            height: 26,
+                            padding: "2px 10px",
+                            fontSize: 11,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 5,
+                            opacity: isLocked ? 0.6 : 1,
+                            cursor: isLocked ? "not-allowed" : "pointer"
+                          }}
+                        >
+                          <FolderOpen size={12} style={{ display: "inline-block", verticalAlign: "middle" }} />
+                          <span style={{ lineHeight: 1 }}>{t("launchpad.openProject")}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )
         ) : (
@@ -635,28 +722,25 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                       </span>
                     </div>
 
-                    <select
+                    <DropdownSelect
                       value={selectedClassLessonId}
-                      onChange={(e) => setSelectedClassLessonId(e.target.value)}
-                      className="input"
-                      style={{
-                        height: 26,
+                      onChange={(val) => setSelectedClassLessonId(val)}
+                      options={(tmpl.lessons ?? []).map((lesson) => ({
+                        value: lesson.id,
+                        label: lesson.title,
+                        subtitle: lesson.subtitle
+                      }))}
+                      style={{ width: "100%" }}
+                      buttonStyle={{
+                        height: 28,
                         fontSize: 11.5,
-                        padding: "0 8px",
                         backgroundColor: "var(--bg-tertiary)",
                         border: "1px solid var(--border-medium)",
                         borderRadius: "var(--radius-xs)",
                         color: "var(--text-primary)",
-                        cursor: "pointer",
                         fontWeight: 500
                       }}
-                    >
-                      {tmpl.lessons?.map((lesson) => (
-                        <option key={lesson.id} value={lesson.id}>
-                          {lesson.title}: {lesson.subtitle}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>

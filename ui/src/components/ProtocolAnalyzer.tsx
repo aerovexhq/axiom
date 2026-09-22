@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { useTranslation } from "../i18n";
+import { DropdownSelect } from "./ui";
 import {
   ProtocolKind,
   DecodedTransaction,
@@ -752,28 +753,15 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                         {role.required ? "Req" : "Opt"}
                       </span>
                     </div>
-                    <select
+                    <DropdownSelect<string>
                       value={pinMap[role.role] ?? ""}
-                      onChange={(e) => setPinMap({ ...pinMap, [role.role]: e.target.value })}
-                      style={{
-                        width: "100%",
-                        height: 26,
-                        backgroundColor: "var(--bg-tertiary)",
-                        border: "1px solid var(--border-subtle)",
-                        borderRadius: "var(--radius-sm)",
-                        color: "var(--text-primary)",
-                        padding: "0 6px",
-                        fontSize: 11.5,
-                        outline: "none"
-                      }}
-                    >
-                      <option value="">-- Unassigned --</option>
-                      {availableSignalNames.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setPinMap({ ...pinMap, [role.role]: val })}
+                      options={[
+                        { value: "", label: "-- Unassigned --" },
+                        ...availableSignalNames.map((name) => ({ value: name, label: name }))
+                      ]}
+                      size="xs"
+                    />
                   </div>
                 ))}
               </div>
@@ -789,28 +777,32 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
                     <span style={{ fontSize: 11 }}>{t("protocol.baudRate")}</span>
-                    <select
+                    <DropdownSelect<number>
                       value={canConfig.baud_rate}
-                      onChange={(e) => setCanConfig({ ...canConfig, baud_rate: Number(e.target.value) })}
-                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                    >
-                      <option value={125000}>125 kbps (Low-Speed CAN)</option>
-                      <option value={250000}>250 kbps</option>
-                      <option value={500000}>500 kbps (Standard Automotive)</option>
-                      <option value={1000000}>1 Mbps (High-Speed CAN)</option>
-                    </select>
+                      onChange={(val) => setCanConfig({ ...canConfig, baud_rate: val })}
+                      options={[
+                        { value: 125000, label: "125 kbps (Low-Speed CAN)" },
+                        { value: 250000, label: "250 kbps" },
+                        { value: 500000, label: "500 kbps (Standard Automotive)" },
+                        { value: 1000000, label: "1 Mbps (High-Speed CAN)" }
+                      ]}
+                      size="xs"
+                      buttonStyle={{ marginTop: 2 }}
+                    />
                   </div>
                   <div>
                     <span style={{ fontSize: 11 }}>{t("protocol.samplePoint")}</span>
-                    <select
+                    <DropdownSelect<number>
                       value={canConfig.sample_point_percent}
-                      onChange={(e) => setCanConfig({ ...canConfig, sample_point_percent: Number(e.target.value) })}
-                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                    >
-                      <option value={75}>75% (Standard)</option>
-                      <option value={80}>80%</option>
-                      <option value={87.5}>87.5%</option>
-                    </select>
+                      onChange={(val) => setCanConfig({ ...canConfig, sample_point_percent: val })}
+                      options={[
+                        { value: 75, label: "75% (Standard)" },
+                        { value: 80, label: "80%" },
+                        { value: 87.5, label: "87.5%" }
+                      ]}
+                      size="xs"
+                      buttonStyle={{ marginTop: 2 }}
+                    />
                   </div>
                 </div>
               )}
@@ -819,14 +811,16 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
                     <span style={{ fontSize: 11 }}>USB Bus Speed</span>
-                    <select
+                    <DropdownSelect<any>
                       value={usbConfig.speed}
-                      onChange={(e) => setUsbConfig({ ...usbConfig, speed: e.target.value as any })}
-                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                    >
-                      <option value="full_speed">Full-Speed (12 Mbps, 83.3 ns/bit)</option>
-                      <option value="low_speed">Low-Speed (1.5 Mbps, 666.7 ns/bit)</option>
-                    </select>
+                      onChange={(val) => setUsbConfig({ ...usbConfig, speed: val })}
+                      options={[
+                        { value: "full_speed", label: "Full-Speed (12 Mbps, 83.3 ns/bit)" },
+                        { value: "low_speed", label: "Low-Speed (1.5 Mbps, 666.7 ns/bit)" }
+                      ]}
+                      size="xs"
+                      buttonStyle={{ marginTop: 2 }}
+                    />
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, cursor: "pointer" }}>
                     <input
@@ -843,15 +837,17 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
                     <span style={{ fontSize: 11 }}>{t("protocol.interfaceMode")}</span>
-                    <select
+                    <DropdownSelect<any>
                       value={ethernetConfig.interface}
-                      onChange={(e) => setEthernetConfig({ ...ethernetConfig, interface: e.target.value as any })}
-                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                    >
-                      <option value="mii">MII (4-bit Nibbles @ 25 MHz)</option>
-                      <option value="rmii">RMII (2-bit Dibits @ 50 MHz)</option>
-                      <option value="parallel_byte">Parallel Byte (8-bit @ Clock)</option>
-                    </select>
+                      onChange={(val) => setEthernetConfig({ ...ethernetConfig, interface: val })}
+                      options={[
+                        { value: "mii", label: "MII (4-bit Nibbles @ 25 MHz)" },
+                        { value: "rmii", label: "RMII (2-bit Dibits @ 50 MHz)" },
+                        { value: "parallel_byte", label: "Parallel Byte (8-bit @ Clock)" }
+                      ]}
+                      size="xs"
+                      buttonStyle={{ marginTop: 2 }}
+                    />
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, cursor: "pointer" }}>
                     <input
@@ -869,38 +865,44 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                   <div style={{ display: "flex", gap: 8 }}>
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 11 }}>CPOL (Clock Polarity)</span>
-                      <select
+                      <DropdownSelect<number>
                         value={spiConfig.cpol}
-                        onChange={(e) => setSpiConfig({ ...spiConfig, cpol: Number(e.target.value) as 0 | 1 })}
-                        style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                      >
-                        <option value={0}>0 (Idle Low)</option>
-                        <option value={1}>1 (Idle High)</option>
-                      </select>
+                        onChange={(val) => setSpiConfig({ ...spiConfig, cpol: val as 0 | 1 })}
+                        options={[
+                          { value: 0, label: "0 (Idle Low)" },
+                          { value: 1, label: "1 (Idle High)" }
+                        ]}
+                        size="xs"
+                        buttonStyle={{ marginTop: 2 }}
+                      />
                     </div>
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 11 }}>CPHA (Clock Phase)</span>
-                      <select
+                      <DropdownSelect<number>
                         value={spiConfig.cpha}
-                        onChange={(e) => setSpiConfig({ ...spiConfig, cpha: Number(e.target.value) as 0 | 1 })}
-                        style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                      >
-                        <option value={0}>0 (Sample Leading)</option>
-                        <option value={1}>1 (Sample Trailing)</option>
-                      </select>
+                        onChange={(val) => setSpiConfig({ ...spiConfig, cpha: val as 0 | 1 })}
+                        options={[
+                          { value: 0, label: "0 (Sample Leading)" },
+                          { value: 1, label: "1 (Sample Trailing)" }
+                        ]}
+                        size="xs"
+                        buttonStyle={{ marginTop: 2 }}
+                      />
                     </div>
                   </div>
                   <div>
                     <span style={{ fontSize: 11 }}>Word Size</span>
-                    <select
+                    <DropdownSelect<number>
                       value={spiConfig.bits_per_word}
-                      onChange={(e) => setSpiConfig({ ...spiConfig, bits_per_word: Number(e.target.value) })}
-                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                    >
-                      <option value={8}>8-bit</option>
-                      <option value={16}>16-bit</option>
-                      <option value={32}>32-bit</option>
-                    </select>
+                      onChange={(val) => setSpiConfig({ ...spiConfig, bits_per_word: val })}
+                      options={[
+                        { value: 8, label: "8-bit" },
+                        { value: 16, label: "16-bit" },
+                        { value: 32, label: "32-bit" }
+                      ]}
+                      size="xs"
+                      buttonStyle={{ marginTop: 2 }}
+                    />
                   </div>
                 </div>
               )}
@@ -922,16 +924,18 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
                     <span style={{ fontSize: 11 }}>Data Bus Width</span>
-                    <select
+                    <DropdownSelect<number>
                       value={axiConfig.data_width_bytes}
-                      onChange={(e) => setAxiConfig({ ...axiConfig, data_width_bytes: Number(e.target.value) })}
-                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                    >
-                      <option value={1}>8-bit (1 Byte)</option>
-                      <option value={2}>16-bit (2 Bytes)</option>
-                      <option value={4}>32-bit (4 Bytes)</option>
-                      <option value={8}>64-bit (8 Bytes)</option>
-                    </select>
+                      onChange={(val) => setAxiConfig({ ...axiConfig, data_width_bytes: val })}
+                      options={[
+                        { value: 1, label: "8-bit (1 Byte)" },
+                        { value: 2, label: "16-bit (2 Bytes)" },
+                        { value: 4, label: "32-bit (4 Bytes)" },
+                        { value: 8, label: "64-bit (8 Bytes)" }
+                      ]}
+                      size="xs"
+                      buttonStyle={{ marginTop: 2 }}
+                    />
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, cursor: "pointer" }}>
                     <input
@@ -948,15 +952,17 @@ export const ProtocolAnalyzer: React.FC<ProtocolAnalyzerProps> = ({
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div>
                     <span style={{ fontSize: 11 }}>{t("protocol.baudRate")}</span>
-                    <select
+                    <DropdownSelect<number>
                       value={uartConfig.baud_rate}
-                      onChange={(e) => setUartConfig({ ...uartConfig, baud_rate: Number(e.target.value) })}
-                      style={{ width: "100%", height: 26, backgroundColor: "var(--bg-tertiary)", border: "1px solid var(--border-subtle)", borderRadius: 3, color: "var(--text-primary)", fontSize: 11.5, marginTop: 2 }}
-                    >
-                      <option value={9600}>9,600</option>
-                      <option value={115200}>115,200 (Default)</option>
-                      <option value={921600}>921,600</option>
-                    </select>
+                      onChange={(val) => setUartConfig({ ...uartConfig, baud_rate: val })}
+                      options={[
+                        { value: 9600, label: "9,600" },
+                        { value: 115200, label: "115,200 (Default)" },
+                        { value: 921600, label: "921,600" }
+                      ]}
+                      size="xs"
+                      buttonStyle={{ marginTop: 2 }}
+                    />
                   </div>
                 </div>
               )}

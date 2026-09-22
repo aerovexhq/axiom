@@ -9,6 +9,7 @@ import {
   Check
 } from "lucide-react";
 import { Modal } from "./ui/Modal";
+import { DropdownSelect } from "./ui";
 import { AxiomProject, ProjectSecuritySettings, getDefaultSecuritySettings } from "../engine/projectModel";
 import { getFileSystem, ProjectStorageUsage } from "../engine/fs";
 import { toast } from "../engine/toast";
@@ -243,24 +244,13 @@ export const ProjectSecurityModal: React.FC<ProjectSecurityModalProps> = ({
               <HardDrive size={14} color="var(--accent-cyan)" />
               {t("security.storageQuota")}
             </label>
-            <select
+            <DropdownSelect<number>
               value={quotaMb}
-              onChange={(e) => setQuotaMb(Number(e.target.value))}
-              style={{
-                backgroundColor: "var(--bg-primary)",
-                border: "1px solid var(--border-strong)",
-                color: "var(--text-primary)",
-                borderRadius: "var(--radius-sm)",
-                padding: "4px 8px",
-                fontSize: 12
-              }}
-            >
-              {STORAGE_QUOTA_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setQuotaMb(val)}
+              options={STORAGE_QUOTA_OPTIONS}
+              size="sm"
+              minWidth={180}
+            />
           </div>
 
           {/* Storage Meter Card */}

@@ -969,6 +969,32 @@ fn apply_desktop_update(
     })
 }
 
+#[tauri::command]
+fn create_new_window(
+    app: tauri::AppHandle,
+    project_id: Option<String>,
+) -> Result<String, String> {
+    static WINDOW_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(20);
+    let id = WINDOW_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let label = format!("axiom_window_{id}");
+
+    let url = if let Some(slug) = project_id {
+        WebviewUrl::App(format!("index.html?project={slug}").into())
+    } else {
+        WebviewUrl::default()
+    };
+
+    let window = WebviewWindowBuilder::new(&app, &label, url)
+        .title(format!("Axiom EDA Studio - Window {id}"))
+        .inner_size(1366.0, 850.0)
+        .build()
+        .map_err(|e| format!("Failed to create window: {e}"))?;
+
+    let _ = window.set_focus();
+    Ok(label)
+}
+
+
 pub fn run_desktop_app() {
     let engine: EngineState = Arc::new(Mutex::new(MultiEngineManager::new()));
     static WINDOW_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(2);
@@ -1046,7 +1072,8 @@ pub fn run_desktop_app() {
             get_app_version,
             apply_desktop_update,
             get_directory_size,
-            purge_data_directory
+            purge_data_directory,
+            create_new_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running Axiom EDA desktop application");

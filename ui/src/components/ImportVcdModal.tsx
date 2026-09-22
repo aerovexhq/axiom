@@ -8,6 +8,7 @@ import {
   generateSampleGoldenVcd
 } from "../engine/vcdModel";
 import { useTranslation } from "../i18n";
+import { DropdownSelect } from "./ui";
 
 interface ImportVcdModalProps {
   isOpen: boolean;
@@ -480,29 +481,21 @@ export const ImportVcdModal: React.FC<ImportVcdModalProps> = ({
 
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontSize: 11, color: "#8b949e" }}>↔</span>
-                          <select
+                          <DropdownSelect<string>
                             value={mappedGoldenId || ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
+                            onChange={(val) => {
                               setSignalMap((prev) => ({ ...prev, [sim.id]: val }));
                             }}
-                            className="input"
-                            style={{
-                              fontSize: 11,
-                              padding: "3px 8px",
-                              backgroundColor: "#0d1117",
-                              color: mappedGoldenId ? "var(--accent-cyan, #00f0ff)" : "#8b949e",
-                              borderColor: "#30363d",
-                              minWidth: 160
-                            }}
-                          >
-                            <option value="">(Exclude from diff)</option>
-                            {parsedVcd.signals.map((g) => (
-                              <option key={g.id} value={g.id}>
-                                {g.name} [{g.width}b]
-                              </option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: "", label: "(Exclude from diff)" },
+                              ...parsedVcd.signals.map((g) => ({
+                                value: g.id,
+                                label: `${g.name} [${g.width}b]`
+                              }))
+                            ]}
+                            size="xs"
+                            minWidth={190}
+                          />
                         </div>
                       </div>
                     );
