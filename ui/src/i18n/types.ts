@@ -393,4 +393,22 @@ export interface Translations {
     zoomFit: string;
     resetView: string;
   };
+  stimulusGenerator: {
+    modalTitle: string;
+    tabTimingDiagram: string;
+    tabConstrainedRandom: string;
+    tabTestbenchPreview: string;
+    durationLabel: string;
+    clickToToggleHelp: string;
+    generatorType: string;
+    noTrackSelected: string;
+    harnessTitle: string;
+    addSourceBtn: string;
+    runInRam: string;
+    injected: string;
+    copiedToClipboard: string;
+    downloadStarted: string;
+    stimulusApplied: string;
+    addedToSimSources: string;
+  };
 }

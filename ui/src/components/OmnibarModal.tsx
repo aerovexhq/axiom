@@ -171,6 +171,19 @@ export const OmnibarModal: React.FC<OmnibarModalProps> = ({
       }
     });
 
+    items.push({
+      id: "act_stimulus_generator",
+      category: "Actions",
+      title: "Visual Stimulus & Testbench Generator",
+      subtitle: "Draw waveform drives, clock/glitch wizards, constrained random verification suite",
+      icon: <Zap size={14} color="var(--accent-cyan)" />,
+      action: () => {
+        onSelectView("waveform");
+        window.dispatchEvent(new CustomEvent("axiom_open_stimulus_generator"));
+        onClose();
+      }
+    });
+
     // 2. Views
     items.push({
       id: "view_waveform",

@@ -12,7 +12,7 @@ import {
   RefreshCw
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
-import { StimulusPainterModal } from "./StimulusPainterModal";
+import { StimulusGeneratorModal } from "./StimulusGeneratorModal";
 import { Basys3BoardBay } from "./Basys3BoardBay";
 import type { AxiomProject } from "../engine/projectModel";
 import { useTranslation } from "../i18n";
@@ -1599,11 +1599,12 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
         </div>
       )}
 
-      {/* Waveform Stimulus Painter Modal */}
-      <StimulusPainterModal
+      {/* Visual Stimulus & Testbench Generator Modal */}
+      <StimulusGeneratorModal
         topModule={state.topModule}
         isOpen={isPainterOpen}
         onClose={() => setIsPainterOpen(false)}
+        project={project}
       />
     </div>
   );

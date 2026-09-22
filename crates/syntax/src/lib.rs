@@ -3,6 +3,7 @@ pub mod coverage;
 pub mod lexer;
 pub mod parser;
 pub mod preprocessor;
+pub mod stimulus;
 pub mod token;
 
 pub use ast::*;
@@ -10,6 +11,7 @@ pub use coverage::*;
 pub use lexer::Lexer;
 pub use parser::Parser;
 pub use preprocessor::Preprocessor;
+pub use stimulus::*;
 pub use token::{Token, TokenKind};
 
 use axiom_core::{Diagnostic, FileId};

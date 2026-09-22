@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import {
   ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X,
   Search, History, Cpu, ShieldAlert, Bookmark, Activity, ChevronDown,
-  Plus, Trash2, Edit2, GitCompare, CheckCircle2
+  Plus, Trash2, Edit2, GitCompare, CheckCircle2, Zap
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
@@ -15,6 +15,7 @@ import { ProtocolDecoderModal } from "./ProtocolDecoderModal";
 import { AssertionViolation, getViolationTimePs } from "../engine/assertionModel";
 import { ParsedVcd, GoldenDiffReport } from "../engine/vcdModel";
 import { ImportVcdModal } from "./ImportVcdModal";
+import { StimulusGeneratorModal } from "./StimulusGeneratorModal";
 
 const formatTimeCompact = (ps: number) => {
   if (ps >= 1_000_000) return `${(ps / 1_000_000).toFixed(2)}μs`;
@@ -135,8 +136,15 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const handleOpenVcd = () => {
       setIsVcdModalOpen(true);
     };
+    const handleOpenStimulus = () => {
+      setIsStimulusModalOpen(true);
+    };
     window.addEventListener("axiom_open_vcd_import", handleOpenVcd);
-    return () => window.removeEventListener("axiom_open_vcd_import", handleOpenVcd);
+    window.addEventListener("axiom_open_stimulus_generator", handleOpenStimulus);
+    return () => {
+      window.removeEventListener("axiom_open_vcd_import", handleOpenVcd);
+      window.removeEventListener("axiom_open_stimulus_generator", handleOpenStimulus);
+    };
   }, []);
 
   // Modern Drag-to-Measure Window Selection System
@@ -265,6 +273,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   const [goldenVcd, setGoldenVcd] = useState<ParsedVcd | null>(null);
   const [goldenDiffReport, setGoldenDiffReport] = useState<GoldenDiffReport | null>(null);
   const [showGoldenTraces, setShowGoldenTraces] = useState<boolean>(false);
+
+  // Phase 42: Visual Stimulus & Testbench Verification Suite State
+  const [isStimulusModalOpen, setIsStimulusModalOpen] = useState<boolean>(false);
 
   // Active base signals from parent selection
   const baseSignals = useMemo(() => {
@@ -2122,6 +2133,26 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 : t.waveforms.goldenDiff}
             </span>
           </button>
+
+          {/* Phase 42: Visual Stimulus & Testbench Generator */}
+          <button
+            onClick={() => setIsStimulusModalOpen(true)}
+            className="btn btn-secondary btn-sm"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              height: 24,
+              padding: "0 8px",
+              color: "var(--accent-cyan)",
+              border: "1px solid var(--border-subtle)"
+            }}
+            title="Visual Waveform Stimulus & Testbench Generator"
+          >
+            <Zap size={12} />
+            <span>+ Stimulus</span>
+          </button>
         </div>
 
         {/* Measurement HUD & Zoom Controls */}
@@ -2849,6 +2880,13 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           setGoldenDiffReport(report);
           setShowGoldenTraces(true);
         }}
+      />
+
+      {/* Visual Stimulus & Testbench Generator Modal */}
+      <StimulusGeneratorModal
+        isOpen={isStimulusModalOpen}
+        onClose={() => setIsStimulusModalOpen(false)}
+        topModule={state.topModule}
       />
     </div>
   );
