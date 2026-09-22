@@ -49,19 +49,20 @@ pub fn elaborate_dsp48(
     );
 
     // Registered or combinational M stage
-    let m_stage_net = if mreg > 0 && clk.is_some() {
-        let m_reg = circuit.add_net(
-            format!("{scope_prefix}.{inst_name}._m_reg"),
-            48,
-            LogicVector::zeros(48),
-        );
-        let cem = port_nets.get("CEM").copied().unwrap_or(dummy_one);
-        let rstm = port_nets.get("RSTM").copied().unwrap_or(dummy_zero);
+    let m_stage_net = match (mreg > 0, clk) {
+        (true, Some(clk_net)) => {
+            let m_reg = circuit.add_net(
+                format!("{scope_prefix}.{inst_name}._m_reg"),
+                48,
+                LogicVector::zeros(48),
+            );
+            let cem = port_nets.get("CEM").copied().unwrap_or(dummy_one);
+            let rstm = port_nets.get("RSTM").copied().unwrap_or(dummy_zero);
 
-        circuit.add_process(
-            format!("{scope_prefix}.{inst_name}.m_stage"),
-            BirProcessKind::Clocked,
-            vec![BirTrigger { net: clk.unwrap(), edge: EdgeKind::Posedge }],
+            circuit.add_process(
+                format!("{scope_prefix}.{inst_name}.m_stage"),
+                BirProcessKind::Clocked,
+                vec![BirTrigger { net: clk_net, edge: EdgeKind::Posedge }],
             vec![BirStatement::If {
                 cond: BirExpr::Net(rstm),
                 then_body: vec![BirStatement::Assign {
@@ -81,9 +82,9 @@ pub fn elaborate_dsp48(
             }],
         );
         m_reg
-    } else {
-        mult_net
-    };
+    }
+    _ => mult_net,
+};
 
     // Next ALU accumulator value: next_p = C + M (or P + M if accumulation)
     let next_p_net = circuit.add_net(
@@ -105,12 +106,12 @@ pub fn elaborate_dsp48(
     );
 
     if let Some(target_p) = p_out {
-        if preg > 0 && clk.is_some() {
+        if let (true, Some(clk_net)) = (preg > 0, clk) {
             // Pipelined P register
             circuit.add_process(
                 format!("{scope_prefix}.{inst_name}.p_stage"),
                 BirProcessKind::Clocked,
-                vec![BirTrigger { net: clk.unwrap(), edge: EdgeKind::Posedge }],
+                vec![BirTrigger { net: clk_net, edge: EdgeKind::Posedge }],
                 vec![BirStatement::If {
                     cond: BirExpr::Net(rstp),
                     then_body: vec![BirStatement::Assign {

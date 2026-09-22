@@ -161,7 +161,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                   border: "1px solid var(--border-subtle)"
                 }}
               >
-                v0.1.0-jit
+                v1.0.0
               </span>
             </div>
             <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>

@@ -276,12 +276,10 @@ impl SdcParser {
                         continue;
                     }
                 }
-                "-through" => {
-                    if i + 1 < tokens.len() {
-                        through = Some(extract_object_name(&tokens[i + 1]));
-                        i += 2;
-                        continue;
-                    }
+                "-through" if i + 1 < tokens.len() => {
+                    through = Some(extract_object_name(&tokens[i + 1]));
+                    i += 2;
+                    continue;
                 }
                 _ => {}
             }
@@ -341,20 +339,18 @@ impl SdcParser {
         while i < tokens.len() {
             match tokens[i].as_str() {
                 "-asynchronous" => is_asynchronous = true,
-                "-group" => {
-                    if i + 1 < tokens.len() {
-                        let group_str = clean_braces(&tokens[i + 1]);
-                        let items: Vec<String> = group_str
-                            .split_whitespace()
-                            .map(clean_identifier)
-                            .filter(|s| !s.is_empty())
-                            .collect();
-                        if !items.is_empty() {
-                            groups.push(items);
-                        }
-                        i += 2;
-                        continue;
+                "-group" if i + 1 < tokens.len() => {
+                    let group_str = clean_braces(&tokens[i + 1]);
+                    let items: Vec<String> = group_str
+                        .split_whitespace()
+                        .map(clean_identifier)
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    if !items.is_empty() {
+                        groups.push(items);
                     }
+                    i += 2;
+                    continue;
                 }
                 _ => {}
             }
@@ -415,10 +411,11 @@ fn strip_comment(line: &str) -> &str {
     for i in 0..bytes.len() {
         if bytes[i] == b'"' && (i == 0 || bytes[i - 1] != b'\\') {
             in_quote = !in_quote;
-        } else if !in_quote && bytes[i] == b'#' {
-            if i == 0 || bytes[i - 1] == b' ' || bytes[i - 1] == b'\t' || bytes[i - 1] == b';' {
-                return &line[..i];
-            }
+        } else if !in_quote
+            && bytes[i] == b'#'
+            && (i == 0 || bytes[i - 1] == b' ' || bytes[i - 1] == b'\t' || bytes[i - 1] == b';')
+        {
+            return &line[..i];
         }
     }
     line
@@ -508,7 +505,7 @@ fn clean_braces(s: &str) -> &str {
         || (trimmed.starts_with('"') && trimmed.ends_with('"'))
         || (trimmed.starts_with('[') && trimmed.ends_with(']'))
     {
-        &trimmed[1..trimmed.len() - 1].trim()
+        trimmed[1..trimmed.len() - 1].trim()
     } else {
         trimmed
     }

@@ -41,7 +41,7 @@ impl ArithMapper {
 
         if family.supports_carry8() {
             // UltraScale+ CARRY8 mapping
-            let num_blocks = (width + 7) / 8;
+            let num_blocks = width.div_ceil(8);
             for blk in 0..num_blocks {
                 let cell_name = format!("carry8_{}_{blk}", target_net.name);
                 let mut ports = HashMap::new();
@@ -104,7 +104,7 @@ impl ArithMapper {
             }
         } else {
             // 7-Series / Zynq CARRY4 mapping
-            let num_blocks = (width + 3) / 4;
+            let num_blocks = width.div_ceil(4);
             for blk in 0..num_blocks {
                 let cell_name = format!("carry4_{}_{blk}", target_net.name);
                 let mut ports = HashMap::new();

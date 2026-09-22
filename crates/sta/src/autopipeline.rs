@@ -327,15 +327,15 @@ impl AutoPipeliner {
 
             for line in new_lines {
                 if line.trim().starts_with("endmodule") && !endmodule_found {
-                    fallback_lines.push(format!("    // Silicon Copilot: Auto-pipelined register stage for timing closure"));
+                    fallback_lines.push("    // Silicon Copilot: Auto-pipelined register stage for timing closure".to_string());
                     fallback_lines.push(format!("    reg {} {}_pipe_q;", net_width_str.trim(), cut_net));
                     fallback_lines.push(format!("    always @(posedge {}{}) begin", detected_clock, reset_sens));
                     fallback_lines.push(format!("        if ({}) begin", reset_cond));
                     fallback_lines.push(format!("            {}_pipe_q <= '0;", cut_net));
-                    fallback_lines.push(format!("        end else begin"));
+                    fallback_lines.push("        end else begin".to_string());
                     fallback_lines.push(format!("            {}_pipe_q <= {};", cut_net, cut_net));
-                    fallback_lines.push(format!("        end"));
-                    fallback_lines.push(format!("    end\n"));
+                    fallback_lines.push("        end".to_string());
+                    fallback_lines.push("    end\n".to_string());
                     fallback_lines.push(line);
                     endmodule_found = true;
                 } else {

@@ -70,7 +70,7 @@ fn test_constrained_random_seed_repeatability() {
     assert_eq!(vals1, vals2, "Seed-repeatable PRNG must yield identical values");
 
     for val in vals1 {
-        assert!(val >= 10 && val <= 100, "Value {} must be within [10, 100]", val);
+        assert!((10..=100).contains(&val), "Value {} must be within [10, 100]", val);
     }
 }
 
@@ -82,7 +82,7 @@ fn test_constrained_random_illegal_bins() {
     for _ in 0..100 {
         let val = rng.next_value();
         assert!(!illegal.contains(&val), "Generated value {} was illegal!", val);
-        assert!(val >= 10 && val <= 30);
+        assert!((10..=30).contains(&val));
     }
 }
 

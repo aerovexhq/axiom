@@ -81,12 +81,10 @@ impl SnapshotRingBuffer {
     }
 
     pub fn find_prev_delta(&self, current_time: SimTime, current_delta: u32) -> Option<&SimSnapshot> {
-        for snap in self.snapshots.iter().rev() {
-            if snap.time < current_time || (snap.time == current_time && snap.delta < current_delta) {
-                return Some(snap);
-            }
-        }
-        None
+        self.snapshots
+            .iter()
+            .rev()
+            .find(|snap| snap.time < current_time || (snap.time == current_time && snap.delta < current_delta))
     }
 
     pub fn find_prev_time(&self, current_time: SimTime, dt_ps: u64) -> Option<&SimSnapshot> {

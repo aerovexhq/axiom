@@ -153,24 +153,22 @@ impl VerilogHover {
                             });
                         }
                     }
-                    ModuleItem::Instance(inst) => {
-                        if inst.instance_name == word {
-                            let (decl_line, decl_col) = offset_to_line_col(source, inst.span.start);
-                            let doc = format!(
-                                "### Instance `{}`\n\n- **Module**: `{}`\n- **Bindings**: {} ports, {} params\n- **Declared**: Line {}, Column {}\n- **Scope**: Module `{}`",
-                                inst.instance_name,
-                                inst.module_name,
-                                inst.port_bindings.len(),
-                                inst.param_bindings.len(),
-                                decl_line,
-                                decl_col,
-                                module.name
-                            );
-                            return Some(HoverResult {
-                                contents: doc,
-                                range: Some(word_range),
-                            });
-                        }
+                    ModuleItem::Instance(inst) if inst.instance_name == word => {
+                        let (decl_line, decl_col) = offset_to_line_col(source, inst.span.start);
+                        let doc = format!(
+                            "### Instance `{}`\n\n- **Module**: `{}`\n- **Bindings**: {} ports, {} params\n- **Declared**: Line {}, Column {}\n- **Scope**: Module `{}`",
+                            inst.instance_name,
+                            inst.module_name,
+                            inst.port_bindings.len(),
+                            inst.param_bindings.len(),
+                            decl_line,
+                            decl_col,
+                            module.name
+                        );
+                        return Some(HoverResult {
+                            contents: doc,
+                            range: Some(word_range),
+                        });
                     }
                     _ => {}
                 }

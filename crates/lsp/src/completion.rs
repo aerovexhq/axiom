@@ -6,6 +6,7 @@ use axiom_syntax::parse_hdl;
 pub struct VerilogCompletion;
 
 impl VerilogCompletion {
+    #[allow(clippy::vec_init_then_push)]
     pub fn complete(source: &str, line: u32, column: u32) -> Vec<CompletionItem> {
         let mut items = Vec::new();
 

@@ -23,7 +23,7 @@ impl DatapathDetector {
                 ],
             };
 
-            let ports = vec![
+            let ports = [
                 MacroPort {
                     id: "dec_in_instr".to_string(),
                     name: "instr[31:0]".to_string(),
@@ -160,7 +160,7 @@ impl DatapathDetector {
         // 4. Check for Xilinx DSP48E2 Multiplier-Accumulator slice
         for inst in &circuit.primitive_instances {
             if inst.primitive_kind == PrimitiveKind::Dsp48e2 || inst.primitive_kind == PrimitiveKind::Dsp48e1 {
-                let ports = vec![
+                let ports = [
                     MacroPort {
                         id: "dsp_clk".to_string(),
                         name: "CLK".to_string(),

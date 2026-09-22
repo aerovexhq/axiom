@@ -16,7 +16,7 @@ $date
    2026-09-21 Axiom Test
 $end
 $version
-   Axiom HDL Engine 0.1.0
+   Axiom HDL Engine 1.0.0
 $end
 $timescale
    1ns

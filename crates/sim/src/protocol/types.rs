@@ -101,17 +101,9 @@ impl Default for SpiConfig {
 }
 
 /// Configuration parameters for I2C decoding.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct I2cConfig {
     pub is_10bit_addressing: bool,
-}
-
-impl Default for I2cConfig {
-    fn default() -> Self {
-        Self {
-            is_10bit_addressing: false,
-        }
-    }
 }
 
 /// Configuration parameters for AXI decoding.

@@ -31,11 +31,7 @@ impl Default for ClockGenerator {
 
 impl ClockGenerator {
     pub fn new(freq_mhz: u64) -> Self {
-        let period_ps = if freq_mhz > 0 {
-            1_000_000 / freq_mhz
-        } else {
-            10_000
-        };
+        let period_ps = 1_000_000u64.checked_div(freq_mhz).unwrap_or(10_000);
         Self {
             period_ps,
             duty_cycle_percent: 50,
@@ -406,7 +402,7 @@ impl TestbenchGenerator {
         if let Some(t) = clock_track {
             if let StimulusTrackKind::Clock(ref clk_gen) = t.kind {
                 let half_period_ns = ((clk_gen.period_ps / 2) / 1000).max(1);
-                let freq = if clk_gen.period_ps > 0 { 1_000_000 / clk_gen.period_ps } else { 100 };
+                let freq = 1_000_000u64.checked_div(clk_gen.period_ps).unwrap_or(100);
                 code.push_str("  // --------------------------------------------------------------------------\n");
                 code.push_str(&format!("  // 2. Clock Generator ({} MHz)\n", freq));
                 code.push_str("  // --------------------------------------------------------------------------\n");

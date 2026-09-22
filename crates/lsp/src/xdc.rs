@@ -223,7 +223,7 @@ impl XdcLinter {
             // Valid FPGA pin format: single or dual letters followed by 1 to 3 digits (e.g. J15, L16, M13, H17, W5, AA1)
             let is_valid_pin = !val_str.is_empty()
                 && val_str.chars().all(|c| c.is_ascii_alphanumeric())
-                && val_str.chars().next().map_or(false, |c| c.is_ascii_uppercase());
+                && val_str.chars().next().is_some_and(|c| c.is_ascii_uppercase());
 
             if !is_valid_pin {
                 diags.push(
@@ -716,6 +716,7 @@ impl XdcHover {
 pub struct XdcCompletion;
 
 impl XdcCompletion {
+    #[allow(clippy::vec_init_then_push)]
     pub fn complete(_source: &str, _line: u32, _column: u32) -> Vec<CompletionItem> {
         let mut items = Vec::new();
 

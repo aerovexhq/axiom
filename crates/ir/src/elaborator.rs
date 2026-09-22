@@ -313,11 +313,10 @@ impl<'a> Elaborator<'a> {
                 }
                 stmts.extend(current_else);
             }
-            Statement::Delay { stmt, .. } => {
-                if let Some(inner) = stmt {
-                    stmts.extend(self.lower_statement(inner, nets, params)?);
-                }
+            Statement::Delay { stmt: Some(inner), .. } => {
+                stmts.extend(self.lower_statement(inner, nets, params)?);
             }
+            Statement::Delay { stmt: None, .. } => {}
             Statement::Forever { body, .. } => {
                 stmts.extend(self.lower_statement(body, nets, params)?);
             }
@@ -436,10 +435,8 @@ impl<'a> Elaborator<'a> {
                     self.collect_read_nets(eb, nets, out);
                 }
             }
-            Statement::Delay { stmt, .. } => {
-                if let Some(inner) = stmt {
-                    self.collect_read_nets(inner, nets, out);
-                }
+            Statement::Delay { stmt: Some(inner), .. } => {
+                self.collect_read_nets(inner, nets, out);
             }
             Statement::TaskCall { args, .. } => {
                 for a in args {
@@ -519,7 +516,7 @@ impl<'a> Elaborator<'a> {
                     BinaryOp::Add => Ok(l + r),
                     BinaryOp::Sub => Ok(l.saturating_sub(r)),
                     BinaryOp::Mul => Ok(l * r),
-                    BinaryOp::Div => if r != 0 { Ok(l / r) } else { Ok(0) },
+                    BinaryOp::Div => Ok(l.checked_div(r).unwrap_or(0)),
                     BinaryOp::Shl => Ok(l << r),
                     BinaryOp::Shr => Ok(l >> r),
                     _ => Ok(0),

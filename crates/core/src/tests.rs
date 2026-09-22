@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::*;
 
@@ -47,7 +48,7 @@ mod tests {
         assert_eq!(v.get_bit(3), Logic4::One);
 
         v.set_bit(2, Logic4::X);
-        assert_eq!(v.is_all_known(), false);
+        assert!(!v.is_all_known());
         assert_eq!(v.to_u64(), None);
     }
 

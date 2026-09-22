@@ -416,18 +416,16 @@ impl<'a> SvaParser<'a> {
         // Optional clock event: @(posedge clk) or @(negedge clk)
         let mut clock_name = "clk".to_string();
         let mut edge = ClockEdge::Posedge;
-        if self.match_str("@") {
-            if self.match_str("(") {
-                if self.match_str("posedge") {
-                    edge = ClockEdge::Posedge;
-                } else if self.match_str("negedge") {
-                    edge = ClockEdge::Negedge;
-                }
-                if let Some(sig) = self.parse_ident_or_keyword() {
-                    clock_name = sig;
-                }
-                let _ = self.match_str(")");
+        if self.match_str("@") && self.match_str("(") {
+            if self.match_str("posedge") {
+                edge = ClockEdge::Posedge;
+            } else if self.match_str("negedge") {
+                edge = ClockEdge::Negedge;
             }
+            if let Some(sig) = self.parse_ident_or_keyword() {
+                clock_name = sig;
+            }
+            let _ = self.match_str(")");
         }
 
         // Parse property expression
@@ -659,11 +657,7 @@ impl<'a> SvaParser<'a> {
         }
 
         // Identifier
-        if let Some(ident) = self.parse_ident_or_keyword() {
-            Some(TemporalExpr::Signal(ident))
-        } else {
-            None
-        }
+        self.parse_ident_or_keyword().map(TemporalExpr::Signal)
     }
 }
 

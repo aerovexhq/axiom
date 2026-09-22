@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version tag (e.g. v0.1.0)"
+        description: "Release version tag (e.g. v1.0.0)"
         required: true
-        default: "v0.1.0"
+        default: "v1.0.0"
 
 permissions:
   contents: write
@@ -68,7 +68,7 @@ jobs:
           elif [[ "${GITHUB_REF_NAME}" =~ ^v[0-9] ]]; then
             echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           else
-            echo "VERSION=v0.1.0" >> $GITHUB_ENV
+            echo "VERSION=v1.0.0" >> $GITHUB_ENV
           fi
 
       - name: Install Rust Toolchain
@@ -154,7 +154,7 @@ jobs:
           elif [[ "${GITHUB_REF_NAME}" =~ ^v[0-9] ]]; then
             echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           else
-            echo "VERSION=v0.1.0" >> $GITHUB_ENV
+            echo "VERSION=v1.0.0" >> $GITHUB_ENV
           fi
 
       - name: Download all build artifacts

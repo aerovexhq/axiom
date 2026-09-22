@@ -13,59 +13,56 @@ impl AluDetector {
         for (proc_idx, item) in module.items.iter().enumerate() {
             if let ModuleItem::ProceduralBlock(proc) = item {
                 if let Some(alu_macro) = Self::analyze_proc_for_alu(&proc.body) {
-                    let mut ports = Vec::new();
-
-                    // Operand A
-                    ports.push(MacroPort {
-                        id: "in_a".to_string(),
-                        name: alu_macro.operand_a.clone(),
-                        width: alu_macro.operand_width,
-                        direction: MacroPortDirection::In,
-                        is_clock: false,
-                        is_reset: false,
-                        is_datapath: true,
-                        offset_x: 0.0,
-                        offset_y: 25.0,
-                    });
-
-                    // Operand B
-                    ports.push(MacroPort {
-                        id: "in_b".to_string(),
-                        name: alu_macro.operand_b.clone(),
-                        width: alu_macro.operand_width,
-                        direction: MacroPortDirection::In,
-                        is_clock: false,
-                        is_reset: false,
-                        is_datapath: true,
-                        offset_x: 0.0,
-                        offset_y: 55.0,
-                    });
-
-                    // Opcode
-                    ports.push(MacroPort {
-                        id: "in_opcode".to_string(),
-                        name: alu_macro.opcode_signal.clone(),
-                        width: alu_macro.opcode_width,
-                        direction: MacroPortDirection::In,
-                        is_clock: false,
-                        is_reset: false,
-                        is_datapath: false,
-                        offset_x: 90.0,
-                        offset_y: 0.0,
-                    });
-
-                    // Result
-                    ports.push(MacroPort {
-                        id: "out_result".to_string(),
-                        name: alu_macro.result_signal.clone(),
-                        width: alu_macro.result_width,
-                        direction: MacroPortDirection::Out,
-                        is_clock: false,
-                        is_reset: false,
-                        is_datapath: true,
-                        offset_x: 180.0,
-                        offset_y: 40.0,
-                    });
+                    let mut ports = vec![
+                        // Operand A
+                        MacroPort {
+                            id: "in_a".to_string(),
+                            name: alu_macro.operand_a.clone(),
+                            width: alu_macro.operand_width,
+                            direction: MacroPortDirection::In,
+                            is_clock: false,
+                            is_reset: false,
+                            is_datapath: true,
+                            offset_x: 0.0,
+                            offset_y: 25.0,
+                        },
+                        // Operand B
+                        MacroPort {
+                            id: "in_b".to_string(),
+                            name: alu_macro.operand_b.clone(),
+                            width: alu_macro.operand_width,
+                            direction: MacroPortDirection::In,
+                            is_clock: false,
+                            is_reset: false,
+                            is_datapath: true,
+                            offset_x: 0.0,
+                            offset_y: 55.0,
+                        },
+                        // Opcode
+                        MacroPort {
+                            id: "in_opcode".to_string(),
+                            name: alu_macro.opcode_signal.clone(),
+                            width: alu_macro.opcode_width,
+                            direction: MacroPortDirection::In,
+                            is_clock: false,
+                            is_reset: false,
+                            is_datapath: false,
+                            offset_x: 90.0,
+                            offset_y: 0.0,
+                        },
+                        // Result
+                        MacroPort {
+                            id: "out_result".to_string(),
+                            name: alu_macro.result_signal.clone(),
+                            width: alu_macro.result_width,
+                            direction: MacroPortDirection::Out,
+                            is_clock: false,
+                            is_reset: false,
+                            is_datapath: true,
+                            offset_x: 180.0,
+                            offset_y: 40.0,
+                        },
+                    ];
 
                     // Flags
                     for flag in &alu_macro.flags {
@@ -268,14 +265,12 @@ impl AluDetector {
         for item in &module.items {
             if let ModuleItem::ContinuousAssign(assign) = item {
                 if let Some(lhs_name) = Self::expr_to_name(&assign.lhs) {
-                    if lhs_name.contains("zero") {
-                        if !alu.flags.iter().any(|f| f.name == "ZERO") {
-                            alu.flags.push(AluFlag {
-                                name: "ZERO".to_string(),
-                                signal: lhs_name,
-                                description: "Zero flag comparator".to_string(),
-                            });
-                        }
+                    if lhs_name.contains("zero") && !alu.flags.iter().any(|f| f.name == "ZERO") {
+                        alu.flags.push(AluFlag {
+                            name: "ZERO".to_string(),
+                            signal: lhs_name,
+                            description: "Zero flag comparator".to_string(),
+                        });
                     }
                 }
             }

@@ -17,6 +17,7 @@ struct JsonRpcRequest {
     params: Value,
 }
 
+#[derive(Default)]
 pub struct LspServer {
     documents: HashMap<String, String>,
 }

@@ -18,22 +18,22 @@
 
 ---
 
-## 🚀 Overview
+## Overview
 
 **Axiom EDA** is a ground-up, high-performance, cross-platform remake of AMD Vivado's Hardware Description Language (HDL) processing, simulation, and verification engine.
 
 Vivado is the industry standard for FPGA development, yet it carries decades of legacy bloat: 100+ GB installations, sluggish Java Swing interfaces, multi-minute file-based elaboration snapshots, and zero support for macOS (Apple Silicon) or modern web browsers. Furthermore, legacy simulators treat zero-time delta cycles as a black box, hiding critical combinational race conditions from engineers.
 
 **Axiom eliminates these bottlenecks**:
-- ⚡ **In-RAM Cranelift JIT Compilation**: Compiles Verilog and SystemVerilog netlists directly into native machine code (x86_64, AArch64) in RAM in **under 3 milliseconds** — bypassing intermediate C++ files and disk snapshots.
-- 🔬 **Granular Delta-Cycle Stepping**: Caller-controlled stepping API (`step_delta`) exposing discrete zero-time $\delta$-cycles and static/dynamic glitch hazards before signals settle.
-- 🔋 **Physics-Informed Silicon Telemetry**: Real-time dynamic power modeling ($P = \frac{1}{2} C V^2 f \alpha$) and Power Distribution Network (PDN) inductive voltage droop ($V_{\text{sag}} = IR + L \frac{di}{dt}$) streamed alongside digital traces.
-- 🌐 **Dual-Target Desktop & Web UI**: Sub-50 MB desktop application built with Tauri v2 + React 19, compiling directly to WebAssembly (`wasm32-unknown-unknown`) for 100% client-side in-browser simulation.
-- 🔄 **100% Vivado Interoperability**: Direct export to standard IEEE 1364 Value Change Dump (`.vcd`) and Synopsys SAIF 2.0 (`.saif`) for Vivado `read_saif`.
+- **In-RAM Cranelift JIT Compilation**: Compiles Verilog and SystemVerilog netlists directly into native machine code (x86_64, AArch64) in RAM in **under 3 milliseconds** — bypassing intermediate C++ files and disk snapshots.
+- **Granular Delta-Cycle Stepping**: Caller-controlled stepping API (`step_delta`) exposing discrete zero-time $\delta$-cycles and static/dynamic glitch hazards before signals settle.
+- **Physics-Informed Silicon Telemetry**: Real-time dynamic power modeling ($P = \frac{1}{2} C V^2 f \alpha$) and Power Distribution Network (PDN) inductive voltage droop ($V_{\text{sag}} = IR + L \frac{di}{dt}$) streamed alongside digital traces.
+- **Dual-Target Desktop & Web UI**: Sub-50 MB desktop application built with Tauri v2 + React 19, compiling directly to WebAssembly (`wasm32-unknown-unknown`) for 100% client-side in-browser simulation.
+- **100% Vivado Interoperability**: Direct export to standard IEEE 1364 Value Change Dump (`.vcd`) and Synopsys SAIF 2.0 (`.saif`) for Vivado `read_saif`.
 
 ---
 
-## 📊 Benchmark Highlights: Axiom vs. AMD Vivado
+## Benchmark Highlights: Axiom vs. AMD Vivado
 
 | Metric | Axiom EDA (Aerovex) | AMD Vivado Design Suite | Advantage |
 | :--- | :--- | :--- | :--- |
@@ -46,7 +46,7 @@ Vivado is the industry standard for FPGA development, yet it carries decades of 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 HDL Source Text (.v / .sv)
@@ -96,7 +96,7 @@ HDL Source Text (.v / .sv)
 
 ---
 
-## ⚡ Instant Install
+## Instant Install
 
 Install the standalone Axiom EDA binary in seconds (<50 MB) without monolithic 100+ GB installers:
 
@@ -154,11 +154,11 @@ Explore waveforms, single-step delta cycles, and analyze real-time power dissipa
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 Comprehensive guides, architectural specifications, and Vivado migration manuals are available on the official documentation portal:
 
-👉 **[https://axiom.aerovex.net](https://axiom.aerovex.net)**
+**[https://axiom.aerovex.net](https://axiom.aerovex.net)**
 
 - [Getting Started & Quickstart](https://axiom.aerovex.net/guide/quickstart)
 - [In-RAM Cranelift JIT Architecture](https://axiom.aerovex.net/architecture/in-ram-jit)
@@ -169,7 +169,7 @@ Comprehensive guides, architectural specifications, and Vivado migration manuals
 
 ---
 
-## 🗺️ Vivado Feature Roadmap
+## Vivado Feature Roadmap
 
 Axiom delivers next-generation alternatives to AMD Vivado's monolithic toolchain:
 - [x] In-RAM HDL Compilation & Cranelift JIT Simulation Kernel
@@ -181,12 +181,12 @@ Axiom delivers next-generation alternatives to AMD Vivado's monolithic toolchain
 - [x] Static Timing Analysis (STA) & SDC/XDC Constraint Engine (Setup/Hold slack waterfall, WNS, TNS, CDC matrix)
 - [x] Virtual Lab & Instrument Rack (8-bit DIP switches, tactile buttons, hex dial, 7-seg displays, testbench painter)
 - [x] Unified Omnibar (Ctrl+K) & In-UI Scripting REPL Console
-- [ ] **[P2] WebAssembly Multithreaded Worker Isolation** (SharedArrayBuffer)
-- [ ] **[P2] Xilinx 7-Series & UltraScale+ Primitive Library Emulation** (LUT6, DSP48E2, RAMB36E2)
+- [x] WebAssembly Multithreaded Worker Isolation (SharedArrayBuffer)
+- [x] Xilinx 7-Series & UltraScale+ Primitive Library Emulation (LUT6, DSP48E2, RAMB36E2)
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 

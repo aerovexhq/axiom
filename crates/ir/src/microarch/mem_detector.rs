@@ -41,7 +41,7 @@ impl MemDetector {
                             ],
                         };
 
-                        let ports = vec![
+                        let ports = [
                             MacroPort {
                                 id: "port_clk".to_string(),
                                 name: "clk".to_string(),
@@ -145,7 +145,7 @@ impl MemDetector {
                     ports: inst.ports.keys().cloned().collect(),
                 };
 
-                let ports = vec![
+                let ports = [
                     MacroPort {
                         id: "bram_addr_a".to_string(),
                         name: "ADDRARDADDR[9:0]".to_string(),

@@ -12,7 +12,7 @@ pub struct DeviceGrid {
 
 impl DeviceGrid {
     pub fn for_family(family: FpgaFamily, _device_name: &str) -> Self {
-        let (width, height, num_cr_x, num_cr_y) = match family {
+        let (width, height, num_cr_x, num_cr_y): (u32, u32, u32, u32) = match family {
             FpgaFamily::Artix7 => (40, 60, 2, 2),
             FpgaFamily::Zynq7000 => (48, 70, 2, 3),
             FpgaFamily::Kintex7 => (64, 90, 3, 3),
@@ -46,8 +46,8 @@ impl DeviceGrid {
 
         // Build clock regions
         let mut clock_regions = Vec::with_capacity((num_cr_x * num_cr_y) as usize);
-        let cols_per_cr = (width + num_cr_x - 1) / num_cr_x;
-        let rows_per_cr = (height + num_cr_y - 1) / num_cr_y;
+        let cols_per_cr = width.div_ceil(num_cr_x);
+        let rows_per_cr = height.div_ceil(num_cr_y);
 
         for cy in 0..num_cr_y {
             let min_r = cy * rows_per_cr;

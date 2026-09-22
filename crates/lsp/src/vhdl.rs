@@ -193,24 +193,25 @@ impl VhdlLinter {
                     if let Some(open_p) = sub.find('(') {
                         if let Some(close_p) = sub.find(')') {
                             let clk_name = sub[open_p + 1..close_p].trim();
-                            if !clk_name.is_empty() && !current_process_sens.is_empty() {
-                                if !current_process_sens.iter().any(|s| s.eq_ignore_ascii_case(clk_name)) {
-                                    let clk_col = (line.find(clk_name).unwrap_or(0) + 1) as u32;
-                                    diagnostics.push(
-                                        LspDiagnostic::warning(
-                                            "AXIOM_VHDL_W001_PROCESS_SENSITIVITY",
-                                            format!(
-                                                "Clock signal '{}' is evaluated by '{}' but missing from the process sensitivity list.",
-                                                clk_name, func
-                                            ),
-                                            line_num,
-                                            clk_col,
-                                            line_num,
-                                            clk_col + clk_name.len() as u32,
-                                        )
-                                        .with_help(format!("Add '{}' to the process sensitivity list: process({})", clk_name, clk_name)),
-                                    );
-                                }
+                            if !clk_name.is_empty()
+                                && !current_process_sens.is_empty()
+                                && !current_process_sens.iter().any(|s| s.eq_ignore_ascii_case(clk_name))
+                            {
+                                let clk_col = (line.find(clk_name).unwrap_or(0) + 1) as u32;
+                                diagnostics.push(
+                                    LspDiagnostic::warning(
+                                        "AXIOM_VHDL_W001_PROCESS_SENSITIVITY",
+                                        format!(
+                                            "Clock signal '{}' is evaluated by '{}' but missing from the process sensitivity list.",
+                                            clk_name, func
+                                        ),
+                                        line_num,
+                                        clk_col,
+                                        line_num,
+                                        clk_col + clk_name.len() as u32,
+                                    )
+                                    .with_help(format!("Add '{}' to the process sensitivity list: process({})", clk_name, clk_name)),
+                                );
                             }
                         }
                     }

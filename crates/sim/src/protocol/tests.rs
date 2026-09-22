@@ -302,9 +302,7 @@ fn test_can_standard_frame_decode() {
     stuffed.push(1); // CRC Delimiter
     stuffed.push(0); // ACK Slot (ACK)
     stuffed.push(1); // ACK Delimiter
-    for _ in 0..7 {
-        stuffed.push(1); // EOF
-    }
+    stuffed.extend(std::iter::repeat_n(1, 7)); // EOF
 
     // Convert to transitions
     let mut transitions = Vec::new();
@@ -484,10 +482,7 @@ fn test_ethernet_mii_ipv4_udp_frame() {
     frame.push(((fcs >> 24) & 0xFF) as u8);
 
     // Prepend Preamble (7 x 0x55) and SFD (1 x 0xD5)
-    let mut raw_stream = Vec::new();
-    for _ in 0..7 {
-        raw_stream.push(0x55u8);
-    }
+    let mut raw_stream = vec![0x55u8; 7];
     raw_stream.push(0xD5u8);
     raw_stream.extend(frame);
 

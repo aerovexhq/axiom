@@ -264,8 +264,8 @@ impl<'a> AnalyticalPlacer<'a> {
 
         // 7. Compute Heatmap Tiles (4x4 tile granularity)
         let tile_size = 4u32;
-        let tiles_x = (self.grid.width + tile_size - 1) / tile_size;
-        let tiles_y = (self.grid.height + tile_size - 1) / tile_size;
+        let tiles_x = self.grid.width.div_ceil(tile_size);
+        let tiles_y = self.grid.height.div_ceil(tile_size);
         let mut heatmap_tiles = Vec::with_capacity((tiles_x * tiles_y) as usize);
 
         for ty in 0..tiles_y {

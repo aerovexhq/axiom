@@ -201,9 +201,8 @@ impl MemLinter {
                 let token_col = (line.find(token).unwrap_or(0) + 1) as u32;
                 let token_end = token_col + token.len() as u32;
 
-                if token.starts_with('@') {
+                if let Some(addr_hex) = token.strip_prefix('@') {
                     // Address directive, e.g. @0000 or @1F
-                    let addr_hex = &token[1..];
                     if addr_hex.is_empty() || !addr_hex.chars().all(|c| c.is_ascii_hexdigit()) {
                         diagnostics.push(
                             LspDiagnostic::error(

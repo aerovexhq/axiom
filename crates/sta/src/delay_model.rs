@@ -216,7 +216,7 @@ impl DelayModel {
             | BinaryOp::GtEq => {
                 let lut = self.lut_delay(4);
                 let carry = self.carry_delay_per_bit();
-                let stages = ((bit_width + 3) / 4) as f32;
+                let stages = bit_width.div_ceil(4) as f32;
                 DelayPair::new(
                     lut.min_ps + carry.min_ps * stages,
                     lut.max_ps + carry.max_ps * stages,

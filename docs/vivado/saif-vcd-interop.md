@@ -34,7 +34,7 @@ Axiom produces valid SAIF 2.0 files containing switching probabilities:
   (DATE "Axiom HDL Engine")
   (VENDOR "Axiom")
   (PROGRAM_NAME "Axiom Simulator")
-  (PROGRAM_VERSION "0.1.0")
+  (PROGRAM_VERSION "1.0.0")
   (DIVIDER /)
   (TIMESCALE 1 ps)
   (DURATION 50000)

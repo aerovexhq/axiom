@@ -12,6 +12,7 @@ impl I2cDecoder {
         Self { _config: config }
     }
 
+    #[allow(clippy::chunks_exact_to_as_chunks)]
     pub fn decode(&self, scl: &[(u64, Logic4)], sda: &[(u64, Logic4)]) -> Vec<DecodedTransaction> {
         if scl.is_empty() || sda.is_empty() {
             return Vec::new();

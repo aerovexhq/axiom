@@ -174,13 +174,13 @@ impl UsbDecoder {
                     // Next 8 bits: PID (PID[3:0], ~PID[3:0])
                     if un_stuffed_bits.len() >= 16 {
                         let mut sync_byte = 0u8;
-                        for i in 0..8 {
-                            sync_byte |= un_stuffed_bits[i] << i;
+                        for (i, &bit) in un_stuffed_bits[..8].iter().enumerate() {
+                            sync_byte |= bit << i;
                         }
 
                         let mut pid_byte = 0u8;
-                        for i in 0..8 {
-                            pid_byte |= un_stuffed_bits[8 + i] << i;
+                        for (i, &bit) in un_stuffed_bits[8..16].iter().enumerate() {
+                            pid_byte |= bit << i;
                         }
 
                         let pid_low = pid_byte & 0x0F;

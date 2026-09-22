@@ -192,7 +192,7 @@ impl BirCircuit {
     pub fn add_net(&mut self, name: impl Into<String>, width: u32, initial_value: LogicVector) -> NetId {
         let id = NetId(self.nets.len() as u32);
         let name = name.into();
-        let num_words = (width as usize + 63) / 64;
+        let num_words = (width as usize).div_ceil(64);
         let word_offset = self.total_state_words;
         self.total_state_words += num_words;
 

@@ -154,7 +154,7 @@ impl VerilogLinter {
                 let is_prim = is_gate || crate::primitives_doc::primitive_doc(&inst.module_name).is_some();
                 let child_def = all_modules.get(&inst.module_name).copied();
 
-                for (_idx, (port_name, expr)) in inst.port_bindings.iter().enumerate() {
+                for (port_name, expr) in &inst.port_bindings {
                     let is_output = if is_prim {
                         crate::primitives_doc::is_primitive_output_port(&inst.module_name, port_name)
                     } else if let Some(target_mod) = child_def {
@@ -642,7 +642,7 @@ impl VerilogLinter {
                     None
                 }
             }
-            Expr::Slice { msb: _, lsb: _, .. } => Some(1),
+            Expr::Slice { .. } => Some(1),
             _ => None,
         }
     }

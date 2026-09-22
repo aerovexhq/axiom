@@ -196,7 +196,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   // REPL State
   const [replInput, setReplInput] = useState<string>("");
   const [replEntries, setReplEntries] = useState<ReplEntry[]>([
-    { id: "0", type: "output", text: "Axiom Interactive EDA Shell v0.1.0 (Type 'help' for command list)" }
+    { id: "0", type: "output", text: "Axiom Interactive EDA Shell v1.0.0 (Type 'help' for command list)" }
   ]);
 
   const logEndRef = useRef<HTMLDivElement | null>(null);
@@ -1519,7 +1519,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                 </span>
               </div>
               <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 9 }}>
-                Engine: <span style={{ color: "var(--accent-cyan)" }}>axiom-lsp v0.1.0</span> (IEEE 1800-2017)
+                Engine: <span style={{ color: "var(--accent-cyan)" }}>axiom-lsp v1.0.0</span> (IEEE 1800-2017)
               </div>
             </div>
 

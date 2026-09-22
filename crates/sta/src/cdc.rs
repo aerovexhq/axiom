@@ -195,7 +195,7 @@ impl<'a> CdcAnalyzer<'a> {
         });
 
         if is_sync_named || has_second_stage {
-            let stages = if has_second_stage { 2 } else { 2 };
+            let stages = 2;
             (stages, CdcClassification::Safe)
         } else {
             // Unsynchronized direct crossing: Metastability Hazard!

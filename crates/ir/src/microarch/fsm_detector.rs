@@ -515,10 +515,8 @@ impl FsmDetector {
                     Self::find_case_in_stmt(s, reset_val, reset_ident.clone(), cb);
                 }
             }
-            Statement::Case { expr, items, .. } => {
-                if let Expr::Ident(ref name, _) = expr {
-                    cb(name, items, reset_val, reset_ident);
-                }
+            Statement::Case { expr: Expr::Ident(ref name, _), items, .. } => {
+                cb(name, items, reset_val, reset_ident);
             }
             Statement::If { then_branch, else_branch, .. } => {
                 Self::find_case_in_stmt(then_branch, reset_val, reset_ident.clone(), cb);
@@ -532,11 +530,12 @@ impl FsmDetector {
 
     fn is_state_target(target: &str, state_var: &str, next_state_var: Option<&str>) -> bool {
         target == state_var
-            || next_state_var.map_or(false, |nv| target == nv)
+            || next_state_var == Some(target)
             || target.contains("next")
             || (state_var.contains("state") && target.contains("state"))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn extract_transitions_and_outputs(
         stmt: &Statement,
         current_state: &str,
@@ -667,6 +666,7 @@ impl FsmDetector {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn find_next_state_and_mealy(
         stmt: &Statement,
         state_var: &str,

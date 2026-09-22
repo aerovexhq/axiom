@@ -1,4 +1,4 @@
-use axiom_core::{FileId, Logic4, LogicVector, SimTime};
+use axiom_core::FileId;
 use axiom_ir::elaborate;
 use axiom_sim::formal::{
     run_formal_verification, FormalConfig, FormalEngineKind, FormalGoalKind, FormalResultStatus,

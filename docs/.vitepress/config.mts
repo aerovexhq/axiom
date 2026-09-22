@@ -38,9 +38,9 @@ export default defineConfig({
       { text: "Architecture", link: "/architecture/in-ram-jit" },
       { text: "Vivado Migration", link: "/vivado/migration" },
       { text: "CLI Reference", link: "/reference/cli" },
-      { text: "⚡ Web Studio", link: "/studio/", target: "_blank" },
+      { text: "Web Studio", link: "/studio/", target: "_blank" },
       {
-        text: "v0.1.0",
+        text: "v1.0.0",
         items: [
           { text: "Changelog", link: "https://github.com/aerovexsim/axiom/releases" },
           { text: "Aerovex Platform", link: "https://aerovex.net" }

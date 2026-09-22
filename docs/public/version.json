@@ -1,9 +1,10 @@
 {
-  "commit": "a9a90cc586cba6a43e8983aa7d8522841c968034",
-  "shortCommit": "a9a90cc",
-  "tag": "v0.1.0-jit",
-  "releaseName": "Axiom EDA LTS Release",
-  "timestamp": "2026-09-20T12:13:00Z",
-  "releaseNotes": "Phase 21: Live PPA (Power-Performance-Area) Pareto Frontier & Multi-Part Silicon Cost Forecaster. Direct ASIC SkyWater 130nm / IHP SG13G2 mapping, multi-FPGA capacity analysis, and what-if sensitivity sliders.",
+  "commit": "v1.0.0",
+  "shortCommit": "v1.0.0",
+  "tag": "v1.0.0",
+  "version": "1.0.0",
+  "releaseName": "Axiom EDA 1.0.0 General Availability",
+  "timestamp": "2026-09-22T13:30:00Z",
+  "releaseNotes": "Axiom EDA 1.0.0 GA Release: High-Performance Aerospace-Grade Rust Remake of Vivado HDL Engine, JIT Compiler, Static Timing Analysis, Formal Verification, Floorplanning, Protocol Analyzers, and Visual Hardware Studio.",
   "downloadUrl": "https://github.com/aerovexsim/axiom/releases"
 }

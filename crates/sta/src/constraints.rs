@@ -83,8 +83,8 @@ impl TimingConstraints {
     /// Check if a path from `from_node` to `to_node` is marked as a false path.
     pub fn is_false_path(&self, from_node: &str, to_node: &str, through_node: Option<&str>) -> bool {
         for fp in &self.false_paths {
-            let from_matches = fp.from.as_ref().map_or(true, |p| pattern_matches(p, from_node));
-            let to_matches = fp.to.as_ref().map_or(true, |p| pattern_matches(p, to_node));
+            let from_matches = fp.from.as_ref().is_none_or(|p| pattern_matches(p, from_node));
+            let to_matches = fp.to.as_ref().is_none_or(|p| pattern_matches(p, to_node));
             let through_matches = match (&fp.through, through_node) {
                 (Some(p), Some(th)) => pattern_matches(p, th),
                 (Some(_), None) => false,
@@ -133,8 +133,8 @@ impl TimingConstraints {
             if !mc.is_setup {
                 continue;
             }
-            let from_matches = mc.from.as_ref().map_or(true, |p| pattern_matches(p, from_node));
-            let to_matches = mc.to.as_ref().map_or(true, |p| pattern_matches(p, to_node));
+            let from_matches = mc.from.as_ref().is_none_or(|p| pattern_matches(p, from_node));
+            let to_matches = mc.to.as_ref().is_none_or(|p| pattern_matches(p, to_node));
             if from_matches && to_matches {
                 return mc.multiplier;
             }
@@ -148,8 +148,8 @@ impl TimingConstraints {
             if mc.is_setup {
                 continue;
             }
-            let from_matches = mc.from.as_ref().map_or(true, |p| pattern_matches(p, from_node));
-            let to_matches = mc.to.as_ref().map_or(true, |p| pattern_matches(p, to_node));
+            let from_matches = mc.from.as_ref().is_none_or(|p| pattern_matches(p, from_node));
+            let to_matches = mc.to.as_ref().is_none_or(|p| pattern_matches(p, to_node));
             if from_matches && to_matches {
                 return mc.multiplier;
             }

@@ -2398,11 +2398,15 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 height: "auto",
                 minHeight: 20,
                 color: "var(--text-muted)",
-                cursor: "pointer"
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4
               }}
               title="Clear Golden Model Diff"
             >
-              Clear Diff ✕
+              <span>Clear Diff</span>
+              <X size={10} />
             </button>
           </div>
         </div>

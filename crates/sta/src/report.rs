@@ -5,7 +5,7 @@ pub fn format_ascii_report(summary: &SlackRadarSummary, top_name: &str, target_d
     let mut out = String::new();
 
     out.push_str("------------------------------------------------------------------------------------\n");
-    out.push_str("| Tool Version : Axiom EDA v0.1.0-jit (High-Performance Rust Remake)              |\n");
+    out.push_str("| Tool Version : Axiom EDA v1.0.0 (High-Performance Rust Remake)                  |\n");
     out.push_str(&format!("| Design       : {:<67} |\n", top_name));
     out.push_str(&format!("| Device       : {:<67} |\n", target_device));
     out.push_str("------------------------------------------------------------------------------------\n\n");

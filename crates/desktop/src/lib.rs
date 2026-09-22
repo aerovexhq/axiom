@@ -304,6 +304,7 @@ fn apply_pipeline(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 fn evaluate_ppa(
     verilog_source: String,
     xdc_source: String,
@@ -533,11 +534,9 @@ fn fs_list_dir(path: String) -> Result<Vec<String>, String> {
     let _lock = FS_MUTEX.lock().map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
     let read_dir = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
-    for entry in read_dir {
-        if let Ok(entry) = entry {
-            if let Some(name) = entry.file_name().to_str() {
-                entries.push(name.to_string());
-            }
+    for entry in read_dir.flatten() {
+        if let Some(name) = entry.file_name().to_str() {
+            entries.push(name.to_string());
         }
     }
     Ok(entries)

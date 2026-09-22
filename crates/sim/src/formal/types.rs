@@ -27,18 +27,13 @@ pub enum FormalResultStatus {
 }
 
 /// Formal verification engine mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum FormalEngineKind {
     /// Bounded Model Checking: unrolls transitions for k = 0..K cycles from initial state.
+    #[default]
     Bmc,
     /// k-Induction: combines BMC base case with inductive step for unbounded proof.
     KInduction,
-}
-
-impl Default for FormalEngineKind {
-    fn default() -> Self {
-        Self::Bmc
-    }
 }
 
 /// Configuration parameters for formal verification run.

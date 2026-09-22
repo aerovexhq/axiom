@@ -263,26 +263,20 @@ fn main() {
             let mut i = 3;
             while i < args.len() {
                 match args[i].as_str() {
-                    "-t" | "--top" => {
-                        if i + 1 < args.len() {
-                            top_module = Some(args[i + 1].clone());
-                            i += 2;
-                            continue;
-                        }
+                    "-t" | "--top" if i + 1 < args.len() => {
+                        top_module = Some(args[i + 1].clone());
+                        i += 2;
+                        continue;
                     }
-                    "--xdc" => {
-                        if i + 1 < args.len() {
-                            xdc_path = Some(args[i + 1].clone());
-                            i += 2;
-                            continue;
-                        }
+                    "--xdc" if i + 1 < args.len() => {
+                        xdc_path = Some(args[i + 1].clone());
+                        i += 2;
+                        continue;
                     }
-                    "--device" => {
-                        if i + 1 < args.len() {
-                            device = args[i + 1].clone();
-                            i += 2;
-                            continue;
-                        }
+                    "--device" if i + 1 < args.len() => {
+                        device = args[i + 1].clone();
+                        i += 2;
+                        continue;
                     }
                     _ => {}
                 }
@@ -358,22 +352,18 @@ fn main() {
                             continue;
                         }
                     }
-                    "--xdc" => {
-                        if i + 1 < args.len() {
-                            xdc_path = Some(args[i + 1].clone());
-                            i += 2;
-                            continue;
-                        }
+                    "--xdc" if i + 1 < args.len() => {
+                        xdc_path = Some(args[i + 1].clone());
+                        i += 2;
+                        continue;
                     }
                     "--apply" => {
                         apply = true;
                     }
-                    "--out" => {
-                        if i + 1 < args.len() {
-                            out_path = Some(args[i + 1].clone());
-                            i += 2;
-                            continue;
-                        }
+                    "--out" if i + 1 < args.len() => {
+                        out_path = Some(args[i + 1].clone());
+                        i += 2;
+                        continue;
                     }
                     _ => {}
                 }
@@ -585,21 +575,17 @@ fn main() {
             let mut i = 3;
             while i < args.len() {
                 match args[i].as_str() {
-                    "-t" | "--top" => {
-                        if i + 1 < args.len() {
-                            top_module = Some(args[i + 1].clone());
-                            i += 2;
-                            continue;
-                        }
+                    "-t" | "--top" if i + 1 < args.len() => {
+                        top_module = Some(args[i + 1].clone());
+                        i += 2;
+                        continue;
                     }
-                    "--format" => {
-                        if i + 1 < args.len() {
-                            if args[i + 1] == "json" {
-                                format_json = true;
-                            }
-                            i += 2;
-                            continue;
+                    "--format" if i + 1 < args.len() => {
+                        if args[i + 1] == "json" {
+                            format_json = true;
                         }
+                        i += 2;
+                        continue;
                     }
                     _ => {}
                 }

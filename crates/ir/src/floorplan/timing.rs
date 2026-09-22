@@ -140,6 +140,7 @@ impl<'a> PhysicalTimingExtractor<'a> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn dfs_longest_path(
         &self,
         current_id: &str,

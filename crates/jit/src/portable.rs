@@ -239,7 +239,7 @@ impl PortableEvaluator {
             BinaryOp::Div => {
                 let (norm_l, norm_r) = Self::normalize_widths(lhs, rhs);
                 if let (Some(a), Some(b)) = (norm_l.to_u64(), norm_r.to_u64()) {
-                    let quotient = if b != 0 { a / b } else { 0 };
+                    let quotient = a.checked_div(b).unwrap_or(0);
                     LogicVector::from_u64(quotient, width)
                 } else {
                     LogicVector::unknowns(width)

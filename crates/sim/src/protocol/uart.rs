@@ -74,8 +74,8 @@ impl UartDecoder {
                             let parity_sample = sample_signal(parity_time);
                             let ones_count = byte_val.count_ones();
                             let expected_parity = match self.config.parity {
-                                UartParity::Even => ones_count % 2 != 0,
-                                UartParity::Odd => ones_count % 2 == 0,
+                                UartParity::Even => !ones_count.is_multiple_of(2),
+                                UartParity::Odd => ones_count.is_multiple_of(2),
                                 UartParity::None => false,
                             };
                             let actual_parity = parity_sample == Logic4::One;
@@ -112,7 +112,7 @@ impl UartDecoder {
                         };
                         fields.insert("char".to_string(), char_repr.clone());
 
-                        let summary = format!("UART {} ({})", char_repr, format!("0x{:02X}", byte_val));
+                        let summary = format!("UART {} (0x{:02X})", char_repr, byte_val);
 
                         if valid_bits {
                             transactions.push(DecodedTransaction {

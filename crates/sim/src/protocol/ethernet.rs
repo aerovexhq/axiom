@@ -166,15 +166,11 @@ impl EthernetDecoder {
         }
 
         // Search for SFD (0xD5) preceded by preamble (0x55)
-        let mut frame_start_idx = 0;
-        let mut found_sfd = false;
-        for i in 0..raw_bytes.len() {
-            if raw_bytes[i] == 0xD5 {
-                frame_start_idx = i + 1;
-                found_sfd = true;
-                break;
-            }
-        }
+        let (found_sfd, frame_start_idx) = if let Some(pos) = raw_bytes.iter().position(|&b| b == 0xD5) {
+            (true, pos + 1)
+        } else {
+            (false, 0)
+        };
 
         // If no preamble/SFD was detected, check if raw_bytes directly starts with a valid MAC frame (min 14 bytes)
         let frame = if found_sfd && frame_start_idx < raw_bytes.len() {

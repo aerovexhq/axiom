@@ -66,14 +66,14 @@ impl SimStateArena {
     /// Reads the current state of a `BirNet` from the arena as a `LogicVector`.
     pub fn read_net(&self, net: &BirNet) -> LogicVector {
         let mut vec = LogicVector::zeros(net.width);
-        let num_words = (net.width as usize + 63) / 64;
+        let num_words = (net.width as usize).div_ceil(64);
 
         for w in 0..num_words {
             let word_idx = net.word_offset + w;
             if word_idx < self.word_count {
                 let val = self.values[word_idx];
                 let mask = self.masks[word_idx];
-                let bits_in_word = if w == num_words - 1 && net.width % 64 != 0 {
+                let bits_in_word = if w == num_words - 1 && !net.width.is_multiple_of(64) {
                     net.width % 64
                 } else {
                     64
@@ -93,7 +93,7 @@ impl SimStateArena {
     /// Writes a `LogicVector` to the `BirNet` in the arena.
     /// Returns `true` if the signal changed value or mask.
     pub fn write_net(&mut self, net: &BirNet, vec: &LogicVector) -> bool {
-        let num_words = (net.width as usize + 63) / 64;
+        let num_words = (net.width as usize).div_ceil(64);
         let mut changed = false;
 
         for w in 0..num_words {
@@ -101,7 +101,7 @@ impl SimStateArena {
             if word_idx < self.word_count {
                 let mut new_val = 0u64;
                 let mut new_mask = 0u64;
-                let bits_in_word = if w == num_words - 1 && net.width % 64 != 0 {
+                let bits_in_word = if w == num_words - 1 && !net.width.is_multiple_of(64) {
                     net.width % 64
                 } else {
                     64

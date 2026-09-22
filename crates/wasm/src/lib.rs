@@ -76,6 +76,12 @@ pub struct WasmEngine {
     vcd: Option<Arc<Mutex<VcdWriter>>>,
 }
 
+impl Default for WasmEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl WasmEngine {
     #[wasm_bindgen(constructor)]
@@ -620,6 +626,7 @@ impl WasmEngine {
         wasm_apply_pipeline(verilog_source, top_module, cut_net, clock_name, reset_name)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn evaluate_ppa(
         &self,
         verilog_source: &str,
@@ -684,6 +691,7 @@ impl WasmEngine {
 
 /// Standalone WebAssembly function to evaluate Power-Performance-Area (PPA) and silicon cost forecast.
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn wasm_evaluate_ppa(
     verilog_source: &str,
     xdc_source: &str,

@@ -33,14 +33,14 @@ impl VcdWriter {
 
         // 1. Header
         buffer.push_str("$date\n   Axiom HDL Engine\n$end\n");
-        buffer.push_str("$version\n   Axiom 0.1.0 - High-Performance Rust Simulator\n$end\n");
+        buffer.push_str("$version\n   Axiom 1.0.0 - High-Performance Rust Simulator\n$end\n");
         buffer.push_str(&format!("$timescale\n   {timescale_str}\n$end\n"));
 
         // 2. Scope definition
         buffer.push_str(&format!("$scope module {} $end\n", circuit.top_name));
         for (idx, net) in circuit.nets.iter().enumerate() {
             let ident = Self::make_ident(idx);
-            let var_type = if net.width == 1 { "wire" } else { "wire" };
+            let var_type = "wire";
             let short_name = if let Some((_, leaf)) = net.name.rsplit_once('.') {
                 leaf
             } else {

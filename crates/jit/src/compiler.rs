@@ -11,9 +11,11 @@ use axiom_ir::{BirCircuit, BirContinuousAssign, BirExpr};
 use axiom_syntax::{BinaryOp, UnaryOp};
 
 /// Function pointer to a JIT-compiled native logic block in RAM.
+///
 /// Parameters:
 /// - `values`: raw pointer to `SimStateArena.values`
 /// - `masks`: raw pointer to `SimStateArena.masks`
+///
 /// Returns:
 /// - `1` if the target net changed state, `0` otherwise.
 pub type NativeBlockFn = unsafe extern "C" fn(values: *mut u64, masks: *mut u64) -> u32;

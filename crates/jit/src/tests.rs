@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::*;
     use axiom_core::{FileId, LogicVector};
@@ -18,7 +19,7 @@ mod tests {
 
         let val_b = arena.read_net(circuit.get_net(net2).unwrap());
         assert_eq!(val_b.width(), 64);
-        assert_eq!(val_b.is_all_known(), false);
+        assert!(!val_b.is_all_known());
 
         // Write new state to net1
         let new_a = LogicVector::from_hex_str("5A", Some(8)).unwrap();

@@ -314,6 +314,7 @@ pub fn normalize_val(val: &str, width: u32) -> String {
 }
 
 /// Compares a simulation trace against an imported golden VCD.
+#[allow(clippy::type_complexity)]
 pub fn diff_waveforms(
     sim_traces: &[(String, u32, Vec<(u64, String)>)], // (name, width, [(time_ps, value)])
     golden: &ParsedVcd,
@@ -374,8 +375,7 @@ pub fn diff_waveforms(
                 // Get sim value at time t
                 let sim_val = sim_samples
                     .iter()
-                    .filter(|(st, _)| *st <= t)
-                    .last()
+                    .rfind(|(st, _)| *st <= t)
                     .map(|(_, v)| v.as_str())
                     .unwrap_or("x");
 
@@ -383,8 +383,7 @@ pub fn diff_waveforms(
                 let gold_val = gold
                     .samples
                     .iter()
-                    .filter(|gs| gs.time_ps <= t)
-                    .last()
+                    .rfind(|gs| gs.time_ps <= t)
                     .map(|gs| gs.value.as_str())
                     .unwrap_or("x");
 

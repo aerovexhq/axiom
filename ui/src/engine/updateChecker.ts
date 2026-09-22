@@ -22,8 +22,8 @@ export interface UpdateCheckResult {
 }
 
 // Current client build reference
-export const CURRENT_CLIENT_COMMIT = "a9a90cc";
-export const CURRENT_CLIENT_VERSION = "v0.1.0-jit";
+export const CURRENT_CLIENT_COMMIT = "v1.0.0";
+export const CURRENT_CLIENT_VERSION = "v1.0.0";
 
 /**
  * Gets the active runtime's commit hash (queries Tauri desktop command if on desktop, or compile constant).

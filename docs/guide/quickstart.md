@@ -33,19 +33,19 @@ You can specify a custom release version or override the destination path.
 ::: code-group
 
 ```bash [Linux & macOS (Env Var)]
-AXIOM_VERSION=v0.1.0 curl -fsSL https://axiom.aerovex.net/install.sh | bash
+AXIOM_VERSION=v1.0.0 curl -fsSL https://axiom.aerovex.net/install.sh | bash
 ```
 
 ```bash [Linux & macOS (Flag)]
-curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --version v0.1.0
+curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --version v1.0.0
 ```
 
 ```powershell [Windows (Env Var)]
-$env:AXIOM_VERSION="v0.1.0"; irm https://axiom.aerovex.net/install.ps1 | iex
+$env:AXIOM_VERSION="v1.0.0"; irm https://axiom.aerovex.net/install.ps1 | iex
 ```
 
 ```powershell [Windows (Parameter)]
-& ([scriptblock]::Create((irm https://axiom.aerovex.net/install.ps1))) -Version v0.1.0
+& ([scriptblock]::Create((irm https://axiom.aerovex.net/install.ps1))) -Version v1.0.0
 ```
 
 :::
@@ -113,7 +113,7 @@ axiom --version
 
 Output:
 ```text
-axiom 0.1.0 (in-ram cranelift jit engine)
+axiom 1.0.0 (in-ram cranelift jit engine)
 ```
 
 ---

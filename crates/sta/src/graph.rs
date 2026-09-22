@@ -83,6 +83,12 @@ pub struct TimingGraph {
     pub net_fanouts: HashMap<NetId, u32>,
 }
 
+impl Default for TimingGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimingGraph {
     pub fn new() -> Self {
         Self {

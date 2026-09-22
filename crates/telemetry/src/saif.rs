@@ -22,7 +22,7 @@ impl SaifWriter {
         saif.push_str("  (DATE \"Axiom HDL Engine\")\n");
         saif.push_str("  (VENDOR \"Axiom\")\n");
         saif.push_str("  (PROGRAM_NAME \"Axiom Simulator\")\n");
-        saif.push_str("  (PROGRAM_VERSION \"0.1.0\")\n");
+        saif.push_str("  (PROGRAM_VERSION \"1.0.0\")\n");
         saif.push_str("  (DIVIDER /)\n");
         saif.push_str("  (TIMESCALE 1 ps)\n");
         saif.push_str(&format!("  (DURATION {duration_ps})\n"));
