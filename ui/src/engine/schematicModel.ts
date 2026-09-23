@@ -453,8 +453,7 @@ export function parseVerilogToSchematicGraph(
   const cleanCode = verilogCode
     .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/\/\/[^\n]*/g, " ")
-    .replace(/`timescale[^\n]*/g, " ")
-    .replace(/`default_nettype[^\n]*/g, " ");
+    .replace(/`[a-zA-Z_0-9]+[^\n]*/g, " ");
 
   // 2. Identify modules: module <name> ... endmodule
   const moduleRegex = /module\s+([a-zA-Z_0-9]+)\s*(?:#\s*\([^)]*\))?\s*(?:\(([\s\S]*?)\))?\s*;([\s\S]*?)endmodule/g;
@@ -488,28 +487,90 @@ export function parseVerilogToSchematicGraph(
   const inputPorts: { name: string; width: number }[] = [];
   const outputPorts: { name: string; width: number }[] = [];
 
-  // 3. Parse Ports
-  const parsePortDecl = (decl: string) => {
-    const portRegex = /(input|output|inout)\s+(?:wire|reg)?\s*(?:\[\s*(\d+)\s*:\s*(\d+)\s*\])?\s*([a-zA-Z0-9_,\s]+)/g;
-    let pm: RegExpExecArray | null;
-    while ((pm = portRegex.exec(decl)) !== null) {
-      const dir = pm[1];
-      const msb = pm[2] !== undefined ? parseInt(pm[2], 10) : 0;
-      const lsb = pm[3] !== undefined ? parseInt(pm[3], 10) : 0;
-      const width = pm[2] !== undefined ? Math.abs(msb - lsb) + 1 : 1;
-      const names = pm[4].split(",").map((n) => n.trim()).filter((n) => n.length > 0 && !["input", "output", "wire", "reg", "inout"].includes(n));
-      for (const name of names) {
-        if (dir === "input" && !inputPorts.some((p) => p.name === name)) {
-          inputPorts.push({ name, width });
-        } else if ((dir === "output" || dir === "inout") && !outputPorts.some((p) => p.name === name)) {
-          outputPorts.push({ name, width });
-        }
+  // Helper to record a unique port
+  const addPort = (dir: "input" | "output" | "inout", name: string, width: number) => {
+    const cleanName = name.trim();
+    if (!cleanName || !/^[a-zA-Z_][a-zA-Z0-9_$]*$/.test(cleanName)) return;
+    if (["input", "output", "inout", "wire", "reg", "logic", "signed", "tri", "integer"].includes(cleanName)) return;
+    if (dir === "input") {
+      if (!inputPorts.some((p) => p.name === cleanName)) {
+        inputPorts.push({ name: cleanName, width });
+      }
+    } else if (dir === "output" || dir === "inout") {
+      if (!outputPorts.some((p) => p.name === cleanName)) {
+        outputPorts.push({ name: cleanName, width });
       }
     }
   };
 
-  parsePortDecl(target.portListHeader);
-  parsePortDecl(target.body);
+  // 3a. Parse ANSI Port List Header (e.g. "input wire A, input wire B, output wire F" or "input wire [3:0] A, B")
+  if (target.portListHeader && target.portListHeader.trim().length > 0) {
+    const clauses: string[] = [];
+    let current = "";
+    let bracketDepth = 0;
+    let parenDepth = 0;
+
+    for (const char of target.portListHeader) {
+      if (char === "[") bracketDepth++;
+      else if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+      else if (char === "(") parenDepth++;
+      else if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+
+      if (char === "," && bracketDepth === 0 && parenDepth === 0) {
+        if (current.trim().length > 0) clauses.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    if (current.trim().length > 0) clauses.push(current.trim());
+
+    let activeDir: "input" | "output" | "inout" | null = null;
+    let activeWidth = 1;
+
+    for (const clause of clauses) {
+      const cleanClause = clause.replace(/\(\*[\s\S]*?\*\)/g, "").trim();
+      const dirMatch = cleanClause.match(/^(input|output|inout)\b/);
+      if (dirMatch) {
+        activeDir = dirMatch[1] as "input" | "output" | "inout";
+        activeWidth = 1;
+      }
+
+      const rangeMatch = cleanClause.match(/\[\s*(\d+)\s*:\s*(\d+)\s*\]/);
+      if (rangeMatch) {
+        const msb = parseInt(rangeMatch[1], 10);
+        const lsb = parseInt(rangeMatch[2], 10);
+        activeWidth = Math.abs(msb - lsb) + 1;
+      }
+
+      if (activeDir) {
+        const stripped = cleanClause
+          .replace(/\[\s*\d+\s*:\s*\d+\s*\]/g, " ")
+          .replace(/\b(input|output|inout|wire|reg|logic|signed|tri|integer)\b/g, " ");
+        const tokens = stripped.match(/[a-zA-Z_][a-zA-Z0-9_$]*/g) || [];
+        for (const token of tokens) {
+          addPort(activeDir, token, activeWidth);
+        }
+      }
+    }
+  }
+
+  // 3b. Parse Non-ANSI Port Declarations in Module Body (e.g. "input wire A, B;" or "output reg [7:0] F;")
+  const bodyDeclRegex = /\b(input|output|inout)\s+(?:wire|reg|logic|signed|tri)?\s*(?:\[\s*(\d+)\s*:\s*(\d+)\s*\])?\s*([^;]+);/g;
+  let bm: RegExpExecArray | null;
+  while ((bm = bodyDeclRegex.exec(target.body)) !== null) {
+    const dir = bm[1] as "input" | "output" | "inout";
+    const msb = bm[2] !== undefined ? parseInt(bm[2], 10) : 0;
+    const lsb = bm[3] !== undefined ? parseInt(bm[3], 10) : 0;
+    const width = bm[2] !== undefined ? Math.abs(msb - lsb) + 1 : 1;
+    const names = bm[4].split(",").map((n) => n.trim());
+    for (const name of names) {
+      const idMatch = name.match(/[a-zA-Z_][a-zA-Z0-9_$]*/);
+      if (idMatch) {
+        addPort(dir, idMatch[0], width);
+      }
+    }
+  }
 
   if (inputPorts.length === 0 && outputPorts.length === 0) {
     return null;
@@ -807,6 +868,8 @@ export function parseVerilogToSchematicGraph(
   for (const n of nodes) {
     if (n.kind === "port_in") {
       nodeLayerMap.set(n.id, 0);
+    } else {
+      nodeLayerMap.set(n.id, 1);
     }
   }
 
@@ -843,19 +906,6 @@ export function parseVerilogToSchematicGraph(
       nodeLayerMap.set(n.id, outputLayer);
     }
     n.layer = nodeLayerMap.get(n.id) ?? 1;
-  }
-
-  // Assign gridRow within each layer for visual spacing
-  const layerGroups = new Map<number, SchematicNode[]>();
-  for (const n of nodes) {
-    const list = layerGroups.get(n.layer) ?? [];
-    list.push(n);
-    layerGroups.set(n.layer, list);
-  }
-  for (const [, list] of layerGroups.entries()) {
-    list.forEach((n, idx) => {
-      n.gridRow = idx;
-    });
   }
 
   // 8. Construct Graph and Run Layout & Routing
