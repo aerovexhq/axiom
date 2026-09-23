@@ -24,6 +24,7 @@ import {
   SchematicEdge,
   LogicCone,
   generateSchematicGraph,
+  parseVerilogToSchematicGraph,
   generateSynthesizedSchematicGraph,
   sliceFaninCone,
   sliceFanoutCone
@@ -38,6 +39,9 @@ interface SchematicViewerProps {
   onSelectSignal: (signalId: string) => void;
   onJumpToCode?: (lineStart: number, lineEnd: number) => void;
   onOpenAutoPipeline?: (cone?: LogicCone | null) => void;
+  verilogSource?: string;
+  topModule?: string;
+  targetDevice?: string;
 }
 
 export type GateType =
@@ -79,7 +83,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   selectedSignalId,
   onSelectSignal,
   onJumpToCode,
-  onOpenAutoPipeline
+  onOpenAutoPipeline,
+  verilogSource,
+  topModule,
+  targetDevice
 }) => {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -108,7 +115,11 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     let isCancelled = false;
     if (schematicMode === "synth") {
       setSynthLoading(true);
-      engineBridge.synthesizeDesign({})
+      engineBridge.synthesizeDesign({
+        source: verilogSource,
+        topModule: topModule || activeDesignId,
+        device: targetDevice
+      })
         .then((res) => {
           if (!isCancelled && res) {
             setSynthCircuit(res);
@@ -116,7 +127,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         })
         .catch(() => {
           if (!isCancelled) {
-            setSynthCircuit(synthesizeClientFallback(activeDesignId));
+            setSynthCircuit(synthesizeClientFallback(activeDesignId, topModule, targetDevice));
           }
         })
         .finally(() => {
@@ -124,12 +135,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         });
     }
     return () => { isCancelled = true; };
-  }, [schematicMode, activeDesignId]);
+  }, [schematicMode, activeDesignId, verilogSource, topModule, targetDevice]);
 
-  // Synthesize Hardware DAG for active design
+  // Synthesize Hardware DAG for active design (dynamic source netlist parser with sample fallback)
   const rtlGraph = useMemo<SchematicGraph>(() => {
+    if (verilogSource && verilogSource.trim().length > 0) {
+      const dynamicGraph = parseVerilogToSchematicGraph(verilogSource, topModule || activeDesignId);
+      if (dynamicGraph && dynamicGraph.nodes.length > 0) {
+        return dynamicGraph;
+      }
+    }
     return generateSchematicGraph(activeDesignId);
-  }, [activeDesignId]);
+  }, [activeDesignId, verilogSource, topModule]);
 
   const synthGraph = useMemo<SchematicGraph | null>(() => {
     if (synthCircuit) {
@@ -145,9 +162,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       let code = "";
       try {
         code = await engineBridge.exportSynthesizedVerilog({
+          source: verilogSource,
           designId: activeDesignId,
-          topModule: activeDesignId,
-          device: synthCircuit?.target_device
+          topModule: topModule || activeDesignId,
+          device: synthCircuit?.target_device || targetDevice
         });
       } catch {
         if (synthCircuit?.verilog_text) {

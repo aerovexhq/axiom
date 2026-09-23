@@ -401,7 +401,8 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
     sampleDesignId === "logic_circuit" ||
     sampleDesignId.includes("logic_circuit") ||
     sampleDesignId.includes("uygulama_0") ||
-    sampleDesignId.includes("lesson_1")
+    sampleDesignId.includes("lesson_1") ||
+    sampleDesignId.includes("class_examples")
   ) {
     return generateLogicCircuitGraph();
   } else if (sampleDesignId.includes("mux_4to1") || sampleDesignId.includes("lesson_2")) {
@@ -432,6 +433,441 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
     edges: [],
     bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
   };
+}
+
+/**
+ * Dynamic in-browser Verilog HDL gate-level and RTL netlist parser.
+ * Extracts ports, primitive gates (not, buf, and, nand, or, nor, xor, xnor),
+ * continuous assignments (assign), and simple registers, topologically orders
+ * them, and routes Manhattan orthogonal edges through layoutAndRouteGraph.
+ */
+export function parseVerilogToSchematicGraph(
+  verilogCode?: string | null,
+  topModuleName?: string
+): SchematicGraph | null {
+  if (!verilogCode || typeof verilogCode !== "string" || verilogCode.trim().length === 0) {
+    return null;
+  }
+
+  // 1. Strip comments and preprocessor compiler directives
+  const cleanCode = verilogCode
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ")
+    .replace(/`timescale[^\n]*/g, " ")
+    .replace(/`default_nettype[^\n]*/g, " ");
+
+  // 2. Identify modules: module <name> ... endmodule
+  const moduleRegex = /module\s+([a-zA-Z_0-9]+)\s*(?:#\s*\([^)]*\))?\s*(?:\(([\s\S]*?)\))?\s*;([\s\S]*?)endmodule/g;
+  const modules: { name: string; portListHeader: string; body: string }[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = moduleRegex.exec(cleanCode)) !== null) {
+    modules.push({
+      name: match[1],
+      portListHeader: match[2] || "",
+      body: match[3] || ""
+    });
+  }
+
+  if (modules.length === 0) {
+    return null;
+  }
+
+  // Pick target module: matching topModuleName, or first non-testbench module, or first module
+  let target = modules.find((m) => m.name === topModuleName);
+  if (!target) {
+    target = modules.find((m) => !m.name.toLowerCase().startsWith("tb_") && !m.name.toLowerCase().includes("testbench"));
+  }
+  if (!target) {
+    target = modules[0];
+  }
+
+  const moduleName = target.name;
+  const nodes: SchematicNode[] = [];
+  const edges: SchematicEdge[] = [];
+  const inputPorts: { name: string; width: number }[] = [];
+  const outputPorts: { name: string; width: number }[] = [];
+
+  // 3. Parse Ports
+  const parsePortDecl = (decl: string) => {
+    const portRegex = /(input|output|inout)\s+(?:wire|reg)?\s*(?:\[\s*(\d+)\s*:\s*(\d+)\s*\])?\s*([a-zA-Z0-9_,\s]+)/g;
+    let pm: RegExpExecArray | null;
+    while ((pm = portRegex.exec(decl)) !== null) {
+      const dir = pm[1];
+      const msb = pm[2] !== undefined ? parseInt(pm[2], 10) : 0;
+      const lsb = pm[3] !== undefined ? parseInt(pm[3], 10) : 0;
+      const width = pm[2] !== undefined ? Math.abs(msb - lsb) + 1 : 1;
+      const names = pm[4].split(",").map((n) => n.trim()).filter((n) => n.length > 0 && !["input", "output", "wire", "reg", "inout"].includes(n));
+      for (const name of names) {
+        if (dir === "input" && !inputPorts.some((p) => p.name === name)) {
+          inputPorts.push({ name, width });
+        } else if ((dir === "output" || dir === "inout") && !outputPorts.some((p) => p.name === name)) {
+          outputPorts.push({ name, width });
+        }
+      }
+    }
+  };
+
+  parsePortDecl(target.portListHeader);
+  parsePortDecl(target.body);
+
+  if (inputPorts.length === 0 && outputPorts.length === 0) {
+    return null;
+  }
+
+  const nodeMap = new Map<string, SchematicNode>();
+  const driverMap = new Map<string, { nodeId: string; portId: string; width: number }>();
+  const consumers: { netName: string; nodeId: string; portId: string }[] = [];
+
+  inputPorts.forEach((inp) => {
+    const node: SchematicNode = {
+      id: `in_${inp.name}`,
+      label: inp.name,
+      kind: "port_in",
+      scope: moduleName,
+      inputs: [],
+      outputs: [{ id: "out", name: inp.name, width: inp.width, direction: "out" }],
+      x: 0,
+      y: 0,
+      width: 76,
+      height: 28,
+      layer: 0,
+      delayPs: 0,
+      dynamicPowerMw: 0.02,
+      sourceSpan: { lineStart: 1, lineEnd: 1 }
+    };
+    nodes.push(node);
+    nodeMap.set(node.id, node);
+    driverMap.set(inp.name, { nodeId: node.id, portId: "out", width: inp.width });
+  });
+
+  outputPorts.forEach((outp) => {
+    const node: SchematicNode = {
+      id: `out_${outp.name}`,
+      label: outp.name,
+      kind: "port_out",
+      scope: moduleName,
+      inputs: [{ id: "in", name: outp.name, width: outp.width, direction: "in" }],
+      outputs: [],
+      x: 0,
+      y: 0,
+      width: 76,
+      height: 28,
+      layer: 100,
+      delayPs: 0,
+      dynamicPowerMw: 0.02,
+      sourceSpan: { lineStart: 1, lineEnd: 1 }
+    };
+    nodes.push(node);
+    nodeMap.set(node.id, node);
+    consumers.push({ netName: outp.name, nodeId: node.id, portId: "in" });
+  });
+
+  // 4. Parse Gate Primitives
+  const gateTypes = ["not", "buf", "and", "nand", "or", "nor", "xor", "xnor"];
+  const gateRegex = new RegExp(`\\b(${gateTypes.join("|")})\\s+(?:#\\s*\\([^)]*\\)\\s+)?([a-zA-Z0-9_\\s,()]+);`, "g");
+  let gm: RegExpExecArray | null;
+  let gateIndex = 0;
+
+  while ((gm = gateRegex.exec(target.body)) !== null) {
+    const gateType = gm[1].toLowerCase();
+    const rest = gm[2];
+
+    const instRegex = /(?:([a-zA-Z0-9_]+)\s*)?\(([^)]+)\)/g;
+    let im: RegExpExecArray | null;
+    while ((im = instRegex.exec(rest)) !== null) {
+      gateIndex++;
+      const instName = im[1]?.trim() || `${gateType}_${gateIndex}`;
+      const rawPorts = im[2].split(",").map((p) => p.trim()).filter((p) => p.length > 0);
+      if (rawPorts.length < 2) continue;
+
+      const outNet = rawPorts[0];
+      const inNets = rawPorts.slice(1);
+
+      let label = gateType.toUpperCase();
+      let craneliftOp = "band";
+      let delayPs = 60;
+      let power = 0.18;
+
+      if (gateType === "not") {
+        label = "INV";
+        craneliftOp = "bnot";
+        delayPs = 45;
+        power = 0.12;
+      } else if (gateType === "buf") {
+        label = "BUF";
+        craneliftOp = "copy";
+        delayPs = 35;
+        power = 0.10;
+      } else if (gateType === "and") {
+        label = `AND${inNets.length}`;
+        craneliftOp = "band";
+      } else if (gateType === "nand") {
+        label = `NAND${inNets.length}`;
+        craneliftOp = "bnot";
+        delayPs = 65;
+        power = 0.20;
+      } else if (gateType === "or") {
+        label = `OR${inNets.length}`;
+        craneliftOp = "bor";
+      } else if (gateType === "nor") {
+        label = `NOR${inNets.length}`;
+        craneliftOp = "bnot";
+        delayPs = 65;
+        power = 0.20;
+      } else if (gateType === "xor") {
+        label = `XOR${inNets.length}`;
+        craneliftOp = "bxor";
+        delayPs = 70;
+        power = 0.22;
+      } else if (gateType === "xnor") {
+        label = `XNOR${inNets.length}`;
+        craneliftOp = "bnot";
+        delayPs = 75;
+        power = 0.24;
+      }
+
+      const expressionText = gateType === "not"
+        ? `~${inNets[0]}`
+        : gateType === "buf"
+        ? inNets[0]
+        : inNets.join(` ${gateType === "or" || gateType === "nor" ? "|" : gateType === "xor" || gateType === "xnor" ? "^" : "&"} `);
+
+      const nodeId = `gate_${instName}`;
+      const gateNode: SchematicNode = {
+        id: nodeId,
+        label,
+        sublabel: `${outNet} = ${expressionText}`,
+        kind: "gate",
+        scope: moduleName,
+        inputs: inNets.map((n, idx) => ({ id: `in${idx + 1}`, name: n, width: 1, direction: "in" })),
+        outputs: [{ id: "out", name: outNet, width: 1, direction: "out" }],
+        craneliftOp,
+        expressionText,
+        x: 0,
+        y: 0,
+        width: inNets.length > 2 ? 82 : 72,
+        height: Math.max(38, 22 + inNets.length * 10),
+        layer: 1,
+        delayPs,
+        dynamicPowerMw: power,
+        sourceSpan: { lineStart: 1, lineEnd: 1 }
+      };
+
+      nodes.push(gateNode);
+      nodeMap.set(gateNode.id, gateNode);
+      driverMap.set(outNet, { nodeId: gateNode.id, portId: "out", width: 1 });
+
+      inNets.forEach((inNet, idx) => {
+        consumers.push({ netName: inNet, nodeId: gateNode.id, portId: `in${idx + 1}` });
+      });
+    }
+  }
+
+  // 5. Parse Continuous Assignments: assign lhs = rhs;
+  const assignRegex = /assign\s+([a-zA-Z0-9_]+)\s*=\s*([^;]+);/g;
+  let am: RegExpExecArray | null;
+  let assignIdx = 0;
+
+  while ((am = assignRegex.exec(target.body)) !== null) {
+    assignIdx++;
+    const lhs = am[1].trim();
+    const rhs = am[2].trim();
+
+    // Check ternary MUX: cond ? a : b
+    const muxMatch = rhs.match(/^([a-zA-Z0-9_]+)\s*\?\s*([a-zA-Z0-9_]+)\s*:\s*([a-zA-Z0-9_]+)$/);
+    if (muxMatch) {
+      const sel = muxMatch[1];
+      const in1 = muxMatch[2];
+      const in0 = muxMatch[3];
+      const nodeId = `mux_${lhs}_${assignIdx}`;
+      const muxNode: SchematicNode = {
+        id: nodeId,
+        label: "MUX2",
+        sublabel: `${lhs} = ${sel} ? ${in1} : ${in0}`,
+        kind: "mux",
+        scope: moduleName,
+        inputs: [
+          { id: "sel", name: sel, width: 1, direction: "in" },
+          { id: "in1", name: in1, width: 1, direction: "in" },
+          { id: "in0", name: in0, width: 1, direction: "in" }
+        ],
+        outputs: [{ id: "out", name: lhs, width: 1, direction: "out" }],
+        x: 0,
+        y: 0,
+        width: 78,
+        height: 52,
+        layer: 1,
+        delayPs: 80,
+        dynamicPowerMw: 0.25,
+        sourceSpan: { lineStart: 1, lineEnd: 1 }
+      };
+      nodes.push(muxNode);
+      nodeMap.set(nodeId, muxNode);
+      driverMap.set(lhs, { nodeId, portId: "out", width: 1 });
+      consumers.push({ netName: sel, nodeId, portId: "sel" });
+      consumers.push({ netName: in1, nodeId, portId: "in1" });
+      consumers.push({ netName: in0, nodeId, portId: "in0" });
+      continue;
+    }
+
+    // Check unary NOT: ~a or !a
+    const notMatch = rhs.match(/^[~!]\s*([a-zA-Z0-9_]+)$/);
+    if (notMatch) {
+      const inNet = notMatch[1];
+      const nodeId = `inv_${lhs}_${assignIdx}`;
+      const invNode: SchematicNode = {
+        id: nodeId,
+        label: "INV",
+        sublabel: `${lhs} = ~${inNet}`,
+        kind: "gate",
+        scope: moduleName,
+        inputs: [{ id: "in1", name: inNet, width: 1, direction: "in" }],
+        outputs: [{ id: "out", name: lhs, width: 1, direction: "out" }],
+        craneliftOp: "bnot",
+        x: 0,
+        y: 0,
+        width: 68,
+        height: 38,
+        layer: 1,
+        delayPs: 45,
+        dynamicPowerMw: 0.12,
+        sourceSpan: { lineStart: 1, lineEnd: 1 }
+      };
+      nodes.push(invNode);
+      nodeMap.set(nodeId, invNode);
+      driverMap.set(lhs, { nodeId, portId: "out", width: 1 });
+      consumers.push({ netName: inNet, nodeId, portId: "in1" });
+      continue;
+    }
+
+    // Check binary logic: a & b, a | b, a ^ b, a + b, a - b
+    const binMatch = rhs.match(/^([a-zA-Z0-9_]+)\s*([&|^+*-])\s*([a-zA-Z0-9_]+)$/);
+    if (binMatch) {
+      const in1 = binMatch[1];
+      const op = binMatch[2];
+      const in2 = binMatch[3];
+      const opName = op === "&" ? "AND2" : op === "|" ? "OR2" : op === "^" ? "XOR2" : op === "+" ? "ADD" : "OP";
+      const nodeId = `op_${lhs}_${assignIdx}`;
+      const opNode: SchematicNode = {
+        id: nodeId,
+        label: opName,
+        sublabel: `${lhs} = ${in1} ${op} ${in2}`,
+        kind: op === "+" || op === "-" || op === "*" ? "operator" : "gate",
+        scope: moduleName,
+        inputs: [
+          { id: "in1", name: in1, width: 1, direction: "in" },
+          { id: "in2", name: in2, width: 1, direction: "in" }
+        ],
+        outputs: [{ id: "out", name: lhs, width: 1, direction: "out" }],
+        x: 0,
+        y: 0,
+        width: 76,
+        height: 46,
+        layer: 1,
+        delayPs: 60,
+        dynamicPowerMw: 0.18,
+        sourceSpan: { lineStart: 1, lineEnd: 1 }
+      };
+      nodes.push(opNode);
+      nodeMap.set(nodeId, opNode);
+      driverMap.set(lhs, { nodeId, portId: "out", width: 1 });
+      consumers.push({ netName: in1, nodeId, portId: "in1" });
+      consumers.push({ netName: in2, nodeId, portId: "in2" });
+      continue;
+    }
+  }
+
+  // 6. Connect Edges
+  let edgeIdCounter = 0;
+  for (const c of consumers) {
+    const driver = driverMap.get(c.netName);
+    if (driver && driver.nodeId !== c.nodeId) {
+      edges.push({
+        id: `edge_${driver.nodeId}_${c.nodeId}_${edgeIdCounter++}`,
+        netName: c.netName,
+        sourceNodeId: driver.nodeId,
+        sourcePortId: driver.portId,
+        targetNodeId: c.nodeId,
+        targetPortId: c.portId,
+        width: driver.width,
+        isBus: driver.width > 1,
+        wirePoints: [],
+        delayPs: 30,
+        signalId: c.netName,
+        fanout: 1
+      });
+    }
+  }
+
+  if (nodes.length === 0) return null;
+
+  // 7. Topological Layer Assignment
+  const nodeLayerMap = new Map<string, number>();
+  for (const n of nodes) {
+    if (n.kind === "port_in") {
+      nodeLayerMap.set(n.id, 0);
+    }
+  }
+
+  let changed = true;
+  let iterations = 0;
+  while (changed && iterations < 50) {
+    changed = false;
+    iterations++;
+    for (const edge of edges) {
+      const srcLayer = nodeLayerMap.get(edge.sourceNodeId) ?? 0;
+      const targetNode = nodeMap.get(edge.targetNodeId);
+      if (!targetNode || targetNode.kind === "port_out") continue;
+
+      const currentTargetLayer = nodeLayerMap.get(edge.targetNodeId) ?? 1;
+      const requiredLayer = srcLayer + 1;
+      if (requiredLayer > currentTargetLayer) {
+        nodeLayerMap.set(edge.targetNodeId, requiredLayer);
+        changed = true;
+      }
+    }
+  }
+
+  let maxLayer = 0;
+  for (const [id, l] of nodeLayerMap.entries()) {
+    const n = nodeMap.get(id);
+    if (n && n.kind !== "port_out" && l > maxLayer) {
+      maxLayer = l;
+    }
+  }
+
+  const outputLayer = maxLayer + 1;
+  for (const n of nodes) {
+    if (n.kind === "port_out") {
+      nodeLayerMap.set(n.id, outputLayer);
+    }
+    n.layer = nodeLayerMap.get(n.id) ?? 1;
+  }
+
+  // Assign gridRow within each layer for visual spacing
+  const layerGroups = new Map<number, SchematicNode[]>();
+  for (const n of nodes) {
+    const list = layerGroups.get(n.layer) ?? [];
+    list.push(n);
+    layerGroups.set(n.layer, list);
+  }
+  for (const [, list] of layerGroups.entries()) {
+    list.forEach((n, idx) => {
+      n.gridRow = idx;
+    });
+  }
+
+  // 8. Construct Graph and Run Layout & Routing
+  const rawGraph: SchematicGraph = {
+    id: `dynamic_${moduleName}`,
+    topModule: moduleName,
+    nodes,
+    edges,
+    bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+  };
+
+  return layoutAndRouteGraph(rawGraph);
 }
 
 /**

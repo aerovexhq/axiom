@@ -178,6 +178,9 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
             onSelectSignal={context.handleSchematicSelectSignal}
             onJumpToCode={context.handleJumpToCode}
             onOpenAutoPipeline={context.handleOpenAutoPipeline}
+            verilogSource={context.activeFile?.content}
+            topModule={context.project?.topModule}
+            targetDevice={context.project?.targetDevice}
           />
         );
       case "waveform":

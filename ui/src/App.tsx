@@ -384,6 +384,8 @@ export const App: React.FC = () => {
 
   // Active Design / Module ID for Hardware DAG & Visualizers
   const activeDesignId = useMemo(() => {
+    if (project?.lessonId) return project.lessonId;
+    if (project?.topModule && project.topModule !== "top") return project.topModule;
     return project?.templateId ?? project?.topModule ?? "";
   }, [project]);
 
@@ -1659,6 +1661,9 @@ export const App: React.FC = () => {
                   handleJumpToCode(line, line);
                   setActiveMobilePanel("editor");
                 }}
+                verilogSource={activeFile?.content}
+                topModule={project?.topModule}
+                targetDevice={project?.targetDevice}
               />
             </div>
           ) : activeMobilePanel === "fsm" ? (
