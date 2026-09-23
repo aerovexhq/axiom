@@ -17,7 +17,8 @@ export interface LayoutRendererProps {
   onSelectView: (leafId: string, viewId: LayoutViewId) => void;
   onCloseTab: (leafId: string, viewId: LayoutViewId) => void;
   onAddTab: (leafId: string, viewId: LayoutViewId) => void;
-  onSplitLeaf: (leafId: string, direction: "row" | "column") => void;
+  onSplitLeaf?: (leafId: string, direction: "row" | "column") => void;
+  onClosePanel?: (leafId: string) => void;
   onUpdateSplitRatio: (splitId: string, newRatio: number) => void;
   onToggleMaximize: (leafId: string) => void;
 }
@@ -30,9 +31,12 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
   onCloseTab,
   onAddTab,
   onSplitLeaf,
+  onClosePanel,
   onUpdateSplitRatio,
   onToggleMaximize
 }) => {
+  const canClosePanel = root.type === "split";
+
   // If a single leaf is maximized, render only that leaf
   if (maximizedLeafId) {
     const maximizedLeaf = findLeafById(root, maximizedLeafId);
@@ -47,6 +51,8 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
             onCloseTab={onCloseTab}
             onAddTab={onAddTab}
             onSplitLeaf={onSplitLeaf}
+            onClosePanel={onClosePanel}
+            canClosePanel={canClosePanel}
             onToggleMaximize={onToggleMaximize}
           />
         </div>
@@ -63,6 +69,8 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
         onCloseTab={onCloseTab}
         onAddTab={onAddTab}
         onSplitLeaf={onSplitLeaf}
+        onClosePanel={onClosePanel}
+        canClosePanel={canClosePanel}
         onUpdateSplitRatio={onUpdateSplitRatio}
         onToggleMaximize={onToggleMaximize}
       />
@@ -76,7 +84,9 @@ interface SubtreeRendererProps {
   onSelectView: (leafId: string, viewId: LayoutViewId) => void;
   onCloseTab: (leafId: string, viewId: LayoutViewId) => void;
   onAddTab: (leafId: string, viewId: LayoutViewId) => void;
-  onSplitLeaf: (leafId: string, direction: "row" | "column") => void;
+  onSplitLeaf?: (leafId: string, direction: "row" | "column") => void;
+  onClosePanel?: (leafId: string) => void;
+  canClosePanel?: boolean;
   onUpdateSplitRatio: (splitId: string, newRatio: number) => void;
   onToggleMaximize: (leafId: string) => void;
 }
@@ -88,6 +98,8 @@ const SubtreeRenderer: React.FC<SubtreeRendererProps> = ({
   onCloseTab,
   onAddTab,
   onSplitLeaf,
+  onClosePanel,
+  canClosePanel = false,
   onUpdateSplitRatio,
   onToggleMaximize
 }) => {
@@ -103,6 +115,8 @@ const SubtreeRenderer: React.FC<SubtreeRendererProps> = ({
         onCloseTab={onCloseTab}
         onAddTab={onAddTab}
         onSplitLeaf={onSplitLeaf}
+        onClosePanel={onClosePanel}
+        canClosePanel={canClosePanel}
         onToggleMaximize={onToggleMaximize}
       />
     );

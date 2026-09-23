@@ -17,7 +17,8 @@ import {
   Keyboard,
   RotateCcw,
   Search,
-  AlertCircle
+  AlertCircle,
+  X
 } from "lucide-react";
 import { Modal } from "./ui/Modal";
 import { DropdownSelect } from "./ui";
@@ -1144,20 +1145,19 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                   borderRadius: "var(--radius-md)",
                   padding: "14px 16px",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 16
+                  flexDirection: "column",
+                  gap: 12
                 }}
               >
                 <div>
                   <h4 style={{ margin: "0 0 4px 0", fontSize: 13, fontWeight: 700, color: "var(--accent-cyan)" }}>
                     {t("settings.layoutsTitle")}
                   </h4>
-                  <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                  <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.45 }}>
                     {t("settings.layoutsDesc")}
                   </p>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1302,21 +1302,21 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                           gap: 12
                         }}
                       >
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-cyan)" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-cyan)", whiteSpace: "nowrap" }}>
                               SLOT {slot}
                             </span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                               {currentLayout.name}
                             </span>
                             {!isSlotSaved && (
-                              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                              <span style={{ fontSize: 10, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
                                 ({t("settings.slotEmpty")})
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {currentLayout.description || "Multi-panel workspace configuration"}
                           </div>
                         </div>
@@ -1625,6 +1625,23 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      saveKeybind(def.id, "");
+                                      setKeybindsMap(getAllKeybinds());
+                                      setRecordingActionId(null);
+                                      setRecordedChord("");
+                                      setConflictWarning(null);
+                                      toast.success(`${t(def.nameKey as any)}: ${t("keybinds.unassigned")}`);
+                                    }}
+                                    className="btn btn-ghost"
+                                    style={{ fontSize: 10.5, padding: "3px 6px", height: 24, color: "var(--accent-rose)" }}
+                                    title={t("keybinds.clearKeybind")}
+                                  >
+                                    {t("keybinds.clearKeybind")}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
                                       setRecordingActionId(null);
                                       setRecordedChord("");
                                       setConflictWarning(null);
@@ -1637,26 +1654,44 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                                 </div>
                               ) : (
                                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                                  {parts.map((p, pIdx) => (
-                                    <React.Fragment key={pIdx}>
-                                      {pIdx > 0 && <span style={{ color: "var(--text-muted)", fontSize: 10 }}>+</span>}
-                                      <kbd
-                                        style={{
-                                          padding: "2px 6px",
-                                          fontSize: 10.5,
-                                          fontFamily: "JetBrains Mono, monospace",
-                                          fontWeight: 600,
-                                          backgroundColor: "var(--bg-secondary)",
-                                          border: "1px solid var(--border-subtle)",
-                                          borderRadius: 4,
-                                          color: isCustom ? "var(--accent-amber)" : "var(--accent-cyan)",
-                                          boxShadow: "0 1px 2px rgba(0,0,0,0.35)"
-                                        }}
-                                      >
-                                        {p}
-                                      </kbd>
-                                    </React.Fragment>
-                                  ))}
+                                  {parts.length > 0 ? (
+                                    parts.map((p, pIdx) => (
+                                      <React.Fragment key={pIdx}>
+                                        {pIdx > 0 && <span style={{ color: "var(--text-muted)", fontSize: 10 }}>+</span>}
+                                        <kbd
+                                          style={{
+                                            padding: "2px 6px",
+                                            fontSize: 10.5,
+                                            fontFamily: "JetBrains Mono, monospace",
+                                            fontWeight: 600,
+                                            backgroundColor: "var(--bg-secondary)",
+                                            border: "1px solid var(--border-subtle)",
+                                            borderRadius: 4,
+                                            color: isCustom ? "var(--accent-amber)" : "var(--accent-cyan)",
+                                            boxShadow: "0 1px 2px rgba(0,0,0,0.35)"
+                                          }}
+                                        >
+                                          {p}
+                                        </kbd>
+                                      </React.Fragment>
+                                    ))
+                                  ) : (
+                                    <span
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        padding: "2px 6px",
+                                        fontSize: 10.5,
+                                        borderRadius: 4,
+                                        backgroundColor: "rgba(255, 255, 255, 0.04)",
+                                        border: "1px dashed var(--border-subtle)",
+                                        color: "var(--text-muted)",
+                                        fontStyle: "italic"
+                                      }}
+                                    >
+                                      {t("keybinds.unassigned")}
+                                    </span>
+                                  )}
                                 </div>
                               )}
 
@@ -1683,6 +1718,30 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                                     <Keyboard size={11} />
                                     <span>{t("settings.recordKeybind")}</span>
                                   </button>
+
+                                  {currentChord.trim() !== "" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        saveKeybind(def.id, "");
+                                        setKeybindsMap(getAllKeybinds());
+                                        toast.success(`${t(def.nameKey as any)}: ${t("keybinds.unassigned")}`);
+                                      }}
+                                      className="btn btn-ghost btn-icon"
+                                      style={{
+                                        width: 24,
+                                        height: 24,
+                                        padding: 0,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "var(--text-muted)"
+                                      }}
+                                      title={t("keybinds.clearKeybind")}
+                                    >
+                                      <X size={11} />
+                                    </button>
+                                  )}
 
                                   {isCustom && (
                                     <button

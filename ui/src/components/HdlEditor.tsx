@@ -810,59 +810,6 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             </button>
           )}
 
-          {/* Linter Diagnostic Pill */}
-          <button
-            type="button"
-            onClick={onOpenProblems}
-            title={t("dock.problems")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              fontSize: 11,
-              fontWeight: 600,
-              padding: isMobile ? "2px 5px" : "2px 7px",
-              borderRadius: "var(--radius-sm)",
-              backgroundColor:
-                errorCount > 0
-                  ? "rgba(244, 63, 94, 0.15)"
-                  : warningCount > 0
-                  ? "rgba(245, 158, 11, 0.15)"
-                  : "rgba(16, 185, 129, 0.1)",
-              border: `1px solid ${
-                errorCount > 0
-                  ? "rgba(244, 63, 94, 0.3)"
-                  : warningCount > 0
-                  ? "rgba(245, 158, 11, 0.3)"
-                  : "rgba(16, 185, 129, 0.2)"
-              }`,
-              color:
-                errorCount > 0
-                  ? "var(--accent-rose)"
-                  : warningCount > 0
-                  ? "var(--accent-amber)"
-                  : "var(--accent-emerald)",
-              cursor: "pointer"
-            }}
-          >
-            {errorCount > 0 ? (
-              <>
-                <AlertCircle size={11} />
-                <span>{errorCount}{!isMobile ? ` ${t("editor.lintErrors")}` : ""}</span>
-              </>
-            ) : warningCount > 0 ? (
-              <>
-                <AlertTriangle size={11} />
-                <span>{warningCount}{!isMobile ? ` ${t("editor.lintWarnings")}` : ""}</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle size={11} />
-                {!isMobile && <span>{t("editor.lintClean")}</span>}
-              </>
-            )}
-          </button>
-
           {/* Editor & Project Settings */}
           {onOpenSettings && (
             <button
@@ -914,6 +861,60 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         items={breadcrumbItems}
         rightContent={
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* Linter Diagnostic Pill (Clean / Errors / Warnings) placed directly next to Coverage */}
+            <button
+              type="button"
+              onClick={onOpenProblems}
+              title={t("dock.problems")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: isMobile ? "2px 5px" : "2px 7px",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor:
+                  errorCount > 0
+                    ? "rgba(244, 63, 94, 0.15)"
+                    : warningCount > 0
+                    ? "rgba(245, 158, 11, 0.15)"
+                    : "rgba(16, 185, 129, 0.1)",
+                border: `1px solid ${
+                  errorCount > 0
+                    ? "rgba(244, 63, 94, 0.3)"
+                    : warningCount > 0
+                    ? "rgba(245, 158, 11, 0.3)"
+                    : "rgba(16, 185, 129, 0.2)"
+                }`,
+                color:
+                  errorCount > 0
+                    ? "var(--accent-rose)"
+                    : warningCount > 0
+                    ? "var(--accent-amber)"
+                    : "var(--accent-emerald)",
+                cursor: "pointer",
+                transition: "all 0.15s ease"
+              }}
+            >
+              {errorCount > 0 ? (
+                <>
+                  <AlertCircle size={11} />
+                  <span>{errorCount}{!isMobile ? ` ${t("editor.lintErrors")}` : ""}</span>
+                </>
+              ) : warningCount > 0 ? (
+                <>
+                  <AlertTriangle size={11} />
+                  <span>{warningCount}{!isMobile ? ` ${t("editor.lintWarnings")}` : ""}</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={11} />
+                  {!isMobile && <span>{t("editor.lintClean")}</span>}
+                </>
+              )}
+            </button>
+
             {/* RTL Code Coverage Heatmap Toggle */}
             {!isXdc && !isMobile && (
               <button

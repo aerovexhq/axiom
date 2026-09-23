@@ -9,6 +9,9 @@ export type KeybindActionId =
   | "file.saveProject"
   | "file.saveAll"
   | "file.newWindow"
+  | "file.closeProject"
+  | "file.exportJson"
+  | "file.addSources"
   | "sim.runPause"
   | "sim.step1ns"
   | "sim.step100ps"
@@ -20,8 +23,23 @@ export type KeybindActionId =
   | "view.toggleFullscreen"
   | "view.customizeLayout"
   | "view.switchFloorplan"
+  | "view.switchSchematic"
+  | "view.switchWaveform"
+  | "view.switchVirtualLab"
+  | "view.switchTiming"
+  | "view.switchMicroarch"
+  | "view.switchFsm"
+  | "view.switchTechMapping"
+  | "view.resetLayout"
+  | "view.toggleRepl"
+  | "view.toggleProblems"
+  | "view.toggleTelemetry"
   | "tools.omnibar"
-  | "tools.settings";
+  | "tools.settings"
+  | "tools.protocolDecoder"
+  | "tools.autoPipeline"
+  | "tools.labGrader"
+  | "tools.packagePinout";
 
 export interface KeybindDefinition {
   id: KeybindActionId;
@@ -68,6 +86,27 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     nameKey: "keybinds.actionNewWindow",
     descKey: "keybinds.descNewWindow",
     defaultKey: "Ctrl+Shift+W"
+  },
+  {
+    id: "file.closeProject",
+    category: "file",
+    nameKey: "keybinds.actionCloseProject",
+    descKey: "keybinds.descCloseProject",
+    defaultKey: ""
+  },
+  {
+    id: "file.exportJson",
+    category: "file",
+    nameKey: "keybinds.actionExportJson",
+    descKey: "keybinds.descExportJson",
+    defaultKey: ""
+  },
+  {
+    id: "file.addSources",
+    category: "file",
+    nameKey: "keybinds.actionAddSources",
+    descKey: "keybinds.descAddSources",
+    defaultKey: ""
   },
 
   // --- Simulation Actions ---
@@ -150,6 +189,83 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     descKey: "keybinds.descSwitchFloorplan",
     defaultKey: "Ctrl+Alt+F"
   },
+  {
+    id: "view.switchSchematic",
+    category: "view",
+    nameKey: "keybinds.actionSwitchSchematic",
+    descKey: "keybinds.descSwitchSchematic",
+    defaultKey: ""
+  },
+  {
+    id: "view.switchWaveform",
+    category: "view",
+    nameKey: "keybinds.actionSwitchWaveform",
+    descKey: "keybinds.descSwitchWaveform",
+    defaultKey: ""
+  },
+  {
+    id: "view.switchVirtualLab",
+    category: "view",
+    nameKey: "keybinds.actionSwitchVirtualLab",
+    descKey: "keybinds.descSwitchVirtualLab",
+    defaultKey: ""
+  },
+  {
+    id: "view.switchTiming",
+    category: "view",
+    nameKey: "keybinds.actionSwitchTiming",
+    descKey: "keybinds.descSwitchTiming",
+    defaultKey: ""
+  },
+  {
+    id: "view.switchMicroarch",
+    category: "view",
+    nameKey: "keybinds.actionSwitchMicroarch",
+    descKey: "keybinds.descSwitchMicroarch",
+    defaultKey: ""
+  },
+  {
+    id: "view.switchFsm",
+    category: "view",
+    nameKey: "keybinds.actionSwitchFsm",
+    descKey: "keybinds.descSwitchFsm",
+    defaultKey: ""
+  },
+  {
+    id: "view.switchTechMapping",
+    category: "view",
+    nameKey: "keybinds.actionSwitchTechMapping",
+    descKey: "keybinds.descSwitchTechMapping",
+    defaultKey: ""
+  },
+  {
+    id: "view.resetLayout",
+    category: "view",
+    nameKey: "keybinds.actionResetLayout",
+    descKey: "keybinds.descResetLayout",
+    defaultKey: ""
+  },
+  {
+    id: "view.toggleRepl",
+    category: "view",
+    nameKey: "keybinds.actionToggleRepl",
+    descKey: "keybinds.descToggleRepl",
+    defaultKey: ""
+  },
+  {
+    id: "view.toggleProblems",
+    category: "view",
+    nameKey: "keybinds.actionToggleProblems",
+    descKey: "keybinds.descToggleProblems",
+    defaultKey: ""
+  },
+  {
+    id: "view.toggleTelemetry",
+    category: "view",
+    nameKey: "keybinds.actionToggleTelemetry",
+    descKey: "keybinds.descToggleTelemetry",
+    defaultKey: ""
+  },
 
   // --- Tools & General Actions ---
   {
@@ -165,6 +281,34 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     nameKey: "keybinds.actionSettings",
     descKey: "keybinds.descSettings",
     defaultKey: "Ctrl+,"
+  },
+  {
+    id: "tools.protocolDecoder",
+    category: "tools",
+    nameKey: "keybinds.actionProtocolDecoder",
+    descKey: "keybinds.descProtocolDecoder",
+    defaultKey: ""
+  },
+  {
+    id: "tools.autoPipeline",
+    category: "tools",
+    nameKey: "keybinds.actionAutoPipeline",
+    descKey: "keybinds.descAutoPipeline",
+    defaultKey: ""
+  },
+  {
+    id: "tools.labGrader",
+    category: "tools",
+    nameKey: "keybinds.actionLabGrader",
+    descKey: "keybinds.descLabGrader",
+    defaultKey: ""
+  },
+  {
+    id: "tools.packagePinout",
+    category: "tools",
+    nameKey: "keybinds.actionPackagePinout",
+    descKey: "keybinds.descPackagePinout",
+    defaultKey: ""
   }
 ];
 
@@ -365,6 +509,7 @@ export function normalizeKeyChord(chord: string): string {
 
 // Check if a keyboard event matches a given chord
 export function matchesKeybind(e: KeyboardEvent, chord: string): boolean {
+  if (!chord || !chord.trim()) return false;
   const eventChord = parseEventToChord(e);
   if (!eventChord) return false;
   return normalizeKeyChord(eventChord) === normalizeKeyChord(chord);

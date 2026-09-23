@@ -373,6 +373,44 @@ export function closeTabInLeaf(
   return simplifyLayoutTree(cloned);
 }
 
+// Close and remove an entire leaf panel from a split layout tree
+export function closeLeaf(root: LayoutNode, leafId: string): LayoutNode {
+  if (root.type === "leaf") {
+    return root;
+  }
+
+  const cloned = cloneLayoutNode(root);
+  if (cloned.type !== "split") {
+    return cloned;
+  }
+
+  // If root is a split and directly contains the leaf to close
+  if (cloned.first.id === leafId) {
+    return cloned.second;
+  }
+  if (cloned.second.id === leafId) {
+    return cloned.first;
+  }
+
+  // Otherwise locate parent split of the target leaf
+  const parentRef = findParentSplit(cloned, leafId);
+  if (!parentRef) return cloned;
+
+  const sibling = parentRef.position === "first" ? parentRef.parent.second : parentRef.parent.first;
+
+  // Replace parent split with the sibling in the grandparent
+  const grandParentRef = findParentSplit(cloned, parentRef.parent.id);
+  if (grandParentRef) {
+    if (grandParentRef.position === "first") {
+      grandParentRef.parent.first = sibling;
+    } else {
+      grandParentRef.parent.second = sibling;
+    }
+  }
+
+  return simplifyLayoutTree(cloned);
+}
+
 // Update split divider ratio
 export function updateSplitRatio(
   root: LayoutNode,

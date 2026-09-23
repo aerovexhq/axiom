@@ -35,10 +35,12 @@ import {
   findLeafById,
   updateLeafActiveView,
   splitLeaf,
+  closeLeaf,
   closeTabInLeaf,
   updateSplitRatio,
   getAllLeaves,
-  BUILTIN_LAYOUT_PRESETS
+  BUILTIN_LAYOUT_PRESETS,
+  DEFAULT_LAYOUT
 } from "./engine/layoutModel";
 import {
   getActiveLayout,
@@ -1127,6 +1129,17 @@ export const App: React.FC = () => {
     });
   }, [project]);
 
+  const handleClosePanel = useCallback((leafId: string) => {
+    setActiveLayout((prev) => {
+      const nextRoot = closeLeaf(prev.root, leafId);
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
   const handleUpdateSplitRatio = useCallback((splitId: string, newRatio: number) => {
     setActiveLayout((prev) => {
       const nextRoot = updateSplitRatio(prev.root, splitId, newRatio);
@@ -1267,6 +1280,15 @@ export const App: React.FC = () => {
       } else if (matchesKeybind(e, getKeybind("file.newWindow"))) {
         e.preventDefault();
         openInNewWindow();
+      } else if (matchesKeybind(e, getKeybind("file.closeProject"))) {
+        e.preventDefault();
+        handleCloseProject();
+      } else if (matchesKeybind(e, getKeybind("file.exportJson"))) {
+        e.preventDefault();
+        exportLayoutToJson(project?.layout || activeLayout || DEFAULT_LAYOUT);
+      } else if (matchesKeybind(e, getKeybind("file.addSources"))) {
+        e.preventDefault();
+        setIsAddSourceOpen(true);
       }
       // 2. Simulation Actions
       else if (matchesKeybind(e, getKeybind("sim.runPause"))) {
@@ -1308,6 +1330,39 @@ export const App: React.FC = () => {
       } else if (matchesKeybind(e, getKeybind("view.switchFloorplan"))) {
         e.preventDefault();
         handleSwitchVisualizerView("floorplan");
+      } else if (matchesKeybind(e, getKeybind("view.switchSchematic"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("schematic");
+      } else if (matchesKeybind(e, getKeybind("view.switchWaveform"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("waveform");
+      } else if (matchesKeybind(e, getKeybind("view.switchVirtualLab"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("virtuallab");
+      } else if (matchesKeybind(e, getKeybind("view.switchTiming"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("timing");
+      } else if (matchesKeybind(e, getKeybind("view.switchMicroarch"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("microarch");
+      } else if (matchesKeybind(e, getKeybind("view.switchFsm"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("fsm");
+      } else if (matchesKeybind(e, getKeybind("view.switchTechMapping"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("techmapping");
+      } else if (matchesKeybind(e, getKeybind("view.resetLayout"))) {
+        e.preventDefault();
+        handleApplyLayoutPreset("default-engineering");
+      } else if (matchesKeybind(e, getKeybind("view.toggleRepl"))) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("axiom-set-dock-tab", { detail: { tab: "repl" } }));
+      } else if (matchesKeybind(e, getKeybind("view.toggleProblems"))) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("axiom-set-dock-tab", { detail: { tab: "problems" } }));
+      } else if (matchesKeybind(e, getKeybind("view.toggleTelemetry"))) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("axiom-set-dock-tab", { detail: { tab: "telemetry" } }));
       }
       // 4. Tools Actions
       else if (matchesKeybind(e, getKeybind("tools.omnibar"))) {
@@ -1316,6 +1371,18 @@ export const App: React.FC = () => {
       } else if (matchesKeybind(e, getKeybind("tools.settings"))) {
         e.preventDefault();
         handleOpenSettings("general");
+      } else if (matchesKeybind(e, getKeybind("tools.protocolDecoder"))) {
+        e.preventDefault();
+        setIsProtocolDecoderOpen(true);
+      } else if (matchesKeybind(e, getKeybind("tools.autoPipeline"))) {
+        e.preventDefault();
+        setIsAutoPipelineOpen(true);
+      } else if (matchesKeybind(e, getKeybind("tools.labGrader"))) {
+        e.preventDefault();
+        setIsLabGraderOpen(true);
+      } else if (matchesKeybind(e, getKeybind("tools.packagePinout"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("floorplan");
       }
     };
 
@@ -1326,13 +1393,17 @@ export const App: React.FC = () => {
     handleOpenNewProject,
     handleOpenProjectFile,
     handleSaveProject,
+    handleCloseProject,
     handleRunSimulation,
     handleStepSimulation,
     handleStepDeltaSimulation,
     handleResetSimulation,
     handleCompile,
     handleSwitchVisualizerView,
-    handleOpenSettings
+    handleOpenSettings,
+    handleApplyLayoutPreset,
+    project,
+    activeLayout
   ]);
 
   // Context for visualizer and layout leaf renderers
@@ -1834,6 +1905,7 @@ export const App: React.FC = () => {
                 onCloseTab={handleCloseLayoutTab}
                 onAddTab={handleAddLayoutTab}
                 onSplitLeaf={handleSplitLayoutLeaf}
+                onClosePanel={handleClosePanel}
                 onUpdateSplitRatio={handleUpdateSplitRatio}
                 onToggleMaximize={handleToggleMaximizeLeaf}
               />

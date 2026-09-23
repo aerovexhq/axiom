@@ -19,9 +19,7 @@ import {
   Maximize2,
   Minimize2,
   Plus,
-  X,
-  Columns,
-  Rows
+  X
 } from "lucide-react";
 import { LayoutLeaf, LayoutViewId, LAYOUT_VIEWS_META, ALL_LAYOUT_VIEW_IDS } from "../../engine/layoutModel";
 import { AxiomProject, ProjectFile } from "../../engine/projectModel";
@@ -75,7 +73,9 @@ export interface LayoutLeafRendererProps {
   onSelectView: (leafId: string, viewId: LayoutViewId) => void;
   onCloseTab: (leafId: string, viewId: LayoutViewId) => void;
   onAddTab: (leafId: string, viewId: LayoutViewId) => void;
-  onSplitLeaf: (leafId: string, direction: "row" | "column") => void;
+  onSplitLeaf?: (leafId: string, direction: "row" | "column") => void;
+  onClosePanel?: (leafId: string) => void;
+  canClosePanel?: boolean;
   onToggleMaximize: (leafId: string) => void;
 }
 
@@ -121,7 +121,8 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
   onSelectView,
   onCloseTab,
   onAddTab,
-  onSplitLeaf,
+  onClosePanel,
+  canClosePanel = false,
   onToggleMaximize
 }) => {
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -140,7 +141,8 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isAddMenuOpen]);
 
-  const availableToAdd = ALL_LAYOUT_VIEW_IDS.filter((v) => !leaf.views.includes(v));
+  // Visualizers cannot dock the editor as a subtab; editor is a standalone panel
+  const availableToAdd = ALL_LAYOUT_VIEW_IDS.filter((v) => v !== "editor" && !leaf.views.includes(v));
 
   const renderActiveView = () => {
     switch (leaf.activeViewId) {
@@ -313,6 +315,26 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
         );
     }
   };
+
+  // Standalone Editor Panel: When this leaf represents the code editor, render it directly
+  // without the outer 28px layout header bar or visualizer sub-tabs, letting HdlEditor's native file tabs manage the panel.
+  if (leaf.activeViewId === "editor") {
+    return (
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          backgroundColor: "var(--bg-primary)"
+        }}
+      >
+        {renderActiveView()}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -487,63 +509,37 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
           )}
         </div>
 
-        {/* Panel Action Controls (Split & Maximize) */}
+        {/* Panel Action Controls (Close Panel & Maximize) */}
         <div style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
-          {/* Split Horizontally (Columns) */}
-          <button
-            onClick={() => onSplitLeaf(leaf.id, "row")}
-            title="Split Panel Horizontally (Columns)"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 22,
-              height: 20,
-              backgroundColor: "transparent",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-muted)",
-              cursor: "pointer"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--accent-cyan)";
-              e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--text-muted)";
-              e.currentTarget.style.backgroundColor = "transparent";
-            }}
-          >
-            <Columns size={11} />
-          </button>
-
-          {/* Split Vertically (Rows) */}
-          <button
-            onClick={() => onSplitLeaf(leaf.id, "column")}
-            title="Split Panel Vertically (Rows)"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 22,
-              height: 20,
-              backgroundColor: "transparent",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-muted)",
-              cursor: "pointer"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--accent-cyan)";
-              e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--text-muted)";
-              e.currentTarget.style.backgroundColor = "transparent";
-            }}
-          >
-            <Rows size={11} />
-          </button>
+          {/* Close Panel (available in split multi-panel layouts) */}
+          {canClosePanel && onClosePanel && (
+            <button
+              onClick={() => onClosePanel(leaf.id)}
+              title="Close Panel"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 20,
+                backgroundColor: "transparent",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-muted)",
+                cursor: "pointer"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--accent-rose)";
+                e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <X size={12} />
+            </button>
+          )}
 
           {/* Maximize / Restore */}
           <button

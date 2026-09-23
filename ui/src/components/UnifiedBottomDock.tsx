@@ -96,8 +96,19 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
     const handleToggle = () => {
       setIsCollapsed((prev) => !prev);
     };
+    const handleSetTab = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tab: "repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage" | "assertions" | "synthesis" }>;
+      if (customEvent.detail?.tab) {
+        setActiveTab(customEvent.detail.tab);
+        setIsCollapsed(false);
+      }
+    };
     window.addEventListener("axiom-toggle-bottom-dock", handleToggle);
-    return () => window.removeEventListener("axiom-toggle-bottom-dock", handleToggle);
+    window.addEventListener("axiom-set-dock-tab", handleSetTab);
+    return () => {
+      window.removeEventListener("axiom-toggle-bottom-dock", handleToggle);
+      window.removeEventListener("axiom-set-dock-tab", handleSetTab);
+    };
   }, []);
 
   // Synthesis Tab State
