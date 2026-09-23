@@ -1543,6 +1543,9 @@ export function saveProjectToStorage(project: AxiomProject | null): void {
   try {
     if (project) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+      if (project.id) {
+        localStorage.setItem(`axiom_project_${project.id}`, JSON.stringify(project));
+      }
       // Asynchronously mirror to dual-runtime FileSystem (IndexedDB / Tauri host disk)
       saveProjectToFs(project).catch((err) => {
         console.warn("[FileSystem] Background sync error:", err);

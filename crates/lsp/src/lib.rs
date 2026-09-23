@@ -1434,6 +1434,12 @@ endmodule
         let undriven_diag = undriven.unwrap();
         assert!(undriven_diag.message.contains("w1"), "Message should mention 'w1'");
         assert_eq!(undriven_diag.severity, 2, "Undriven net must be Warning severity");
+
+        // 3. Must also flag when typo is w1h
+        let code_w1h = code.replace("w1hi", "w1h");
+        let diags_w1h = VerilogLinter::lint(&code_w1h);
+        assert!(diags_w1h.iter().any(|d| d.code == "AXIOM_E003_UNDECLARED_IDENTIFIER" && d.message.contains("w1h")), "Must report undeclared for w1h, got: {diags_w1h:?}");
+        assert!(diags_w1h.iter().any(|d| d.code == "AXIOM_W003_UNDRIVEN_NET" && d.message.contains("w1")), "Must report undriven w1 for w1h typo, got: {diags_w1h:?}");
     }
 }
 

@@ -65,7 +65,8 @@ import {
   trashProject,
   restoreProject,
   permanentDeleteProject,
-  emptyTrash
+  emptyTrash,
+  touchProjectMetadata
 } from "./engine/projectRegistry";
 import { sessionBroadcaster } from "./engine/sessionSync";
 import {
@@ -438,9 +439,10 @@ export const App: React.FC = () => {
       notifySaveState(false);
       scheduleAutoSave(() => {
         saveProjectToStorage(updated);
+        touchProjectMetadata(updated);
         setIsSaved(true);
         notifySaveState(true);
-      }, 800);
+      }, 500);
     } else {
       setIsSaved(false);
       notifySaveState(false);

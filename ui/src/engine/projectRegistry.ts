@@ -130,6 +130,29 @@ export async function saveProjectRegistry(projects: ProjectMetadata[]): Promise<
 }
 
 /**
+ * Synchronously touches metadata in cached registry on project save (file count, top module, updatedAt).
+ */
+export function touchProjectMetadata(project: AxiomProject): void {
+  if (typeof window === "undefined" || !project.id) return;
+  try {
+    const registry = loadProjectRegistry();
+    const idx = registry.findIndex((p) => p.id === project.id);
+    if (idx >= 0) {
+      registry[idx] = {
+        ...registry[idx],
+        fileCount: project.files.length,
+        topModule: project.topModule,
+        targetDevice: project.targetDevice,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(REGISTRY_STORAGE_KEY, JSON.stringify(registry));
+    }
+  } catch (err) {
+    console.warn("[ProjectRegistry] Failed to touch project metadata:", err);
+  }
+}
+
+/**
  * Asynchronously synchronizes project registry from the FileSystem.
  */
 export async function syncRegistryFromFs(): Promise<ProjectMetadata[]> {

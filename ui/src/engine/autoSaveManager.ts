@@ -6,6 +6,7 @@ const AUTO_SAVE_EVENT = "axiom_auto_save_changed";
 const SAVE_STATE_EVENT = "axiom_save_state_changed";
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSaveFn: (() => void) | null = null;
 
 /**
  * Returns whether Auto Save is enabled. Default is true.
@@ -35,9 +36,9 @@ export function setAutoSaveEnabled(enabled: boolean): void {
 
 /**
  * Schedules a debounced auto-save if Auto Save is enabled.
- * Default debounce is 800ms.
+ * Default debounce is 500ms.
  */
-export function scheduleAutoSave(onSave: () => void, delayMs = 800): void {
+export function scheduleAutoSave(onSave: () => void, delayMs = 500): void {
   if (autoSaveTimer) {
     clearTimeout(autoSaveTimer);
     autoSaveTimer = null;
@@ -47,16 +48,42 @@ export function scheduleAutoSave(onSave: () => void, delayMs = 800): void {
     return;
   }
 
+  pendingSaveFn = onSave;
+
   autoSaveTimer = setTimeout(() => {
     try {
-      onSave();
-      notifySaveState(true);
+      if (pendingSaveFn) {
+        const fn = pendingSaveFn;
+        pendingSaveFn = null;
+        fn();
+        notifySaveState(true);
+      }
     } catch (err) {
       console.warn("[AutoSave] Error during scheduled auto-save:", err);
     } finally {
       autoSaveTimer = null;
     }
   }, delayMs);
+}
+
+/**
+ * Immediately flushes any pending auto-save synchronously before page unload or refresh.
+ */
+export function flushPendingAutoSave(): void {
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+  if (pendingSaveFn) {
+    const fn = pendingSaveFn;
+    pendingSaveFn = null;
+    try {
+      fn();
+      notifySaveState(true);
+    } catch (err) {
+      console.warn("[AutoSave] Error flushing pending auto-save:", err);
+    }
+  }
 }
 
 /**
@@ -67,6 +94,16 @@ export function cancelPendingAutoSave(): void {
     clearTimeout(autoSaveTimer);
     autoSaveTimer = null;
   }
+  pendingSaveFn = null;
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    flushPendingAutoSave();
+  });
+  window.addEventListener("pagehide", () => {
+    flushPendingAutoSave();
+  });
 }
 
 /**
