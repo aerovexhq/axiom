@@ -63,6 +63,8 @@ export const es: Translations = {
     downloadDesktopTitle: "Descargar Studio de escritorio nativo",
     downloadDesktopSubtitle: "Compilación JIT Cranelift nativa en RAM (<50 MB) para Linux, Windows y macOS",
     viewAllDownloads: "Todas las descargas",
+    version: "Versión",
+    latest: "Última",
     createCardTitle: "Crear Nuevo Proyecto",
     createCardDesc: "Inicialice un espacio de trabajo estilo Vivado con dispositivos FPGA objetivo y plantillas RTL de inicio.",
     openCardTitle: "Abrir Proyecto desde Archivo",

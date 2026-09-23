@@ -79,6 +79,8 @@ export interface Translations {
     downloadDesktopTitle: string;
     downloadDesktopSubtitle: string;
     viewAllDownloads: string;
+    version: string;
+    latest: string;
     createCardTitle: string;
     createCardDesc: string;
     openCardTitle: string;

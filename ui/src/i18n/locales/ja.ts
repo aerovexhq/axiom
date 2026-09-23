@@ -63,6 +63,8 @@ export const ja: Translations = {
     downloadDesktopTitle: "ネイティブデスクトップStudioをダウンロード",
     downloadDesktopSubtitle: "Linux、Windows、macOS向けのRAM内ネイティブCranelift JITコンパイル（50MB未満）",
     viewAllDownloads: "すべてのダウンロード",
+    version: "バージョン",
+    latest: "最新",
     createCardTitle: "新規プロジェクト作成",
     createCardDesc: "ターゲットFPGAシリコンとスターターRTLテンプレートを備えたVivadoスタイルプロジェクトを初期化します。",
     openCardTitle: "ファイルから開く",

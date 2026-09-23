@@ -63,6 +63,8 @@ export const tr: Translations = {
     downloadDesktopTitle: "Masaüstü Studio Uygulamasını İndirin",
     downloadDesktopSubtitle: "Linux, Windows ve macOS için RAM içinde yerel Cranelift JIT derlemesi (<50 MB)",
     viewAllDownloads: "Tüm İndirmeler",
+    version: "Sürüm",
+    latest: "En Son",
     createCardTitle: "Yeni Proje Oluştur",
     createCardDesc: "Hedef FPGA silikon parçaları ve başlangıç RTL şablonlarıyla Vivado uyumlu bir proje çalışma alanı başlatın.",
     openCardTitle: "Dosyadan Proje Aç",

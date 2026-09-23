@@ -63,6 +63,8 @@ export const zh: Translations = {
     downloadDesktopTitle: "下载原生桌面版 Studio",
     downloadDesktopSubtitle: "适用于 Linux、Windows 和 macOS 的内存级原生 Cranelift JIT 编译（小于 50 MB）",
     viewAllDownloads: "所有下载项",
+    version: "版本",
+    latest: "最新",
     createCardTitle: "创建新工程",
     createCardDesc: "初始化支持目标 FPGA 芯片器件与入门级 RTL 架构的 Vivado 工程工作空间。",
     openCardTitle: "从文件打开工程",

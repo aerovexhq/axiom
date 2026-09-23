@@ -63,6 +63,8 @@ export const en: Translations = {
     downloadDesktopTitle: "Download Native Desktop Studio",
     downloadDesktopSubtitle: "Native Cranelift JIT compilation in RAM (<50 MB) for Linux, Windows & macOS",
     viewAllDownloads: "All Downloads",
+    version: "Version",
+    latest: "Latest",
     createCardTitle: "Create New Project",
     createCardDesc: "Initialize a Vivado-style project workspace with target FPGA silicon parts and starter RTL templates.",
     openCardTitle: "Open Project from File",

@@ -63,6 +63,8 @@ export const fr: Translations = {
     downloadDesktopTitle: "Télécharger Studio de bureau natif",
     downloadDesktopSubtitle: "Compilation JIT Cranelift native en RAM (<50 Mo) pour Linux, Windows et macOS",
     viewAllDownloads: "Tous les téléchargements",
+    version: "Version",
+    latest: "Dernière",
     createCardTitle: "Créer un Nouveau Projet",
     createCardDesc: "Initialisez un espace de travail Vivado avec des composants FPGA cibles et des modèles RTL d'amorçage.",
     openCardTitle: "Ouvrir un Projet depuis un Fichier",

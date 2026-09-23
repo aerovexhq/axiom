@@ -40,18 +40,9 @@ features:
 
 ## Download Desktop Studio (.msi, .deb, .dmg)
 
-Download native, high-performance desktop packages with direct Cranelift JIT in RAM and zero browser sandbox limits:
+Download native, high-performance desktop packages with direct Cranelift JIT in RAM and zero browser sandbox limits. Releases are automatically fetched from GitHub:
 
-| Platform | Format | Description | Architecture | Download |
-| :--- | :--- | :--- | :--- | :--- |
-| **Windows** | **`.msi`** | Windows Installer (WiX) | x86_64 | [**Download .msi**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_x64_en-US.msi) |
-| **Windows** | **`.exe`** | Setup Installer (NSIS) | x86_64 | [**Download .exe**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_x64-setup.exe) |
-| **Windows** | **`.zip`** | Portable Standalone Binary | x86_64 | [**Download .zip**](https://github.com/aerovexsim/axiom/releases/latest/download/axiom-x86_64-pc-windows-msvc.zip) |
-| **Linux** | **`.deb`** | Debian / Ubuntu Package | amd64 | [**Download .deb**](https://github.com/aerovexsim/axiom/releases/latest/download/axiom_1.0.0_amd64.deb) |
-| **Linux** | **`.AppImage`** | Universal Linux Package | x86_64 | [**Download .AppImage**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_amd64.AppImage) |
-| **Linux** | **`.tar.gz`** | Headless CLI + Desktop Tarball | x86_64 | [**Download .tar.gz**](https://github.com/aerovexsim/axiom/releases/latest/download/axiom-x86_64-unknown-linux-gnu.tar.gz) |
-| **macOS** | **`.dmg`** | Apple Silicon Disk Image | aarch64 (M1-M4) | [**Download .dmg (Apple Silicon)**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_aarch64.dmg) |
-| **macOS** | **`.dmg`** | Intel Mac Disk Image | x86_64 | [**Download .dmg (Intel)**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_x64.dmg) |
+<ReleaseDownloader />
 
 ::: tip GitHub Releases & SHA256 Verification
 All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).
