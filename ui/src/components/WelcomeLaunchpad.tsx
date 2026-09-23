@@ -34,8 +34,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownSelect
+  DropdownMenuItem
 } from "./ui";
 import { toast } from "../engine/toast";
 import {
@@ -46,7 +45,7 @@ import {
 } from "../engine/windowManager";
 
 interface WelcomeLaunchpadProps {
-  onOpenNewProject: (templateId?: string) => void;
+  onOpenNewProject: (templateId?: string, lessonId?: string) => void;
   onSelectTemplate?: (templateId: string, lessonId?: string) => void;
   onImportProjectJson: (jsonStr: string) => void;
   projects?: ProjectMetadata[];
@@ -112,7 +111,7 @@ const FALLBACK_LAUNCHPAD_RELEASES: GithubReleaseItem[] = [
 
 export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   onOpenNewProject,
-  onSelectTemplate,
+  onSelectTemplate: _onSelectTemplate,
   onImportProjectJson,
   projects = [],
   onOpenProject,
@@ -125,7 +124,6 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectsTab, setProjectsTab] = useState<"active" | "trash">("active");
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
-  const [selectedClassLessonId, setSelectedClassLessonId] = useState<string>("lesson_1");
   const [, setLeaseVersion] = useState<number>(0);
   const [githubReleases, setGithubReleases] = useState<GithubReleaseItem[]>(FALLBACK_LAUNCHPAD_RELEASES);
   const [selectedReleaseTag, setSelectedReleaseTag] = useState<string>(FALLBACK_LAUNCHPAD_RELEASES[0].tag_name);
@@ -915,111 +913,58 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
         >
           {PROJECT_TEMPLATES.map((tmpl: ProjectTemplate) => {
             if (tmpl.id === "class_examples_project") {
-              return (
+              return (tmpl.lessons ?? []).map((lesson) => (
                 <div
-                  key={tmpl.id}
-                  className="axiom-card"
+                  key={`${tmpl.id}_${lesson.id}`}
+                  onClick={() => onOpenNewProject(tmpl.id, lesson.id)}
+                  className="axiom-card axiom-card-hover"
                   style={{
                     padding: "15px",
+                    cursor: "pointer",
                     display: "flex",
                     flexDirection: "column",
-                    gap: 10,
-                    border: "1px solid rgba(6, 182, 212, 0.3)",
-                    background: "linear-gradient(180deg, rgba(6, 182, 212, 0.04) 0%, rgba(18, 24, 33, 0.95) 100%)"
+                    gap: 8
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      {getTemplateIcon(tmpl.id)}
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-                            {tmpl.name}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 9.5,
-                              fontWeight: 600,
-                              padding: "1px 5px",
-                              borderRadius: "var(--radius-xs)",
-                              backgroundColor: "rgba(6, 182, 212, 0.15)",
-                              color: "var(--accent-cyan)",
-                              border: "1px solid rgba(6, 182, 212, 0.3)"
-                            }}
-                          >
-                            IUC
-                          </span>
-                        </div>
+                      <GraduationCap size={16} color="var(--accent-cyan)" />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                          {lesson.title}: {lesson.subtitle.split("—")[0].trim()}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 9.5,
+                            fontWeight: 600,
+                            padding: "1px 5px",
+                            borderRadius: "var(--radius-xs)",
+                            backgroundColor: "rgba(6, 182, 212, 0.15)",
+                            color: "var(--accent-cyan)",
+                            border: "1px solid rgba(6, 182, 212, 0.3)"
+                          }}
+                        >
+                          IUC
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: 0, lineHeight: 1.45 }}>
-                    {tmpl.description}
+                    {lesson.description}
                   </p>
 
-                  {/* Course Lessons Dropdown */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                        Course Lessons
-                      </span>
-                      <span className="mono-num" style={{ fontSize: 10, color: "var(--accent-cyan)" }}>
-                        {tmpl.lessons?.length ?? 1} {(tmpl.lessons?.length ?? 1) === 1 ? "Lesson" : "Lessons"}
-                      </span>
-                    </div>
-
-                    <DropdownSelect
-                      value={selectedClassLessonId}
-                      onChange={(val) => setSelectedClassLessonId(val)}
-                      options={(tmpl.lessons ?? []).map((lesson) => ({
-                        value: lesson.id,
-                        label: lesson.title,
-                        subtitle: lesson.subtitle
-                      }))}
-                      style={{ width: "100%" }}
-                      buttonStyle={{
-                        height: 28,
-                        fontSize: 11.5,
-                        backgroundColor: "var(--bg-tertiary)",
-                        border: "1px solid var(--border-medium)",
-                        borderRadius: "var(--radius-xs)",
-                        color: "var(--text-primary)",
-                        fontWeight: 500
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
                     <span className="mono-num" style={{ fontSize: 10.5, color: "var(--accent-cyan)" }}>
                       Basys 3 (Artix-7)
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onSelectTemplate) {
-                          onSelectTemplate(tmpl.id, selectedClassLessonId);
-                        } else {
-                          onOpenNewProject(tmpl.id);
-                        }
-                      }}
-                      className="btn btn-primary"
-                      style={{
-                        height: 24,
-                        padding: "0 8px",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 3
-                      }}
-                    >
+                    <span style={{ fontSize: 10.5, color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: 3, fontWeight: 600 }}>
                       <span>{t("launchpad.createTemplate")}</span>
                       <ChevronRight size={11} />
-                    </button>
+                    </span>
                   </div>
                 </div>
-              );
+              ));
             }
 
             return (
@@ -1048,9 +993,9 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                   {tmpl.description}
                 </p>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 7, borderTop: "1px solid var(--border-subtle)" }}>
                   <span className="mono-num" style={{ fontSize: 10.5, color: "var(--accent-cyan)" }}>
-                    {tmpl.defaultDevice.split(" ")[0]}
+                    {tmpl.defaultDevice.includes("xc7a35t") ? "Artix-7" : tmpl.defaultDevice.includes("xc7z020") ? "Zynq-7000" : "Kintex"}
                   </span>
                   <span style={{ fontSize: 10.5, color: "var(--accent-blue)", display: "flex", alignItems: "center", gap: 3, fontWeight: 600 }}>
                     <span>{t("launchpad.createTemplate")}</span>

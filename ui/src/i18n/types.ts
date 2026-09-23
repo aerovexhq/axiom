@@ -341,6 +341,9 @@ export interface Translations {
     projectName: string;
     targetDevice: string;
     starterTemplate: string;
+    classExampleProject: string;
+    classExampleDesc: string;
+    classExampleBadge: string;
     addSourceTitle: string;
     addSourceSubtitle: string;
     fileSet: string;

@@ -169,6 +169,7 @@ export const App: React.FC = () => {
   const [isOmnibarOpen, setIsOmnibarOpen] = useState<boolean>(false);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState<boolean>(false);
   const [newProjectInitialTemplateId, setNewProjectInitialTemplateId] = useState<string>("logic_circuit_project");
+  const [newProjectInitialLessonId, setNewProjectInitialLessonId] = useState<string | undefined>(undefined);
   const [projects, setProjects] = useState<ProjectMetadata[]>(() => loadProjectRegistry());
   const [isAddSourceOpen, setIsAddSourceOpen] = useState<boolean>(false);
   const [addSourceInitialFileSet, setAddSourceInitialFileSet] = useState<FileSetType | undefined>(undefined);
@@ -623,10 +624,11 @@ export const App: React.FC = () => {
     engineBridge.reset();
   }, []);
 
-  const handleOpenNewProject = useCallback((templateId?: string) => {
+  const handleOpenNewProject = useCallback((templateId?: string, lessonId?: string) => {
     if (templateId) {
       setNewProjectInitialTemplateId(templateId);
     }
+    setNewProjectInitialLessonId(lessonId);
     setIsNewProjectOpen(true);
   }, []);
 
@@ -2632,9 +2634,13 @@ export const App: React.FC = () => {
       {/* Vivado New Project Wizard Modal */}
       <NewProjectModal
         isOpen={isNewProjectOpen}
-        onClose={() => setIsNewProjectOpen(false)}
+        onClose={() => {
+          setIsNewProjectOpen(false);
+          setNewProjectInitialLessonId(undefined);
+        }}
         onCreateProject={handleCreateProject}
         initialTemplateId={newProjectInitialTemplateId}
+        initialLessonId={newProjectInitialLessonId}
       />
 
       {/* Vivado Add Source File Modal */}

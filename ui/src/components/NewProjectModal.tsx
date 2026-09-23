@@ -9,7 +9,8 @@ import {
   Cpu,
   HardDrive,
   Search,
-  CheckCircle2
+  CheckCircle2,
+  GraduationCap
 } from "lucide-react";
 import {
   PROJECT_TEMPLATES,
@@ -27,15 +28,17 @@ import { FPGA_PARTS_DATABASE, DEFAULT_PART_ID } from "../engine/partsCatalog";
 import { FPGA_BOARDS_DATABASE, FpgaBoard } from "../engine/boardsCatalog";
 import { isDesktop, openFolderDialog } from "../engine/platform";
 import { Modal, Input, Button, Card, Badge, DropdownSelect } from "./ui";
+import { useTranslation } from "../i18n";
 
 interface NewProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateProject: (project: AxiomProject) => void;
   initialTemplateId?: string;
+  initialLessonId?: string;
 }
 
-export type ProjectType = "rtl" | "post_synthesis" | "io_planning" | "imported" | "example";
+export type ProjectType = "rtl" | "post_synthesis" | "io_planning" | "imported" | "example" | "class_example";
 
 /**
  * Calculates the next default project name (e.g. project_1, project_2, etc.)
@@ -53,8 +56,10 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   isOpen,
   onClose,
   onCreateProject,
-  initialTemplateId = "logic_circuit_project"
+  initialTemplateId = "logic_circuit_project",
+  initialLessonId
 }) => {
+  const { t } = useTranslation();
   // Step state: 1: Name & Location, 2: Project Type, 3: Default Part & Boards, 4: Summary
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -73,6 +78,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   const [projectType, setProjectType] = useState<ProjectType>("rtl");
   const [doNotSpecifySources, setDoNotSpecifySources] = useState<boolean>(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(initialTemplateId);
+  const [selectedClassLessonId, setSelectedClassLessonId] = useState<string>(initialLessonId || "lesson_1");
 
   // Step 3: Default Part & Boards
   const [catalogTab, setCatalogTab] = useState<"parts" | "boards">("parts");
@@ -92,19 +98,54 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(1);
-      const nextName = getNextDefaultProjectName(existingProjects);
+      const isClassExample = initialTemplateId === "class_examples_project" || Boolean(initialLessonId);
+      const isRegularExample = Boolean(
+        initialTemplateId &&
+        initialTemplateId !== "class_examples_project" &&
+        initialTemplateId !== "logic_circuit_project" &&
+        initialTemplateId !== "empty_project"
+      );
+
+      let nextName = getNextDefaultProjectName(existingProjects);
+      if (isClassExample) {
+        const classTmpl = PROJECT_TEMPLATES.find((t) => t.id === "class_examples_project");
+        const lesson = classTmpl?.lessons?.find((l) => l.id === (initialLessonId || "lesson_1")) ?? classTmpl?.lessons?.[0];
+        if (lesson) {
+          nextName = lesson.defaultTopModule;
+        }
+      } else if (initialTemplateId && initialTemplateId !== "empty_project") {
+        const tmpl = PROJECT_TEMPLATES.find((t) => t.id === initialTemplateId);
+        if (tmpl) {
+          nextName = tmpl.defaultTopModule;
+        }
+      }
+
       setProjectName(nextName);
-      setProjectType("rtl");
+      setProjectType(isClassExample ? "class_example" : isRegularExample ? "example" : "rtl");
       setDoNotSpecifySources(false);
       setSelectedTemplateId(initialTemplateId);
-      setSelectedPartId(DEFAULT_PART_ID);
-      setSelectedBoardId(null);
+      setSelectedClassLessonId(initialLessonId || "lesson_1");
+
+      if (isClassExample) {
+        const basysBoard = FPGA_BOARDS_DATABASE.find((b) => b.id === "basys3" || b.name.includes("Basys 3"));
+        if (basysBoard) {
+          setSelectedBoardId(basysBoard.id);
+          setSelectedPartId(basysBoard.targetPartId);
+        } else {
+          setSelectedPartId("xc7a35tcpg236-1");
+          setSelectedBoardId(null);
+        }
+      } else {
+        setSelectedPartId(DEFAULT_PART_ID);
+        setSelectedBoardId(null);
+      }
+
       setCatalogTab("parts");
       if (typeof window !== "undefined") {
         setProjectLocation(isDesktop() ? "~/AxiomProjects" : "/projects");
       }
     }
-  }, [isOpen, existingProjects, initialTemplateId]);
+  }, [isOpen, existingProjects, initialTemplateId, initialLessonId]);
 
   // Name Validation
   const validation = useMemo(() => {
@@ -179,6 +220,13 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
         selectedTemplateId,
         finalName,
         selectedPart.name
+      );
+    } else if (projectType === "class_example") {
+      newProj = createProjectFromTemplate(
+        "class_examples_project",
+        finalName,
+        selectedPart.name,
+        selectedClassLessonId
       );
     } else {
       const files: ProjectFile[] = [];
@@ -654,6 +702,99 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 </div>
               </div>
             </Card>
+
+            {/* Class Example Project */}
+            <Card
+              clickable
+              selected={projectType === "class_example"}
+              onClick={() => {
+                setProjectType("class_example");
+                const classTmpl = PROJECT_TEMPLATES.find((t) => t.id === "class_examples_project");
+                const lesson = classTmpl?.lessons?.find((l) => l.id === selectedClassLessonId) ?? classTmpl?.lessons?.[0];
+                if (lesson) {
+                  setProjectName(lesson.defaultTopModule);
+                }
+              }}
+              style={{ padding: "12px 16px" }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <input
+                  type="radio"
+                  name="project_type"
+                  checked={projectType === "class_example"}
+                  onChange={() => {
+                    setProjectType("class_example");
+                    const classTmpl = PROJECT_TEMPLATES.find((t) => t.id === "class_examples_project");
+                    const lesson = classTmpl?.lessons?.find((l) => l.id === selectedClassLessonId) ?? classTmpl?.lessons?.[0];
+                    if (lesson) {
+                      setProjectName(lesson.defaultTopModule);
+                    }
+                  }}
+                  style={{ marginTop: 2, cursor: "pointer" }}
+                />
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <GraduationCap size={15} color={projectType === "class_example" ? "var(--accent-cyan)" : "var(--text-muted)"} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: projectType === "class_example" ? "var(--accent-blue)" : "var(--text-primary)" }}>
+                        {t("modals.classExampleProject")}
+                      </span>
+                    </div>
+                    <Badge color="cyan" size="sm">{t("modals.classExampleBadge")}</Badge>
+                  </div>
+                  <p style={{ fontSize: 11.5, color: "var(--text-secondary)", margin: 0, lineHeight: 1.4 }}>
+                    {t("modals.classExampleDesc")}
+                  </p>
+
+                  {/* Class Lesson Sub-Selection */}
+                  {projectType === "class_example" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginTop: 8 }}>
+                      {PROJECT_TEMPLATES.find((tmpl) => tmpl.id === "class_examples_project")?.lessons?.map((lesson) => {
+                        const isLessonSelected = selectedClassLessonId === lesson.id;
+                        return (
+                          <div
+                            key={lesson.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedClassLessonId(lesson.id);
+                              setProjectName(lesson.defaultTopModule);
+                            }}
+                            style={{
+                              padding: "9px 12px",
+                              backgroundColor: isLessonSelected ? "rgba(6, 182, 212, 0.15)" : "var(--bg-tertiary)",
+                              border: `1px solid ${isLessonSelected ? "var(--accent-cyan)" : "var(--border-subtle)"}`,
+                              borderRadius: "var(--radius-sm)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              transition: "all 0.15s ease"
+                            }}
+                          >
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 11.5, fontWeight: 600, color: isLessonSelected ? "var(--accent-cyan)" : "var(--text-primary)" }}>
+                                  {lesson.title}: {lesson.subtitle.split("—")[0].trim()}
+                                </span>
+                                <span style={{ fontSize: 9.5, color: "var(--text-muted)", fontStyle: "italic" }}>
+                                  ({lesson.course})
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+                                {lesson.files.length} Files • Top: <strong style={{ color: "var(--text-secondary)" }}>{lesson.defaultTopModule}</strong> • Basys 3 (Artix-7)
+                              </span>
+                            </div>
+                            {isLessonSelected && (
+                              <CheckCircle2 size={15} color="var(--accent-cyan)" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       )}
@@ -951,6 +1092,8 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                   ? "I/O Planning Project"
                   : projectType === "imported"
                   ? "Imported Project"
+                  : projectType === "class_example"
+                  ? "Class Example Project"
                   : "Example Project"}
               </span>
 
@@ -960,6 +1103,17 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                   <span style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--accent-emerald)" }}>
                     <Check size={13} />
                     <span>Design Sources: untitled.v (Top Module)</span>
+                  </span>
+                ) : projectType === "class_example" ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--accent-cyan)" }}>
+                    <Check size={13} />
+                    <span>
+                      Coursework Lesson: {
+                        PROJECT_TEMPLATES.find((t) => t.id === "class_examples_project")?.lessons?.find((l) => l.id === selectedClassLessonId)?.title ?? "Lesson 1"
+                      } (Top: {
+                        PROJECT_TEMPLATES.find((t) => t.id === "class_examples_project")?.lessons?.find((l) => l.id === selectedClassLessonId)?.defaultTopModule ?? "uygulama_0"
+                      })
+                    </span>
                   </span>
                 ) : projectType === "example" ? (
                   <span>Curated Starter Template ({PROJECT_TEMPLATES.find((t) => t.id === selectedTemplateId)?.name})</span>
