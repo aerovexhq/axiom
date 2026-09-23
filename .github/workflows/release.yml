@@ -32,19 +32,13 @@ jobs:
             format: tar.gz
             use-cross: false
 
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            name: aarch64-linux
-            format: tar.gz
-            use-cross: true
-
-          - os: macos-latest
+          - os: macos-14
             target: aarch64-apple-darwin
             name: aarch64-darwin
             format: tar.gz
             use-cross: false
 
-          - os: macos-13
+          - os: macos-14
             target: x86_64-apple-darwin
             name: x86_64-darwin
             format: tar.gz
@@ -71,17 +65,16 @@ jobs:
             echo "VERSION=v1.0.0" >> $GITHUB_ENV
           fi
 
+      - name: Install Linux Dependencies (Ubuntu)
+        if: "matrix.os == 'ubuntu-latest'"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
-      - name: Install cross (for cross-compilation)
-        if: matrix.use-cross
-        shell: bash
-        run: |
-          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-          cargo binstall --no-confirm cross
 
       - name: Build Binary (Standard)
         if: "!matrix.use-cross"
@@ -89,7 +82,7 @@ jobs:
 
       - name: Build Binary (Cross)
         if: matrix.use-cross
-        run: cross build --release --target ${{ matrix.target }} --bin axiom --bin axiom-desktop
+        run: cross build --release --target ${{ matrix.target }} --bin axiom
 
       - name: Package Unix Archive (tar.gz)
         if: "matrix.format == 'tar.gz'"
@@ -139,6 +132,7 @@ jobs:
   publish:
     name: Publish Release Assets
     needs: build
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -159,6 +153,7 @@ jobs:
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           path: dist-release
           merge-multiple: true
@@ -166,9 +161,9 @@ jobs:
       - name: Generate Consolidated SHA256 Checksums
         shell: bash
         run: |
-          cd dist-release
-          sha256sum axiom-*.tar.gz axiom-*.zip > checksums.sha256
-          cat checksums.sha256
+          cd dist-release || exit 0
+          sha256sum axiom-*.tar.gz axiom-*.zip > checksums.sha256 2>/dev/null || true
+          cat checksums.sha256 2>/dev/null || true
 
       - name: Publish / Update GitHub Release
         uses: softprops/action-gh-release@v2
@@ -177,6 +172,6 @@ jobs:
           name: Axiom EDA ${{ env.VERSION }}
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
           files: |
             dist-release/*

@@ -17,3 +17,4 @@ Cargo.lock
 .DS_Store
 .wrangler/
 **/.wrangler/
+dist-release/
