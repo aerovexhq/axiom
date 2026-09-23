@@ -1028,9 +1028,6 @@ export const App: React.FC = () => {
     setHighlightLineSpan({ lineStart, lineEnd });
   };
 
-  // Dynamic Resizable Layout State
-  const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-
   const handleSidebarResize = useCallback((deltaPx: number) => {
     setSidebarWidth((prev) => {
       const next = Math.max(220, Math.min(500, Math.round(prev + deltaPx)));
@@ -1541,8 +1538,6 @@ export const App: React.FC = () => {
           isMobile={isMobile}
           onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
           activeMobilePanel={activeMobilePanel}
-          editorWidthPercent={editorWidthPercent}
-          onSetEditorWidthPercent={setEditorWidthPercent}
           maximizedPanel={maximizedLeafId || maximizedPanel}
           onRestoreMaximizedPanel={() => {
             setMaximizedLeafId(null);
@@ -1551,7 +1546,6 @@ export const App: React.FC = () => {
           activeCrossProbeSignal={activeCrossProbeSignal}
           onOpenOmnibar={() => setIsOmnibarOpen(true)}
           onOpenLabGrader={() => setIsLabGraderOpen(true)}
-          isSplitView={activeLayout.root.type === "split"}
           isCodeDirty={isCodeDirty}
           onRunSimulation={handleRunSimulation}
           onStepSimulation={handleStepSimulation}

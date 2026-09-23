@@ -11,7 +11,6 @@ import {
   Bug,
   Menu,
   Search,
-  Columns,
   Minimize2,
   GraduationCap,
   ShieldAlert
@@ -37,14 +36,11 @@ interface HeaderProps {
   isMobile?: boolean;
   onToggleMobileDrawer?: () => void;
   activeMobilePanel?: MobilePanelType;
-  editorWidthPercent?: number;
-  onSetEditorWidthPercent?: (pct: number) => void;
   maximizedPanel?: string | null;
   onRestoreMaximizedPanel?: () => void;
   activeCrossProbeSignal?: string | null;
   onOpenOmnibar?: () => void;
   onOpenLabGrader?: () => void;
-  isSplitView?: boolean;
   isCodeDirty?: boolean;
   onRunSimulation?: () => void;
   onStepSimulation?: (stepPs: number) => void;
@@ -66,14 +62,11 @@ export const Header: React.FC<HeaderProps> = ({
   isMobile = false,
   onToggleMobileDrawer,
   activeMobilePanel: _activeMobilePanel,
-  editorWidthPercent,
-  onSetEditorWidthPercent,
   maximizedPanel,
   onRestoreMaximizedPanel,
   activeCrossProbeSignal,
   onOpenOmnibar,
   onOpenLabGrader,
-  isSplitView = true,
   isCodeDirty = false,
   onRunSimulation,
   onStepSimulation,
@@ -601,76 +594,6 @@ export const Header: React.FC<HeaderProps> = ({
           </>
         )}
 
-        {/* Quick Layout Presets for Split View */}
-        {project && isSplitView && !maximizedPanel && onSetEditorWidthPercent && editorWidthPercent !== undefined && (
-          <>
-            <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                backgroundColor: "var(--bg-primary)",
-                padding: "2px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-subtle)"
-              }}
-            >
-              <Columns size={11} color="var(--text-muted)" style={{ margin: "0 2px" }} />
-              <button
-                onClick={() => onSetEditorWidthPercent(42)}
-                title={`${t("header.balanced")} (42% / 58%)`}
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: Math.abs(editorWidthPercent - 42) < 2 ? 700 : 500,
-                  padding: "1px 6px",
-                  borderRadius: 2,
-                  border: "none",
-                  cursor: "pointer",
-                  backgroundColor: Math.abs(editorWidthPercent - 42) < 2 ? "var(--bg-elevated)" : "transparent",
-                  color: Math.abs(editorWidthPercent - 42) < 2 ? "var(--accent-blue)" : "var(--text-muted)",
-                  transition: "all var(--transition-fast)"
-                }}
-              >
-                {t("header.balanced")}
-              </button>
-              <button
-                onClick={() => onSetEditorWidthPercent(55)}
-                title={`${t("header.codeFocus")} (55% / 45%)`}
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: Math.abs(editorWidthPercent - 55) < 2 ? 700 : 500,
-                  padding: "1px 6px",
-                  borderRadius: 2,
-                  border: "none",
-                  cursor: "pointer",
-                  backgroundColor: Math.abs(editorWidthPercent - 55) < 2 ? "var(--bg-elevated)" : "transparent",
-                  color: Math.abs(editorWidthPercent - 55) < 2 ? "var(--accent-blue)" : "var(--text-muted)",
-                  transition: "all var(--transition-fast)"
-                }}
-              >
-                {t("header.codeFocus")}
-              </button>
-              <button
-                onClick={() => onSetEditorWidthPercent(25)}
-                title={`${t("header.visualFocus")} (25% / 75%)`}
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: Math.abs(editorWidthPercent - 25) < 2 ? 700 : 500,
-                  padding: "1px 6px",
-                  borderRadius: 2,
-                  border: "none",
-                  cursor: "pointer",
-                  backgroundColor: Math.abs(editorWidthPercent - 25) < 2 ? "var(--bg-elevated)" : "transparent",
-                  color: Math.abs(editorWidthPercent - 25) < 2 ? "var(--accent-blue)" : "var(--text-muted)",
-                  transition: "all var(--transition-fast)"
-                }}
-              >
-                {t("header.visualFocus")}
-              </button>
-            </div>
-          </>
-        )}
 
         {/* Cross Probe Active Signal */}
         {project && activeCrossProbeSignal && (
