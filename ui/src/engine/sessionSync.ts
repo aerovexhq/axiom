@@ -13,11 +13,19 @@ export interface SessionSyncEvent {
  */
 export const SESSION_ID: string = (() => {
   if (typeof window !== "undefined") {
-    const existing = (window as unknown as { __AXIOM_SESSION_ID__?: string }).__AXIOM_SESSION_ID__;
-    if (existing) return existing;
-    const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    (window as unknown as { __AXIOM_SESSION_ID__?: string }).__AXIOM_SESSION_ID__ = created;
-    return created;
+    try {
+      const stored = sessionStorage.getItem("__AXIOM_SESSION_ID__");
+      if (stored) return stored;
+      const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      sessionStorage.setItem("__AXIOM_SESSION_ID__", created);
+      return created;
+    } catch {
+      const existing = (window as unknown as { __AXIOM_SESSION_ID__?: string }).__AXIOM_SESSION_ID__;
+      if (existing) return existing;
+      const created = `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      (window as unknown as { __AXIOM_SESSION_ID__?: string }).__AXIOM_SESSION_ID__ = created;
+      return created;
+    }
   }
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 })();

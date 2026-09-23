@@ -99,6 +99,26 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   const [synthKindFilter, setSynthKindFilter] = useState<string>("all");
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [copiedNetlist, setCopiedNetlist] = useState<boolean>(false);
+  const [copiedDiagnosticIdx, setCopiedDiagnosticIdx] = useState<number | null>(null);
+  const [copiedAllProblems, setCopiedAllProblems] = useState<boolean>(false);
+
+  const handleCopyProblem = (d: LspDiagnostic, idx: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const text = `[${d.code}] Line ${d.startLineNumber}:${d.startColumn} - ${d.message}${d.help ? ` (help: ${d.help})` : ""}`;
+    navigator.clipboard.writeText(text);
+    setCopiedDiagnosticIdx(idx);
+    setTimeout(() => setCopiedDiagnosticIdx(null), 1500);
+  };
+
+  const handleCopyAllProblems = () => {
+    if (!diagnostics || diagnostics.length === 0) return;
+    const text = diagnostics.map((d) =>
+      `[${d.code}] Line ${d.startLineNumber}:${d.startColumn} - ${d.message}${d.help ? ` (help: ${d.help})` : ""}`
+    ).join("\n");
+    navigator.clipboard.writeText(text);
+    setCopiedAllProblems(true);
+    setTimeout(() => setCopiedAllProblems(false), 1500);
+  };
 
   const liveValuesMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -1527,8 +1547,34 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                   <span>{infoCount} Info/Hints</span>
                 </span>
               </div>
-              <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 9 }}>
-                Engine: <span style={{ color: "var(--accent-cyan)" }}>axiom-lsp v1.0.0</span> (IEEE 1800-2017)
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {diagnostics.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleCopyAllProblems}
+                    className="btn-icon"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "2px 6px",
+                      fontSize: 9.5,
+                      fontFamily: "var(--font-mono)",
+                      color: copiedAllProblems ? "var(--accent-emerald)" : "var(--text-muted)",
+                      backgroundColor: "var(--bg-secondary)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "var(--radius-sm)",
+                      cursor: "pointer"
+                    }}
+                    title={t("dock.copyAllProblems")}
+                  >
+                    {copiedAllProblems ? <Check size={10} /> : <Copy size={10} />}
+                    <span>{copiedAllProblems ? t("dock.copiedProblems") : t("dock.copyAllProblems")}</span>
+                  </button>
+                )}
+                <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 9 }}>
+                  Engine: <span style={{ color: "var(--accent-cyan)" }}>axiom-lsp v1.0.0</span> (IEEE 1800-2017)
+                </div>
               </div>
             </div>
 
@@ -1545,29 +1591,39 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                   </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {diagnostics.map((d, idx) => {
                     const isErr = d.severity === 1;
                     const isWarn = d.severity === 2;
                     return (
                       <div
                         key={idx}
-                        onClick={() => onNavigateToLine?.(d.startLineNumber, d.startColumn)}
+                        onClick={() => {
+                          const sel = typeof window !== "undefined" ? window.getSelection()?.toString() : "";
+                          if (!sel || sel.trim().length === 0) {
+                            onNavigateToLine?.(d.startLineNumber, d.startColumn);
+                          }
+                        }}
                         style={{
                           display: "flex",
-                          alignItems: "flex-start",
+                          alignItems: "center",
                           gap: 8,
-                          padding: "6px 10px",
+                          padding: "4px 8px",
                           borderRadius: "var(--radius-sm)",
                           backgroundColor: isErr ? "rgba(244, 63, 94, 0.06)" : isWarn ? "rgba(245, 158, 11, 0.06)" : "rgba(56, 189, 248, 0.06)",
                           border: `1px solid ${isErr ? "rgba(244, 63, 94, 0.25)" : isWarn ? "rgba(245, 158, 11, 0.25)" : "rgba(56, 189, 248, 0.25)"}`,
                           cursor: "pointer",
-                          transition: "background-color 0.15s ease"
+                          userSelect: "text",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          transition: "background-color 0.15s ease",
+                          fontSize: 11
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isErr ? "rgba(244, 63, 94, 0.12)" : isWarn ? "rgba(245, 158, 11, 0.12)" : "rgba(56, 189, 248, 0.12)")}
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isErr ? "rgba(244, 63, 94, 0.06)" : isWarn ? "rgba(245, 158, 11, 0.06)" : "rgba(56, 189, 248, 0.06)")}
                       >
-                        <div style={{ marginTop: 2 }}>
+                        <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
                           {isErr ? (
                             <AlertCircle size={13} color="var(--accent-rose)" />
                           ) : isWarn ? (
@@ -1577,44 +1633,92 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                           )}
                         </div>
 
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                            <span
-                              style={{
-                                fontSize: 9,
-                                fontWeight: 700,
-                                fontFamily: "var(--font-mono)",
-                                color: isErr ? "var(--accent-rose)" : isWarn ? "var(--accent-amber)" : "var(--accent-blue)",
-                                backgroundColor: isErr ? "rgba(244, 63, 94, 0.15)" : isWarn ? "rgba(245, 158, 11, 0.15)" : "rgba(56, 189, 248, 0.15)",
-                                padding: "1px 5px",
-                                borderRadius: 3
-                              }}
-                            >
-                              {d.code}
-                            </span>
+                        <span
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 700,
+                            fontFamily: "var(--font-mono)",
+                            color: isErr ? "var(--accent-rose)" : isWarn ? "var(--accent-amber)" : "var(--accent-blue)",
+                            backgroundColor: isErr ? "rgba(244, 63, 94, 0.15)" : isWarn ? "rgba(245, 158, 11, 0.15)" : "rgba(56, 189, 248, 0.15)",
+                            padding: "1px 5px",
+                            borderRadius: 3,
+                            flexShrink: 0,
+                            userSelect: "text"
+                          }}
+                        >
+                          {d.code}
+                        </span>
 
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontFamily: "var(--font-mono)",
-                                color: "var(--accent-cyan)",
-                                textDecoration: "underline"
-                              }}
-                            >
-                              Line {d.startLineNumber}:{d.startColumn}
-                            </span>
-                          </div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--accent-cyan)",
+                            textDecoration: "underline",
+                            flexShrink: 0,
+                            userSelect: "text"
+                          }}
+                        >
+                          Line {d.startLineNumber}:{d.startColumn}
+                        </span>
 
-                          <div style={{ fontSize: 11, color: "var(--text-primary)", lineHeight: 1.4 }}>
-                            {d.message}
-                          </div>
+                        <span style={{ color: "var(--border-subtle)", flexShrink: 0 }}>—</span>
 
-                          {d.help && (
-                            <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, fontStyle: "italic" }}>
-                              ↳ help: {d.help}
-                            </div>
-                          )}
-                        </div>
+                        <span
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            color: "var(--text-primary)",
+                            userSelect: "text",
+                            cursor: "text"
+                          }}
+                          title={d.message}
+                        >
+                          {d.message}
+                        </span>
+
+                        {d.help && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: "var(--text-muted)",
+                              fontStyle: "italic",
+                              flexShrink: 0,
+                              maxWidth: 240,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              userSelect: "text"
+                            }}
+                            title={`help: ${d.help}`}
+                          >
+                            ↳ help: {d.help}
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyProblem(d, idx, e)}
+                          className="btn-icon"
+                          style={{
+                            flexShrink: 0,
+                            padding: "2px 4px",
+                            borderRadius: "var(--radius-sm)",
+                            color: copiedDiagnosticIdx === idx ? "var(--accent-emerald)" : "var(--text-muted)",
+                            backgroundColor: "transparent",
+                            cursor: "pointer",
+                            border: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center"
+                          }}
+                          title={copiedDiagnosticIdx === idx ? t("dock.copiedProblems") : t("dock.copyProblem")}
+                        >
+                          {copiedDiagnosticIdx === idx ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
                       </div>
                     );
                   })}

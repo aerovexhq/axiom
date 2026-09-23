@@ -130,6 +130,28 @@ export function releaseActiveProjectLease(projectId: string): void {
 }
 
 /**
+ * Takes over an active project lease forcefully for the current session.
+ */
+export function takeOverProjectLease(projectId: string, projectName: string): void {
+  const leases = getLeaseMap();
+  leases[projectId] = {
+    sessionId: SESSION_ID,
+    projectId,
+    projectName,
+    lastHeartbeat: Date.now()
+  };
+  saveLeaseMap(leases);
+}
+
+/**
+ * Gets the current lease for a project, if any.
+ */
+export function getProjectLease(projectId: string): ProjectLease | null {
+  const leases = getLeaseMap();
+  return leases[projectId] || null;
+}
+
+/**
  * Opens a new Axiom window (Desktop WebviewWindow or Browser tab).
  * If a projectId is provided, verifies it is not already active in another window.
  */
@@ -151,8 +173,12 @@ export async function openInNewWindow(projectId?: string, projectName?: string):
     }
   }
 
-  // Web Browser fallback
-  const url = projectId ? `?project=${encodeURIComponent(projectId)}` : "/";
+  // Web Browser fallback: preserve /studio/ path when running on web
+  const basePath = typeof window !== "undefined"
+    ? (window.location.pathname.startsWith("/studio") ? "/studio/" : window.location.pathname)
+    : "/";
+  const url = projectId ? `${basePath}?project=${encodeURIComponent(projectId)}` : basePath;
   window.open(url, "_blank");
   return true;
 }
+

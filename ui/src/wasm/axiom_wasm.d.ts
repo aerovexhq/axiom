@@ -151,6 +151,16 @@ export function wasm_decode_protocol(request_json: string): any;
 export function wasm_evaluate_ppa(verilog_source: string, xdc_source: string, top_module?: string | null, target_device?: string | null, target_clock_freq_mhz?: number | null, junction_temp_c?: number | null, core_voltage_v?: number | null, pdk?: string | null): any;
 
 /**
+ * Standalone WebAssembly function to export structural Verilog from synthesized netlist.
+ */
+export function wasm_export_synthesized_verilog(source: string, top_module?: string | null, device?: string | null): string;
+
+/**
+ * Standalone WebAssembly function to generate physical FPGA silicon floorplan from HDL source.
+ */
+export function wasm_generate_floorplan(source: string, top_module?: string | null, device?: string | null): any;
+
+/**
  * Standalone WebAssembly function to generate coverage report for given source and simulated time.
  */
 export function wasm_get_coverage(source: string, top_module?: string | null, sim_time_ps?: bigint | null): any;
@@ -196,6 +206,11 @@ export function wasm_partition_multidie(source: string, top_module?: string | nu
 export function wasm_recommend_pipeline(verilog_source: string, xdc_source: string, top_module?: string | null): any;
 
 /**
+ * Standalone WebAssembly function to run Bounded Model Checking (BMC) and Formal Property Verification.
+ */
+export function wasm_run_formal(source: string, top_module?: string | null, max_depth?: number | null, engine_mode?: string | null, clock_name?: string | null, reset_name?: string | null): any;
+
+/**
  * Standalone WebAssembly function to run Static Timing Analysis (STA).
  */
 export function wasm_run_sta(verilog_source: string, xdc_source: string, top_module?: string | null): any;
@@ -206,29 +221,14 @@ export function wasm_run_sta(verilog_source: string, xdc_source: string, top_mod
 export function wasm_synthesize_microarch(source: string, top_module?: string | null): any;
 
 /**
- * Standalone WebAssembly function to verify SVA assertions on Verilog source.
- */
-export function wasm_verify_assertions(source: string, top_module?: string | null, sim_time_ps?: bigint | null): any;
-
-/**
  * Standalone WebAssembly function to synthesize HDL source into technology-mapped netlist.
  */
 export function wasm_synthesize_netlist(source: string, top_module?: string | null, device?: string | null): any;
 
 /**
- * Standalone WebAssembly function to export structural Verilog from synthesized netlist.
+ * Standalone WebAssembly function to verify SVA assertions on Verilog source.
  */
-export function wasm_export_synthesized_verilog(source: string, top_module?: string | null, device?: string | null): string;
-
-/**
- * Standalone WebAssembly function to run Bounded Model Checking (BMC) and Formal Property Verification.
- */
-export function wasm_run_formal(source: string, top_module?: string | null, max_depth?: number | null, engine_mode?: string | null, clock_name?: string | null, reset_name?: string | null): any;
-
-/**
- * Standalone WebAssembly function to generate physical FPGA silicon floorplan from HDL source.
- */
-export function wasm_generate_floorplan(source: string, top_module?: string | null, device?: string | null): any;
+export function wasm_verify_assertions(source: string, top_module?: string | null, sim_time_ps?: bigint | null): any;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -240,6 +240,8 @@ export interface InitOutput {
     readonly wasm_complete_xdc: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasm_decode_protocol: (a: number, b: number) => [number, number, number];
     readonly wasm_evaluate_ppa: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => [number, number, number];
+    readonly wasm_export_synthesized_verilog: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly wasm_generate_floorplan: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasm_get_coverage: (a: number, b: number, c: number, d: number, e: number, f: bigint) => [number, number, number];
     readonly wasm_hover: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasm_hover_xdc: (a: number, b: number, c: number, d: number) => [number, number, number];
@@ -249,8 +251,10 @@ export interface InitOutput {
     readonly wasm_lint_xdc: (a: number, b: number) => [number, number, number];
     readonly wasm_partition_multidie: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number];
     readonly wasm_recommend_pipeline: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+    readonly wasm_run_formal: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number, number];
     readonly wasm_run_sta: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasm_synthesize_microarch: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasm_synthesize_netlist: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasm_verify_assertions: (a: number, b: number, c: number, d: number, e: number, f: bigint) => [number, number, number];
     readonly wasmengine_add_assertion: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number, number, number];
     readonly wasmengine_apply_pipeline: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number, number];

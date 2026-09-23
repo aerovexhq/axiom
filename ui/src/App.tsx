@@ -73,10 +73,12 @@ import {
   isProjectActiveInAnotherSession,
   registerActiveProjectLease,
   renewActiveProjectLease,
-  releaseActiveProjectLease
+  releaseActiveProjectLease,
+  takeOverProjectLease
 } from "./engine/windowManager";
 import { toast } from "./engine/toast";
-import { ToastContainer, ConfirmDialogContainer } from "./components/ui";
+import { ToastContainer, ConfirmDialogContainer, confirmDialog } from "./components/ui";
+import { useTranslation } from "./i18n";
 import { SampleDesign } from "./engine/sampleDesigns";
 
 // URL Project Query Parameter Routing (?project=unique_name)
@@ -103,15 +105,16 @@ function getInitialProject(): AxiomProject | null {
     // When visiting without ?project=... (e.g. fresh http://localhost:3000/ or /studio/), start cleanly in Main Menu
     return null;
   }
+  const registry = loadProjectRegistry();
+  const meta = registry.find((p) => p.id === slug && !p.isTrashed);
+  const friendlyName = meta?.name || slug;
   if (isProjectActiveInAnotherSession(slug)) {
     setTimeout(() => {
-      toast.warning(`Project "${slug}" is already active in another window.`);
+      toast.warning(`Project "${friendlyName}" is already active in another window.`);
     }, 150);
     setUrlProjectSlug(null);
     return null;
   }
-  const registry = loadProjectRegistry();
-  const meta = registry.find((p) => p.id === slug && !p.isTrashed);
   if (meta) {
     try {
       const cached = localStorage.getItem(`axiom_project_${slug}`);
@@ -133,6 +136,7 @@ function getInitialProject(): AxiomProject | null {
 }
 
 export const App: React.FC = () => {
+  const { t } = useTranslation();
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
   const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "floorplan" | "split">("split");
@@ -692,8 +696,16 @@ export const App: React.FC = () => {
       return;
     }
     if (isProjectActiveInAnotherSession(id)) {
-      toast.warning(`Cannot open "${meta?.name || id}" because it is already active in another window.`);
-      return;
+      const takeOver = await confirmDialog({
+        title: t("launchpad.takeOverTitle"),
+        message: t("launchpad.takeOverMessage").replace("{name}", meta?.name || id),
+        confirmText: t("launchpad.takeOverConfirm"),
+        variant: "warning"
+      });
+      if (!takeOver) {
+        return;
+      }
+      takeOverProjectLease(id, meta?.name || id);
     }
 
     const loaded = await loadProjectById(id);

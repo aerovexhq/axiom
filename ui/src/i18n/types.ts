@@ -106,6 +106,10 @@ export interface Translations {
     activeInWindow: string;
     alreadyOpenWarning: string;
     newWindow: string;
+    takeOverTitle: string;
+    takeOverMessage: string;
+    takeOverConfirm: string;
+    takeOverAction: string;
     inRamJitTitle: string;
     inRamJitDesc: string;
     deltaSteppingTitle: string;
@@ -315,6 +319,9 @@ export interface Translations {
     currentMa: string;
     energyNj: string;
     noProblems: string;
+    copyAllProblems: string;
+    copiedProblems: string;
+    copyProblem: string;
     noGlitches: string;
     replPlaceholder: string;
     expandDock: string;

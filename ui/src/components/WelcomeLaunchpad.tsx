@@ -22,7 +22,8 @@ import {
   GraduationCap,
   ExternalLink,
   AppWindow,
-  Download
+  Download,
+  ArrowRightCircle
 } from "lucide-react";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
@@ -40,6 +41,7 @@ import { toast } from "../engine/toast";
 import {
   isProjectActiveInAnotherSession,
   openInNewWindow,
+  takeOverProjectLease,
   subscribeToProjectLeases
 } from "../engine/windowManager";
 
@@ -613,9 +615,18 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                 return (
                   <div
                     key={p.id}
-                    onClick={() => {
+                    onClick={async () => {
                       if (isLocked) {
-                        toast.warning(t("launchpad.alreadyOpenWarning").replace("{name}", p.name));
+                        const takeOver = await confirmDialog({
+                          title: t("launchpad.takeOverTitle"),
+                          message: t("launchpad.takeOverMessage").replace("{name}", p.name),
+                          confirmText: t("launchpad.takeOverConfirm"),
+                          variant: "warning"
+                        });
+                        if (takeOver) {
+                          takeOverProjectLease(p.id, p.name);
+                          onOpenProject?.(p.id);
+                        }
                         return;
                       }
                       onOpenProject?.(p.id);
@@ -626,7 +637,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                       display: "flex",
                       flexDirection: "column",
                       gap: 8,
-                      cursor: isLocked ? "default" : "pointer",
+                      cursor: "pointer",
                       borderColor: isLocked ? "rgba(168, 85, 247, 0.3)" : undefined
                     }}
                   >
@@ -680,6 +691,17 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                           </DropdownMenuTrigger>
 
                           <DropdownMenuContent align="end" minWidth={160}>
+                            {isLocked && (
+                              <DropdownMenuItem
+                                icon={<ArrowRightCircle size={13} color="var(--accent-purple)" />}
+                                onClick={() => {
+                                  takeOverProjectLease(p.id, p.name);
+                                  onOpenProject?.(p.id);
+                                }}
+                              >
+                                {t("launchpad.takeOverAction")}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               icon={<ExternalLink size={13} color="var(--accent-cyan)" />}
                               disabled={isLocked}

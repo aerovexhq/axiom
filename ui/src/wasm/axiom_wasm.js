@@ -643,6 +643,59 @@ export function wasm_evaluate_ppa(verilog_source, xdc_source, top_module, target
 }
 
 /**
+ * Standalone WebAssembly function to export structural Verilog from synthesized netlist.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {string | null} [device]
+ * @returns {string}
+ */
+export function wasm_export_synthesized_verilog(source, top_module, device) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasm_export_synthesized_verilog(ptr0, len0, ptr1, len1, ptr2, len2);
+        var ptr4 = ret[0];
+        var len4 = ret[1];
+        if (ret[3]) {
+            ptr4 = 0; len4 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred5_0 = ptr4;
+        deferred5_1 = len4;
+        return getStringFromWasm0(ptr4, len4);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
+ * Standalone WebAssembly function to generate physical FPGA silicon floorplan from HDL source.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {string | null} [device]
+ * @returns {any}
+ */
+export function wasm_generate_floorplan(source, top_module, device) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_generate_floorplan(ptr0, len0, ptr1, len1, ptr2, len2);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * Standalone WebAssembly function to generate coverage report for given source and simulated time.
  * @param {string} source
  * @param {string | null} [top_module]
@@ -806,6 +859,34 @@ export function wasm_recommend_pipeline(verilog_source, xdc_source, top_module) 
 }
 
 /**
+ * Standalone WebAssembly function to run Bounded Model Checking (BMC) and Formal Property Verification.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {number | null} [max_depth]
+ * @param {string | null} [engine_mode]
+ * @param {string | null} [clock_name]
+ * @param {string | null} [reset_name]
+ * @returns {any}
+ */
+export function wasm_run_formal(source, top_module, max_depth, engine_mode, clock_name, reset_name) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(engine_mode) ? 0 : passStringToWasm0(engine_mode, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    var ptr3 = isLikeNone(clock_name) ? 0 : passStringToWasm0(clock_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len3 = WASM_VECTOR_LEN;
+    var ptr4 = isLikeNone(reset_name) ? 0 : passStringToWasm0(reset_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len4 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_run_formal(ptr0, len0, ptr1, len1, isLikeNone(max_depth) ? Number.MAX_SAFE_INTEGER : (max_depth) >>> 0, ptr2, len2, ptr3, len3, ptr4, len4);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * Standalone WebAssembly function to run Static Timing Analysis (STA).
  * @param {string} verilog_source
  * @param {string} xdc_source
@@ -845,6 +926,27 @@ export function wasm_synthesize_microarch(source, top_module) {
 }
 
 /**
+ * Standalone WebAssembly function to synthesize HDL source into technology-mapped netlist.
+ * @param {string} source
+ * @param {string | null} [top_module]
+ * @param {string | null} [device]
+ * @returns {any}
+ */
+export function wasm_synthesize_netlist(source, top_module, device) {
+    const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len1 = WASM_VECTOR_LEN;
+    var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    var len2 = WASM_VECTOR_LEN;
+    const ret = wasm.wasm_synthesize_netlist(ptr0, len0, ptr1, len1, ptr2, len2);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * Standalone WebAssembly function to verify SVA assertions on Verilog source.
  * @param {string} source
  * @param {string | null} [top_module]
@@ -862,66 +964,6 @@ export function wasm_verify_assertions(source, top_module, sim_time_ps) {
     }
     return takeFromExternrefTable0(ret[0]);
 }
-
-/**
- * Standalone WebAssembly function to synthesize HDL source into technology-mapped netlist.
- * @param {string} source
- * @param {string | null} [top_module]
- * @param {string | null} [device]
- * @returns {any}
- */
-export function wasm_synthesize_netlist(source, top_module, device) {
-    if (typeof wasm.wasm_synthesize_netlist === "function") {
-        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        var len1 = WASM_VECTOR_LEN;
-        var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        var len2 = WASM_VECTOR_LEN;
-        const ret = wasm.wasm_synthesize_netlist(ptr0, len0, ptr1, len1, ptr2, len2);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
-        }
-        return takeFromExternrefTable0(ret[0]);
-    }
-    return null;
-}
-
-/**
- * Standalone WebAssembly function to export structural Verilog from synthesized netlist.
- * @param {string} source
- * @param {string | null} [top_module]
- * @param {string | null} [device]
- * @returns {string}
- */
-export function wasm_export_synthesized_verilog(source, top_module, device) {
-    if (typeof wasm.wasm_export_synthesized_verilog === "function") {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            var ptr1 = isLikeNone(top_module) ? 0 : passStringToWasm0(top_module, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            var len1 = WASM_VECTOR_LEN;
-            var ptr2 = isLikeNone(device) ? 0 : passStringToWasm0(device, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            var len2 = WASM_VECTOR_LEN;
-            const ret = wasm.wasm_export_synthesized_verilog(ptr0, len0, ptr1, len1, ptr2, len2);
-            var ptr3 = ret[0];
-            var len3 = ret[1];
-            if (ret[3]) {
-                ptr3 = 0; len3 = 0;
-                throw takeFromExternrefTable0(ret[2]);
-            }
-            deferred3_0 = ptr3;
-            deferred3_1 = len3;
-            return getStringFromWasm0(ptr3, len3);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    return "";
-}
-
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
