@@ -87,6 +87,34 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
   });
+  const [keyboardInset, setKeyboardInset] = useState<number>(0);
+
+  // Dynamic Visual Viewport tracking for mobile virtual keyboard
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const updateViewport = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height);
+      setKeyboardInset(inset);
+      if (editorRef.current) {
+        editorRef.current.layout();
+        if (inset > 100) {
+          const pos = editorRef.current.getPosition();
+          if (pos) {
+            setTimeout(() => {
+              editorRef.current?.revealPositionInCenter(pos, monacoPkg.editor.ScrollType.Smooth);
+            }, 60);
+          }
+        }
+      }
+    };
+    vv.addEventListener("resize", updateViewport);
+    vv.addEventListener("scroll", updateViewport);
+    return () => {
+      vv.removeEventListener("resize", updateViewport);
+      vv.removeEventListener("scroll", updateViewport);
+    };
+  }, []);
 
   // Sync settings when modified from ProjectSettingsModal
   useEffect(() => {
@@ -194,6 +222,51 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           }
         }
       } catch {}
+    }
+
+    // Cursor centering on tap / focus / mobile typing
+    editor.onDidChangeCursorPosition((e) => {
+      if (isMobile || keyboardInset > 100) {
+        editor.revealPositionInCenter(e.position, monacoPkg.editor.ScrollType.Smooth);
+      }
+    });
+
+    editor.onDidFocusEditorText(() => {
+      const pos = editor.getPosition();
+      if (pos && (isMobile || keyboardInset > 100)) {
+        setTimeout(() => {
+          editor.revealPositionInCenter(pos, monacoPkg.editor.ScrollType.Smooth);
+        }, 50);
+      }
+    });
+
+    // Initial live static analysis lint pass on mount
+    if (code) {
+      engineBridge.lint(code, editorLanguage).then((diags) => {
+        setLocalDiags(diags);
+        onDiagnosticsChange?.(diags);
+        const model = editor.getModel();
+        if (model) {
+          const markers: monacoPkg.editor.IMarkerData[] = diags.map((d) => ({
+            startLineNumber: d.startLineNumber,
+            startColumn: d.startColumn,
+            endLineNumber: d.endLineNumber,
+            endColumn: d.endColumn,
+            message: `${d.message}${d.help ? `\n↳ ${d.help}` : ""}`,
+            severity:
+              d.severity === 1
+                ? monaco.MarkerSeverity.Error
+                : d.severity === 2
+                ? monaco.MarkerSeverity.Warning
+                : d.severity === 3
+                ? monaco.MarkerSeverity.Info
+                : monaco.MarkerSeverity.Hint,
+            source: d.source || (isXdc ? "axiom-xdc-linter" : isVhdl ? "axiom-vhdl-linter" : isMem ? "axiom-mem-linter" : "axiom-linter"),
+            code: d.code,
+          }));
+          monaco.editor.setModelMarkers(model, "axiom-linter", markers);
+        }
+      }).catch(() => {});
     }
 
     // Debounced scroll listener to persist scroll position
@@ -304,7 +377,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       } catch (err) {
         console.error("[HdlEditor] Linting error:", err);
       }
-    }, 200);
+    }, 80);
 
     return () => {
       cancelled = true;
@@ -779,7 +852,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             letterSpacing: 0.2,
             glyphMargin: true,
             minimap: { enabled: true, renderCharacters: false, maxColumn: 60 },
-            scrollBeyondLastLine: false,
+            scrollBeyondLastLine: true,
             automaticLayout: true,
             tabSize: 4,
             insertSpaces: true,
@@ -800,7 +873,10 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               comments: false,
               strings: false,
             },
-            padding: { top: 8, bottom: 8 },
+            padding: {
+              top: 8,
+              bottom: isMobile ? (keyboardInset > 0 ? 160 : 260) : 8
+            },
           }}
         />
         <KatanaCursorOverlay editor={editorInstance} enabled={katanaEnabled} />

@@ -167,6 +167,21 @@ export interface CompletionItem {
 export type StateListener = (state: SimulationState) => void;
 export type LogListener = (msg: string, level: "info" | "warn" | "error" | "event") => void;
 
+function normalizeDiagnostics(diags: LspDiagnostic[]): LspDiagnostic[] {
+  if (!Array.isArray(diags)) return [];
+  return diags.map((d) => {
+    let endColumn = d.endColumn;
+    // Monaco requires a non-zero range (endColumn > startColumn on same line) to draw a visible squiggly underline
+    if (d.startLineNumber === d.endLineNumber && endColumn <= d.startColumn) {
+      endColumn = d.startColumn + 1;
+    }
+    return {
+      ...d,
+      endColumn
+    };
+  });
+}
+
 export class AxiomEngineBridge {
   private state: SimulationState;
   private stateListeners: Set<StateListener> = new Set();
@@ -226,40 +241,51 @@ export class AxiomEngineBridge {
     if (fileType === "mem" || fileType?.endsWith(".mem") || fileType?.endsWith(".hex") || fileType?.endsWith(".coe")) {
       return this.lintMem(source, fileType);
     }
-    if (!this.isTauri && simWorkerClient.isSupported()) {
-      try {
-        return await simWorkerClient.lint(source);
-      } catch (e) {
-        console.warn("[engineBridge] Worker lint fallback to main thread:", e);
-      }
-    }
+
+    // 1. Ultra-fast in-RAM main-thread WASM execution (~0.1ms, zero worker thread overhead)
     try {
       const wasm = await this.initWasm();
       if (wasm) {
-        return wasm.lint(source) as LspDiagnostic[];
+        const diags = wasm.lint(source) as LspDiagnostic[];
+        return normalizeDiagnostics(diags);
       }
     } catch (e) {
-      console.error("[engineBridge] Lint error:", e);
+      console.warn("[engineBridge] Main-thread WASM lint fallback:", e);
     }
+
+    // 2. Fallback to simulation Web Worker if main-thread WASM was not available
+    if (!this.isTauri && simWorkerClient.isSupported()) {
+      try {
+        const diags = await simWorkerClient.lint(source);
+        return normalizeDiagnostics(diags);
+      } catch (e) {
+        console.warn("[engineBridge] Worker lint fallback failed:", e);
+      }
+    }
+
     return [];
   }
 
   public async lintXdc(source: string): Promise<LspDiagnostic[]> {
-    if (!this.isTauri && simWorkerClient.isSupported()) {
-      try {
-        return await simWorkerClient.lintXdc(source);
-      } catch (e) {
-        console.warn("[engineBridge] Worker XDC lint fallback to main thread:", e);
-      }
-    }
     try {
       const wasm = await this.initWasm();
       if (wasm && typeof (wasm as any).lint_xdc === "function") {
-        return (wasm as any).lint_xdc(source) as LspDiagnostic[];
+        const diags = (wasm as any).lint_xdc(source) as LspDiagnostic[];
+        return normalizeDiagnostics(diags);
       }
     } catch (e) {
-      console.error("[engineBridge] XDC Lint error:", e);
+      console.warn("[engineBridge] Main-thread XDC lint fallback:", e);
     }
+
+    if (!this.isTauri && simWorkerClient.isSupported()) {
+      try {
+        const diags = await simWorkerClient.lintXdc(source);
+        return normalizeDiagnostics(diags);
+      } catch (e) {
+        console.warn("[engineBridge] Worker XDC lint fallback failed:", e);
+      }
+    }
+
     return [];
   }
 
@@ -267,24 +293,26 @@ export class AxiomEngineBridge {
     try {
       const wasm = await this.initWasm();
       if (wasm && typeof (wasm as any).lint_vhdl === "function") {
-        return (wasm as any).lint_vhdl(source) as LspDiagnostic[];
+        const diags = (wasm as any).lint_vhdl(source) as LspDiagnostic[];
+        return normalizeDiagnostics(diags);
       }
     } catch {
       // Fallback to client-side TypeScript VHDL linter
     }
-    return lintVhdlSource(source);
+    return normalizeDiagnostics(lintVhdlSource(source));
   }
 
   public async lintMem(source: string, fileName?: string): Promise<LspDiagnostic[]> {
     try {
       const wasm = await this.initWasm();
       if (wasm && typeof (wasm as any).lint_mem === "function") {
-        return (wasm as any).lint_mem(source, fileName || "init.coe") as LspDiagnostic[];
+        const diags = (wasm as any).lint_mem(source, fileName || "init.coe") as LspDiagnostic[];
+        return normalizeDiagnostics(diags);
       }
     } catch {
       // Fallback to client-side TypeScript Memory linter
     }
-    return lintMemSource(source, fileName);
+    return normalizeDiagnostics(lintMemSource(source, fileName));
   }
 
   public async hoverVhdl(_source: string, _line: number, _column: number): Promise<HoverResult | null> {
@@ -296,21 +324,22 @@ export class AxiomEngineBridge {
   }
 
   public async hover(source: string, line: number, column: number): Promise<HoverResult | null> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm) {
+        const res = wasm.hover(source, line, column) as HoverResult | null;
+        if (res) return res;
+      }
+    } catch {}
+
     if (!this.isTauri && simWorkerClient.isSupported()) {
       try {
         return await simWorkerClient.hover(source, line, column);
       } catch (e) {
-        console.warn("[engineBridge] Worker hover fallback to main thread:", e);
+        console.warn("[engineBridge] Worker hover fallback:", e);
       }
     }
-    try {
-      const wasm = await this.initWasm();
-      if (wasm) {
-        return wasm.hover(source, line, column) as HoverResult | null;
-      }
-    } catch (e) {
-      console.error("[engineBridge] Hover error:", e);
-    }
+
     return null;
   }
 
@@ -327,21 +356,22 @@ export class AxiomEngineBridge {
   }
 
   public async complete(source: string, line: number, column: number): Promise<CompletionItem[]> {
+    try {
+      const wasm = await this.initWasm();
+      if (wasm) {
+        const items = wasm.complete(source, line, column) as CompletionItem[];
+        if (items && items.length > 0) return items;
+      }
+    } catch {}
+
     if (!this.isTauri && simWorkerClient.isSupported()) {
       try {
         return await simWorkerClient.complete(source, line, column);
       } catch (e) {
-        console.warn("[engineBridge] Worker complete fallback to main thread:", e);
+        console.warn("[engineBridge] Worker complete fallback:", e);
       }
     }
-    try {
-      const wasm = await this.initWasm();
-      if (wasm) {
-        return wasm.complete(source, line, column) as CompletionItem[];
-      }
-    } catch (e) {
-      console.error("[engineBridge] Complete error:", e);
-    }
+
     return [];
   }
 

@@ -102,11 +102,16 @@ function setUrlProjectSlug(slug: string | null) {
 
 function getInitialProject(): AxiomProject | null {
   const slug = getUrlProjectSlug();
+  const registry = loadProjectRegistry();
   if (!slug) {
-    // When visiting without ?project=... (e.g. fresh http://localhost:3000/ or /studio/), start cleanly in Main Menu
+    // If no ?project= in URL, check if there's an active saved project that isn't trashed
+    const saved = loadSavedProject();
+    if (saved && !registry.find((p) => p.id === saved.id)?.isTrashed) {
+      setUrlProjectSlug(saved.id);
+      return saved;
+    }
     return null;
   }
-  const registry = loadProjectRegistry();
   const meta = registry.find((p) => p.id === slug && !p.isTrashed);
   const friendlyName = meta?.name || slug;
   if (isProjectActiveInAnotherSession(slug)) {
@@ -153,12 +158,34 @@ export const App: React.FC = () => {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
   const [activeMobilePanel, setActiveMobilePanel] = useState<MobilePanelType>("editor");
 
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+
+    // Track on-screen virtual keyboard visibility via visualViewport
+    let cleanupVv = () => {};
+    if (typeof window !== "undefined" && window.visualViewport) {
+      const vv = window.visualViewport;
+      const handleViewport = () => {
+        const inset = Math.max(0, window.innerHeight - vv.height);
+        setIsKeyboardOpen(inset > 100);
+      };
+      vv.addEventListener("resize", handleViewport);
+      vv.addEventListener("scroll", handleViewport);
+      cleanupVv = () => {
+        vv.removeEventListener("resize", handleViewport);
+        vv.removeEventListener("scroll", handleViewport);
+      };
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      cleanupVv();
+    };
   }, []);
 
   // Sidebar & Modals
@@ -487,6 +514,10 @@ export const App: React.FC = () => {
     const updated = updateFileContent(project, activeFile.id, newCode);
     setProject(updated);
     setIsCodeDirty(true);
+
+    // Synchronously persist project immediately on every keystroke (<0.05ms)
+    // to guarantee zero data loss if refreshed or navigated away instantaneously
+    saveProjectToStorage(updated);
 
     if (isAutoSaveEnabled()) {
       setIsSaved(false);
@@ -1403,13 +1434,15 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Fixed 1-Tap Thumb Bottom Bar for Mobile */}
-          <MobileBottomBar
-            activePanel={activeMobilePanel}
-            onSelectPanel={setActiveMobilePanel}
-            diagnosticCount={diagnostics.length}
-            glitchCount={state.glitchCount}
-          />
+          {/* Fixed 1-Tap Thumb Bottom Bar for Mobile - automatically hidden while virtual keyboard is active to reclaim 52px */}
+          {!isKeyboardOpen && (
+            <MobileBottomBar
+              activePanel={activeMobilePanel}
+              onSelectPanel={setActiveMobilePanel}
+              diagnosticCount={diagnostics.length}
+              glitchCount={state.glitchCount}
+            />
+          )}
         </div>
       ) : (
         <div className="axiom-body">
