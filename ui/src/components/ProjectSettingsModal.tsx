@@ -1555,23 +1555,23 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                             key={def.id}
                             style={{
                               display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              padding: "7px 12px",
-                              gap: 12,
+                              flexDirection: "column",
+                              gap: 4,
+                              padding: "8px 12px",
                               borderTop: idx > 0 ? "1px solid var(--border-subtle)" : "none",
                               backgroundColor: isRecording ? "rgba(6, 182, 212, 0.08)" : "transparent",
                               transition: "background-color 0.15s ease"
                             }}
                           >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
-                                {t(def.nameKey as any)}
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                                  {t(def.nameKey as any)}
+                                </div>
+                                <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {t(def.descKey as any)}
+                                </div>
                               </div>
-                              <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {t(def.descKey as any)}
-                              </div>
-                            </div>
 
                             {/* Center/Right: Badges & Actions */}
                             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -1706,25 +1706,33 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                                 </div>
                               )}
                             </div>
-
-                            {/* Collision Warning Banner */}
-                            {isRecording && conflictWarning && (
-                              <div
-                                style={{
-                                  width: "100%",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 5,
-                                  fontSize: 10.5,
-                                  color: "var(--accent-amber)",
-                                  marginTop: 4
-                                }}
-                              >
-                                <AlertCircle size={11} />
-                                <span>{t("settings.keybindConflict")} {conflictWarning}</span>
-                              </div>
-                            )}
                           </div>
+
+                          {/* Collision Warning Banner */}
+                          {isRecording && conflictWarning && (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 5,
+                                fontSize: 10.5,
+                                color: "var(--accent-amber)",
+                                backgroundColor: "rgba(245, 158, 11, 0.1)",
+                                border: "1px solid rgba(245, 158, 11, 0.25)",
+                                borderRadius: "var(--radius-sm)",
+                                padding: "4px 8px",
+                                marginTop: 2
+                              }}
+                            >
+                              <AlertCircle size={11} color="var(--accent-amber)" style={{ flexShrink: 0 }} />
+                              <span>
+                                {t("settings.keybindConflict")
+                                  .replace("{action}", conflictWarning || "")
+                                  .replace("{chord}", recordedChord || "")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                         );
                       })}
                     </div>
