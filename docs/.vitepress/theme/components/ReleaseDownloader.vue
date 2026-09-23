@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 
 interface ReleaseAsset {
   name: string;
@@ -85,8 +85,58 @@ const releases = ref<GithubRelease[]>(FALLBACK_RELEASES);
 const selectedTag = ref<string>(FALLBACK_RELEASES[0].tag_name);
 const isLoading = ref<boolean>(false);
 const isLive = ref<boolean>(false);
+const isOpen = ref<boolean>(false);
+const dropdownRef = ref<HTMLElement | null>(null);
+
+function toggleDropdown() {
+  isOpen.value = !isOpen.value;
+}
+
+function selectRelease(tag: string) {
+  selectedTag.value = tag;
+  isOpen.value = false;
+}
+
+function closeDropdown(e: MouseEvent) {
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+    isOpen.value = false;
+  }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape") {
+    isOpen.value = false;
+  } else if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (!isOpen.value) {
+      isOpen.value = true;
+    } else {
+      const idx = releases.value.findIndex((r) => r.tag_name === selectedTag.value);
+      if (idx < releases.value.length - 1) {
+        selectedTag.value = releases.value[idx + 1].tag_name;
+      }
+    }
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!isOpen.value) {
+      isOpen.value = true;
+    } else {
+      const idx = releases.value.findIndex((r) => r.tag_name === selectedTag.value);
+      if (idx > 0) {
+        selectedTag.value = releases.value[idx - 1].tag_name;
+      }
+    }
+  } else if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    isOpen.value = !isOpen.value;
+  }
+}
 
 onMounted(async () => {
+  if (typeof window !== "undefined") {
+    window.addEventListener("click", closeDropdown);
+  }
+
   isLoading.value = true;
   try {
     const res = await fetch("https://api.github.com/repos/aerovexsim/axiom/releases");
@@ -119,6 +169,12 @@ onMounted(async () => {
   }
 });
 
+onBeforeUnmount(() => {
+  if (typeof window !== "undefined") {
+    window.removeEventListener("click", closeDropdown);
+  }
+});
+
 const currentRelease = computed(() => {
   return (
     releases.value.find((r) => r.tag_name === selectedTag.value) ||
@@ -131,14 +187,18 @@ const isLatest = computed(() => {
   return releases.value.length > 0 && selectedTag.value === releases.value[0].tag_name;
 });
 
-const formattedDate = computed(() => {
-  if (!currentRelease.value?.published_at) return "";
+function formatReleaseDate(dateStr?: string): string {
+  if (!dateStr) return "";
   try {
-    const d = new Date(currentRelease.value.published_at);
+    const d = new Date(dateStr);
     return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   } catch {
     return "";
   }
+}
+
+const formattedDate = computed(() => {
+  return formatReleaseDate(currentRelease.value?.published_at);
 });
 
 function formatBytes(bytes: number): string {
@@ -341,23 +401,79 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
     <!-- Version Selector Control Bar -->
     <div class="release-control-bar">
       <div class="release-meta-left">
-        <label for="release-select" class="release-label">Select Release Version:</label>
-        <div class="select-wrapper">
-          <select id="release-select" v-model="selectedTag" class="release-select">
-            <option
-              v-for="(rel, idx) in releases"
-              :key="rel.tag_name"
-              :value="rel.tag_name"
-            >
-              {{ rel.tag_name }} {{ idx === 0 ? "(Latest)" : "" }}
-            </option>
-          </select>
-          <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </div>
+        <span class="release-label">Release Version:</span>
+        <div ref="dropdownRef" class="custom-select-container">
+          <button
+            type="button"
+            class="custom-select-trigger"
+            :class="{ active: isOpen }"
+            :aria-expanded="isOpen"
+            aria-haspopup="listbox"
+            @click="toggleDropdown"
+            @keydown="handleKeydown"
+          >
+            <!-- Tag Icon -->
+            <svg class="trigger-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+              <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg>
+            <span class="trigger-tag">{{ selectedTag }}</span>
+            <span class="trigger-badge" :class="isLatest ? 'badge-primary' : 'badge-subtle'">
+              {{ isLatest ? "Latest GA" : "Release" }}
+            </span>
+            <svg class="trigger-chevron" :class="{ rotated: isOpen }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
 
-        <span v-if="isLatest" class="badge-latest">Latest GA</span>
+          <!-- Floating Dropdown Menu -->
+          <Transition name="dropdown-fade">
+            <div v-if="isOpen" class="custom-select-menu" role="listbox">
+              <div class="custom-select-menu-header">
+                <span>Select Architecture Release</span>
+              </div>
+              <div class="custom-select-menu-list">
+                <button
+                  v-for="(rel, idx) in releases"
+                  :key="rel.tag_name"
+                  type="button"
+                  class="custom-select-item"
+                  :class="{ selected: rel.tag_name === selectedTag }"
+                  role="option"
+                  :aria-selected="rel.tag_name === selectedTag"
+                  @click="selectRelease(rel.tag_name)"
+                >
+                  <div class="item-left">
+                    <span class="item-tag">{{ rel.tag_name }}</span>
+                    <span
+                      class="item-badge"
+                      :class="idx === 0 ? 'badge-primary' : 'badge-subtle'"
+                    >
+                      {{ idx === 0 ? "Latest GA" : "Legacy" }}
+                    </span>
+                  </div>
+                  <div class="item-right">
+                    <span v-if="rel.published_at" class="item-date">
+                      {{ formatReleaseDate(rel.published_at) }}
+                    </span>
+                    <svg
+                      v-if="rel.tag_name === selectedTag"
+                      class="item-check"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                    >
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
       </div>
 
       <div class="release-meta-right">
@@ -473,48 +589,193 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
   color: var(--vp-c-text-2);
 }
 
-.select-wrapper {
+.custom-select-container {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
 }
 
-.release-select {
-  appearance: none;
+.custom-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   background: var(--vp-c-bg-mute);
   color: var(--vp-c-text-1);
   border: 1px solid var(--vp-c-border);
   border-radius: 6px;
-  padding: 0.35rem 1.8rem 0.35rem 0.65rem;
+  padding: 0.35rem 0.65rem;
   font-size: 0.825rem;
   font-family: var(--vp-font-family-mono);
   font-weight: 600;
   cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.release-select:hover {
-  border-color: var(--vp-c-brand-1);
+.custom-select-trigger:hover,
+.custom-select-trigger.active {
+  border-color: #00f2fe;
+  background: rgba(0, 242, 254, 0.06);
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.15);
 }
 
-.select-chevron {
-  position: absolute;
-  right: 0.5rem;
-  pointer-events: none;
-  color: var(--vp-c-text-3);
+.trigger-icon {
+  color: #00f2fe;
+  flex-shrink: 0;
 }
 
-.badge-latest {
-  font-size: 0.675rem;
+.trigger-tag {
+  letter-spacing: 0.02em;
+}
+
+.trigger-badge {
+  font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0.2rem 0.5rem;
+  padding: 0.15rem 0.4rem;
   border-radius: 4px;
-  background: rgba(6, 182, 212, 0.15);
+}
+
+.badge-primary {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-subtle {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.trigger-chevron {
+  color: var(--vp-c-text-3);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  margin-left: 0.15rem;
+}
+
+.trigger-chevron.rotated {
+  transform: rotate(180deg);
   color: #00f2fe;
-  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+/* Floating Dropdown Panel */
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 290px;
+  max-width: 90vw;
+  background: #141418;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 100;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-select-menu-header {
+  padding: 0.4rem 0.65rem 0.35rem 0.65rem;
+  font-size: 0.675rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vp-c-text-3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 0.3rem;
+}
+
+.custom-select-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.custom-select-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  text-align: left;
+}
+
+.custom-select-item:hover {
+  background: rgba(0, 242, 254, 0.08);
+  border-color: rgba(0, 242, 254, 0.2);
+}
+
+.custom-select-item.selected {
+  background: rgba(0, 242, 254, 0.12);
+  border-color: rgba(0, 242, 254, 0.35);
+}
+
+.item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.item-tag {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--vp-c-text-1);
+}
+
+.custom-select-item.selected .item-tag {
+  color: #00f2fe;
+}
+
+.item-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+}
+
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.item-date {
+  font-size: 0.725rem;
+  color: var(--vp-c-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.item-check {
+  color: #00f2fe;
+  flex-shrink: 0;
+}
+
+/* Transition */
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
 }
 
 .release-meta-right {
