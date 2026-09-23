@@ -138,6 +138,11 @@ export function DropdownSelect<T extends string | number = string>({
               key={String(opt.value)}
               disabled={opt.disabled}
               selected={isSelected}
+              trailing={
+                isSelected ? (
+                  <Check size={12} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
+                ) : undefined
+              }
               onClick={() => {
                 if (!opt.disabled && opt.value !== value) {
                   onChange(opt.value);
@@ -147,32 +152,28 @@ export function DropdownSelect<T extends string | number = string>({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: 8,
+                gap: 12,
                 fontSize,
                 fontWeight: isSelected ? 600 : 400
               }}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1, overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {opt.icon && (
                     <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
                       {opt.icon}
                     </span>
                   )}
-                  <span style={{ color: isSelected ? "var(--accent-blue)" : "var(--text-primary)" }}>
+                  <span style={{ color: isSelected ? "var(--accent-blue)" : "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {opt.label}
                   </span>
                 </div>
                 {opt.subtitle && (
-                  <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: opt.icon ? 18 : 0 }}>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: opt.icon ? 18 : 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {opt.subtitle}
                   </span>
                 )}
               </div>
-
-              {isSelected && (
-                <Check size={12} color="var(--accent-blue)" style={{ flexShrink: 0, marginLeft: 8 }} />
-              )}
             </DropdownMenuItem>
           );
         })}

@@ -212,6 +212,7 @@ export interface DropdownMenuItemProps {
   children: ReactNode;
   icon?: ReactNode;
   shortcut?: string;
+  trailing?: ReactNode;
   variant?: "default" | "danger";
   disabled?: boolean;
   selected?: boolean;
@@ -225,6 +226,7 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
   children,
   icon,
   shortcut,
+  trailing,
   variant = "default",
   disabled = false,
   selected = false,
@@ -270,6 +272,9 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
       <span
         style={{
           flex: 1,
+          minWidth: 0,
+          display: "inline-flex",
+          flexDirection: "column",
           textAlign: "left",
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -278,6 +283,11 @@ export const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
       >
         {children}
       </span>
+      {trailing && (
+        <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, marginLeft: "auto" }}>
+          {trailing}
+        </span>
+      )}
       {shortcut && (
         <span
           className="mono-num"
