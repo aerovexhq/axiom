@@ -25,7 +25,28 @@ import { ResizableSplitter } from "./components/ResizableSplitter";
 import { MobileDrawer, MobilePanelType } from "./components/MobileDrawer";
 import { MobileBottomBar } from "./components/MobileBottomBar";
 import { WindowFrame } from "./components/WindowFrame";
-import { VisualizerTabBar } from "./components/VisualizerTabBar";
+import { LayoutRenderer } from "./components/layout/LayoutRenderer";
+import { BlueprintLayoutEditor } from "./components/layout/BlueprintLayoutEditor";
+import { VisualizerContextProps } from "./components/layout/LayoutLeafRenderer";
+import {
+  AxiomLayout,
+  LayoutViewId,
+  cloneLayoutNode,
+  findLeafById,
+  updateLeafActiveView,
+  splitLeaf,
+  closeTabInLeaf,
+  updateSplitRatio,
+  getAllLeaves,
+  BUILTIN_LAYOUT_PRESETS
+} from "./engine/layoutModel";
+import {
+  getActiveLayout,
+  saveProjectLayout,
+  getGlobalSlotLayout,
+  saveGlobalSlotLayout,
+  resetToDefaultLayout
+} from "./engine/layoutStorage";
 import { UpdatePromptModal } from "./components/UpdatePromptModal";
 import { AboutModal } from "./components/AboutModal";
 import { ProtocolDecoderModal } from "./components/ProtocolDecoderModal";
@@ -145,8 +166,17 @@ export const App: React.FC = () => {
   const { t } = useTranslation();
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
-  const [centerView, setCenterView] = useState<"waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "floorplan" | "split">("split");
   const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "floorplan" | null>(null);
+
+  // Industry-Grade Hierarchical Workspace Layout & Blueprint Mode State
+  const [activeLayout, setActiveLayout] = useState<AxiomLayout>(() => getActiveLayout(project));
+  const [isLayoutEditorOpen, setIsLayoutEditorOpen] = useState<boolean>(false);
+  const [maximizedLeafId, setMaximizedLeafId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveLayout(getActiveLayout(project));
+    setMaximizedLeafId(null);
+  }, [project?.id]);
 
   // Responsive Mobile Mode & Off-Canvas Left Drawer
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -381,8 +411,10 @@ export const App: React.FC = () => {
         handleSaveProject();
       } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === "f") {
         e.preventDefault();
-        setCenterView("split");
-        setSplitActiveVisualizer("floorplan");
+        handleSwitchVisualizerView("floorplan");
+      } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        setIsLayoutEditorOpen((prev) => !prev);
       } else if ((e.ctrlKey || e.metaKey) && e.key === ",") {
         e.preventDefault();
         handleOpenSettings("general");
@@ -1002,7 +1034,6 @@ export const App: React.FC = () => {
 
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
-  const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "floorplan">("schematic");
 
   const handleSidebarResize = useCallback((deltaPx: number) => {
     setSidebarWidth((prev) => {
@@ -1011,18 +1042,6 @@ export const App: React.FC = () => {
       return next;
     });
   }, []);
-
-  const handleEditorResize = useCallback((deltaPx: number) => {
-    const totalWidth = window.innerWidth - (isSidebarCollapsed ? 38 : sidebarWidth);
-    if (totalWidth <= 0) return;
-    const deltaPct = (deltaPx / totalWidth) * 100;
-    setEditorWidthPercent((prev) => Math.max(18, Math.min(75, Math.round((prev + deltaPct) * 10) / 10)));
-  }, [isSidebarCollapsed, sidebarWidth]);
-
-  // Maximize panel helper
-  const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "floorplan") => {
-    setMaximizedPanel((prev) => (prev === panel ? null : panel));
-  };
 
   // Insert formal SVA assertion into active file
   const handleInsertAssertion = useCallback((snippet: string) => {
@@ -1064,6 +1083,200 @@ export const App: React.FC = () => {
     saveProjectToStorage(updated);
   }, [project]);
 
+  // Workspace Layout Handlers
+  const handleSelectLayoutView = useCallback((leafId: string, viewId: LayoutViewId) => {
+    setActiveLayout((prev) => {
+      const nextRoot = updateLeafActiveView(prev.root, leafId, viewId);
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
+  const handleCloseLayoutTab = useCallback((leafId: string, viewId: LayoutViewId) => {
+    setActiveLayout((prev) => {
+      const nextRoot = closeTabInLeaf(prev.root, leafId, viewId);
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
+  const handleAddLayoutTab = useCallback((leafId: string, viewId: LayoutViewId) => {
+    setActiveLayout((prev) => {
+      const nextRoot = cloneLayoutNode(prev.root);
+      const leaf = findLeafById(nextRoot, leafId);
+      if (leaf && !leaf.views.includes(viewId)) {
+        leaf.views.push(viewId);
+        leaf.activeViewId = viewId;
+      }
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
+  const handleSplitLayoutLeaf = useCallback((leafId: string, direction: "row" | "column") => {
+    setActiveLayout((prev) => {
+      const nextRoot = splitLeaf(prev.root, leafId, direction);
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
+  const handleUpdateSplitRatio = useCallback((splitId: string, newRatio: number) => {
+    setActiveLayout((prev) => {
+      const nextRoot = updateSplitRatio(prev.root, splitId, newRatio);
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
+  const handleToggleMaximizeLeaf = useCallback((leafId: string) => {
+    setMaximizedLeafId((prev) => (prev === leafId ? null : leafId));
+  }, []);
+
+  const handleApplyLayoutPreset = useCallback((presetId: string) => {
+    const preset = BUILTIN_LAYOUT_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const cloned: AxiomLayout = {
+      ...preset,
+      root: cloneLayoutNode(preset.root)
+    };
+    setActiveLayout(cloned);
+    setMaximizedLeafId(null);
+    if (project) {
+      saveProjectLayout(project, cloned);
+      toast.success(t("toast.layoutApplied") || `Layout "${preset.name}" applied.`);
+    }
+  }, [project, t]);
+
+  const handleSelectLayoutSlot = useCallback((slot: 1 | 2 | 3) => {
+    const saved = getGlobalSlotLayout(slot);
+    if (saved) {
+      setActiveLayout(saved);
+      setMaximizedLeafId(null);
+      if (project) {
+        saveProjectLayout(project, saved);
+      }
+      toast.success(t("toast.layoutApplied") || `Slot ${slot}: "${saved.name}" applied.`);
+    } else {
+      toast.info(`Slot ${slot} is currently empty.`);
+    }
+  }, [project, t]);
+
+  const handleResetLayoutToDefault = useCallback(() => {
+    const def = resetToDefaultLayout(project || undefined);
+    setActiveLayout(def);
+    setMaximizedLeafId(null);
+    toast.success(t("settings.resetProjectLayout") || "Layout reset to default.");
+  }, [project, t]);
+
+  const handleSaveBlueprintLayout = useCallback((layout: AxiomLayout, target: "project" | "slot-1" | "slot-2" | "slot-3") => {
+    setActiveLayout(layout);
+    setMaximizedLeafId(null);
+    setIsLayoutEditorOpen(false);
+
+    if (target === "project") {
+      if (project) {
+        saveProjectLayout(project, layout);
+      }
+      toast.success(`Layout "${layout.name}" saved to current project.`);
+    } else {
+      const slotNum = target === "slot-1" ? 1 : target === "slot-2" ? 2 : 3;
+      saveGlobalSlotLayout(slotNum, layout.name, layout);
+      if (project) {
+        saveProjectLayout(project, layout);
+      }
+      toast.success(`Layout "${layout.name}" saved to Global Slot ${slotNum}.`);
+    }
+  }, [project]);
+
+  const handleSwitchVisualizerView = useCallback((viewId: LayoutViewId) => {
+    setActiveLayout((prev) => {
+      const nextRoot = cloneLayoutNode(prev.root);
+      const leaves = getAllLeaves(nextRoot);
+      const existing = leaves.find((l) => l.views.includes(viewId));
+      if (existing) {
+        existing.activeViewId = viewId;
+      } else {
+        const target = leaves.find((l) => l.activeViewId !== "editor") || leaves[0];
+        if (target) {
+          if (!target.views.includes(viewId)) {
+            target.views.push(viewId);
+          }
+          target.activeViewId = viewId;
+        }
+      }
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
+  // Context for visualizer and layout leaf renderers
+  const visualizerContext: VisualizerContextProps = useMemo(() => ({
+    project: project!,
+    activeFile: activeFile ?? undefined,
+    state,
+    activeDesignId,
+    selectedSignalIds,
+    activeCrossProbeSignal,
+    highlightLineSpan,
+    handleCodeChange,
+    handleCompile,
+    handleSchematicSelectSignal,
+    handleJumpToCode,
+    handleOpenAutoPipeline,
+    handleUpdateXdc,
+    handleInsertAssertion,
+    setProject,
+    setHighlightLineSpan,
+    onOpenSettings: handleOpenSettings,
+    handleSelectFile,
+    handleCloseTab,
+    onAddFileClick: () => setIsAddSourceOpen(true),
+    setDiagnostics,
+    timingSlackPs,
+    predictedFmaxGainMhz
+  }), [
+    project,
+    activeFile,
+    state,
+    activeDesignId,
+    selectedSignalIds,
+    activeCrossProbeSignal,
+    highlightLineSpan,
+    handleCodeChange,
+    handleCompile,
+    handleSchematicSelectSignal,
+    handleJumpToCode,
+    handleOpenAutoPipeline,
+    handleUpdateXdc,
+    handleInsertAssertion,
+    setProject,
+    setHighlightLineSpan,
+    handleOpenSettings,
+    handleSelectFile,
+    handleCloseTab,
+    timingSlackPs,
+    predictedFmaxGainMhz
+  ]);
+
   return (
     <div className="axiom-app">
       {/* Universal Desktop & Web Acrylic Window Frame & Application Menu */}
@@ -1103,10 +1316,12 @@ export const App: React.FC = () => {
               dock.scrollIntoView({ behavior: "smooth" });
             }
           }}
-          onSwitchVisualizer={(view) => {
-            setCenterView("split");
-            setSplitActiveVisualizer(view);
-          }}
+          onSwitchVisualizer={handleSwitchVisualizerView}
+          activeLayoutId={activeLayout.id}
+          onSelectLayoutPreset={handleApplyLayoutPreset}
+          onSelectLayoutSlot={handleSelectLayoutSlot}
+          onOpenLayoutEditor={() => setIsLayoutEditorOpen(true)}
+          onResetLayout={handleResetLayoutToDefault}
           onRunSimulation={handleRunSimulation}
           onPauseSimulation={() => engineBridge.pause()}
           onStep1ns={() => handleStepSimulation(1000)}
@@ -1142,12 +1357,15 @@ export const App: React.FC = () => {
           activeMobilePanel={activeMobilePanel}
           editorWidthPercent={editorWidthPercent}
           onSetEditorWidthPercent={setEditorWidthPercent}
-          maximizedPanel={maximizedPanel}
-          onRestoreMaximizedPanel={() => setMaximizedPanel(null)}
+          maximizedPanel={maximizedLeafId || maximizedPanel}
+          onRestoreMaximizedPanel={() => {
+            setMaximizedLeafId(null);
+            setMaximizedPanel(null);
+          }}
           activeCrossProbeSignal={activeCrossProbeSignal}
           onOpenOmnibar={() => setIsOmnibarOpen(true)}
           onOpenLabGrader={() => setIsLabGraderOpen(true)}
-          isSplitView={centerView === "split"}
+          isSplitView={activeLayout.root.type === "split"}
           isCodeDirty={isCodeDirty}
           onRunSimulation={handleRunSimulation}
           onStepSimulation={handleStepSimulation}
@@ -1491,768 +1709,18 @@ export const App: React.FC = () => {
                 onPermanentDeleteProjects={handlePermanentDeleteProjects}
                 onEmptyTrash={handleEmptyTrash}
               />
-            ) : maximizedPanel === "editor" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <HdlEditor
-                  code={activeFile?.content ?? ""}
-                  topModule={project.topModule}
-                  onChangeCode={handleCodeChange}
-                  onCompile={handleCompile}
-                  compiled={state.compiled}
-                  highlightLineSpan={highlightLineSpan}
-                  project={project}
-                  onSelectTab={handleSelectFile}
-                  onCloseTab={handleCloseTab}
-                  onAddFileClick={() => setIsAddSourceOpen(true)}
-                  isMaximized={true}
-                  onToggleMaximize={() => toggleMaximizePanel("editor")}
-                  onDiagnosticsChange={setDiagnostics}
-                  onOpenAutoPipeline={handleOpenAutoPipeline}
-                  timingSlackPs={timingSlackPs}
-                  predictedFmaxGainMhz={predictedFmaxGainMhz}
-                  onOpenSettings={handleOpenSettings}
-                />
-              </div>
-            ) : maximizedPanel === "waveform" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
-              </div>
-            ) : maximizedPanel === "schematic" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <SchematicViewer
-                  state={state}
-                  activeDesignId={activeDesignId}
-                  selectedSignalId={activeCrossProbeSignal}
-                  onSelectSignal={handleSchematicSelectSignal}
-                  onJumpToCode={handleJumpToCode}
-                  onOpenAutoPipeline={handleOpenAutoPipeline}
-                />
-              </div>
-            ) : maximizedPanel === "fsm" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <FsmViewer
-                  state={state}
-                  activeDesignId={activeDesignId}
-                  verilogSource={activeFile?.content}
-                  onSelectSignal={handleSchematicSelectSignal}
-                  onJumpToCode={handleJumpToCode}
-                  onOpenAutoPipeline={handleOpenAutoPipeline}
-                />
-              </div>
-            ) : maximizedPanel === "package" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <PackageVisualizer
-                  project={project}
-                  verilogSource={activeFile?.content}
-                  xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                  activeDesignId={activeDesignId}
-                  onUpdateXdc={handleUpdateXdc}
-                  onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                />
-              </div>
-            ) : maximizedPanel === "microarch" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <MicroarchViewer
-                  state={state}
-                  activeDesignId={activeDesignId}
-                  verilogSource={activeFile?.content}
-                  selectedSignalId={activeCrossProbeSignal}
-                  onSelectSignal={handleSchematicSelectSignal}
-                  onJumpToCode={handleJumpToCode}
-                />
-              </div>
-            ) : maximizedPanel === "virtuallab" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
-              </div>
-            ) : maximizedPanel === "timing" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <TimingRadarViewer
-                  state={state}
-                  activeDesignId={activeDesignId}
-                  project={project}
-                  onCrossProbe={handleSchematicSelectSignal}
-                  onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                  onOpenAutoPipeline={handleOpenAutoPipeline}
-                />
-              </div>
-            ) : maximizedPanel === "multidie" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <MultiDieViewer
-                  state={state}
-                  activeDesignId={activeDesignId}
-                  verilogSource={activeFile?.content}
-                  targetDevice={project.targetDevice}
-                  onSelectSignal={handleSchematicSelectSignal}
-                  onJumpToCode={handleJumpToCode}
-                />
-              </div>
-            ) : maximizedPanel === "ppa" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <PpaParetoViewer
-                  state={state}
-                  activeDesignId={activeDesignId}
-                  verilogSource={activeFile?.content}
-                  xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                  targetDevice={project.targetDevice}
-                  onSelectDevice={(dev) => {
-                    setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
-                  }}
-                  onJumpToCode={handleJumpToCode}
-                />
-              </div>
-            ) : maximizedPanel === "protocol" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <ProtocolAnalyzer
-                  state={state}
-                  activeDesignId={activeDesignId}
-                />
-              </div>
-            ) : maximizedPanel === "techmapping" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <TechMappingViewer
-                  activeDesignId={activeDesignId}
-                  topModule={project.topModule}
-                  sourceCode={activeFile?.content ?? ""}
-                  targetDevice={project.targetDevice}
-                  onDeviceChange={(dev) => {
-                    setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
-                  }}
-                />
-              </div>
-            ) : maximizedPanel === "formal" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                <FormalVerificationViewer
-                  sourceCode={activeFile?.content ?? ""}
-                  topModule={project.topModule}
-                  onNavigateToWaveform={() => {
-                    setMaximizedPanel(null);
-                    setSplitActiveVisualizer("waveform");
-                  }}
-                  onInsertAssertion={handleInsertAssertion}
-                />
-              </div>
-            ) : centerView === "split" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                {/* Left: HDL Multi-File Editor */}
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-
-                {/* Resizable Divider: Editor <-> Visualizers */}
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-
-                {/* Right: Spacious Dual-Pane Visualizer Container */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 360, overflow: "hidden" }}>
-                  {/* Visualizer Tab Switcher Bar */}
-                  <VisualizerTabBar
-                    activeVisualizer={splitActiveVisualizer}
-                    onSelectVisualizer={(view) => setSplitActiveVisualizer(view as any)}
-                    isMaximized={maximizedPanel === splitActiveVisualizer}
-                    onToggleMaximize={() => toggleMaximizePanel(splitActiveVisualizer)}
-                  />
-
-                  {/* Visualizer Body */}
-                    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                      {splitActiveVisualizer === "schematic" && (
-                        <SchematicViewer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                          selectedSignalId={activeCrossProbeSignal}
-                          onSelectSignal={handleSchematicSelectSignal}
-                          onJumpToCode={handleJumpToCode}
-                          onOpenAutoPipeline={handleOpenAutoPipeline}
-                        />
-                      )}
-                      {splitActiveVisualizer === "fsm" && (
-                        <FsmViewer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                          verilogSource={activeFile?.content}
-                          onSelectSignal={handleSchematicSelectSignal}
-                          onJumpToCode={handleJumpToCode}
-                          onOpenAutoPipeline={handleOpenAutoPipeline}
-                        />
-                      )}
-                      {splitActiveVisualizer === "package" && (
-                        <PackageVisualizer
-                          project={project}
-                          verilogSource={activeFile?.content}
-                          xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                          activeDesignId={activeDesignId}
-                          onUpdateXdc={handleUpdateXdc}
-                          onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                        />
-                      )}
-                      {splitActiveVisualizer === "microarch" && (
-                        <MicroarchViewer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                          verilogSource={activeFile?.content}
-                          selectedSignalId={activeCrossProbeSignal}
-                          onSelectSignal={handleSchematicSelectSignal}
-                          onJumpToCode={handleJumpToCode}
-                        />
-                      )}
-                      {splitActiveVisualizer === "virtuallab" && (
-                        <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
-                      )}
-                      {splitActiveVisualizer === "waveform" && (
-                        <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
-                      )}
-                      {splitActiveVisualizer === "timing" && (
-                        <TimingRadarViewer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                          project={project}
-                          onCrossProbe={handleSchematicSelectSignal}
-                          onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                          onOpenAutoPipeline={handleOpenAutoPipeline}
-                        />
-                      )}
-                      {splitActiveVisualizer === "multidie" && (
-                        <MultiDieViewer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                          verilogSource={activeFile?.content}
-                          targetDevice={project.targetDevice}
-                          onSelectSignal={handleSchematicSelectSignal}
-                          onJumpToCode={handleJumpToCode}
-                        />
-                      )}
-                      {splitActiveVisualizer === "ppa" && (
-                        <PpaParetoViewer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                          verilogSource={activeFile?.content}
-                          xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                          targetDevice={project.targetDevice}
-                          onSelectDevice={(dev) => {
-                            setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
-                          }}
-                          onJumpToCode={handleJumpToCode}
-                        />
-                      )}
-                      {splitActiveVisualizer === "protocol" && (
-                        <ProtocolAnalyzer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                        />
-                      )}
-                      {splitActiveVisualizer === "techmapping" && (
-                        <TechMappingViewer
-                          activeDesignId={activeDesignId}
-                          topModule={project.topModule}
-                          sourceCode={activeFile?.content ?? ""}
-                          targetDevice={project.targetDevice}
-                          onDeviceChange={(dev) => {
-                            setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
-                          }}
-                        />
-                      )}
-                      {splitActiveVisualizer === "formal" && (
-                        <FormalVerificationViewer
-                          sourceCode={activeFile?.content ?? ""}
-                          topModule={project.topModule}
-                          onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
-                          onInsertAssertion={handleInsertAssertion}
-                        />
-                      )}
-                      {splitActiveVisualizer === "floorplan" && (
-                        <FloorplanStudioViewer
-                          state={state}
-                          activeDesignId={activeDesignId}
-                          verilogSource={activeFile?.content}
-                          topModule={project.topModule}
-                          targetDevice={project.targetDevice}
-                          onDeviceChange={(dev) => {
-                            setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
-                          }}
-                          onSelectSignal={handleSchematicSelectSignal}
-                          onJumpToCode={handleJumpToCode}
-                        />
-                      )}
-                    </div>
-                  </div>
-              </div>
-            ) : centerView === "waveform" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
-                </div>
-              </div>
-            ) : centerView === "schematic" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <SchematicViewer
-                    state={state}
-                    activeDesignId={activeDesignId}
-                    selectedSignalId={activeCrossProbeSignal}
-                    onSelectSignal={handleSchematicSelectSignal}
-                    onJumpToCode={handleJumpToCode}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                  />
-                </div>
-              </div>
-            ) : centerView === "microarch" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <MicroarchViewer
-                    state={state}
-                    activeDesignId={activeDesignId}
-                    verilogSource={activeFile?.content}
-                    selectedSignalId={activeCrossProbeSignal}
-                    onSelectSignal={handleSchematicSelectSignal}
-                    onJumpToCode={handleJumpToCode}
-                  />
-                </div>
-              </div>
-            ) : centerView === "virtuallab" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
-                </div>
-              </div>
-            ) : centerView === "multidie" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <MultiDieViewer
-                    state={state}
-                    activeDesignId={activeDesignId}
-                    verilogSource={activeFile?.content}
-                    targetDevice={project.targetDevice}
-                    onSelectSignal={handleSchematicSelectSignal}
-                    onJumpToCode={handleJumpToCode}
-                  />
-                </div>
-              </div>
-            ) : centerView === "ppa" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <PpaParetoViewer
-                    state={state}
-                    activeDesignId={activeDesignId}
-                    verilogSource={activeFile?.content}
-                    xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                    targetDevice={project.targetDevice}
-                    onSelectDevice={(dev) => {
-                      setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
-                    }}
-                    onJumpToCode={handleJumpToCode}
-                  />
-                </div>
-              </div>
-            ) : centerView === "package" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <PackageVisualizer
-                    project={project}
-                    verilogSource={activeFile?.content}
-                    xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                    activeDesignId={activeDesignId}
-                    onUpdateXdc={handleUpdateXdc}
-                    onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                  />
-                </div>
-              </div>
-            ) : centerView === "protocol" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <ProtocolAnalyzer
-                    state={state}
-                    activeDesignId={activeDesignId}
-                  />
-                </div>
-              </div>
-            ) : centerView === "techmapping" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <TechMappingViewer
-                    activeDesignId={activeDesignId}
-                    topModule={project.topModule}
-                    sourceCode={activeFile?.content ?? ""}
-                    targetDevice={project.targetDevice}
-                    onDeviceChange={(dev) => {
-                      setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
-                    }}
-                  />
-                </div>
-              </div>
-            ) : centerView === "formal" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <FormalVerificationViewer
-                    sourceCode={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
-                    onInsertAssertion={handleInsertAssertion}
-                  />
-                </div>
-              </div>
-            ) : centerView === "floorplan" ? (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <FloorplanStudioViewer
-                    state={state}
-                    activeDesignId={activeDesignId}
-                    verilogSource={activeFile?.content}
-                    topModule={project.topModule}
-                    targetDevice={project.targetDevice}
-                    onDeviceChange={(dev) => {
-                      setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
-                    }}
-                    onSelectSignal={handleSchematicSelectSignal}
-                    onJumpToCode={handleJumpToCode}
-                  />
-                </div>
-              </div>
             ) : (
-              <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
-                <div style={{ width: `${editorWidthPercent}%`, display: "flex", minWidth: 280, overflow: "hidden" }}>
-                  <HdlEditor
-                    code={activeFile?.content ?? ""}
-                    topModule={project.topModule}
-                    onChangeCode={handleCodeChange}
-                    onCompile={handleCompile}
-                    compiled={state.compiled}
-                    highlightLineSpan={highlightLineSpan}
-                    project={project}
-                    onSelectTab={handleSelectFile}
-                    onCloseTab={handleCloseTab}
-                    onAddFileClick={() => setIsAddSourceOpen(true)}
-                    isMaximized={false}
-                    onToggleMaximize={() => toggleMaximizePanel("editor")}
-                    onDiagnosticsChange={setDiagnostics}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                    timingSlackPs={timingSlackPs}
-                    predictedFmaxGainMhz={predictedFmaxGainMhz}
-                    onOpenSettings={handleOpenSettings}
-                  />
-                </div>
-                <ResizableSplitter
-                  orientation="horizontal"
-                  onResize={handleEditorResize}
-                  onDoubleClick={() => setEditorWidthPercent(42)}
-                />
-                <div style={{ flex: 1, display: "flex", minWidth: 320, overflow: "hidden" }}>
-                  <TimingRadarViewer
-                    state={state}
-                    activeDesignId={activeDesignId}
-                    project={project}
-                    onCrossProbe={handleSchematicSelectSignal}
-                    onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                    onOpenAutoPipeline={handleOpenAutoPipeline}
-                  />
-                </div>
-              </div>
+              <LayoutRenderer
+                root={activeLayout.root}
+                context={visualizerContext}
+                maximizedLeafId={maximizedLeafId}
+                onSelectView={handleSelectLayoutView}
+                onCloseTab={handleCloseLayoutTab}
+                onAddTab={handleAddLayoutTab}
+                onSplitLeaf={handleSplitLayoutLeaf}
+                onUpdateSplitRatio={handleUpdateSplitRatio}
+                onToggleMaximize={handleToggleMaximizeLeaf}
+              />
             )}
           </div>
 
@@ -2273,7 +1741,13 @@ export const App: React.FC = () => {
         isOpen={isOmnibarOpen}
         onClose={() => setIsOmnibarOpen(false)}
         state={state}
-        onSelectView={setCenterView}
+        onSelectView={(v) => {
+          if (v === "split") {
+            handleApplyLayoutPreset("default-engineering");
+          } else {
+            handleSwitchVisualizerView(v as LayoutViewId);
+          }
+        }}
         onSelectDesign={handleSelectDesign}
         onSelectSignal={handleSchematicSelectSignal}
         onCompile={handleCompile}
@@ -2361,6 +1835,26 @@ export const App: React.FC = () => {
           project={project}
           onUpdateProject={handleUpdateProjectSecurity}
           initialCategory={settingsModalCategory}
+          activeLayout={activeLayout}
+          onApplyLayout={(l) => {
+            setActiveLayout(l);
+            if (project) {
+              saveProjectLayout(project, l);
+            }
+          }}
+          onOpenLayoutEditor={() => {
+            setIsSettingsModalOpen(false);
+            setIsLayoutEditorOpen(true);
+          }}
+        />
+      )}
+
+      {/* Interactive Blueprint Layout Editor Mode */}
+      {isLayoutEditorOpen && (
+        <BlueprintLayoutEditor
+          initialLayout={activeLayout}
+          onClose={() => setIsLayoutEditorOpen(false)}
+          onSave={handleSaveBlueprintLayout}
         />
       )}
 

@@ -1,6 +1,8 @@
 // Axiom EDA — Vivado-Style Project Model & Multi-File Architecture
 // Conforming to IEEE 1800 SystemVerilog & Xilinx Vivado project structures
 
+import type { AxiomLayout } from "./layoutModel";
+
 export type FileSetType = "sources_1" | "sim_1" | "constrs_1";
 export type FileFormat = "verilog" | "systemverilog" | "vhdl" | "mem" | "xdc";
 
@@ -68,6 +70,7 @@ export interface AxiomProject {
   templateId?: string;
   lessonId?: string;
   security?: ProjectSecuritySettings;
+  layout?: AxiomLayout;
   createdAt: string;
   updatedAt: string;
 }

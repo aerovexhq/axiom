@@ -10,17 +10,20 @@ import {
   Trash2,
   Check,
   Layers,
-  Sparkles
+  Sparkles,
+  Layout
 } from "lucide-react";
 import { Modal } from "./ui/Modal";
 import { DropdownSelect } from "./ui";
 import { AxiomProject, ProjectSecuritySettings, getDefaultSecuritySettings } from "../engine/projectModel";
+import { AxiomLayout, BUILTIN_LAYOUT_PRESETS } from "../engine/layoutModel";
+import { getAllSavedSlots, saveGlobalSlotLayout, resetToDefaultLayout } from "../engine/layoutStorage";
 import { getFileSystem, ProjectStorageUsage } from "../engine/fs";
 import { isAutoSaveEnabled, setAutoSaveEnabled } from "../engine/autoSaveManager";
 import { toast } from "../engine/toast";
 import { useTranslation } from "../i18n";
 
-export type SettingsCategory = "general" | "editor" | "simulation" | "security";
+export type SettingsCategory = "general" | "editor" | "simulation" | "security" | "layouts";
 
 export interface ProjectSettingsModalProps {
   isOpen: boolean;
@@ -28,6 +31,9 @@ export interface ProjectSettingsModalProps {
   project: AxiomProject;
   onUpdateProject: (updated: AxiomProject) => void;
   initialCategory?: SettingsCategory;
+  activeLayout?: AxiomLayout;
+  onApplyLayout?: (layout: AxiomLayout) => void;
+  onOpenLayoutEditor?: () => void;
 }
 
 const STORAGE_QUOTA_OPTIONS = [
@@ -45,7 +51,10 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
   onClose,
   project,
   onUpdateProject,
-  initialCategory = "general"
+  initialCategory = "general",
+  activeLayout,
+  onApplyLayout,
+  onOpenLayoutEditor
 }) => {
   const { t } = useTranslation();
 
@@ -367,6 +376,15 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
           >
             <ShieldCheck size={14} color={activeCategory === "security" ? "var(--accent-cyan)" : "currentColor"} />
             <span>{t("settings.securityCategory")}</span>
+          </button>
+
+          <button
+            type="button"
+            style={categoryTabStyle("layouts")}
+            onClick={() => setActiveCategory("layouts")}
+          >
+            <Layout size={14} color={activeCategory === "layouts" ? "var(--accent-cyan)" : "currentColor"} />
+            <span>{t("settings.layoutsCategory")}</span>
           </button>
         </div>
 
@@ -1011,6 +1029,223 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                   onChange={(e) => setIsolateDataDir(e.target.checked)}
                   style={{ width: 16, height: 16, cursor: "pointer", flexShrink: 0 }}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* CATEGORY 5: WORKSPACE LAYOUTS */}
+          {activeCategory === "layouts" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Category Header */}
+              <div
+                style={{
+                  backgroundColor: "rgba(56, 139, 253, 0.08)",
+                  border: "1px solid rgba(56, 139, 253, 0.25)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "14px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: "0 0 4px 0", fontSize: 13, fontWeight: 700, color: "var(--accent-cyan)" }}>
+                    {t("settings.layoutsTitle")}
+                  </h4>
+                  <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                    {t("settings.layoutsDesc")}
+                  </p>
+                </div>
+                {onOpenLayoutEditor && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenLayoutEditor();
+                    }}
+                    className="btn btn-primary"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 11.5,
+                      padding: "6px 12px",
+                      flexShrink: 0
+                    }}
+                  >
+                    <Layout size={13} />
+                    <span>{t("settings.customizeBlueprintMode")}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Current Project Layout Card */}
+              <div>
+                <h5 style={{ margin: "0 0 8px 0", fontSize: 12, fontWeight: 700, color: "var(--text-secondary)" }}>
+                  {t("settings.currentProjectLayout")}
+                </h5>
+                <div
+                  style={{
+                    backgroundColor: "var(--bg-primary)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "12px 14px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
+                      {project.layout?.name || `${project.name} Default Split`}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                      {project.layout ? "Custom layout saved in project file" : "Using workspace default layout"}
+                    </div>
+                  </div>
+                  {project.layout && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = { ...project };
+                        delete updated.layout;
+                        onUpdateProject(updated);
+                        if (onApplyLayout) {
+                          onApplyLayout(resetToDefaultLayout());
+                        }
+                        toast.success(t("settings.resetProjectLayout"));
+                      }}
+                      className="btn btn-ghost"
+                      style={{ fontSize: 11, padding: "4px 8px", border: "1px solid var(--border-subtle)" }}
+                    >
+                      {t("settings.resetProjectLayout")}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Global 3 Layout Slots */}
+              <div>
+                <h5 style={{ margin: "0 0 8px 0", fontSize: 12, fontWeight: 700, color: "var(--text-secondary)" }}>
+                  {t("settings.globalLayoutSlots")}
+                </h5>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {getAllSavedSlots().map(({ slot, layout, defaultPreset }) => {
+                    const currentLayout = layout || defaultPreset;
+                    const isSlotSaved = !!layout;
+                    return (
+                      <div
+                        key={slot}
+                        style={{
+                          backgroundColor: "var(--bg-primary)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: "var(--radius-md)",
+                          padding: "10px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-cyan)" }}>
+                              SLOT {slot}
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                              {currentLayout.name}
+                            </span>
+                            {!isSlotSaved && (
+                              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                                ({t("settings.slotEmpty")})
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                            {currentLayout.description || "Multi-panel workspace configuration"}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                          {activeLayout && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                saveGlobalSlotLayout(slot, activeLayout.name, activeLayout);
+                                toast.success(`${t("settings.saveToSlot")} ${slot}`);
+                              }}
+                              className="btn btn-ghost"
+                              style={{ fontSize: 11, padding: "4px 8px", border: "1px solid var(--border-subtle)" }}
+                            >
+                              {t("settings.saveToSlot")}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onApplyLayout) {
+                                onApplyLayout(currentLayout);
+                                toast.success(currentLayout.name);
+                              }
+                            }}
+                            className="btn btn-secondary"
+                            style={{ fontSize: 11, padding: "4px 10px" }}
+                          >
+                            {t("settings.applyLayout")}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Built-in Presets */}
+              <div>
+                <h5 style={{ margin: "0 0 8px 0", fontSize: 12, fontWeight: 700, color: "var(--text-secondary)" }}>
+                  {t("settings.builtInPresets")}
+                </h5>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {BUILTIN_LAYOUT_PRESETS.map((preset) => (
+                    <div
+                      key={preset.id}
+                      style={{
+                        backgroundColor: "var(--bg-primary)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "10px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        gap: 8
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                          {preset.name}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.35 }}>
+                          {preset.description}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onApplyLayout) {
+                            onApplyLayout(preset);
+                            toast.success(preset.name);
+                          }
+                        }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: 11, padding: "4px 8px", border: "1px solid var(--border-subtle)", alignSelf: "flex-start" }}
+                      >
+                        {t("settings.applyLayout")}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

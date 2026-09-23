@@ -40,7 +40,8 @@ import {
   Shield,
   LayoutGrid,
   AppWindow,
-  Settings
+  Settings,
+  Check
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -71,7 +72,12 @@ export interface MenuBarProps {
   onOpenOmnibar: () => void;
   onCheckForUpdates: () => void;
   onOpenAbout: () => void;
-  onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security") => void;
+  onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security" | "layouts") => void;
+  activeLayoutId?: string;
+  onSelectLayoutPreset?: (presetId: string) => void;
+  onSelectLayoutSlot?: (slot: 1 | 2 | 3) => void;
+  onOpenLayoutEditor?: () => void;
+  onResetLayout?: () => void;
   hasActiveProject: boolean;
   isSimRunning: boolean;
 }
@@ -104,6 +110,11 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onCheckForUpdates,
   onOpenAbout,
   onOpenSettings,
+  activeLayoutId,
+  onSelectLayoutPreset,
+  onSelectLayoutSlot,
+  onOpenLayoutEditor,
+  onResetLayout,
   hasActiveProject,
   isSimRunning
 }) => {
@@ -570,6 +581,146 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <span>{t("menu.fullscreen")}</span>
               </div>
               <span style={shortcutStyle}>F11</span>
+            </div>
+
+            <div style={dividerStyle} />
+
+            {/* Workspace Layouts */}
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onOpenLayoutEditor?.();
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Layout size={13} color="var(--accent-cyan)" />
+                <span style={{ fontWeight: 600 }}>{t("menu.customizeLayout")}</span>
+              </div>
+              <span style={shortcutStyle}>Ctrl+Alt+L</span>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSelectLayoutPreset?.("preset-engineering");
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {activeLayoutId === "preset-engineering" || activeLayoutId === "default" || !activeLayoutId ? (
+                  <Check size={13} color="var(--accent-cyan)" />
+                ) : (
+                  <span style={{ width: 13 }} />
+                )}
+                <span>{t("menu.layoutPresetEngineering")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSelectLayoutPreset?.("preset-code-waveform");
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {activeLayoutId === "preset-code-waveform" ? (
+                  <Check size={13} color="var(--accent-cyan)" />
+                ) : (
+                  <span style={{ width: 13 }} />
+                )}
+                <span>{t("menu.layoutPresetCodeWaveform")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSelectLayoutPreset?.("preset-virtual-lab");
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {activeLayoutId === "preset-virtual-lab" ? (
+                  <Check size={13} color="var(--accent-cyan)" />
+                ) : (
+                  <span style={{ width: 13 }} />
+                )}
+                <span>{t("menu.layoutPresetVirtualLab")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSelectLayoutSlot?.(1);
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {activeLayoutId === "slot-1" ? (
+                  <Check size={13} color="var(--accent-cyan)" />
+                ) : (
+                  <span style={{ width: 13 }} />
+                )}
+                <span>{t("menu.layoutSlot1")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSelectLayoutSlot?.(2);
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {activeLayoutId === "slot-2" ? (
+                  <Check size={13} color="var(--accent-cyan)" />
+                ) : (
+                  <span style={{ width: 13 }} />
+                )}
+                <span>{t("menu.layoutSlot2")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onSelectLayoutSlot?.(3);
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {activeLayoutId === "slot-3" ? (
+                  <Check size={13} color="var(--accent-cyan)" />
+                ) : (
+                  <span style={{ width: 13 }} />
+                )}
+                <span>{t("menu.layoutSlot3")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onResetLayout?.();
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <RotateCcw size={13} color="var(--text-muted)" />
+                <span>{t("menu.resetLayout")}</span>
+              </div>
             </div>
 
             <div style={dividerStyle} />

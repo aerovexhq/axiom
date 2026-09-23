@@ -471,6 +471,18 @@ export interface Translations {
     toggleSidebar: string;
     toggleBottomDock: string;
     fullscreen: string;
+    workspaceLayout: string;
+    customizeLayout: string;
+    resetLayout: string;
+    layoutPresetEngineering: string;
+    layoutPresetCodeWaveform: string;
+    layoutPresetVirtualLab: string;
+    layoutPresetSchematicStudio: string;
+    layoutPresetTimingSynthesis: string;
+    layoutPresetMultiWaveform: string;
+    layoutSlot1: string;
+    layoutSlot2: string;
+    layoutSlot3: string;
     viewSchematic: string;
     viewArch: string;
     viewWaves: string;
@@ -794,5 +806,16 @@ export interface Translations {
     defaultCoverage: string;
     defaultCoverageDesc: string;
     openSettings: string;
+    layoutsCategory: string;
+    layoutsTitle: string;
+    layoutsDesc: string;
+    currentProjectLayout: string;
+    globalLayoutSlots: string;
+    builtInPresets: string;
+    customizeBlueprintMode: string;
+    applyLayout: string;
+    saveToSlot: string;
+    slotEmpty: string;
+    resetProjectLayout: string;
   };
 }
