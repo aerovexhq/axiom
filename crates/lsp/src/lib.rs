@@ -1355,6 +1355,86 @@ endmodule
         assert!(prim_labels.contains(&".CE"), "Primitive FDRE should suggest .CE");
         assert!(prim_labels.contains(&".R"), "Primitive FDRE should suggest .R");
     }
+
+    #[test]
+    fn test_lint_uygulama_0_valid_gate_netlist() {
+        let code = r#"`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: Uygulama 0 (Design Source)
+// Primitive gate-level implementation:
+//   g1: not(w2, A)
+//   g2: and(w1, w2, B)
+//   g3: not(w4, B)
+//   g4: and(w3, w1, C)
+//   g5: or(F, w4, w3)
+
+module uygulama_0 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+
+endmodule
+"#;
+        let diags = VerilogLinter::lint(code);
+        assert!(diags.is_empty(), "Valid uygulama_0 should produce zero diagnostics, got: {diags:?}");
+    }
+
+    #[test]
+    fn test_lint_uygulama_0_undeclared_w1hi_and_undriven_w1() {
+        let code = r#"`timescale 1ns / 1ps
+// Istanbul University - Cerrahpasa | Logic Circuits
+// Lesson 1: Uygulama 0 (Design Source)
+// Primitive gate-level implementation:
+//   g1: not(w2, A)
+//   g2: and(w1, w2, B)
+//   g3: not(w4, B)
+//   g4: and(w3, w1, C)
+//   g5: or(F, w4, w3)
+
+module uygulama_0 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1hi, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+
+endmodule
+"#;
+        let diags = VerilogLinter::lint(code);
+        assert!(!diags.is_empty(), "Buggy code with w1hi must produce diagnostics!");
+
+        // 1. Must flag undeclared identifier w1hi with error severity
+        let undeclared = diags.iter().find(|d| d.code == "AXIOM_E003_UNDECLARED_IDENTIFIER");
+        assert!(undeclared.is_some(), "Must report AXIOM_E003_UNDECLARED_IDENTIFIER for w1hi, got: {diags:?}");
+        let undeclared_diag = undeclared.unwrap();
+        assert!(undeclared_diag.message.contains("w1hi"), "Message should mention 'w1hi'");
+        assert_eq!(undeclared_diag.severity, 1, "Undeclared identifier must be Error severity");
+
+        // 2. Must flag undriven net w1 with warning severity
+        let undriven = diags.iter().find(|d| d.code == "AXIOM_W003_UNDRIVEN_NET");
+        assert!(undriven.is_some(), "Must report AXIOM_W003_UNDRIVEN_NET for w1, got: {diags:?}");
+        let undriven_diag = undriven.unwrap();
+        assert!(undriven_diag.message.contains("w1"), "Message should mention 'w1'");
+        assert_eq!(undriven_diag.severity, 2, "Undriven net must be Warning severity");
+    }
 }
 
 

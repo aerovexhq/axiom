@@ -23,7 +23,9 @@ import {
   ExternalLink,
   AppWindow,
   Download,
-  ArrowRightCircle
+  ArrowRightCircle,
+  CheckSquare,
+  Square
 } from "lucide-react";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
@@ -51,8 +53,11 @@ interface WelcomeLaunchpadProps {
   projects?: ProjectMetadata[];
   onOpenProject?: (projectId: string) => void;
   onTrashProject?: (projectId: string) => void;
+  onTrashProjects?: (projectIds: string[]) => void;
   onRestoreProject?: (projectId: string) => void;
+  onRestoreProjects?: (projectIds: string[]) => void;
   onPermanentDeleteProject?: (projectId: string) => void;
+  onPermanentDeleteProjects?: (projectIds: string[]) => void;
   onEmptyTrash?: () => void;
 }
 
@@ -116,13 +121,18 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   projects = [],
   onOpenProject,
   onTrashProject,
+  onTrashProjects,
   onRestoreProject,
+  onRestoreProjects,
   onPermanentDeleteProject,
+  onPermanentDeleteProjects,
   onEmptyTrash
 }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [projectsTab, setProjectsTab] = useState<"active" | "trash">("active");
+  const [selectedActiveProjectIds, setSelectedActiveProjectIds] = useState<string[]>([]);
+  const [selectedTrashProjectIds, setSelectedTrashProjectIds] = useState<string[]>([]);
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
   const [, setLeaseVersion] = useState<number>(0);
   const [githubReleases, setGithubReleases] = useState<GithubReleaseItem[]>(FALLBACK_LAUNCHPAD_RELEASES);
@@ -150,6 +160,88 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
 
   const activeProjects = projects.filter((p) => !p.isTrashed);
   const trashedProjects = projects.filter((p) => p.isTrashed);
+
+  const toggleSelectActive = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedActiveProjectIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectTrash = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedTrashProjectIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllActive = () => {
+    if (selectedActiveProjectIds.length === activeProjects.length) {
+      setSelectedActiveProjectIds([]);
+    } else {
+      setSelectedActiveProjectIds(activeProjects.map((p) => p.id));
+    }
+  };
+
+  const handleSelectAllTrash = () => {
+    if (selectedTrashProjectIds.length === trashedProjects.length) {
+      setSelectedTrashProjectIds([]);
+    } else {
+      setSelectedTrashProjectIds(trashedProjects.map((p) => p.id));
+    }
+  };
+
+  const handleBatchTrash = async () => {
+    const count = selectedActiveProjectIds.length;
+    if (count === 0) return;
+    const confirmed = await confirmDialog({
+      title: t("welcome.trashSelectedTitle"),
+      message: t("welcome.confirmTrashSelected").replace("{count}", String(count)),
+      confirmText: t("welcome.trashSelected").replace("{count}", String(count)),
+      variant: "danger"
+    });
+    if (confirmed) {
+      if (onTrashProjects) {
+        onTrashProjects(selectedActiveProjectIds);
+      } else if (onTrashProject) {
+        selectedActiveProjectIds.forEach((id) => onTrashProject(id));
+      }
+      toast.info(`Moved ${count} projects to Trash`);
+      setSelectedActiveProjectIds([]);
+    }
+  };
+
+  const handleBatchRestore = () => {
+    const count = selectedTrashProjectIds.length;
+    if (count === 0) return;
+    if (onRestoreProjects) {
+      onRestoreProjects(selectedTrashProjectIds);
+    } else if (onRestoreProject) {
+      selectedTrashProjectIds.forEach((id) => onRestoreProject(id));
+    }
+    toast.success(`Restored ${count} projects to active`);
+    setSelectedTrashProjectIds([]);
+  };
+
+  const handleBatchPermanentDelete = async () => {
+    const count = selectedTrashProjectIds.length;
+    if (count === 0) return;
+    const confirmed = await confirmDialog({
+      title: t("launchpad.deletePermanently"),
+      message: t("welcome.confirmDeletePermanentlySelected").replace("{count}", String(count)),
+      confirmText: t("welcome.deletePermanentlySelected").replace("{count}", String(count)),
+      variant: "danger"
+    });
+    if (confirmed) {
+      if (onPermanentDeleteProjects) {
+        onPermanentDeleteProjects(selectedTrashProjectIds);
+      } else if (onPermanentDeleteProject) {
+        selectedTrashProjectIds.forEach((id) => onPermanentDeleteProject(id));
+      }
+      toast.info(`Permanently deleted ${count} projects`);
+      setSelectedTrashProjectIds([]);
+    }
+  };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -607,44 +699,151 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
               {t("launchpad.noProjects")}
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-              {activeProjects.map((p) => {
-                const isLocked = isProjectActiveInAnotherSession(p.id);
-                return (
-                  <div
-                    key={p.id}
-                    onClick={async () => {
-                      if (isLocked) {
-                        const takeOver = await confirmDialog({
-                          title: t("launchpad.takeOverTitle"),
-                          message: t("launchpad.takeOverMessage").replace("{name}", p.name),
-                          confirmText: t("launchpad.takeOverConfirm"),
-                          variant: "warning"
-                        });
-                        if (takeOver) {
-                          takeOverProjectLease(p.id, p.name);
-                          onOpenProject?.(p.id);
-                        }
-                        return;
-                      }
-                      onOpenProject?.(p.id);
-                    }}
-                    className="axiom-card axiom-card-hover"
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Batch Action Toolbar for Active Projects */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "6px 12px",
+                  backgroundColor: "var(--bg-secondary)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  flexWrap: "wrap",
+                  gap: 8
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllActive}
+                    className="btn btn-ghost"
                     style={{
-                      padding: 14,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                      cursor: "pointer",
-                      borderColor: isLocked ? "rgba(168, 85, 247, 0.3)" : undefined
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "3px 8px",
+                      fontSize: 11.5,
+                      color: selectedActiveProjectIds.length > 0 ? "var(--accent-cyan)" : "var(--text-muted)"
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden", minWidth: 0 }}>
-                        <Folder size={16} color={isLocked ? "var(--accent-purple)" : "var(--accent-cyan)"} style={{ flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {p.name}
-                        </span>
+                    {selectedActiveProjectIds.length === activeProjects.length && activeProjects.length > 0 ? (
+                      <CheckSquare size={14} color="var(--accent-cyan)" />
+                    ) : (
+                      <Square size={14} />
+                    )}
+                    <span>
+                      {selectedActiveProjectIds.length === activeProjects.length && activeProjects.length > 0
+                        ? t("welcome.deselectAll")
+                        : t("welcome.selectAll")}
+                    </span>
+                  </button>
+
+                  {selectedActiveProjectIds.length > 0 && (
+                    <span
+                      className="mono-num"
+                      style={{
+                        fontSize: 11,
+                        padding: "2px 7px",
+                        borderRadius: "var(--radius-xs)",
+                        backgroundColor: "rgba(6, 182, 212, 0.15)",
+                        color: "var(--accent-cyan)",
+                        fontWeight: 600
+                      }}
+                    >
+                      {selectedActiveProjectIds.length} {t("welcome.selectedCount")}
+                    </span>
+                  )}
+                </div>
+
+                {selectedActiveProjectIds.length > 0 && (onTrashProjects || onTrashProject) && (
+                  <button
+                    type="button"
+                    onClick={handleBatchTrash}
+                    className="btn btn-danger"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "3px 10px",
+                      fontSize: 11.5,
+                      fontWeight: 600
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    <span>{t("welcome.trashSelected").replace("{count}", String(selectedActiveProjectIds.length))}</span>
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+                {activeProjects.map((p) => {
+                  const isLocked = isProjectActiveInAnotherSession(p.id);
+                  const isSelected = selectedActiveProjectIds.includes(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={async () => {
+                        if (isLocked) {
+                          const takeOver = await confirmDialog({
+                            title: t("launchpad.takeOverTitle"),
+                            message: t("launchpad.takeOverMessage").replace("{name}", p.name),
+                            confirmText: t("launchpad.takeOverConfirm"),
+                            variant: "warning"
+                          });
+                          if (takeOver) {
+                            takeOverProjectLease(p.id, p.name);
+                            onOpenProject?.(p.id);
+                          }
+                          return;
+                        }
+                        onOpenProject?.(p.id);
+                      }}
+                      className="axiom-card axiom-card-hover"
+                      style={{
+                        padding: 14,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        cursor: "pointer",
+                        borderColor: isSelected
+                          ? "var(--accent-cyan)"
+                          : isLocked
+                          ? "rgba(168, 85, 247, 0.3)"
+                          : undefined,
+                        backgroundColor: isSelected
+                          ? "rgba(6, 182, 212, 0.04)"
+                          : undefined
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden", minWidth: 0 }}>
+                          <button
+                            type="button"
+                            onClick={(e) => toggleSelectActive(p.id, e)}
+                            title={isSelected ? t("welcome.deselectAll") : t("welcome.selectAll")}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              padding: 0,
+                              margin: 0,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              flexShrink: 0
+                            }}
+                          >
+                            {isSelected ? (
+                              <CheckSquare size={15} color="var(--accent-cyan)" />
+                            ) : (
+                              <Square size={15} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                            )}
+                          </button>
+                          <Folder size={16} color={isLocked ? "var(--accent-purple)" : "var(--accent-cyan)"} style={{ flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {p.name}
+                          </span>
                         {isLocked && (
                           <span
                             style={{
@@ -779,6 +978,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                 );
               })}
             </div>
+            </div>
           )
         ) : (
           trashedProjects.length === 0 ? (
@@ -787,49 +987,184 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {onEmptyTrash && (
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              {/* Batch Action Toolbar for Trashed Projects */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "6px 12px",
+                  backgroundColor: "var(--bg-secondary)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-subtle)",
+                  flexWrap: "wrap",
+                  gap: 8
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <button
-                    onClick={async () => {
-                      const confirmed = await confirmDialog({
-                        title: t("launchpad.emptyTrash"),
-                        message: t("launchpad.confirmEmptyTrash"),
-                        confirmText: t("launchpad.emptyTrash"),
-                        variant: "danger"
-                      });
-                      if (confirmed) {
-                        onEmptyTrash();
-                        toast.success("Trash emptied");
-                      }
-                    }}
-                    className="btn btn-danger"
+                    type="button"
+                    onClick={handleSelectAllTrash}
+                    className="btn btn-ghost"
                     style={{
-                      height: 26,
-                      padding: "2px 10px",
-                      fontSize: 11,
                       display: "inline-flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      gap: 5
+                      gap: 6,
+                      padding: "3px 8px",
+                      fontSize: 11.5,
+                      color: selectedTrashProjectIds.length > 0 ? "var(--accent-rose)" : "var(--text-muted)"
                     }}
                   >
-                    <Trash2 size={12} />
-                    <span>{t("launchpad.emptyTrash")}</span>
+                    {selectedTrashProjectIds.length === trashedProjects.length && trashedProjects.length > 0 ? (
+                      <CheckSquare size={14} color="var(--accent-rose)" />
+                    ) : (
+                      <Square size={14} />
+                    )}
+                    <span>
+                      {selectedTrashProjectIds.length === trashedProjects.length && trashedProjects.length > 0
+                        ? t("welcome.deselectAll")
+                        : t("welcome.selectAll")}
+                    </span>
                   </button>
+
+                  {selectedTrashProjectIds.length > 0 && (
+                    <span
+                      className="mono-num"
+                      style={{
+                        fontSize: 11,
+                        padding: "2px 7px",
+                        borderRadius: "var(--radius-xs)",
+                        backgroundColor: "rgba(244, 63, 94, 0.15)",
+                        color: "var(--accent-rose)",
+                        fontWeight: 600
+                      }}
+                    >
+                      {selectedTrashProjectIds.length} {t("welcome.selectedCount")}
+                    </span>
+                  )}
                 </div>
-              )}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {selectedTrashProjectIds.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleBatchRestore}
+                        className="btn btn-cyan"
+                        style={{
+                          height: 26,
+                          padding: "2px 10px",
+                          fontSize: 11.5,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontWeight: 600
+                        }}
+                      >
+                        <RotateCcw size={12} />
+                        <span>{t("welcome.restoreSelected").replace("{count}", String(selectedTrashProjectIds.length))}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleBatchPermanentDelete}
+                        className="btn btn-danger"
+                        style={{
+                          height: 26,
+                          padding: "2px 10px",
+                          fontSize: 11.5,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontWeight: 600
+                        }}
+                      >
+                        <Trash2 size={12} />
+                        <span>{t("welcome.deletePermanentlySelected").replace("{count}", String(selectedTrashProjectIds.length))}</span>
+                      </button>
+                    </>
+                  )}
+
+                  {onEmptyTrash && trashedProjects.length > 0 && (
+                    <button
+                      onClick={async () => {
+                        const confirmed = await confirmDialog({
+                          title: t("launchpad.emptyTrash"),
+                          message: t("launchpad.confirmEmptyTrash"),
+                          confirmText: t("launchpad.emptyTrash"),
+                          variant: "danger"
+                        });
+                        if (confirmed) {
+                          onEmptyTrash();
+                          toast.success("Trash emptied");
+                          setSelectedTrashProjectIds([]);
+                        }
+                      }}
+                      className="btn btn-ghost"
+                      style={{
+                        height: 26,
+                        padding: "2px 10px",
+                        fontSize: 11,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        color: "var(--accent-rose)",
+                        border: "1px solid rgba(244, 63, 94, 0.3)"
+                      }}
+                    >
+                      <Trash2 size={12} />
+                      <span>{t("launchpad.emptyTrash")}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-                {trashedProjects.map((p) => (
-                  <div key={p.id} className="axiom-card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8, opacity: 0.9, border: "1px solid rgba(244, 63, 94, 0.25)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <Trash2 size={15} color="var(--accent-rose)" />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textDecoration: "line-through" }}>
-                          {p.name}
-                        </span>
+                {trashedProjects.map((p) => {
+                  const isSelected = selectedTrashProjectIds.includes(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className="axiom-card"
+                      style={{
+                        padding: 14,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        opacity: 0.9,
+                        border: isSelected ? "1px solid var(--accent-rose)" : "1px solid rgba(244, 63, 94, 0.25)",
+                        backgroundColor: isSelected ? "rgba(244, 63, 94, 0.06)" : undefined
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={(e) => toggleSelectTrash(p.id, e)}
+                            title={isSelected ? t("welcome.deselectAll") : t("welcome.selectAll")}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              padding: 0,
+                              margin: 0,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              flexShrink: 0
+                            }}
+                          >
+                            {isSelected ? (
+                              <CheckSquare size={15} color="var(--accent-rose)" />
+                            ) : (
+                              <Square size={15} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+                            )}
+                          </button>
+                          <Trash2 size={15} color="var(--accent-rose)" />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textDecoration: "line-through" }}>
+                            {p.name}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
                     <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
                       {p.trashedAt ? `Trashed ${new Date(p.trashedAt).toLocaleDateString()}` : "In Trash"} • {p.fileCount} files
@@ -888,7 +1223,8 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                       )}
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             </div>
           )

@@ -736,8 +736,25 @@ export const App: React.FC = () => {
     }
   }, [project, handleCloseProject]);
 
+  const handleTrashProjects = useCallback(async (ids: string[]) => {
+    for (const id of ids) {
+      await trashProject(id);
+    }
+    setProjects(loadProjectRegistry());
+    if (project && ids.includes(project.id)) {
+      handleCloseProject();
+    }
+  }, [project, handleCloseProject]);
+
   const handleRestoreProject = useCallback(async (id: string) => {
     await restoreProject(id);
+    setProjects(loadProjectRegistry());
+  }, []);
+
+  const handleRestoreProjects = useCallback(async (ids: string[]) => {
+    for (const id of ids) {
+      await restoreProject(id);
+    }
     setProjects(loadProjectRegistry());
   }, []);
 
@@ -745,6 +762,16 @@ export const App: React.FC = () => {
     await permanentDeleteProject(id);
     setProjects(loadProjectRegistry());
     if (project && project.id === id) {
+      handleCloseProject();
+    }
+  }, [project, handleCloseProject]);
+
+  const handlePermanentDeleteProjects = useCallback(async (ids: string[]) => {
+    for (const id of ids) {
+      await permanentDeleteProject(id);
+    }
+    setProjects(loadProjectRegistry());
+    if (project && ids.includes(project.id)) {
       handleCloseProject();
     }
   }, [project, handleCloseProject]);
@@ -1106,8 +1133,11 @@ export const App: React.FC = () => {
                 setActiveMobilePanel("editor");
               }}
               onTrashProject={handleTrashProject}
+              onTrashProjects={handleTrashProjects}
               onRestoreProject={handleRestoreProject}
+              onRestoreProjects={handleRestoreProjects}
               onPermanentDeleteProject={handlePermanentDeleteProject}
+              onPermanentDeleteProjects={handlePermanentDeleteProjects}
               onEmptyTrash={handleEmptyTrash}
             />
           ) : activeMobilePanel === "editor" ? (
@@ -1364,8 +1394,11 @@ export const App: React.FC = () => {
                 projects={projects}
                 onOpenProject={handleOpenProjectById}
                 onTrashProject={handleTrashProject}
+                onTrashProjects={handleTrashProjects}
                 onRestoreProject={handleRestoreProject}
+                onRestoreProjects={handleRestoreProjects}
                 onPermanentDeleteProject={handlePermanentDeleteProject}
+                onPermanentDeleteProjects={handlePermanentDeleteProjects}
                 onEmptyTrash={handleEmptyTrash}
               />
             ) : maximizedPanel === "editor" ? (

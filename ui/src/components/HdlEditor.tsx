@@ -783,6 +783,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
           height="100%"
           language={editorLanguage}
           theme="axiom-dark"
+          path={activeFile ? `axiom://${project?.id || "prj"}/${activeFile.id}/${activeFile.name}` : undefined}
+          saveViewState={true}
           value={code}
           onChange={(val) => onChangeCode(val ?? "")}
           beforeMount={(monaco) => {

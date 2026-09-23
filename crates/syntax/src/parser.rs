@@ -7,6 +7,7 @@ pub struct Parser<'a> {
     tokens: &'a [Token],
     cursor: usize,
     diagnostics: Vec<Diagnostic>,
+    extra_module_items: Vec<ModuleItem>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -33,6 +34,7 @@ impl<'a> Parser<'a> {
             tokens,
             cursor: 0,
             diagnostics: Vec::new(),
+            extra_module_items: Vec::new(),
         }
     }
 
@@ -220,6 +222,7 @@ impl<'a> Parser<'a> {
         while !self.check(&TokenKind::EndModule) && !self.check(&TokenKind::Eof) {
             self.parse_module_items_into(&mut items, &mut ports);
         }
+        items.append(&mut self.extra_module_items);
 
         let end_span = self.expect(&TokenKind::EndModule, "endmodule")
             .unwrap_or(start_span);
@@ -728,17 +731,18 @@ impl<'a> Parser<'a> {
                     // integer, reg, wire, logic, genvar
                     if matches!(self.peek(), TokenKind::Integer | TokenKind::Reg | TokenKind::Wire | TokenKind::Logic | TokenKind::Genvar) {
                         if let Some(decl) = self.parse_net_decl() {
-                            if let ModuleItem::NetDecl(net) = decl {
-                                if let Some(init_expr) = net.init {
-                                    for name in net.names {
+                            if let ModuleItem::NetDecl(ref net) = decl {
+                                if let Some(ref init_expr) = net.init {
+                                    for name in &net.names {
                                         stmts.push(Statement::BlockingAssign {
-                                            lhs: Expr::Ident(name, net.span),
+                                            lhs: Expr::Ident(name.clone(), net.span),
                                             rhs: init_expr.clone(),
                                             span: net.span,
                                         });
                                     }
                                 }
                             }
+                            self.extra_module_items.push(decl);
                         } else {
                             self.synchronize_to_semicolon();
                         }

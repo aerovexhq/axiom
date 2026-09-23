@@ -110,6 +110,15 @@ export interface Translations {
     takeOverMessage: string;
     takeOverConfirm: string;
     takeOverAction: string;
+    selectAll: string;
+    deselectAll: string;
+    selectedCount: string;
+    trashSelected: string;
+    trashSelectedTitle: string;
+    restoreSelected: string;
+    deletePermanentlySelected: string;
+    confirmTrashSelected: string;
+    confirmDeletePermanentlySelected: string;
     inRamJitTitle: string;
     inRamJitDesc: string;
     deltaSteppingTitle: string;

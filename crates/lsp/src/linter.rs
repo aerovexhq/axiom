@@ -44,11 +44,25 @@ impl VerilogLinter {
         diags: &mut Vec<LspDiagnostic>,
     ) {
         let mut declared_signals: HashMap<String, (DataType, Option<Range>, Span)> = HashMap::new();
+        let mut parameter_names: HashSet<String> = HashSet::new();
         let mut input_ports: HashSet<String> = HashSet::new();
         let mut output_ports: HashSet<String> = HashSet::new();
 
         let mut assigned_signals: HashMap<String, Vec<Span>> = HashMap::new();
         let mut read_signals: HashSet<String> = HashSet::new();
+        let mut referenced_idents: Vec<(String, Span)> = Vec::new();
+
+        // Register module name as a valid scope symbol (e.g. for $dumpvars(0, tb_name))
+        declared_signals.insert(module.name.clone(), (DataType::Implicit, None, module.span));
+        parameter_names.insert(module.name.clone());
+
+        // Collect module parameters
+        for param in &module.params {
+            declared_signals.insert(param.name.clone(), (DataType::Implicit, None, param.span));
+            parameter_names.insert(param.name.clone());
+            Self::collect_expr_reads(&param.value, &mut read_signals);
+            Self::collect_expr_idents(&param.value, &mut referenced_idents);
+        }
 
         // Collect ports
         for port in &module.ports {
@@ -67,23 +81,22 @@ impl VerilogLinter {
             declared_signals.insert(port.name.clone(), (port.data_type, port.range.clone(), port.span));
         }
 
-        // Collect net declarations
-        for item in &module.items {
-            if let ModuleItem::NetDecl(net) = item {
-                for name in &net.names {
-                    declared_signals.insert(name.clone(), (net.data_type, net.range.clone(), net.span));
-                    if let Some(ref init_expr) = net.init {
-                        assigned_signals.entry(name.clone()).or_default().push(net.span);
-                        Self::collect_expr_reads(init_expr, &mut read_signals);
-                    }
-                }
-            }
-        }
+        // Collect net and parameter declarations from module items (including generate blocks)
+        Self::collect_declarations_from_items(
+            &module.items,
+            &mut declared_signals,
+            &mut parameter_names,
+            &mut assigned_signals,
+            &mut read_signals,
+            &mut referenced_idents,
+        );
 
         // Inspect Continuous Assignments
         for item in &module.items {
             if let ModuleItem::ContinuousAssign(assign) = item {
                 Self::collect_expr_reads(&assign.rhs, &mut read_signals);
+                Self::collect_expr_idents(&assign.lhs, &mut referenced_idents);
+                Self::collect_expr_idents(&assign.rhs, &mut referenced_idents);
                 let lhs_names = Self::collect_expr_targets(&assign.lhs);
                 for lhs in lhs_names {
                     assigned_signals.entry(lhs).or_default().push(assign.span);
@@ -136,6 +149,12 @@ impl VerilogLinter {
         // Inspect Procedural Blocks
         for item in &module.items {
             if let ModuleItem::ProceduralBlock(proc) = item {
+                if let Some(sens_list) = &proc.sensitivity {
+                    for s in sens_list {
+                        Self::collect_expr_idents(&s.signal, &mut referenced_idents);
+                    }
+                }
+                Self::collect_statement_idents(&proc.body, &mut referenced_idents);
                 Self::lint_procedural_block(
                     source,
                     proc,
@@ -146,7 +165,7 @@ impl VerilogLinter {
             }
         }
 
-        // Inspect Submodule Instances
+        // Inspect Submodule and Gate Instances
         let mut instance_connected_signals = HashSet::new();
         for item in &module.items {
             if let ModuleItem::Instance(inst) = item {
@@ -155,6 +174,8 @@ impl VerilogLinter {
                 let child_def = all_modules.get(&inst.module_name).copied();
 
                 for (port_name, expr) in &inst.port_bindings {
+                    Self::collect_expr_idents(expr, &mut referenced_idents);
+
                     let is_output = if is_prim {
                         crate::primitives_doc::is_primitive_output_port(&inst.module_name, port_name)
                     } else if let Some(target_mod) = child_def {
@@ -173,20 +194,25 @@ impl VerilogLinter {
                             assigned_signals.entry(sig.clone()).or_default().push(inst.span);
                             instance_connected_signals.insert(sig);
                         }
-                    } else {
+                    } else if child_def.is_none() && !is_prim {
+                        // Completely unknown blackbox module: could be input or output driver
                         Self::collect_expr_reads(expr, &mut read_signals);
                         for sig in Self::collect_expr_targets(expr) {
                             instance_connected_signals.insert(sig);
                         }
+                    } else {
+                        Self::collect_expr_reads(expr, &mut read_signals);
                     }
                 }
                 for (_, expr) in &inst.param_bindings {
                     Self::collect_expr_reads(expr, &mut read_signals);
+                    Self::collect_expr_idents(expr, &mut referenced_idents);
                 }
             }
             if let ModuleItem::Assertion(asrt) = item {
                 if let Some(clk) = &asrt.clock {
                     Self::collect_expr_reads(&clk.signal, &mut read_signals);
+                    Self::collect_expr_idents(&clk.signal, &mut referenced_idents);
                 }
                 for word in asrt.expr_text.split(|c: char| !c.is_alphanumeric() && c != '_') {
                     if !word.is_empty() && declared_signals.contains_key(word) {
@@ -196,9 +222,32 @@ impl VerilogLinter {
             }
         }
 
-        // Rule AXIOM_W003_UNDRIVEN_NET: Declared & read, but never driven (and not an input port or instance output)
+        // Rule AXIOM_E003_UNDECLARED_IDENTIFIER: Any identifier referenced in expressions that is not declared
+        let mut reported_undeclared = HashSet::new();
+        for (ident, span) in &referenced_idents {
+            if ident.starts_with('$') {
+                continue; // Built-in system tasks / functions ($time, $display, $finish, etc.)
+            }
+            if !declared_signals.contains_key(ident) && reported_undeclared.insert((ident.clone(), span.start)) {
+                let (s_line, s_col, e_line, e_col) = Self::span_to_coords(source, *span);
+                diags.push(
+                    LspDiagnostic::error(
+                        "AXIOM_E003_UNDECLARED_IDENTIFIER",
+                        format!("Identifier '{ident}' is not declared in module '{}'", module.name),
+                        s_line,
+                        s_col,
+                        e_line,
+                        e_col,
+                    )
+                    .with_help(format!("Declare 'wire {ident};' or check for spelling mistakes.")),
+                );
+            }
+        }
+
+        // Rule AXIOM_W003_UNDRIVEN_NET: Declared & read, but never driven (and not an input port, parameter, or instance output)
         for (sig_name, (_, _, decl_span)) in &declared_signals {
             if !input_ports.contains(sig_name)
+                && !parameter_names.contains(sig_name)
                 && read_signals.contains(sig_name)
                 && !assigned_signals.contains_key(sig_name)
                 && !instance_connected_signals.contains(sig_name)
@@ -218,8 +267,11 @@ impl VerilogLinter {
             }
         }
 
-        // Rule AXIOM_W004_UNUSED_SIGNAL: Declared & assigned, but never read and not an output port
+        // Rule AXIOM_W004_UNUSED_SIGNAL: Declared & assigned, but never read and not an output port or parameter
         for (sig_name, (_, _, decl_span)) in &declared_signals {
+            if parameter_names.contains(sig_name) {
+                continue;
+            }
             if !output_ports.contains(sig_name)
                 && !input_ports.contains(sig_name)
                 && assigned_signals.contains_key(sig_name)
@@ -562,6 +614,158 @@ impl VerilogLinter {
                 Self::collect_expr_reads(expr, reads);
             }
             _ => {}
+        }
+    }
+
+    fn collect_declarations_from_items(
+        items: &[ModuleItem],
+        declared: &mut HashMap<String, (DataType, Option<Range>, Span)>,
+        parameters: &mut HashSet<String>,
+        assigned: &mut HashMap<String, Vec<Span>>,
+        reads: &mut HashSet<String>,
+        referenced: &mut Vec<(String, Span)>,
+    ) {
+        for item in items {
+            match item {
+                ModuleItem::NetDecl(net) => {
+                    for name in &net.names {
+                        declared.insert(name.clone(), (net.data_type, net.range.clone(), net.span));
+                        if let Some(ref init_expr) = net.init {
+                            assigned.entry(name.clone()).or_default().push(net.span);
+                            Self::collect_expr_reads(init_expr, reads);
+                            Self::collect_expr_idents(init_expr, referenced);
+                        }
+                    }
+                }
+                ModuleItem::ParamDecl(param) => {
+                    declared.insert(param.name.clone(), (DataType::Implicit, None, param.span));
+                    parameters.insert(param.name.clone());
+                    Self::collect_expr_reads(&param.value, reads);
+                    Self::collect_expr_idents(&param.value, referenced);
+                }
+                ModuleItem::GenerateBlock(gen) => {
+                    Self::collect_declarations_from_items(
+                        &gen.items,
+                        declared,
+                        parameters,
+                        assigned,
+                        reads,
+                        referenced,
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn collect_expr_idents(expr: &Expr, idents: &mut Vec<(String, Span)>) {
+        match expr {
+            Expr::Ident(name, span) => {
+                idents.push((name.clone(), *span));
+            }
+            Expr::Unary { expr: inner, .. } => {
+                Self::collect_expr_idents(inner, idents);
+            }
+            Expr::Binary { lhs, rhs, .. } => {
+                Self::collect_expr_idents(lhs, idents);
+                Self::collect_expr_idents(rhs, idents);
+            }
+            Expr::Ternary { cond, then_expr, else_expr, .. } => {
+                Self::collect_expr_idents(cond, idents);
+                Self::collect_expr_idents(then_expr, idents);
+                Self::collect_expr_idents(else_expr, idents);
+            }
+            Expr::Concat(items, _) => {
+                for item in items {
+                    Self::collect_expr_idents(item, idents);
+                }
+            }
+            Expr::Slice { target, msb, lsb, .. } => {
+                Self::collect_expr_idents(target, idents);
+                Self::collect_expr_idents(msb, idents);
+                Self::collect_expr_idents(lsb, idents);
+            }
+            Expr::IndexedSlice { target, base, width, .. } => {
+                Self::collect_expr_idents(target, idents);
+                Self::collect_expr_idents(base, idents);
+                Self::collect_expr_idents(width, idents);
+            }
+            Expr::Call { name, args, span } => {
+                if !name.starts_with('$') {
+                    idents.push((name.clone(), *span));
+                }
+                for arg in args {
+                    Self::collect_expr_idents(arg, idents);
+                }
+            }
+            Expr::Replication { count, expr, .. } => {
+                Self::collect_expr_idents(count, idents);
+                Self::collect_expr_idents(expr, idents);
+            }
+            _ => {}
+        }
+    }
+
+    fn collect_statement_idents(stmt: &Statement, idents: &mut Vec<(String, Span)>) {
+        match stmt {
+            Statement::BlockingAssign { lhs, rhs, .. } | Statement::NonBlockingAssign { lhs, rhs, .. } => {
+                Self::collect_expr_idents(lhs, idents);
+                Self::collect_expr_idents(rhs, idents);
+            }
+            Statement::Block(stmts) => {
+                for s in stmts {
+                    Self::collect_statement_idents(s, idents);
+                }
+            }
+            Statement::If { cond, then_branch, else_branch, .. } => {
+                Self::collect_expr_idents(cond, idents);
+                Self::collect_statement_idents(then_branch, idents);
+                if let Some(else_b) = else_branch {
+                    Self::collect_statement_idents(else_b, idents);
+                }
+            }
+            Statement::Case { expr, items, .. } => {
+                Self::collect_expr_idents(expr, idents);
+                for item in items {
+                    for pat in &item.patterns {
+                        Self::collect_expr_idents(pat, idents);
+                    }
+                    Self::collect_statement_idents(&item.body, idents);
+                }
+            }
+            Statement::For { init, cond, step, body, .. } => {
+                Self::collect_statement_idents(init, idents);
+                Self::collect_expr_idents(cond, idents);
+                Self::collect_statement_idents(step, idents);
+                Self::collect_statement_idents(body, idents);
+            }
+            Statement::Forever { body, .. } => {
+                Self::collect_statement_idents(body, idents);
+            }
+            Statement::Repeat { count, body, .. } => {
+                Self::collect_expr_idents(count, idents);
+                Self::collect_statement_idents(body, idents);
+            }
+            Statement::While { cond, body, .. } => {
+                Self::collect_expr_idents(cond, idents);
+                Self::collect_statement_idents(body, idents);
+            }
+            Statement::Delay { amount, stmt, .. } => {
+                Self::collect_expr_idents(amount, idents);
+                if let Some(s) = stmt {
+                    Self::collect_statement_idents(s, idents);
+                }
+            }
+            Statement::TaskCall { name, args, span } => {
+                if !name.starts_with('$') {
+                    idents.push((name.clone(), *span));
+                }
+                for arg in args {
+                    Self::collect_expr_idents(arg, idents);
+                }
+            }
+            Statement::Assertion(_) => {}
+            Statement::Null => {}
         }
     }
 
