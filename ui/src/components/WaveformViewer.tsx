@@ -125,7 +125,42 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   }, []);
 
   const headerHeight = 32;
-  const gutterWidth = isMobile ? 120 : 230;
+  const [customGutterWidth, setCustomGutterWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("axiom_waveform_gutter_width");
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 90 && parsed <= 450) return parsed;
+      }
+    }
+    return 230;
+  });
+  const gutterWidth = isMobile ? 120 : customGutterWidth;
+  const [isDraggingGutter, setIsDraggingGutter] = useState(false);
+  const [gutterDragStartX, setGutterDragStartX] = useState(0);
+  const [gutterStartWidth, setGutterStartWidth] = useState(0);
+
+  useEffect(() => {
+    if (!isDraggingGutter) return;
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = e.clientX - rect.left;
+      const deltaX = x - gutterDragStartX;
+      const newWidth = Math.max(90, Math.min(450, gutterStartWidth + deltaX));
+      setCustomGutterWidth(newWidth);
+    };
+    const handleWindowMouseUp = () => {
+      setIsDraggingGutter(false);
+      localStorage.setItem("axiom_waveform_gutter_width", customGutterWidth.toString());
+    };
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, [isDraggingGutter, gutterDragStartX, gutterStartWidth, customGutterWidth]);
 
   // Listen for waveform seek events (e.g. from bottom dock Assertions tab)
   useEffect(() => {
@@ -1272,12 +1307,13 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     // Draw Left Gutter (Signal Names & Values at Cursor)
     ctx.fillStyle = "#0c1017";
     ctx.fillRect(0, 0, gutterWidth, height);
-    ctx.strokeStyle = "#1e293b";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isDraggingGutter ? "#06b6d4" : "#1e293b";
+    ctx.lineWidth = isDraggingGutter ? 2 : 1;
     ctx.beginPath();
     ctx.moveTo(gutterWidth, 0);
     ctx.lineTo(gutterWidth, height);
     ctx.stroke();
+    ctx.lineWidth = 1;
 
     // Gutter Header
     ctx.font = "11px Inter, sans-serif";
@@ -1508,6 +1544,14 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const y = e.clientY - rect.top;
     setMouseDownPos({ x, y });
 
+    // Drag gutter divider (within 6px of gutter boundary)
+    if (!isMobile && Math.abs(x - gutterWidth) <= 6) {
+      setIsDraggingGutter(true);
+      setGutterDragStartX(e.clientX);
+      setGutterStartWidth(gutterWidth);
+      return;
+    }
+
     const protocolTrackHeight = decodedTransactions.length > 0 ? 28 : 0;
     const rowYOffset = headerHeight + protocolTrackHeight;
 
@@ -1636,6 +1680,16 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    if (isDraggingGutter) {
+      if (canvasRef.current) canvasRef.current.style.cursor = "col-resize";
+      return;
+    }
+
+    if (!isMobile && Math.abs(x - gutterWidth) <= 5) {
+      if (canvasRef.current) canvasRef.current.style.cursor = "col-resize";
+      return;
+    }
+
     if (x >= gutterWidth) {
       const calcPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
       setHoverTimePs(calcPs);
@@ -1729,6 +1783,12 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isDraggingGutter) {
+      setIsDraggingGutter(false);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("axiom_waveform_gutter_width", customGutterWidth.toString());
+      }
+    }
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect && activeCursorDrag === "new_selection") {
       const x = e.clientX - rect.left;
@@ -1748,6 +1808,15 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     if (!rect) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    // Reset gutter width on double clicking gutter boundary
+    if (!isMobile && Math.abs(x - gutterWidth) <= 6) {
+      setCustomGutterWidth(230);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("axiom_waveform_gutter_width", "230");
+      }
+      return;
+    }
 
     if (x >= gutterWidth && y <= headerHeight) {
       const clickedPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
@@ -2319,6 +2388,30 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
             >
               <Maximize2 size={14} />
             </button>
+            {customGutterWidth !== 230 && !isMobile && (
+              <button
+                onClick={() => {
+                  setCustomGutterWidth(230);
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("axiom_waveform_gutter_width", "230");
+                  }
+                }}
+                title={t.waveforms.resetGutter}
+                className="btn btn-ghost"
+                style={{
+                  fontSize: 10,
+                  padding: "2px 6px",
+                  height: 24,
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--accent-cyan)",
+                  border: "1px dashed rgba(6, 182, 212, 0.4)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {t.waveforms.resetGutter}
+              </button>
+            )}
           </div>
         </div>
       </div>

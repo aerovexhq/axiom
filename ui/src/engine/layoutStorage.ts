@@ -183,3 +183,95 @@ export function resetToDefaultLayout(project?: AxiomProject | null): AxiomLayout
   }
   return DEFAULT_LAYOUT;
 }
+
+// Validate layout node recursively
+export function isValidLayoutNode(node: any): boolean {
+  if (!node || typeof node !== "object") return false;
+  if (node.type === "leaf") {
+    return (
+      typeof node.id === "string" &&
+      Array.isArray(node.views) &&
+      node.views.length > 0 &&
+      typeof node.activeViewId === "string" &&
+      node.views.includes(node.activeViewId)
+    );
+  }
+  if (node.type === "split") {
+    return (
+      typeof node.id === "string" &&
+      (node.direction === "row" || node.direction === "column") &&
+      typeof node.splitRatio === "number" &&
+      node.splitRatio >= 0.05 &&
+      node.splitRatio <= 0.95 &&
+      isValidLayoutNode(node.first) &&
+      isValidLayoutNode(node.second)
+    );
+  }
+  return false;
+}
+
+// Validate complete AxiomLayout object
+export function validateLayoutJson(jsonStr: string): AxiomLayout | null {
+  try {
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (typeof parsed.name !== "string" || !parsed.name.trim()) return null;
+    if (!isValidLayoutNode(parsed.root)) return null;
+
+    const now = new Date().toISOString();
+    const validated: AxiomLayout = {
+      id: typeof parsed.id === "string" && parsed.id ? parsed.id : `layout_${Date.now()}`,
+      name: parsed.name.trim(),
+      description: typeof parsed.description === "string" ? parsed.description : undefined,
+      scope: parsed.scope === "project" ? "project" : "global",
+      slot: parsed.slot === 1 || parsed.slot === 2 || parsed.slot === 3 ? parsed.slot : undefined,
+      isPreset: false,
+      root: parsed.root,
+      createdAt: typeof parsed.createdAt === "string" && parsed.createdAt ? parsed.createdAt : now,
+      updatedAt: now
+    };
+    return validated;
+  } catch {
+    return null;
+  }
+}
+
+// Export layout to downloadable JSON file
+export function exportLayoutToJson(layout: AxiomLayout): void {
+  const cleanLayout: AxiomLayout = {
+    ...layout,
+    updatedAt: new Date().toISOString()
+  };
+  const jsonStr = JSON.stringify(cleanLayout, null, 2);
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const sanitizedName = (layout.name || "workspace_layout")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "_");
+  a.href = url;
+  a.download = `${sanitizedName}.axiom-layout.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Import layout from File object
+export function importLayoutFromJsonFile(file: File): Promise<AxiomLayout> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const validated = validateLayoutJson(text);
+      if (validated) {
+        resolve(validated);
+      } else {
+        reject(new Error("Invalid layout JSON format or corrupted layout tree structure."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read file from disk."));
+    reader.readAsText(file);
+  });
+}
+

@@ -65,6 +65,7 @@ export interface VisualizerContextProps {
   setDiagnostics?: (diagnostics: any[]) => void;
   timingSlackPs?: number | null;
   predictedFmaxGainMhz?: number | null;
+  isCodeDirty?: boolean;
 }
 
 export interface LayoutLeafRendererProps {
@@ -163,6 +164,7 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
             timingSlackPs={context.timingSlackPs}
             predictedFmaxGainMhz={context.predictedFmaxGainMhz}
             onOpenSettings={context.onOpenSettings as any}
+            isDirty={context.isCodeDirty}
           />
         );
       case "schematic":

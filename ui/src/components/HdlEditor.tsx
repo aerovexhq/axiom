@@ -15,7 +15,9 @@ import {
   CheckCircle,
   BarChart2,
   Zap,
-  Settings
+  Settings,
+  MoreVertical,
+  Check
 } from "lucide-react";
 import { AxiomProject } from "../engine/projectModel";
 import { engineBridge, LspDiagnostic, CoverageReport } from "../engine/engineBridge";
@@ -49,6 +51,7 @@ interface HdlEditorProps {
   timingSlackPs?: number | null;
   predictedFmaxGainMhz?: number | null;
   onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security") => void;
+  isDirty?: boolean;
 }
 
 export const HdlEditor: React.FC<HdlEditorProps> = ({
@@ -69,7 +72,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   onOpenAutoPipeline,
   timingSlackPs,
   predictedFmaxGainMhz,
-  onOpenSettings
+  onOpenSettings,
+  isDirty = false
 }) => {
   const { t } = useTranslation();
   const editorRef = useRef<monacoPkg.editor.IStandaloneCodeEditor | null>(null);
@@ -88,6 +92,19 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
     return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
   });
   const [keyboardInset, setKeyboardInset] = useState<number>(0);
+  const [isOverflowOpen, setIsOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOverflowOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+        setIsOverflowOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => window.removeEventListener("mousedown", handleClickOutside);
+  }, [isOverflowOpen]);
 
   // Dynamic Visual Viewport tracking for mobile virtual keyboard
   useEffect(() => {
@@ -575,6 +592,22 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                     {file.name}
                   </span>
 
+                  {/* Dirty Dot Indicator */}
+                  {((isActive && isDirty) || (file as any).isModified) && (
+                    <span
+                      title={t("editor.dirtyFileTooltip")}
+                      style={{
+                        fontSize: 9,
+                        color: "var(--accent-cyan)",
+                        lineHeight: 1,
+                        marginLeft: 1,
+                        flexShrink: 0
+                      }}
+                    >
+                      ●
+                    </span>
+                  )}
+
                   {isTop && (
                     <span
                       style={{
@@ -623,6 +656,106 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
                 {topModule}.v
               </span>
+            </div>
+          )}
+
+          {openFiles.length > 6 && (
+            <div ref={overflowRef} style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setIsOverflowOpen(!isOverflowOpen)}
+                title={t("editor.moreFiles")}
+                className="btn-icon"
+                style={{
+                  padding: "3px 4px",
+                  color: isOverflowOpen ? "var(--accent-cyan)" : "var(--text-muted)",
+                  cursor: "pointer",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: isOverflowOpen ? "var(--bg-tertiary)" : "transparent",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center"
+                }}
+              >
+                <MoreVertical size={13} />
+              </button>
+
+              {isOverflowOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    zIndex: 100,
+                    backgroundColor: "var(--bg-secondary)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "var(--radius-md)",
+                    boxShadow: "0 6px 16px rgba(0, 0, 0, 0.45)",
+                    padding: "4px 0",
+                    minWidth: 170,
+                    maxWidth: 240,
+                    marginTop: 2
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "3px 8px 5px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "var(--text-muted)",
+                      borderBottom: "1px solid var(--border-subtle)"
+                    }}
+                  >
+                    {t("editor.moreFiles")} ({openFiles.length})
+                  </div>
+                  <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                    {openFiles.map((f) => {
+                      const isAct = f.id === project?.activeFileId;
+                      const isMod = (isAct && isDirty) || (f as any).isModified;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => {
+                            onSelectTab?.(f.id);
+                            setIsOverflowOpen(false);
+                          }}
+                          style={{
+                            width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "5px 8px",
+                            backgroundColor: isAct ? "rgba(6, 182, 212, 0.12)" : "transparent",
+                            color: isAct ? "#fff" : "var(--text-secondary)",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: 11.5,
+                            textAlign: "left"
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isAct) e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isAct) e.currentTarget.style.backgroundColor = "transparent";
+                          }}
+                        >
+                          <FileCode size={12} color={isAct ? "var(--accent-cyan)" : "var(--text-muted)"} style={{ flexShrink: 0 }} />
+                          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {f.name}
+                          </span>
+                          {isMod && (
+                            <span style={{ fontSize: 8, color: "var(--accent-cyan)" }}>●</span>
+                          )}
+                          {isAct && <Check size={11} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

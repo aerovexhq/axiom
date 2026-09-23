@@ -175,6 +175,8 @@ export interface Translations {
     katanaSlashTooltip: string;
     settingsTooltip: string;
     coverageButton: string;
+    dirtyFileTooltip: string;
+    moreFiles: string;
   };
   schematic: {
     title: string;
@@ -252,6 +254,7 @@ export interface Translations {
     deltaAccordion: string;
     glitchDetected: string;
     gutterWidth: string;
+    resetGutter: string;
     zoomIn: string;
     zoomOut: string;
     zoomFit: string;
@@ -474,6 +477,8 @@ export interface Translations {
     workspaceLayout: string;
     customizeLayout: string;
     resetLayout: string;
+    exportLayout: string;
+    importLayout: string;
     layoutPresetEngineering: string;
     layoutPresetCodeWaveform: string;
     layoutPresetVirtualLab: string;
@@ -817,5 +822,9 @@ export interface Translations {
     saveToSlot: string;
     slotEmpty: string;
     resetProjectLayout: string;
+    exportLayoutJson: string;
+    importLayoutJson: string;
+    layoutImportSuccess: string;
+    layoutImportError: string;
   };
 }

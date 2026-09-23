@@ -41,7 +41,8 @@ import {
   LayoutGrid,
   AppWindow,
   Settings,
-  Check
+  Check,
+  Upload
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -78,6 +79,8 @@ export interface MenuBarProps {
   onSelectLayoutSlot?: (slot: 1 | 2 | 3) => void;
   onOpenLayoutEditor?: () => void;
   onResetLayout?: () => void;
+  onExportLayout?: () => void;
+  onImportLayout?: () => void;
   hasActiveProject: boolean;
   isSimRunning: boolean;
 }
@@ -115,6 +118,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onSelectLayoutSlot,
   onOpenLayoutEditor,
   onResetLayout,
+  onExportLayout,
+  onImportLayout,
   hasActiveProject,
   isSimRunning
 }) => {
@@ -720,6 +725,34 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <RotateCcw size={13} color="var(--text-muted)" />
                 <span>{t("menu.resetLayout")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onExportLayout?.();
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Download size={13} color="var(--accent-blue)" />
+                <span>{t("menu.exportLayout")}</span>
+              </div>
+            </div>
+
+            <div
+              style={menuItemStyle}
+              className="menu-item-hover"
+              onClick={() => {
+                onImportLayout?.();
+                setActiveMenu(null);
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Upload size={13} color="var(--accent-cyan)" />
+                <span>{t("menu.importLayout")}</span>
               </div>
             </div>
 

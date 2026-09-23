@@ -56,6 +56,23 @@ export type GateType =
   | "operator"
   | "module";
 
+function isGlobalNet(netName?: string): boolean {
+  if (!netName) return false;
+  const lower = netName.toLowerCase();
+  return (
+    lower === "clk" ||
+    lower.startsWith("clk_") ||
+    lower.endsWith("_clk") ||
+    lower.includes("clock") ||
+    lower === "rst" ||
+    lower === "reset" ||
+    lower.startsWith("rst_") ||
+    lower.endsWith("_rst") ||
+    lower === "rst_n" ||
+    lower === "rst_b"
+  );
+}
+
 export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   state,
   activeDesignId,
@@ -486,6 +503,9 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     // 1. Draw Edges / Nets (Manhattan Orthogonal Routing & Hover Glow)
     // ------------------------------------------------------------------------
     for (const edge of graph.edges) {
+      if (hideClockNets && isGlobalNet(edge.netName)) {
+        continue;
+      }
       const inCone = isConeActive && activeCone.edgeIds.has(edge.id);
       const isDimmed = isConeActive && !inCone;
       const isSelected = selectedEdgeId === edge.id;
@@ -754,6 +774,22 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           ctx.beginPath();
           ctx.arc(node.x + pin.offsetX, node.y + pin.offsetY, 2.5, 0, Math.PI * 2);
           ctx.fill();
+
+          // Compact clock and reset pin badges when global distribution lines are suppressed
+          if (hideClockNets) {
+            const pinName = pin.name.toLowerCase();
+            const isClk = pin.isClock || pinName.includes("clk") || pinName.includes("clock");
+            const isRst = pinName.includes("rst") || pinName.includes("reset");
+            if (isClk || isRst) {
+              const px = node.x + pin.offsetX;
+              const py = node.y + pin.offsetY;
+              ctx.font = "bold 7px JetBrains Mono, monospace";
+              ctx.fillStyle = isClk ? "#f59e0b" : "#ef4444";
+              ctx.textAlign = "right";
+              ctx.fillText(isClk ? "CLK" : "RST", px - 4, py + 2.5);
+              ctx.fillStyle = visuals.accentColor;
+            }
+          }
         }
         // Outputs (Right)
         for (const pin of node.outputs) {
@@ -830,6 +866,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     activeCone,
     liveValuesMap,
     showLiveValues,
+    hideClockNets,
     showMinimap,
     lodLevel
   ]);
@@ -1026,6 +1063,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         // Hit-test edges
         let hitEdge: SchematicEdge | null = null;
         for (const edge of graph.edges) {
+          if (hideClockNets && isGlobalNet(edge.netName)) continue;
           for (let i = 0; i < edge.wirePoints.length - 1; i++) {
             const p1 = edge.wirePoints[i];
             const p2 = edge.wirePoints[i + 1];
@@ -1082,6 +1120,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     if (!hitNode) {
       let hitEdge: SchematicEdge | null = null;
       for (const edge of graph.edges) {
+        if (hideClockNets && isGlobalNet(edge.netName)) continue;
         for (let i = 0; i < edge.wirePoints.length - 1; i++) {
           const p1 = edge.wirePoints[i];
           const p2 = edge.wirePoints[i + 1];

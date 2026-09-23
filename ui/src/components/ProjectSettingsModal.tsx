@@ -11,13 +11,22 @@ import {
   Check,
   Layers,
   Sparkles,
-  Layout
+  Layout,
+  Download,
+  Upload
 } from "lucide-react";
 import { Modal } from "./ui/Modal";
 import { DropdownSelect } from "./ui";
 import { AxiomProject, ProjectSecuritySettings, getDefaultSecuritySettings } from "../engine/projectModel";
-import { AxiomLayout, BUILTIN_LAYOUT_PRESETS } from "../engine/layoutModel";
-import { getAllSavedSlots, saveGlobalSlotLayout, resetToDefaultLayout } from "../engine/layoutStorage";
+import { AxiomLayout, BUILTIN_LAYOUT_PRESETS, DEFAULT_LAYOUT } from "../engine/layoutModel";
+import {
+  getAllSavedSlots,
+  saveGlobalSlotLayout,
+  resetToDefaultLayout,
+  exportLayoutToJson,
+  importLayoutFromJsonFile,
+  saveProjectLayout
+} from "../engine/layoutStorage";
 import { getFileSystem, ProjectStorageUsage } from "../engine/fs";
 import { isAutoSaveEnabled, setAutoSaveEnabled } from "../engine/autoSaveManager";
 import { toast } from "../engine/toast";
@@ -1057,27 +1066,65 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     {t("settings.layoutsDesc")}
                   </p>
                 </div>
-                {onOpenLayoutEditor && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => {
-                      onClose();
-                      onOpenLayoutEditor();
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = ".json,.axiom-layout.json";
+                      input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          try {
+                            const imported = await importLayoutFromJsonFile(file);
+                            if (onApplyLayout) {
+                              onApplyLayout(imported);
+                            }
+                            const updatedProj = saveProjectLayout(project, imported);
+                            onUpdateProject(updatedProj);
+                            toast.success(t("settings.layoutImportSuccess"));
+                          } catch {
+                            toast.error(t("settings.layoutImportError"));
+                          }
+                        }
+                      };
+                      input.click();
                     }}
-                    className="btn btn-primary"
+                    className="btn btn-secondary"
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
                       fontSize: 11.5,
-                      padding: "6px 12px",
-                      flexShrink: 0
+                      padding: "6px 12px"
                     }}
                   >
-                    <Layout size={13} />
-                    <span>{t("settings.customizeBlueprintMode")}</span>
+                    <Upload size={13} />
+                    <span>{t("settings.importLayoutJson")}</span>
                   </button>
-                )}
+
+                  {onOpenLayoutEditor && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenLayoutEditor();
+                      }}
+                      className="btn btn-primary"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 11.5,
+                        padding: "6px 12px"
+                      }}
+                    >
+                      <Layout size={13} />
+                      <span>{t("settings.customizeBlueprintMode")}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Current Project Layout Card */}
@@ -1105,24 +1152,39 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                       {project.layout ? "Custom layout saved in project file" : "Using workspace default layout"}
                     </div>
                   </div>
-                  {project.layout && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <button
                       type="button"
                       onClick={() => {
-                        const updated = { ...project };
-                        delete updated.layout;
-                        onUpdateProject(updated);
-                        if (onApplyLayout) {
-                          onApplyLayout(resetToDefaultLayout());
-                        }
-                        toast.success(t("settings.resetProjectLayout"));
+                        exportLayoutToJson(project.layout || activeLayout || DEFAULT_LAYOUT);
+                        toast.success(t("settings.exportLayoutJson"));
                       }}
                       className="btn btn-ghost"
-                      style={{ fontSize: 11, padding: "4px 8px", border: "1px solid var(--border-subtle)" }}
+                      style={{ fontSize: 11, padding: "4px 8px", border: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: 4 }}
                     >
-                      {t("settings.resetProjectLayout")}
+                      <Download size={11} />
+                      <span>{t("settings.exportLayoutJson")}</span>
                     </button>
-                  )}
+
+                    {project.layout && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = { ...project };
+                          delete updated.layout;
+                          onUpdateProject(updated);
+                          if (onApplyLayout) {
+                            onApplyLayout(resetToDefaultLayout());
+                          }
+                          toast.success(t("settings.resetProjectLayout"));
+                        }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: 11, padding: "4px 8px", border: "1px solid var(--border-subtle)" }}
+                      >
+                        {t("settings.resetProjectLayout")}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1169,6 +1231,18 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                         </div>
 
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              exportLayoutToJson(currentLayout);
+                              toast.success(t("settings.exportLayoutJson"));
+                            }}
+                            className="btn btn-ghost"
+                            title={t("settings.exportLayoutJson")}
+                            style={{ fontSize: 11, padding: "4px 8px", border: "1px solid var(--border-subtle)", display: "flex", alignItems: "center" }}
+                          >
+                            <Download size={11} />
+                          </button>
                           {activeLayout && (
                             <button
                               type="button"

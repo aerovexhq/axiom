@@ -45,7 +45,9 @@ import {
   saveProjectLayout,
   getGlobalSlotLayout,
   saveGlobalSlotLayout,
-  resetToDefaultLayout
+  resetToDefaultLayout,
+  exportLayoutToJson,
+  importLayoutFromJsonFile
 } from "./engine/layoutStorage";
 import { UpdatePromptModal } from "./components/UpdatePromptModal";
 import { AboutModal } from "./components/AboutModal";
@@ -1252,7 +1254,8 @@ export const App: React.FC = () => {
     onAddFileClick: () => setIsAddSourceOpen(true),
     setDiagnostics,
     timingSlackPs,
-    predictedFmaxGainMhz
+    predictedFmaxGainMhz,
+    isCodeDirty
   }), [
     project,
     activeFile,
@@ -1274,7 +1277,8 @@ export const App: React.FC = () => {
     handleSelectFile,
     handleCloseTab,
     timingSlackPs,
-    predictedFmaxGainMhz
+    predictedFmaxGainMhz,
+    isCodeDirty
   ]);
 
   return (
@@ -1322,6 +1326,31 @@ export const App: React.FC = () => {
           onSelectLayoutSlot={handleSelectLayoutSlot}
           onOpenLayoutEditor={() => setIsLayoutEditorOpen(true)}
           onResetLayout={handleResetLayoutToDefault}
+          onExportLayout={() => {
+            exportLayoutToJson(activeLayout);
+            toast.success(t("settings.exportLayoutJson"));
+          }}
+          onImportLayout={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json,.axiom-layout.json";
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (file) {
+                try {
+                  const imported = await importLayoutFromJsonFile(file);
+                  setActiveLayout(imported);
+                  if (project) {
+                    saveProjectLayout(project, imported);
+                  }
+                  toast.success(t("settings.layoutImportSuccess"));
+                } catch {
+                  toast.error(t("settings.layoutImportError"));
+                }
+              }
+            };
+            input.click();
+          }}
           onRunSimulation={handleRunSimulation}
           onPauseSimulation={() => engineBridge.pause()}
           onStep1ns={() => handleStepSimulation(1000)}
@@ -1464,6 +1493,7 @@ export const App: React.FC = () => {
                 timingSlackPs={timingSlackPs}
                 predictedFmaxGainMhz={predictedFmaxGainMhz}
                 onOpenSettings={handleOpenSettings}
+                isDirty={isCodeDirty}
               />
             </div>
           ) : activeMobilePanel === "schematic" ? (
