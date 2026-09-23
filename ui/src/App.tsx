@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Activity, Cpu, Sliders, Clock, Maximize2, Boxes, Layers, Gauge, Box, Workflow, Radio, ShieldCheck, LayoutGrid } from "lucide-react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { HdlEditor } from "./components/HdlEditor";
@@ -26,6 +25,7 @@ import { ResizableSplitter } from "./components/ResizableSplitter";
 import { MobileDrawer, MobilePanelType } from "./components/MobileDrawer";
 import { MobileBottomBar } from "./components/MobileBottomBar";
 import { WindowFrame } from "./components/WindowFrame";
+import { VisualizerTabBar } from "./components/VisualizerTabBar";
 import { UpdatePromptModal } from "./components/UpdatePromptModal";
 import { AboutModal } from "./components/AboutModal";
 import { ProtocolDecoderModal } from "./components/ProtocolDecoderModal";
@@ -383,6 +383,9 @@ export const App: React.FC = () => {
         e.preventDefault();
         setCenterView("split");
         setSplitActiveVisualizer("floorplan");
+      } else if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        handleOpenSettings("general");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -1000,8 +1003,6 @@ export const App: React.FC = () => {
   // Dynamic Resizable Layout State
   const [editorWidthPercent, setEditorWidthPercent] = useState<number>(42);
   const [splitActiveVisualizer, setSplitActiveVisualizer] = useState<"schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "waveform" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "floorplan">("schematic");
-  const [splitStackWaveform, setSplitStackWaveform] = useState<boolean>(false);
-  const [splitWaveformHeightPercent, setSplitWaveformHeightPercent] = useState<number>(42);
 
   const handleSidebarResize = useCallback((deltaPx: number) => {
     setSidebarWidth((prev) => {
@@ -1017,13 +1018,6 @@ export const App: React.FC = () => {
     const deltaPct = (deltaPx / totalWidth) * 100;
     setEditorWidthPercent((prev) => Math.max(18, Math.min(75, Math.round((prev + deltaPct) * 10) / 10)));
   }, [isSidebarCollapsed, sidebarWidth]);
-
-  const handleWaveformHeightResize = useCallback((deltaPx: number) => {
-    const totalHeight = window.innerHeight - 200;
-    if (totalHeight <= 0) return;
-    const deltaPct = (deltaPx / totalHeight) * 100;
-    setSplitWaveformHeightPercent((prev) => Math.max(20, Math.min(80, Math.round((prev + deltaPct) * 10) / 10)));
-  }, []);
 
   // Maximize panel helper
   const toggleMaximizePanel = (panel: "editor" | "waveform" | "schematic" | "fsm" | "package" | "microarch" | "virtuallab" | "timing" | "multidie" | "ppa" | "protocol" | "techmapping" | "formal" | "floorplan") => {
@@ -1125,6 +1119,7 @@ export const App: React.FC = () => {
           onOpenOmnibar={() => setIsOmnibarOpen(true)}
           onCheckForUpdates={handleManualCheckUpdates}
           onOpenAbout={() => setIsAboutOpen(true)}
+          onOpenSettings={handleOpenSettings}
           onOpenProjectSecurity={() => handleOpenSettings("security")}
         />
       )}
@@ -1672,502 +1667,14 @@ export const App: React.FC = () => {
                 {/* Right: Spacious Dual-Pane Visualizer Container */}
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 360, overflow: "hidden" }}>
                   {/* Visualizer Tab Switcher Bar */}
-                  <div
-                    style={{
-                      height: 28,
-                      minHeight: 28,
-                      backgroundColor: "var(--bg-secondary)",
-                      borderBottom: "1px solid var(--border-subtle)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "0 8px",
-                      flexShrink: 0
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
-                      <button
-                        onClick={() => setSplitActiveVisualizer("schematic")}
-                        title="Schematic Netlist DAG Viewer"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "schematic" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "schematic" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "schematic" ? "var(--accent-cyan)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "schematic" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Cpu size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Schematic</span>
-                      </button>
+                  <VisualizerTabBar
+                    activeVisualizer={splitActiveVisualizer}
+                    onSelectVisualizer={(view) => setSplitActiveVisualizer(view as any)}
+                    isMaximized={maximizedPanel === splitActiveVisualizer}
+                    onToggleMaximize={() => toggleMaximizePanel(splitActiveVisualizer)}
+                  />
 
-                      <button
-                        onClick={() => setSplitActiveVisualizer("fsm")}
-                        title="Interactive Finite State Machine (FSM) Bubble Diagram & Live State Tracker"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "fsm" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "fsm" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "fsm" ? "var(--accent-cyan)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "fsm" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Workflow size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>FSM</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("package")}
-                        title="FPGA Package BGA Ball Grid & Device Floorplan (I/O Planning)"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "package" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "package" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "package" ? "var(--accent-cyan)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "package" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Box size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Package</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("microarch")}
-                        title="Micro-Architectural Block Diagram Synthesis (Macro-clustering for FSMs, ALUs, RegFiles)"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "microarch" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "microarch" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "microarch" ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "microarch" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Boxes size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Architecture</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("virtuallab")}
-                        title="Interactive Virtual Lab Rack (DIP switches, buttons, probes)"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "virtuallab" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "virtuallab" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "virtuallab" ? "var(--accent-amber)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "virtuallab" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Sliders size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Lab</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("waveform")}
-                        title="Stratified IEEE 1800 Multi-Radix Waveform Traces"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "waveform" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "waveform" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "waveform" ? "var(--accent-blue)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "waveform" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Activity size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Waveforms</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("timing")}
-                        title="Static Timing Analysis & Dynamic Energy Treemap"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "timing" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "timing" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "timing" ? "var(--accent-purple)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "timing" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Clock size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Timing</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("multidie")}
-                        title="Multi-FPGA Partitioning & Silicon Interposer Floorplan (SLRs, SLLs, Laguna Registers)"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "multidie" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "multidie" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "multidie" ? "var(--accent-cyan, #06b6d4)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "multidie" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Layers size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Multi-Die</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("ppa")}
-                        title="Live PPA Pareto Frontier & Multi-Part Silicon Cost Forecaster (Power, Performance, Area, ASIC)"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "ppa" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "ppa" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "ppa" ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "ppa" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Gauge size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>PPA</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("protocol")}
-                        title="Live Hardware Protocol Analyzer & Wireshark PCAP Inspector (CAN, USB, Ethernet, UART, SPI, I2C, AXI)"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "protocol" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "protocol" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "protocol" ? "var(--accent-cyan)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "protocol" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Radio size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Protocol</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("techmapping")}
-                        title="FPGA Technology Mapping, LUT Truth Tables, Primitive Synthesis & Structural Verilog Netlist"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "techmapping" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "techmapping" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "techmapping" ? "var(--accent-purple, #a855f7)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "techmapping" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <Cpu size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Tech Map</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("formal")}
-                        title="Formal Property Verification, Bounded Model Checking (BMC) & SVA Assertions"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "formal" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "formal" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "formal" ? "var(--accent-blue, #388bfd)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "formal" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <ShieldCheck size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Formal</span>
-                      </button>
-
-                      <button
-                        onClick={() => setSplitActiveVisualizer("floorplan")}
-                        title="Physical Silicon Floorplan & Gate Netlist Studio"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11.5,
-                          fontWeight: splitActiveVisualizer === "floorplan" ? 600 : 400,
-                          padding: "2px 7px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: splitActiveVisualizer === "floorplan" ? "var(--bg-tertiary)" : "transparent",
-                          color: splitActiveVisualizer === "floorplan" ? "var(--accent-green, #2ea043)" : "var(--text-muted)",
-                          border: splitActiveVisualizer === "floorplan" ? "1px solid var(--border-subtle)" : "1px solid transparent",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          flexShrink: 0
-                        }}
-                      >
-                        <LayoutGrid size={12} />
-                        <span style={{ whiteSpace: "nowrap" }}>Floorplan</span>
-                      </button>
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, whiteSpace: "nowrap" }}>
-                      {/* Optional Waveforms Stack Toggle */}
-                      {splitActiveVisualizer !== "waveform" && (
-                        <button
-                          onClick={() => setSplitStackWaveform((prev) => !prev)}
-                          title="Toggle stacked Waveforms viewer on top"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 3,
-                            padding: "2px 6px",
-                            fontSize: 10.5,
-                            fontWeight: splitStackWaveform ? 600 : 400,
-                            backgroundColor: splitStackWaveform ? "rgba(59, 130, 246, 0.2)" : "var(--bg-tertiary)",
-                            border: `1px solid ${splitStackWaveform ? "var(--accent-blue)" : "var(--border-subtle)"}`,
-                            color: splitStackWaveform ? "var(--accent-blue)" : "var(--text-muted)",
-                            borderRadius: "var(--radius-sm)",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            flexShrink: 0
-                          }}
-                        >
-                          <Activity size={11} />
-                          <span style={{ whiteSpace: "nowrap" }}>+ Waves</span>
-                        </button>
-                      )}
-
-                      {/* Maximize Active Visualizer */}
-                      <button
-                        onClick={() => toggleMaximizePanel(splitActiveVisualizer)}
-                        title={`Maximize ${splitActiveVisualizer} to 100%`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: 24,
-                          height: 22,
-                          backgroundColor: "var(--bg-tertiary)",
-                          border: "1px solid var(--border-subtle)",
-                          borderRadius: "var(--radius-sm)",
-                          color: "var(--text-muted)",
-                          cursor: "pointer",
-                          flexShrink: 0
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-                      >
-                        <Maximize2 size={11} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Visualizer Body: Either Single Full Visualizer or Stacked with Waveforms */}
-                  {splitStackWaveform && splitActiveVisualizer !== "waveform" ? (
-                    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                      <div style={{ height: `${splitWaveformHeightPercent}%`, display: "flex", minHeight: 120, overflow: "hidden" }}>
-                        <WaveformViewer state={state} selectedSignalIds={selectedSignalIds} />
-                      </div>
-                      <ResizableSplitter
-                        orientation="vertical"
-                        onResize={handleWaveformHeightResize}
-                        onDoubleClick={() => setSplitWaveformHeightPercent(42)}
-                      />
-                      <div style={{ flex: 1, minHeight: 140, display: "flex", overflow: "hidden" }}>
-                        {splitActiveVisualizer === "schematic" && (
-                          <SchematicViewer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                            selectedSignalId={activeCrossProbeSignal}
-                            onSelectSignal={handleSchematicSelectSignal}
-                            onJumpToCode={handleJumpToCode}
-                            onOpenAutoPipeline={handleOpenAutoPipeline}
-                          />
-                        )}
-                        {splitActiveVisualizer === "fsm" && (
-                          <FsmViewer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                            verilogSource={activeFile?.content}
-                            onSelectSignal={handleSchematicSelectSignal}
-                            onJumpToCode={handleJumpToCode}
-                            onOpenAutoPipeline={handleOpenAutoPipeline}
-                          />
-                        )}
-                        {splitActiveVisualizer === "package" && (
-                          <PackageVisualizer
-                            project={project}
-                            verilogSource={activeFile?.content}
-                            xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                            activeDesignId={activeDesignId}
-                            onUpdateXdc={handleUpdateXdc}
-                            onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                          />
-                        )}
-                        {splitActiveVisualizer === "microarch" && (
-                          <MicroarchViewer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                            verilogSource={activeFile?.content}
-                            selectedSignalId={activeCrossProbeSignal}
-                            onSelectSignal={handleSchematicSelectSignal}
-                            onJumpToCode={handleJumpToCode}
-                          />
-                        )}
-                        {splitActiveVisualizer === "virtuallab" && (
-                          <VirtualLabRack state={state} activeDesignId={activeDesignId} project={project} />
-                        )}
-                        {splitActiveVisualizer === "timing" && (
-                          <TimingRadarViewer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                            project={project}
-                            onCrossProbe={handleSchematicSelectSignal}
-                            onNavigateToLine={(line) => setHighlightLineSpan({ lineStart: line, lineEnd: line })}
-                            onOpenAutoPipeline={handleOpenAutoPipeline}
-                          />
-                        )}
-                        {splitActiveVisualizer === "multidie" && (
-                          <MultiDieViewer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                            verilogSource={activeFile?.content}
-                            targetDevice={project.targetDevice}
-                            onSelectSignal={handleSchematicSelectSignal}
-                            onJumpToCode={handleJumpToCode}
-                          />
-                        )}
-                        {splitActiveVisualizer === "ppa" && (
-                          <PpaParetoViewer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                            verilogSource={activeFile?.content}
-                            xdcSource={project.files.find((f) => f.fileSet === "constrs_1")?.content ?? ""}
-                            targetDevice={project.targetDevice}
-                            onSelectDevice={(dev) => {
-                              setProject((prev) => prev ? { ...prev, targetDevice: dev } : null);
-                            }}
-                            onJumpToCode={handleJumpToCode}
-                          />
-                        )}
-                        {splitActiveVisualizer === "protocol" && (
-                          <ProtocolAnalyzer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                          />
-                        )}
-                        {splitActiveVisualizer === "techmapping" && (
-                          <TechMappingViewer
-                            activeDesignId={activeDesignId}
-                            topModule={project.topModule}
-                            sourceCode={activeFile?.content ?? ""}
-                            targetDevice={project.targetDevice}
-                            onDeviceChange={(dev) => {
-                              setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
-                            }}
-                          />
-                        )}
-                        {splitActiveVisualizer === "formal" && (
-                          <FormalVerificationViewer
-                            sourceCode={activeFile?.content ?? ""}
-                            topModule={project.topModule}
-                            onNavigateToWaveform={() => setSplitActiveVisualizer("waveform")}
-                            onInsertAssertion={handleInsertAssertion}
-                          />
-                        )}
-                        {splitActiveVisualizer === "floorplan" && (
-                          <FloorplanStudioViewer
-                            state={state}
-                            activeDesignId={activeDesignId}
-                            verilogSource={activeFile?.content}
-                            topModule={project.topModule}
-                            targetDevice={project.targetDevice}
-                            onDeviceChange={(dev) => {
-                              setProject((prev) => (prev ? { ...prev, targetDevice: dev } : null));
-                            }}
-                            onSelectSignal={handleSchematicSelectSignal}
-                            onJumpToCode={handleJumpToCode}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  ) : (
+                  {/* Visualizer Body */}
                     <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
                       {splitActiveVisualizer === "schematic" && (
                         <SchematicViewer
@@ -2288,8 +1795,7 @@ export const App: React.FC = () => {
                         />
                       )}
                     </div>
-                  )}
-                </div>
+                  </div>
               </div>
             ) : centerView === "waveform" ? (
               <div className="axiom-split-horizontal" style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>

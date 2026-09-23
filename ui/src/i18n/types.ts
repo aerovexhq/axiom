@@ -71,6 +71,7 @@ export interface Translations {
     simClock: string;
     stackWaveforms: string;
     hideStackedWaveforms: string;
+    moreTabs: string;
   };
   launchpad: {
     heroTitle: string;
@@ -459,6 +460,7 @@ export interface Translations {
     addSources: string;
     exportProjectJson: string;
     closeProject: string;
+    settings: string;
     exit: string;
     undo: string;
     redo: string;

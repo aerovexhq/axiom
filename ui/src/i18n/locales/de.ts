@@ -55,6 +55,7 @@ export const de: Translations = {
     simClock: "Sim-Takt",
     stackWaveforms: "+ Wellenformen",
     hideStackedWaveforms: "Wellenformen ausblenden",
+    moreTabs: "Weitere Ansichten",
   },
   launchpad: {
     heroTitle: "Axiom HDL Studio",
@@ -443,6 +444,7 @@ export const de: Translations = {
     addSources: "Quellen hinzufügen...",
     exportProjectJson: "Projekt exportieren (.json)",
     closeProject: "Projekt schließen",
+    settings: "Einstellungen...",
     exit: "Beenden",
     undo: "Rückgängig",
     redo: "Wiederholen",

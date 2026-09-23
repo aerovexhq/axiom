@@ -14,8 +14,7 @@ import {
   Columns,
   Minimize2,
   GraduationCap,
-  ShieldAlert,
-  Settings
+  ShieldAlert
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
@@ -735,23 +734,6 @@ export const Header: React.FC<HeaderProps> = ({
               style={{ width: 28, height: 28, padding: 0 }}
             >
               <Search size={14} color="var(--accent-blue)" />
-            </button>
-          </>
-        )}
-
-        {/* Project & Editor Settings Modal Button */}
-        {project && onOpenProjectSecurity && (
-          <>
-            <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
-            <button
-              type="button"
-              onClick={onOpenProjectSecurity}
-              title={t("settings.title")}
-              aria-label={t("settings.title")}
-              className="btn btn-secondary btn-icon"
-              style={{ width: 28, height: 28, padding: 0 }}
-            >
-              <Settings size={14} color="var(--text-muted)" />
             </button>
           </>
         )}

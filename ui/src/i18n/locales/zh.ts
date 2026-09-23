@@ -55,6 +55,7 @@ export const zh: Translations = {
     simClock: "仿真时钟",
     stackWaveforms: "+ 波形视图",
     hideStackedWaveforms: "隐藏波形",
+    moreTabs: "更多视图",
   },
   launchpad: {
     heroTitle: "Axiom HDL 工作台",
@@ -443,6 +444,7 @@ export const zh: Translations = {
     addSources: "添加源文件...",
     exportProjectJson: "导出项目 (.json)",
     closeProject: "关闭项目",
+    settings: "设置...",
     exit: "退出",
     undo: "撤销",
     redo: "重做",

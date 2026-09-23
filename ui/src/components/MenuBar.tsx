@@ -39,7 +39,8 @@ import {
   ShieldCheck,
   Shield,
   LayoutGrid,
-  AppWindow
+  AppWindow,
+  Settings
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
@@ -70,6 +71,7 @@ export interface MenuBarProps {
   onOpenOmnibar: () => void;
   onCheckForUpdates: () => void;
   onOpenAbout: () => void;
+  onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security") => void;
   hasActiveProject: boolean;
   isSimRunning: boolean;
 }
@@ -101,6 +103,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onOpenOmnibar,
   onCheckForUpdates,
   onOpenAbout,
+  onOpenSettings,
   hasActiveProject,
   isSimRunning
 }) => {
@@ -387,6 +390,26 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <span>{t("security.projectSettingsTitle")}</span>
               </div>
             </div>
+
+            {onOpenSettings && (
+              <>
+                <div style={dividerStyle} />
+                <div
+                  style={menuItemStyle}
+                  className="menu-item-hover"
+                  onClick={() => {
+                    onOpenSettings("general");
+                    setActiveMenu(null);
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Settings size={13} color="var(--accent-cyan)" />
+                    <span>{t("menu.settings")}</span>
+                  </div>
+                  <span style={shortcutStyle}>Ctrl+,</span>
+                </div>
+              </>
+            )}
 
             {isDesktop() && (
               <>

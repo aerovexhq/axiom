@@ -55,6 +55,7 @@ export const tr: Translations = {
     simClock: "Benzetim Saati",
     stackWaveforms: "+ Dalga Biçimi",
     hideStackedWaveforms: "Dalga Biçimini Gizle",
+    moreTabs: "Daha Fazla Görünüm",
   },
   launchpad: {
     heroTitle: "Axiom HDL Stüdyosu",
@@ -443,6 +444,7 @@ export const tr: Translations = {
     addSources: "Kaynak Ekle...",
     exportProjectJson: "Projeyi Dışa Aktar (.json)",
     closeProject: "Projeyi Kapat",
+    settings: "Ayarlar...",
     exit: "Çıkış",
     undo: "Geri Al",
     redo: "Yinele",

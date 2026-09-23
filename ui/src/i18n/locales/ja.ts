@@ -55,6 +55,7 @@ export const ja: Translations = {
     simClock: "シミュレーションクロック",
     stackWaveforms: "+ 波形ビューア",
     hideStackedWaveforms: "波形を非表示",
+    moreTabs: "その他のビュー",
   },
   launchpad: {
     heroTitle: "Axiom HDL Studio",
@@ -443,6 +444,7 @@ export const ja: Translations = {
     addSources: "ソースを追加...",
     exportProjectJson: "プロジェクトをエクスポート (.json)",
     closeProject: "プロジェクトを閉じる",
+    settings: "設定...",
     exit: "終了",
     undo: "元に戻す",
     redo: "やり直し",
