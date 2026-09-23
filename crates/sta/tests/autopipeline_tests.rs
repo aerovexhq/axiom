@@ -28,6 +28,7 @@ fn test_sta_autopipeline_end_to_end() {
             expr: BirExpr::Const(LogicVector::from_u64(42, 8)),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     // Multi-level combinational chain: r_in -> w1 -> w2 -> w3
@@ -72,6 +73,7 @@ fn test_sta_autopipeline_end_to_end() {
             expr: BirExpr::Net(w3),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     // Constrain with very tight clock period (0.5 ns = 500 ps) to ensure negative slack

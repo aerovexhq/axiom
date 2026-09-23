@@ -1,5 +1,5 @@
 use axiom_core::{Logic4, LogicVector, SimTime};
-use axiom_ir::{BirCircuit, BirExpr, EdgeKind, NetId};
+use axiom_ir::{BirCircuit, BirExpr, BirProcessKind, EdgeKind, NetId};
 use axiom_jit::{CompiledCircuit, JitEngine};
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
@@ -161,9 +161,21 @@ impl AxiomSimulator {
 
         // Enqueue combinational always @* blocks
         for proc in &self.compiled.circuit.processes {
-            if proc.triggers.is_empty() {
+            if proc.triggers.is_empty() && proc.kind != BirProcessKind::Initial {
                 self.event_queue.schedule(
                     SimTime::ZERO,
+                    0,
+                    SchedRegion::Active,
+                    EventPayload::EvalProcess(proc.id),
+                );
+            }
+        }
+
+        // Enqueue initial blocks at their scheduled simulation times
+        for proc in &self.compiled.circuit.processes {
+            if proc.kind == BirProcessKind::Initial {
+                self.event_queue.schedule(
+                    SimTime::from_ps(proc.initial_time_ps),
                     0,
                     SchedRegion::Active,
                     EventPayload::EvalProcess(proc.id),

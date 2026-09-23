@@ -1381,14 +1381,16 @@ export function createProjectFromTemplate(
   };
 }
 
-// Utility: Bundle all HDL design sources (sources_1) into a single elaboration string
+// Utility: Bundle all HDL design and simulation sources (sources_1 & sim_1) into a single elaboration string
 export function bundleProjectSources(project: AxiomProject): string {
   const sources = project.files.filter(
-    (f) => f.fileSet === "sources_1" && (f.fileType === "verilog" || f.fileType === "systemverilog")
+    (f) =>
+      (f.fileSet === "sources_1" || f.fileSet === "sim_1") &&
+      (f.fileType === "verilog" || f.fileType === "systemverilog")
   );
 
   return sources
-    .map((f) => `// ==========================================\n// File: ${f.name}\n// ==========================================\n${f.content}`)
+    .map((f) => `// ==========================================\n// File: ${f.name} [${f.fileSet}]\n// ==========================================\n${f.content}`)
     .join("\n\n");
 }
 

@@ -904,15 +904,15 @@ function generateLogicCircuitGraph(): SchematicGraph {
     {
       id: "gate_inv1",
       label: "INV",
-      sublabel: "w1 = ~A",
+      sublabel: "w2 = ~A",
       kind: "gate",
       scope: "logic_circuit",
       inputs: [{ id: "in", name: "A", width: 1, direction: "in" }],
-      outputs: [{ id: "out", name: "w1", width: 1, direction: "out" }],
+      outputs: [{ id: "out", name: "w2", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~A",
       x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 28, delayPs: 45, dynamicPowerMw: 0.12,
-      sourceSpan: { lineStart: 25, lineEnd: 25 }
+      sourceSpan: { lineStart: 20, lineEnd: 20 }
     },
     {
       id: "gate_inv2",
@@ -925,61 +925,61 @@ function generateLogicCircuitGraph(): SchematicGraph {
       craneliftOp: "bnot",
       expressionText: "~B",
       x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 245, delayPs: 45, dynamicPowerMw: 0.12,
-      sourceSpan: { lineStart: 28, lineEnd: 28 }
+      sourceSpan: { lineStart: 22, lineEnd: 22 }
     },
 
-    // Layer 2: First AND gate (w1 & B)
+    // Layer 2: First AND gate (w2 & B)
     {
       id: "gate_and1",
       label: "AND2",
-      sublabel: "w2 = w1 & B",
-      kind: "gate",
-      scope: "logic_circuit",
-      inputs: [
-        { id: "in1", name: "w1", width: 1, direction: "in" },
-        { id: "in2", name: "B", width: 1, direction: "in" }
-      ],
-      outputs: [{ id: "out", name: "w2", width: 1, direction: "out" }],
-      craneliftOp: "band",
-      expressionText: "w1 & B",
-      x: 0, y: 0, width: 78, height: 48, layer: 2, fixedY: 90, delayPs: 60, dynamicPowerMw: 0.18,
-      sourceSpan: { lineStart: 26, lineEnd: 26 }
-    },
-
-    // Layer 3: Second AND gate (w2 & C)
-    {
-      id: "gate_and2",
-      label: "AND2",
-      sublabel: "w3 = w2 & C",
+      sublabel: "w1 = w2 & B",
       kind: "gate",
       scope: "logic_circuit",
       inputs: [
         { id: "in1", name: "w2", width: 1, direction: "in" },
+        { id: "in2", name: "B", width: 1, direction: "in" }
+      ],
+      outputs: [{ id: "out", name: "w1", width: 1, direction: "out" }],
+      craneliftOp: "band",
+      expressionText: "w2 & B",
+      x: 0, y: 0, width: 78, height: 48, layer: 2, fixedY: 90, delayPs: 60, dynamicPowerMw: 0.18,
+      sourceSpan: { lineStart: 21, lineEnd: 21 }
+    },
+
+    // Layer 3: Second AND gate (w1 & C)
+    {
+      id: "gate_and2",
+      label: "AND2",
+      sublabel: "w3 = w1 & C",
+      kind: "gate",
+      scope: "logic_circuit",
+      inputs: [
+        { id: "in1", name: "w1", width: 1, direction: "in" },
         { id: "in2", name: "C", width: 1, direction: "in" }
       ],
       outputs: [{ id: "out", name: "w3", width: 1, direction: "out" }],
       craneliftOp: "band",
-      expressionText: "w2 & C",
+      expressionText: "w1 & C",
       x: 0, y: 0, width: 78, height: 48, layer: 3, fixedY: 98, delayPs: 60, dynamicPowerMw: 0.18,
-      sourceSpan: { lineStart: 27, lineEnd: 27 }
+      sourceSpan: { lineStart: 23, lineEnd: 23 }
     },
 
-    // Layer 4: OR gate (w3 | w4)
+    // Layer 4: OR gate (w4 | w3)
     {
       id: "gate_or1",
       label: "OR2",
-      sublabel: "F = w3 | w4",
+      sublabel: "F = w4 | w3",
       kind: "gate",
       scope: "logic_circuit",
       inputs: [
-        { id: "in1", name: "w3", width: 1, direction: "in" },
-        { id: "in2", name: "w4", width: 1, direction: "in" }
+        { id: "in1", name: "w4", width: 1, direction: "in" },
+        { id: "in2", name: "w3", width: 1, direction: "in" }
       ],
       outputs: [{ id: "out", name: "F", width: 1, direction: "out" }],
       craneliftOp: "bor",
-      expressionText: "w3 | w4",
+      expressionText: "w4 | w3",
       x: 0, y: 0, width: 78, height: 48, layer: 4, fixedY: 106, delayPs: 65, dynamicPowerMw: 0.20,
-      sourceSpan: { lineStart: 29, lineEnd: 29 }
+      sourceSpan: { lineStart: 24, lineEnd: 24 }
     },
 
     // Layer 5: Output Port
@@ -997,13 +997,13 @@ function generateLogicCircuitGraph(): SchematicGraph {
 
   const edges: SchematicEdge[] = [
     { id: "e_A_inv1", netName: "A", sourceNodeId: "in_A", sourcePortId: "out", targetNodeId: "gate_inv1", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 12, signalId: "logic_circuit.A", fanout: 1 },
-    { id: "e_inv1_and1", netName: "w1", sourceNodeId: "gate_inv1", sourcePortId: "out", targetNodeId: "gate_and1", targetPortId: "in1", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "logic_circuit.w1", fanout: 1 },
+    { id: "e_inv1_and1", netName: "w2", sourceNodeId: "gate_inv1", sourcePortId: "out", targetNodeId: "gate_and1", targetPortId: "in1", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "logic_circuit.w2", fanout: 1 },
     { id: "e_B_and1", netName: "B", sourceNodeId: "in_B", sourcePortId: "out", targetNodeId: "gate_and1", targetPortId: "in2", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "logic_circuit.B", fanout: 2 },
     { id: "e_B_inv2", netName: "B", sourceNodeId: "in_B", sourcePortId: "out", targetNodeId: "gate_inv2", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "logic_circuit.B", fanout: 2 },
-    { id: "e_and1_and2", netName: "w2", sourceNodeId: "gate_and1", sourcePortId: "out", targetNodeId: "gate_and2", targetPortId: "in1", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "logic_circuit.w2", fanout: 1 },
+    { id: "e_and1_and2", netName: "w1", sourceNodeId: "gate_and1", sourcePortId: "out", targetNodeId: "gate_and2", targetPortId: "in1", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "logic_circuit.w1", fanout: 1 },
     { id: "e_C_and2", netName: "C", sourceNodeId: "in_C", sourcePortId: "out", targetNodeId: "gate_and2", targetPortId: "in2", width: 1, isBus: false, wirePoints: [], delayPs: 15, signalId: "logic_circuit.C", fanout: 1 },
-    { id: "e_and2_or1", netName: "w3", sourceNodeId: "gate_and2", sourcePortId: "out", targetNodeId: "gate_or1", targetPortId: "in1", width: 1, isBus: false, wirePoints: [], delayPs: 18, signalId: "logic_circuit.w3", fanout: 1 },
-    { id: "e_inv2_or1", netName: "w4", sourceNodeId: "gate_inv2", sourcePortId: "out", targetNodeId: "gate_or1", targetPortId: "in2", width: 1, isBus: false, wirePoints: [], delayPs: 22, signalId: "logic_circuit.w4", fanout: 1 },
+    { id: "e_and2_or1", netName: "w3", sourceNodeId: "gate_and2", sourcePortId: "out", targetNodeId: "gate_or1", targetPortId: "in2", width: 1, isBus: false, wirePoints: [], delayPs: 18, signalId: "logic_circuit.w3", fanout: 1 },
+    { id: "e_inv2_or1", netName: "w4", sourceNodeId: "gate_inv2", sourcePortId: "out", targetNodeId: "gate_or1", targetPortId: "in1", width: 1, isBus: false, wirePoints: [], delayPs: 22, signalId: "logic_circuit.w4", fanout: 1 },
     { id: "e_or1_out", netName: "F", sourceNodeId: "gate_or1", sourcePortId: "out", targetNodeId: "out_F", targetPortId: "in", width: 1, isBus: false, wirePoints: [], delayPs: 10, signalId: "logic_circuit.F", fanout: 1 }
   ];
 

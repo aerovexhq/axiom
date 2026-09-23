@@ -1,5 +1,5 @@
 use crate::bir::*;
-use axiom_core::{Logic4, LogicVector};
+use axiom_core::{Logic4, LogicVector, SimTime};
 use axiom_syntax::*;
 use hashbrown::HashMap;
 use thiserror::Error;
@@ -205,8 +205,30 @@ impl<'a> Elaborator<'a> {
         nets: &HashMap<String, NetId>,
         params: &HashMap<String, u64>,
     ) -> Result<(), ElaborationError> {
+        if proc.kind == ProceduralKind::Initial {
+            let mut current_time_ps = 0u64;
+            let mut timed_processes: Vec<(u64, Vec<BirStatement>)> = Vec::new();
+            self.lower_initial_statement(&proc.body, nets, params, &mut current_time_ps, &mut timed_processes)?;
+
+            if timed_processes.is_empty() {
+                let name = format!("{scope_prefix}.proc_{}", self.circuit.processes.len());
+                self.circuit.add_process_with_time(name, BirProcessKind::Initial, Vec::new(), Vec::new(), current_time_ps);
+            } else {
+                if let Some(&(last_t, _)) = timed_processes.last() {
+                    if current_time_ps > last_t {
+                        timed_processes.push((current_time_ps, Vec::new()));
+                    }
+                }
+                for (time_ps, stmts) in timed_processes {
+                    let name = format!("{scope_prefix}.proc_{}_t{}", self.circuit.processes.len(), time_ps);
+                    self.circuit.add_process_with_time(name, BirProcessKind::Initial, Vec::new(), stmts, time_ps);
+                }
+            }
+            return Ok(());
+        }
+
         let (kind, triggers) = match proc.kind {
-            ProceduralKind::Initial => (BirProcessKind::Initial, Vec::new()),
+            ProceduralKind::Initial => unreachable!(),
             ProceduralKind::AlwaysComb => {
                 // Auto-infer sensitivity from read nets
                 let mut trig_nets = Vec::new();
@@ -238,6 +260,44 @@ impl<'a> Elaborator<'a> {
         let body = self.lower_statement(&proc.body, nets, params)?;
         let name = format!("{scope_prefix}.proc_{}", self.circuit.processes.len());
         self.circuit.add_process(name, kind, triggers, body);
+        Ok(())
+    }
+
+    fn lower_initial_statement(
+        &self,
+        stmt: &Statement,
+        nets: &HashMap<String, NetId>,
+        params: &HashMap<String, u64>,
+        current_time_ps: &mut u64,
+        timed_processes: &mut Vec<(u64, Vec<BirStatement>)>,
+    ) -> Result<(), ElaborationError> {
+        match stmt {
+            Statement::Block(inner) => {
+                for s in inner {
+                    self.lower_initial_statement(s, nets, params, current_time_ps, timed_processes)?;
+                }
+            }
+            Statement::Delay { amount, stmt: inner, .. } => {
+                let delay_units = self.eval_const_expr(amount, params)?;
+                let delay_ps = delay_units.saturating_mul(SimTime::NANOSECOND);
+                *current_time_ps = current_time_ps.saturating_add(delay_ps);
+                if let Some(inner_stmt) = inner {
+                    self.lower_initial_statement(inner_stmt, nets, params, current_time_ps, timed_processes)?;
+                }
+            }
+            _ => {
+                let stmts = self.lower_statement(stmt, nets, params)?;
+                if !stmts.is_empty() {
+                    if let Some((t, ref mut existing)) = timed_processes.last_mut() {
+                        if *t == *current_time_ps {
+                            existing.extend(stmts);
+                            return Ok(());
+                        }
+                    }
+                    timed_processes.push((*current_time_ps, stmts));
+                }
+            }
+        }
         Ok(())
     }
 

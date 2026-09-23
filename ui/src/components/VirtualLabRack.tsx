@@ -275,11 +275,11 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
     const sigA = getSigVal("A", "0") === "1";
     const sigB = getSigVal("B", "0") === "1";
     const sigC = getSigVal("C", "0") === "1";
-    const sigW1 = getSigVal("w1", (!sigA ? "1" : "0")) === "1";
-    const sigW2 = getSigVal("w2", (sigW1 && sigB ? "1" : "0")) === "1";
-    const sigW3 = getSigVal("w3", (sigW2 && sigC ? "1" : "0")) === "1";
+    const sigW2 = getSigVal("w2", (!sigA ? "1" : "0")) === "1";
+    const sigW1 = getSigVal("w1", (sigW2 && sigB ? "1" : "0")) === "1";
     const sigW4 = getSigVal("w4", (!sigB ? "1" : "0")) === "1";
-    const sigF = getSigVal("F", (sigW3 || sigW4 ? "1" : "0")) === "1";
+    const sigW3 = getSigVal("w3", (sigW1 && sigC ? "1" : "0")) === "1";
+    const sigF = getSigVal("F", (sigW4 || sigW3 ? "1" : "0")) === "1";
 
     const handleToggleInput = (name: "A" | "B" | "C", currentVal: boolean) => {
       const nextStr = currentVal ? "0" : "1";
@@ -295,8 +295,8 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
     };
 
     const truthTable = [
-      { a: 0, b: 0, c: 0, w1: 1, w2: 0, w3: 0, w4: 1, f: 1 },
-      { a: 0, b: 0, c: 1, w1: 1, w2: 0, w3: 0, w4: 1, f: 1 },
+      { a: 0, b: 0, c: 0, w1: 0, w2: 1, w3: 0, w4: 1, f: 1 },
+      { a: 0, b: 0, c: 1, w1: 0, w2: 1, w3: 0, w4: 1, f: 1 },
       { a: 0, b: 1, c: 0, w1: 1, w2: 1, w3: 0, w4: 0, f: 0 },
       { a: 0, b: 1, c: 1, w1: 1, w2: 1, w3: 1, w4: 0, f: 1 },
       { a: 1, b: 0, c: 0, w1: 0, w2: 0, w3: 0, w4: 1, f: 1 },
@@ -384,10 +384,10 @@ export const VirtualLabRack: React.FC<VirtualLabRackProps> = ({ state, activeDes
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0" }}>
             {[
-              { label: "w1 = ~A", op: "NOT", val: sigW1 },
-              { label: "w2 = w1 & B", op: "AND", val: sigW2 },
-              { label: "w3 = w2 & C", op: "AND", val: sigW3 },
-              { label: "w4 = ~B", op: "NOT", val: sigW4 }
+              { label: "w2 = ~A", op: "NOT", val: sigW2 },
+              { label: "w1 = w2 & B", op: "AND", val: sigW1 },
+              { label: "w4 = ~B", op: "NOT", val: sigW4 },
+              { label: "w3 = w1 & C", op: "AND", val: sigW3 }
             ].map((probe, i) => (
               <div
                 key={i}

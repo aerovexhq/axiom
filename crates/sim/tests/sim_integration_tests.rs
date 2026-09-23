@@ -266,3 +266,84 @@ fn test_live_rtl_code_coverage_in_simulator() {
     let html = axiom_sim::generate_html(&report, "counter.v", src);
     assert!(html.contains("Axiom RTL Code Coverage — counter.v"));
 }
+
+#[test]
+fn test_sim_uygulama_0_with_tb() {
+    let src = r#"
+`timescale 1ns / 1ps
+
+module uygulama_0 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    output wire F
+);
+    wire w1, w2, w3, w4;
+
+    not g1 (w2, A);
+    and g2 (w1, w2, B);
+    not g3 (w4, B);
+    and g4 (w3, w1, C);
+    or  g5 (F, w4, w3);
+endmodule
+
+module tb_uygulama_0;
+    reg A;
+    reg B;
+    reg C;
+    wire F;
+
+    uygulama_0 uut (A, B, C, F);
+
+    initial begin
+        #0  A = 1'b1; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b1;
+        #25 A = 1'b0; B = 1'b0; C = 1'b0;
+        #25 A = 1'b1; B = 1'b1; C = 1'b1;
+    end
+
+    initial #100 $stop;
+endmodule
+"#;
+    let (ast, diags) = parse_hdl(FileId(1), src);
+    assert!(diags.is_empty(), "Parsing failed: {diags:?}");
+
+    let circuit = elaborate(&ast, "tb_uygulama_0").expect("Elaborating tb_uygulama_0 failed");
+    let mut sim = AxiomSimulator::new(circuit).expect("Creating simulator failed");
+
+    // At t = 0ns (after initial settlement):
+    assert_eq!(sim.current_time, SimTime::ZERO);
+    assert_eq!(sim.get_signal("tb_uygulama_0.A").unwrap().to_u64(), Some(1));
+    assert_eq!(sim.get_signal("tb_uygulama_0.B").unwrap().to_u64(), Some(0));
+    assert_eq!(sim.get_signal("tb_uygulama_0.C").unwrap().to_u64(), Some(1));
+    assert_eq!(sim.get_signal("tb_uygulama_0.F").unwrap().to_u64(), Some(1));
+
+    // Advance 25ns -> t = 25ns: A = 0, B = 0, C = 1 -> F = 1
+    sim.tick(SimTime::from_nanoseconds(25)).unwrap();
+    assert_eq!(sim.current_time, SimTime::from_nanoseconds(25));
+    assert_eq!(sim.get_signal("tb_uygulama_0.A").unwrap().to_u64(), Some(0));
+    assert_eq!(sim.get_signal("tb_uygulama_0.B").unwrap().to_u64(), Some(0));
+    assert_eq!(sim.get_signal("tb_uygulama_0.C").unwrap().to_u64(), Some(1));
+    assert_eq!(sim.get_signal("tb_uygulama_0.F").unwrap().to_u64(), Some(1));
+
+    // Advance 25ns -> t = 50ns: A = 0, B = 0, C = 0 -> F = 1
+    sim.tick(SimTime::from_nanoseconds(25)).unwrap();
+    assert_eq!(sim.current_time, SimTime::from_nanoseconds(50));
+    assert_eq!(sim.get_signal("tb_uygulama_0.A").unwrap().to_u64(), Some(0));
+    assert_eq!(sim.get_signal("tb_uygulama_0.B").unwrap().to_u64(), Some(0));
+    assert_eq!(sim.get_signal("tb_uygulama_0.C").unwrap().to_u64(), Some(0));
+    assert_eq!(sim.get_signal("tb_uygulama_0.F").unwrap().to_u64(), Some(1));
+
+    // Advance 25ns -> t = 75ns: A = 1, B = 1, C = 1 -> F = 0
+    sim.tick(SimTime::from_nanoseconds(25)).unwrap();
+    assert_eq!(sim.current_time, SimTime::from_nanoseconds(75));
+    assert_eq!(sim.get_signal("tb_uygulama_0.A").unwrap().to_u64(), Some(1));
+    assert_eq!(sim.get_signal("tb_uygulama_0.B").unwrap().to_u64(), Some(1));
+    assert_eq!(sim.get_signal("tb_uygulama_0.C").unwrap().to_u64(), Some(1));
+    assert_eq!(sim.get_signal("tb_uygulama_0.F").unwrap().to_u64(), Some(0));
+
+    // Advance 25ns -> t = 100ns (final stop point):
+    sim.tick(SimTime::from_nanoseconds(25)).unwrap();
+    assert_eq!(sim.current_time, SimTime::from_nanoseconds(100));
+}
+

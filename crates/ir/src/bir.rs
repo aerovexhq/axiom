@@ -99,6 +99,7 @@ pub struct BirProcess {
     pub kind: BirProcessKind,
     pub triggers: Vec<BirTrigger>,
     pub body: Vec<BirStatement>,
+    pub initial_time_ps: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -293,14 +294,26 @@ impl BirCircuit {
         &mut self,
         name: impl Into<String>,
         kind: BirProcessKind,
+        triggers: Vec<BirTrigger>,
+        body: Vec<BirStatement>,
+    ) -> ProcessId {
+        self.add_process_with_time(name, kind, triggers, body, 0)
+    }
+
+    pub fn add_process_with_time(
+        &mut self,
+        name: impl Into<String>,
+        kind: BirProcessKind,
         mut triggers: Vec<BirTrigger>,
         body: Vec<BirStatement>,
+        initial_time_ps: u64,
     ) -> ProcessId {
         let id = ProcessId(self.processes.len() as u32);
 
         // If triggers is empty (combinational always @* block),
-        // infer sensitivity to all nets read in the process body
-        if triggers.is_empty() {
+        // infer sensitivity to all nets read in the process body.
+        // Initial blocks are NOT combinational and do not react to net changes.
+        if triggers.is_empty() && kind != BirProcessKind::Initial {
             let mut read_nets = Vec::new();
             for s in &body {
                 Self::collect_statement_read_nets(s, &mut read_nets);
@@ -313,8 +326,11 @@ impl BirCircuit {
             }
         }
 
-        for trigger in &triggers {
-            self.sensitivity_map.entry(trigger.net).or_default().push(id);
+        // Only register triggers in sensitivity map for reactive processes (clocked/combinational).
+        if kind != BirProcessKind::Initial {
+            for trigger in &triggers {
+                self.sensitivity_map.entry(trigger.net).or_default().push(id);
+            }
         }
 
         self.processes.push(BirProcess {
@@ -323,6 +339,7 @@ impl BirCircuit {
             kind,
             triggers,
             body,
+            initial_time_ps,
         });
         id
     }

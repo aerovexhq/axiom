@@ -104,6 +104,7 @@ fn test_topological_propagation_and_slack() {
             expr: BirExpr::Const(LogicVector::from_u64(0, 8)),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     // Clocked process 2: q2 <= w_comb
@@ -120,6 +121,7 @@ fn test_topological_propagation_and_slack() {
             expr: BirExpr::Net(w_comb_id),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     let sdc = "create_clock -period 5.0 -name clk [get_ports clk]";
@@ -157,6 +159,7 @@ fn test_cdc_synchronizer_detection() {
             expr: BirExpr::Const(LogicVector::from_u64(1, 1)),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     // 2-FF Synchronizer domain clocked by clk_b
@@ -180,6 +183,7 @@ fn test_cdc_synchronizer_detection() {
                 is_nonblocking: true,
             },
         ],
+        initial_time_ps: 0,
     });
 
     // Unsynchronized cross domain transfer directly to hazard_reg
@@ -196,6 +200,7 @@ fn test_cdc_synchronizer_detection() {
             expr: BirExpr::Net(src_reg),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     let sdc = r#"
@@ -234,6 +239,7 @@ fn test_ascii_report_formatting() {
             expr: BirExpr::Const(LogicVector::from_u64(1, 1)),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     let summary = analyze_circuit(&circuit, "create_clock -period 10.0 clk", None);
@@ -265,6 +271,7 @@ fn test_false_path_exclusion() {
             expr: BirExpr::Net(rst),
             is_nonblocking: true,
         }],
+        initial_time_ps: 0,
     });
 
     let sdc_without_fp = "create_clock -period 1.0 clk";
@@ -308,6 +315,7 @@ fn test_multicycle_path_expansion() {
                 is_nonblocking: true,
             },
         ],
+        initial_time_ps: 0,
     });
 
     // 1-cycle vs 2-cycle multicycle constraint
