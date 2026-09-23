@@ -14,7 +14,8 @@ import {
   Columns,
   Minimize2,
   GraduationCap,
-  ShieldAlert
+  ShieldAlert,
+  Settings
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import { AxiomProject } from "../engine/projectModel";
@@ -45,6 +46,11 @@ interface HeaderProps {
   onOpenOmnibar?: () => void;
   onOpenLabGrader?: () => void;
   isSplitView?: boolean;
+  isCodeDirty?: boolean;
+  onRunSimulation?: () => void;
+  onStepSimulation?: (stepPs: number) => void;
+  onStepDeltaSimulation?: () => void;
+  onResetSimulation?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -68,7 +74,12 @@ export const Header: React.FC<HeaderProps> = ({
   activeCrossProbeSignal,
   onOpenOmnibar,
   onOpenLabGrader,
-  isSplitView = true
+  isSplitView = true,
+  isCodeDirty = false,
+  onRunSimulation,
+  onStepSimulation,
+  onStepDeltaSimulation,
+  onResetSimulation
 }) => {
   const { t } = useTranslation();
 
@@ -304,12 +315,29 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Compile Button */}
             <button
               onClick={onCompile}
-              title={t("header.recompile")}
-              className={state.compiled ? "btn btn-secondary" : "btn btn-primary"}
-              style={{ height: 28, fontSize: 12, padding: "0 10px" }}
+              title={
+                isCodeDirty && (state.currentSimTimePs > 0 || state.currentDeltaCycle > 0)
+                  ? `${t("settings.lockDuringRunDesc")} Reset to recompile.`
+                  : state.compiled
+                  ? t("header.recompile")
+                  : t("header.compile")
+              }
+              className={state.compiled && !isCodeDirty ? "btn btn-secondary" : "btn btn-primary"}
+              style={{
+                height: 28,
+                fontSize: 12,
+                padding: "0 10px",
+                borderColor: isCodeDirty ? "var(--accent-amber)" : undefined
+              }}
             >
-              <Cpu size={13} />
-              <span>{state.compiled ? t("header.recompile") : t("header.compile")}</span>
+              <Cpu size={13} color={isCodeDirty ? "var(--accent-amber)" : undefined} />
+              <span>
+                {isCodeDirty && (state.currentSimTimePs > 0 || state.currentDeltaCycle > 0)
+                  ? "Recompile*"
+                  : state.compiled
+                  ? t("header.recompile")
+                  : t("header.compile")}
+              </span>
             </button>
           </>
         ) : (
@@ -372,9 +400,14 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           ) : (
             <button
-              onClick={() => engineBridge.play()}
-              disabled={!state.compiled}
-              title={state.compiled ? t("header.run") : t("launchpad.inRamJitDesc")}
+              onClick={() => {
+                if (onRunSimulation) {
+                  onRunSimulation();
+                } else {
+                  engineBridge.play();
+                }
+              }}
+              title={state.compiled ? t("header.run") : "Run (Auto-compiles on demand)"}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -383,20 +416,16 @@ export const Header: React.FC<HeaderProps> = ({
                 padding: "0 10px",
                 fontSize: 12,
                 fontWeight: 600,
-                color: state.compiled ? "#6ee7b7" : "var(--text-muted)",
-                background: state.compiled
-                  ? "linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(16, 185, 129, 0.12) 100%)"
-                  : "transparent",
-                border: state.compiled
-                  ? "1px solid rgba(16, 185, 129, 0.45)"
-                  : "1px solid transparent",
+                color: "#6ee7b7",
+                background: "linear-gradient(180deg, rgba(16, 185, 129, 0.22) 0%, rgba(16, 185, 129, 0.12) 100%)",
+                border: "1px solid rgba(16, 185, 129, 0.45)",
                 borderRadius: "var(--radius-sm)",
-                cursor: state.compiled ? "pointer" : "not-allowed",
-                boxShadow: state.compiled ? "0 0 8px rgba(16, 185, 129, 0.15)" : "none",
+                cursor: "pointer",
+                boxShadow: "0 0 8px rgba(16, 185, 129, 0.15)",
                 transition: "all 0.15s ease"
               }}
             >
-              <Play size={12} fill={state.compiled ? "#6ee7b7" : "currentColor"} />
+              <Play size={12} fill="#6ee7b7" />
               <span>{t("header.run")}</span>
             </button>
           )}
@@ -404,8 +433,14 @@ export const Header: React.FC<HeaderProps> = ({
           <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
 
           <button
-            onClick={() => engineBridge.tick(1000)}
-            disabled={!state.compiled || state.isRunning}
+            onClick={() => {
+              if (onStepSimulation) {
+                onStepSimulation(1000);
+              } else {
+                engineBridge.tick(1000);
+              }
+            }}
+            disabled={state.isRunning}
             title={`${t("header.step1ns")} (Physical Time Step)`}
             className="btn btn-ghost"
             style={{ height: 26, padding: "0 7px", fontSize: 11.5, fontWeight: 500 }}
@@ -415,8 +450,14 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
-            onClick={() => engineBridge.tick(100)}
-            disabled={!state.compiled || state.isRunning}
+            onClick={() => {
+              if (onStepSimulation) {
+                onStepSimulation(100);
+              } else {
+                engineBridge.tick(100);
+              }
+            }}
+            disabled={state.isRunning}
             title={`${t("header.step100ps")} (Physical Time Step)`}
             className="btn btn-ghost"
             style={{ height: 26, padding: "0 6px", fontSize: 11.5, fontWeight: 500 }}
@@ -427,11 +468,17 @@ export const Header: React.FC<HeaderProps> = ({
           <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
 
           <button
-            onClick={() => engineBridge.stepDelta()}
-            disabled={!state.compiled || state.isRunning}
+            onClick={() => {
+              if (onStepDeltaSimulation) {
+                onStepDeltaSimulation();
+              } else {
+                engineBridge.stepDelta();
+              }
+            }}
+            disabled={state.isRunning}
             title={`${t("header.stepDelta")} (Zero-Time Combinational Cycle)`}
             className="badge badge-purple btn"
-            style={{ height: 26, padding: "0 8px", fontSize: 11.5, fontWeight: 600, cursor: state.compiled ? "pointer" : "not-allowed" }}
+            style={{ height: 26, padding: "0 8px", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
           >
             <span>{t("header.stepDelta")}</span>
           </button>
@@ -461,10 +508,21 @@ export const Header: React.FC<HeaderProps> = ({
           <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", margin: "0 2px" }} />
 
           <button
-            onClick={() => engineBridge.reset()}
+            onClick={() => {
+              if (onResetSimulation) {
+                onResetSimulation();
+              } else {
+                engineBridge.reset();
+              }
+            }}
+            disabled={state.isRunning || (state.currentSimTimePs === 0 && state.currentDeltaCycle === 0)}
             title={t("header.resetSim")}
             className="btn btn-ghost btn-icon"
-            style={{ width: 26, height: 26 }}
+            style={{
+              width: 26,
+              height: 26,
+              cursor: state.currentSimTimePs > 0 || state.currentDeltaCycle > 0 ? "pointer" : "not-allowed"
+            }}
           >
             <RotateCcw size={12} />
           </button>
@@ -677,6 +735,23 @@ export const Header: React.FC<HeaderProps> = ({
               style={{ width: 28, height: 28, padding: 0 }}
             >
               <Search size={14} color="var(--accent-blue)" />
+            </button>
+          </>
+        )}
+
+        {/* Project & Editor Settings Modal Button */}
+        {project && onOpenProjectSecurity && (
+          <>
+            <div style={{ height: 14, width: 1, backgroundColor: "var(--border-subtle)", flexShrink: 0 }} />
+            <button
+              type="button"
+              onClick={onOpenProjectSecurity}
+              title={t("settings.title")}
+              aria-label={t("settings.title")}
+              className="btn btn-secondary btn-icon"
+              style={{ width: 28, height: 28, padding: 0 }}
+            >
+              <Settings size={14} color="var(--text-muted)" />
             </button>
           </>
         )}

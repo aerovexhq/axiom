@@ -31,7 +31,7 @@ import { AboutModal } from "./components/AboutModal";
 import { ProtocolDecoderModal } from "./components/ProtocolDecoderModal";
 import { LabGraderModal } from "./components/LabGraderModal";
 import { ProjectTrustModal } from "./components/ProjectTrustModal";
-import { ProjectSecurityModal } from "./components/ProjectSecurityModal";
+import { ProjectSettingsModal, SettingsCategory } from "./components/ProjectSettingsModal";
 import { checkForUpdates, ReleaseManifest } from "./engine/updateChecker";
 import { isDesktop } from "./engine/platform";
 import { scheduleAutoSave, isAutoSaveEnabled, notifySaveState } from "./engine/autoSaveManager";
@@ -187,7 +187,14 @@ export const App: React.FC = () => {
   const [isLabGraderOpen, setIsLabGraderOpen] = useState<boolean>(false);
   const [isTrustModalOpen, setIsTrustModalOpen] = useState<boolean>(false);
   const [pendingUntrustedProject, setPendingUntrustedProject] = useState<AxiomProject | null>(null);
-  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState<boolean>(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
+  const [settingsModalCategory, setSettingsModalCategory] = useState<SettingsCategory>("general");
+  const [isCodeDirty, setIsCodeDirty] = useState<boolean>(false);
+
+  const handleOpenSettings = (category: SettingsCategory = "general") => {
+    setSettingsModalCategory(category);
+    setIsSettingsModalOpen(true);
+  };
   const [updateManifest, setUpdateManifest] = useState<ReleaseManifest | null>(null);
   const [updateCurrentCommit, setUpdateCurrentCommit] = useState<string>("a9a90cc");
 
@@ -415,24 +422,71 @@ export const App: React.FC = () => {
   }, []);
 
   // Project Modification Handlers
-  const handleUpdateProject = (updated: AxiomProject) => {
+  const handleUpdateProject = async (updated: AxiomProject) => {
     setProject(updated);
     saveProjectToStorage(updated);
     setIsSaved(true);
     const bundled = bundleProjectSources(updated);
-    engineBridge.compile(bundled, updated.topModule);
+    const ok = await engineBridge.compile(bundled, updated.topModule);
+    if (ok) {
+      setIsCodeDirty(false);
+    }
   };
 
-  const handleCompile = () => {
-    if (!project) return;
+  const handleCompile = async (): Promise<boolean> => {
+    if (!project) return false;
     const bundled = bundleProjectSources(project);
-    engineBridge.compile(bundled, project.topModule);
+    const ok = await engineBridge.compile(bundled, project.topModule);
+    if (ok) {
+      setIsCodeDirty(false);
+    }
+    return ok;
+  };
+
+  const ensureReadyForSimulation = async (): Promise<boolean> => {
+    if (!project) return false;
+    const simState = engineBridge.getState();
+    const isAtZero = simState.currentSimTimePs === 0 && simState.currentDeltaCycle === 0;
+
+    // If uncompiled, or if at t=0 and code has been modified, compile on demand
+    if (!simState.compiled || (isAtZero && isCodeDirty)) {
+      const ok = await handleCompile();
+      return ok;
+    }
+
+    return true;
+  };
+
+  const handleRunSimulation = async () => {
+    const ready = await ensureReadyForSimulation();
+    if (ready) {
+      engineBridge.play();
+    }
+  };
+
+  const handleStepSimulation = async (stepPs: number = 1000) => {
+    const ready = await ensureReadyForSimulation();
+    if (ready) {
+      engineBridge.tick(stepPs);
+    }
+  };
+
+  const handleStepDeltaSimulation = async () => {
+    const ready = await ensureReadyForSimulation();
+    if (ready) {
+      engineBridge.stepDelta();
+    }
+  };
+
+  const handleResetSimulation = () => {
+    engineBridge.reset();
   };
 
   const handleCodeChange = (newCode: string) => {
     if (!project || !activeFile) return;
     const updated = updateFileContent(project, activeFile.id, newCode);
     setProject(updated);
+    setIsCodeDirty(true);
 
     if (isAutoSaveEnabled()) {
       setIsSaved(false);
@@ -1028,19 +1082,19 @@ export const App: React.FC = () => {
             setCenterView("split");
             setSplitActiveVisualizer(view);
           }}
-          onRunSimulation={() => engineBridge.play()}
+          onRunSimulation={handleRunSimulation}
           onPauseSimulation={() => engineBridge.pause()}
-          onStep1ns={() => engineBridge.tick(1000)}
-          onStep100ps={() => engineBridge.tick(100)}
-          onStepDelta={() => engineBridge.stepDelta()}
-          onResetSimulation={() => engineBridge.reset()}
+          onStep1ns={() => handleStepSimulation(1000)}
+          onStep100ps={() => handleStepSimulation(100)}
+          onStepDelta={handleStepDeltaSimulation}
+          onResetSimulation={handleResetSimulation}
           onCompile={handleCompile}
           onOpenAutoPipeline={() => handleOpenAutoPipeline()}
           onOpenProtocolDecoder={() => setIsProtocolDecoderOpen(true)}
           onOpenOmnibar={() => setIsOmnibarOpen(true)}
           onCheckForUpdates={handleManualCheckUpdates}
           onOpenAbout={() => setIsAboutOpen(true)}
-          onOpenProjectSecurity={() => setIsSecurityModalOpen(true)}
+          onOpenProjectSecurity={() => handleOpenSettings("security")}
         />
       )}
 
@@ -1055,7 +1109,7 @@ export const App: React.FC = () => {
           onSaveProject={handleSaveProject}
           onExportProjectJson={handleExportProjectJson}
           onOpenAddSource={() => handleOpenAddSource()}
-          onOpenProjectSecurity={() => setIsSecurityModalOpen(true)}
+          onOpenProjectSecurity={() => handleOpenSettings("general")}
           isSaved={isSaved}
           isMobile={isMobile}
           onToggleMobileDrawer={() => setIsMobileDrawerOpen((prev) => !prev)}
@@ -1068,6 +1122,11 @@ export const App: React.FC = () => {
           onOpenOmnibar={() => setIsOmnibarOpen(true)}
           onOpenLabGrader={() => setIsLabGraderOpen(true)}
           isSplitView={centerView === "split"}
+          isCodeDirty={isCodeDirty}
+          onRunSimulation={handleRunSimulation}
+          onStepSimulation={handleStepSimulation}
+          onStepDeltaSimulation={handleStepDeltaSimulation}
+          onResetSimulation={handleResetSimulation}
         />
       )}
 
@@ -1160,6 +1219,7 @@ export const App: React.FC = () => {
                 onOpenAutoPipeline={() => handleOpenAutoPipeline()}
                 timingSlackPs={timingSlackPs}
                 predictedFmaxGainMhz={predictedFmaxGainMhz}
+                onOpenSettings={handleOpenSettings}
               />
             </div>
           ) : activeMobilePanel === "schematic" ? (
@@ -1422,6 +1482,7 @@ export const App: React.FC = () => {
                   onOpenAutoPipeline={handleOpenAutoPipeline}
                   timingSlackPs={timingSlackPs}
                   predictedFmaxGainMhz={predictedFmaxGainMhz}
+                  onOpenSettings={handleOpenSettings}
                 />
               </div>
             ) : maximizedPanel === "waveform" ? (
@@ -1564,6 +1625,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
 
@@ -2216,6 +2278,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2247,6 +2310,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2285,6 +2349,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2323,6 +2388,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2354,6 +2420,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2392,6 +2459,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2433,6 +2501,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2471,6 +2540,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2505,6 +2575,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2544,6 +2615,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2580,6 +2652,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2622,6 +2695,7 @@ export const App: React.FC = () => {
                     onOpenAutoPipeline={handleOpenAutoPipeline}
                     timingSlackPs={timingSlackPs}
                     predictedFmaxGainMhz={predictedFmaxGainMhz}
+                    onOpenSettings={handleOpenSettings}
                   />
                 </div>
                 <ResizableSplitter
@@ -2742,11 +2816,12 @@ export const App: React.FC = () => {
 
       {/* Project Settings & Security Modal */}
       {project && (
-        <ProjectSecurityModal
-          isOpen={isSecurityModalOpen}
-          onClose={() => setIsSecurityModalOpen(false)}
+        <ProjectSettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
           project={project}
           onUpdateProject={handleUpdateProjectSecurity}
+          initialCategory={settingsModalCategory}
         />
       )}
 

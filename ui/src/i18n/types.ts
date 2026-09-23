@@ -172,6 +172,8 @@ export interface Translations {
     maximizeEditor: string;
     katanaSlash: string;
     katanaSlashTooltip: string;
+    settingsTooltip: string;
+    coverageButton: string;
   };
   schematic: {
     title: string;
@@ -755,5 +757,40 @@ export interface Translations {
     maxDeltaCycles: string;
     maxDeltaCyclesDesc: string;
     savedSuccess: string;
+  };
+  settings: {
+    title: string;
+    generalCategory: string;
+    editorCategory: string;
+    simulationCategory: string;
+    securityCategory: string;
+    projectName: string;
+    topModule: string;
+    targetDevice: string;
+    projectId: string;
+    created: string;
+    lastSaved: string;
+    sourceFilesCount: string;
+    katanaCursor: string;
+    katanaCursorDesc: string;
+    minimap: string;
+    minimapDesc: string;
+    lineNumbers: string;
+    lineNumbersDesc: string;
+    wordWrap: string;
+    wordWrapDesc: string;
+    autoSave: string;
+    autoSaveDesc: string;
+    autoSaveDelay: string;
+    compileStrategy: string;
+    compileOnDemand: string;
+    compileOnDemandDesc: string;
+    compileManual: string;
+    compileManualDesc: string;
+    lockDuringRun: string;
+    lockDuringRunDesc: string;
+    defaultCoverage: string;
+    defaultCoverageDesc: string;
+    openSettings: string;
   };
 }

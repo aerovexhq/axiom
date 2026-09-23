@@ -1146,30 +1146,30 @@ export class AxiomEngineBridge {
     this.notify();
   }
 
-  public compile(code: string, topModule: string) {
+  public async compile(code: string, topModule: string): Promise<boolean> {
     this.activeSourceCode = code;
     if (this.isTauri) {
-      this.compileTauri(code, topModule);
-      return;
+      await this.compileTauri(code, topModule);
+      return this.state.compiled;
     }
 
     if (simWorkerClient.isSupported()) {
-      this.compileWorker(code, topModule);
-      return;
+      await this.compileWorker(code, topModule);
+      return this.state.compiled;
     }
 
     if (this.wasmEngine) {
       this.compileWasm(code, topModule);
-      return;
+      return this.state.compiled;
     }
 
-    this.initWasm().then((wasm) => {
-      if (wasm) {
-        this.compileWasm(code, topModule);
-      } else {
-        this.compileFallback(topModule);
-      }
-    });
+    const wasm = await this.initWasm();
+    if (wasm) {
+      this.compileWasm(code, topModule);
+    } else {
+      this.compileFallback(topModule);
+    }
+    return this.state.compiled;
   }
 
   private async compileWorker(code: string, topModule: string) {

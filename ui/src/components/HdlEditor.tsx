@@ -3,7 +3,6 @@ import Editor, { OnMount, loader } from "@monaco-editor/react";
 import * as monacoPkg from "monaco-editor";
 import {
   Code2,
-  Play,
   Plus,
   X,
   Maximize2,
@@ -14,9 +13,9 @@ import {
   AlertTriangle,
   AlertCircle,
   CheckCircle,
-  Swords,
   BarChart2,
-  Zap
+  Zap,
+  Settings
 } from "lucide-react";
 import { AxiomProject } from "../engine/projectModel";
 import { engineBridge, LspDiagnostic, CoverageReport } from "../engine/engineBridge";
@@ -24,8 +23,7 @@ import { registerVerilogLanguage } from "../engine/monacoVerilog";
 import { registerXdcLanguage } from "../engine/monacoXdc";
 import { registerVhdlLanguage } from "../engine/monacoVhdl";
 import { registerMemLanguage } from "../engine/monacoMem";
-import { toast } from "../engine/toast";
-import { Breadcrumbs, BreadcrumbItem, Button, Badge } from "./ui";
+import { Breadcrumbs, BreadcrumbItem, Badge } from "./ui";
 import { useTranslation } from "../i18n";
 import { KatanaCursorOverlay } from "./KatanaCursorOverlay";
 
@@ -50,13 +48,14 @@ interface HdlEditorProps {
   onOpenAutoPipeline?: () => void;
   timingSlackPs?: number | null;
   predictedFmaxGainMhz?: number | null;
+  onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security") => void;
 }
 
 export const HdlEditor: React.FC<HdlEditorProps> = ({
   code,
   topModule,
   onChangeCode,
-  onCompile,
+  onCompile: _onCompile,
   compiled: _compiled,
   highlightLineSpan,
   project,
@@ -69,7 +68,8 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   onOpenProblems,
   onOpenAutoPipeline,
   timingSlackPs,
-  predictedFmaxGainMhz
+  predictedFmaxGainMhz,
+  onOpenSettings
 }) => {
   const { t } = useTranslation();
   const editorRef = useRef<monacoPkg.editor.IStandaloneCodeEditor | null>(null);
@@ -87,6 +87,34 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
   });
+
+  // Sync settings when modified from ProjectSettingsModal
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      try {
+        const savedKatana = localStorage.getItem("axiom_katana_cursor");
+        setKatanaEnabled(savedKatana !== null ? savedKatana === "true" : true);
+
+        if (editorRef.current) {
+          const showMinimap = localStorage.getItem("axiom_editor_minimap") === "true";
+          const showLineNumbers = localStorage.getItem("axiom_editor_line_numbers") !== "false";
+          const doWordWrap = localStorage.getItem("axiom_editor_word_wrap") === "true";
+          editorRef.current.updateOptions({
+            minimap: { enabled: showMinimap },
+            lineNumbers: showLineNumbers ? "on" : "off",
+            wordWrap: doWordWrap ? "on" : "off"
+          });
+        }
+      } catch {}
+    };
+
+    window.addEventListener("axiom-settings-changed", handleSettingsChanged);
+    window.addEventListener("storage", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("axiom-settings-changed", handleSettingsChanged);
+      window.removeEventListener("storage", handleSettingsChanged);
+    };
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -138,6 +166,17 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
     registerXdcLanguage(monaco);
     registerVhdlLanguage(monaco);
     registerMemLanguage(monaco);
+
+    try {
+      const showMinimap = localStorage.getItem("axiom_editor_minimap") === "true";
+      const showLineNumbers = localStorage.getItem("axiom_editor_line_numbers") !== "false";
+      const doWordWrap = localStorage.getItem("axiom_editor_word_wrap") === "true";
+      editor.updateOptions({
+        minimap: { enabled: showMinimap },
+        lineNumbers: showLineNumbers ? "on" : "off",
+        wordWrap: doWordWrap ? "on" : "off"
+      });
+    } catch {}
 
     if (highlightLineSpan) {
       editor.revealLineInCenter(highlightLineSpan.lineStart);
@@ -222,16 +261,6 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       });
     }
   }, [activeFile?.id]);
-
-  const toggleKatana = () => {
-    setKatanaEnabled((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("axiom_katana_cursor", String(next));
-      } catch {}
-      return next;
-    });
-  };
 
   // Debounced live static analysis linting
   useEffect(() => {
@@ -628,118 +657,28 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             )}
           </button>
 
-          {/* RTL Code Coverage Heatmap Toggle (Desktop only) */}
-          {!isXdc && !isMobile && (
+          {/* Editor & Project Settings */}
+          {onOpenSettings && (
             <button
               type="button"
-              onClick={toggleCoverage}
-              title={
-                coverageEnabled
-                  ? `RTL Coverage Heatmap: ON (${coverageReport ? coverageReport.overall_pct.toFixed(0) : 0}% overall coverage)`
-                  : "RTL Coverage Heatmap: OFF (Click to enable)"
-              }
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 11,
-                fontWeight: 600,
-                padding: "2px 7px",
-                borderRadius: "var(--radius-sm)",
-                backgroundColor: coverageEnabled ? "rgba(16, 185, 129, 0.15)" : "transparent",
-                border: coverageEnabled ? "1px solid rgba(16, 185, 129, 0.35)" : "1px solid var(--border-subtle)",
-                color: coverageEnabled ? "var(--accent-emerald)" : "var(--text-muted)",
-                cursor: "pointer",
-                transition: "all 0.15s ease"
-              }}
-            >
-              <BarChart2 size={11} />
-              <span>
-                {coverageEnabled && coverageReport
-                  ? `${coverageReport.overall_pct.toFixed(0)}% Cov`
-                  : "Coverage"}
-              </span>
-            </button>
-          )}
-
-          {/* Katana Slash Cursor Toggle (Desktop only) */}
-          {!isMobile && (
-            <button
-              type="button"
-              onClick={toggleKatana}
-              title={katanaEnabled ? `${t.editor.katanaSlash} (${t.common.active})` : `${t.editor.katanaSlash} (${t.common.inactive})`}
+              onClick={() => onOpenSettings("editor")}
+              title={t("editor.settingsTooltip")}
               className="btn-icon"
               style={{
                 padding: "3px 6px",
-                color: katanaEnabled ? "#ffffff" : "var(--text-muted)",
-                backgroundColor: katanaEnabled ? "rgba(255, 255, 255, 0.12)" : "transparent",
-                border: katanaEnabled ? "1px solid rgba(255, 255, 255, 0.28)" : "1px solid transparent",
+                color: "var(--text-muted)",
+                backgroundColor: "transparent",
+                border: "1px solid transparent",
                 borderRadius: "var(--radius-sm)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
-                boxShadow: katanaEnabled ? "0 0 8px rgba(255, 255, 255, 0.2)" : "none",
                 transition: "all 0.15s ease"
               }}
             >
-              <Swords size={13} />
+              <Settings size={13} />
             </button>
           )}
-
-          {/* Elaborate or Check Action Button */}
-          <Button
-            variant="primary"
-            size="xs"
-            onClick={async () => {
-              if (isXdc) {
-                const diags = await engineBridge.lintXdc(code);
-                const errors = diags.filter((d) => d.severity === 1);
-                if (errors.length === 0) {
-                  toast.success("Vivado XDC constraints verified: 0 errors");
-                } else {
-                  toast.error(`XDC Validation: ${errors.length} error(s) found`);
-                }
-              } else if (isVhdl) {
-                const diags = await engineBridge.lintVhdl(code);
-                const errors = diags.filter((d) => d.severity === 1);
-                if (errors.length === 0) {
-                  toast.success("VHDL module verified: 0 errors");
-                } else {
-                  toast.error(`VHDL Validation: ${errors.length} error(s) found`);
-                }
-              } else if (isMem) {
-                const diags = await engineBridge.lintMem(code, activeFile?.name);
-                const errors = diags.filter((d) => d.severity === 1);
-                if (errors.length === 0) {
-                  toast.success("Memory vectors verified: 0 errors");
-                } else {
-                  toast.error(`Memory File Validation: ${errors.length} error(s) found`);
-                }
-              } else {
-                onCompile();
-              }
-            }}
-            icon={<Play size={10} fill="#fff" />}
-            title={isXdc ? "Validate Constraints" : isVhdl ? "Validate VHDL" : isMem ? "Validate Memory File" : t("header.compile")}
-            style={{ padding: isMobile ? "2px 6px" : "3px 8px", fontSize: 11 }}
-          >
-            {isMobile
-              ? isXdc
-                ? "XDC"
-                : isVhdl
-                ? "VHDL"
-                : isMem
-                ? "MEM"
-                : "Elab"
-              : isXdc
-              ? "Check XDC"
-              : isVhdl
-              ? "Check VHDL"
-              : isMem
-              ? "Validate MEM"
-              : t("editor.elaborate")}
-          </Button>
 
           {!isMobile && onToggleMaximize && (
             <button
@@ -768,12 +707,51 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
       <Breadcrumbs
         items={breadcrumbItems}
         rightContent={
-          <Badge
-            color={isXdc ? "purple" : isVhdl ? "emerald" : isMem ? "amber" : "cyan"}
-            size="sm"
-          >
-            {isXdc ? "Vivado XDC" : isVhdl ? "VHDL (IEEE 1076)" : isMem ? "Memory Init" : "Rust JIT"}
-          </Badge>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* RTL Code Coverage Heatmap Toggle */}
+            {!isXdc && !isMobile && (
+              <button
+                type="button"
+                onClick={toggleCoverage}
+                title={
+                  coverageEnabled
+                    ? `RTL Coverage Heatmap: ON (${coverageReport ? coverageReport.overall_pct.toFixed(0) : 0}% overall coverage)`
+                    : "RTL Coverage Heatmap: OFF (Click to enable)"
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "2px 7px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: coverageEnabled ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                  border: coverageEnabled ? "1px solid rgba(16, 185, 129, 0.35)" : "1px solid var(--border-subtle)",
+                  color: coverageEnabled ? "var(--accent-emerald)" : "var(--text-muted)",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <BarChart2 size={11} />
+                <span>
+                  {coverageEnabled && coverageReport
+                    ? `${coverageReport.overall_pct.toFixed(0)}% Cov`
+                    : t("editor.coverageButton")}
+                </span>
+              </button>
+            )}
+
+            {/* Non-Verilog Format Badges (XDC, VHDL, MEM) - "Rust JIT" is REMOVED */}
+            {(isXdc || isVhdl || isMem) && (
+              <Badge
+                color={isXdc ? "purple" : isVhdl ? "emerald" : "amber"}
+                size="sm"
+              >
+                {isXdc ? "Vivado XDC" : isVhdl ? "VHDL (IEEE 1076)" : "Memory Init"}
+              </Badge>
+            )}
+          </div>
         }
       />
 
