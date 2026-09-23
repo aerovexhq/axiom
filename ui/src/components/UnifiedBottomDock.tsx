@@ -92,6 +92,14 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
     }
   };
 
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsCollapsed((prev) => !prev);
+    };
+    window.addEventListener("axiom-toggle-bottom-dock", handleToggle);
+    return () => window.removeEventListener("axiom-toggle-bottom-dock", handleToggle);
+  }, []);
+
   // Synthesis Tab State
   const [synthCircuit, setSynthCircuit] = useState<SynthesizedCircuit | null>(null);
   const [synthLoading, setSynthLoading] = useState<boolean>(false);

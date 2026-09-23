@@ -56,7 +56,8 @@ import { LabGraderModal } from "./components/LabGraderModal";
 import { ProjectTrustModal } from "./components/ProjectTrustModal";
 import { ProjectSettingsModal, SettingsCategory } from "./components/ProjectSettingsModal";
 import { checkForUpdates, ReleaseManifest } from "./engine/updateChecker";
-import { isDesktop } from "./engine/platform";
+import { isDesktop, toggleBrowserFullscreen } from "./engine/platform";
+import { getKeybind, matchesKeybind, subscribeKeybinds } from "./engine/keybinds";
 import { scheduleAutoSave, isAutoSaveEnabled, notifySaveState } from "./engine/autoSaveManager";
 import { engineBridge, SimulationState, LspDiagnostic } from "./engine/engineBridge";
 import {
@@ -250,10 +251,10 @@ export const App: React.FC = () => {
   const [settingsModalCategory, setSettingsModalCategory] = useState<SettingsCategory>("general");
   const [isCodeDirty, setIsCodeDirty] = useState<boolean>(false);
 
-  const handleOpenSettings = (category: SettingsCategory = "general") => {
+  const handleOpenSettings = useCallback((category: SettingsCategory = "general") => {
     setSettingsModalCategory(category);
     setIsSettingsModalOpen(true);
-  };
+  }, []);
   const [updateManifest, setUpdateManifest] = useState<ReleaseManifest | null>(null);
   const [updateCurrentCommit, setUpdateCurrentCommit] = useState<string>("a9a90cc");
 
@@ -398,33 +399,6 @@ export const App: React.FC = () => {
 
     return unsub;
   }, []);
-
-  // Global Keyboard Shortcuts (Ctrl+K / Cmd+K for Omnibar, Ctrl+S / Cmd+S for Save)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "w") {
-        e.preventDefault();
-        openInNewWindow();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setIsOmnibarOpen((prev) => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        handleSaveProject();
-      } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        handleSwitchVisualizerView("floorplan");
-      } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === "l") {
-        e.preventDefault();
-        setIsLayoutEditorOpen((prev) => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key === ",") {
-        e.preventDefault();
-        handleOpenSettings("general");
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSaveProject]);
 
   // Active Project Lease Heartbeat & Mutual Exclusion Concurrency Management
   useEffect(() => {
@@ -960,6 +934,24 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleOpenProjectFile = useCallback(() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          const content = re.target?.result as string;
+          handleImportProjectJson(content);
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  }, []);
+
   const handleTrustPendingProject = async () => {
     if (!pendingUntrustedProject) return;
     const trusted: AxiomProject = {
@@ -1230,6 +1222,119 @@ export const App: React.FC = () => {
     });
   }, [project]);
 
+  // Global Unified Keyboard Shortcuts Dispatcher (Driven by keybinds action registry)
+  const [, setKeybindsVersion] = useState<number>(0);
+  useEffect(() => {
+    return subscribeKeybinds(() => setKeybindsVersion((v) => v + 1));
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Input protection: if focused in input/textarea/monaco-editor, only allow shortcuts
+      // with modifier keys (Ctrl/Cmd, Alt) or Function keys (F1-F12), or Esc, preventing normal typing interference
+      const target = e.target as HTMLElement | null;
+      const isInput = Boolean(
+        target && (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable ||
+          target.closest(".monaco-editor")
+        )
+      );
+
+      if (isInput) {
+        const isModifierChord = e.ctrlKey || e.metaKey || e.altKey;
+        const isFunctionKey = e.key.startsWith("F") && /^F\d+$/.test(e.key);
+        const isEsc = e.key === "Escape";
+        if (!isModifierChord && !isFunctionKey && !isEsc) {
+          return;
+        }
+      }
+
+      // 1. File Actions
+      if (matchesKeybind(e, getKeybind("file.newProject"))) {
+        e.preventDefault();
+        handleOpenNewProject();
+      } else if (matchesKeybind(e, getKeybind("file.openProject"))) {
+        e.preventDefault();
+        handleOpenProjectFile();
+      } else if (matchesKeybind(e, getKeybind("file.saveProject"))) {
+        e.preventDefault();
+        handleSaveProject();
+      } else if (matchesKeybind(e, getKeybind("file.saveAll"))) {
+        e.preventDefault();
+        handleSaveProject();
+      } else if (matchesKeybind(e, getKeybind("file.newWindow"))) {
+        e.preventDefault();
+        openInNewWindow();
+      }
+      // 2. Simulation Actions
+      else if (matchesKeybind(e, getKeybind("sim.runPause"))) {
+        e.preventDefault();
+        if (state.isRunning) {
+          engineBridge.pause();
+        } else {
+          handleRunSimulation();
+        }
+      } else if (matchesKeybind(e, getKeybind("sim.step1ns"))) {
+        e.preventDefault();
+        handleStepSimulation(1000);
+      } else if (matchesKeybind(e, getKeybind("sim.step100ps"))) {
+        e.preventDefault();
+        handleStepSimulation(100);
+      } else if (matchesKeybind(e, getKeybind("sim.stepDelta"))) {
+        e.preventDefault();
+        handleStepDeltaSimulation();
+      } else if (matchesKeybind(e, getKeybind("sim.reset"))) {
+        e.preventDefault();
+        handleResetSimulation();
+      } else if (matchesKeybind(e, getKeybind("sim.compile"))) {
+        e.preventDefault();
+        handleCompile();
+      }
+      // 3. View Actions
+      else if (matchesKeybind(e, getKeybind("view.toggleSidebar"))) {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => !prev);
+      } else if (matchesKeybind(e, getKeybind("view.toggleBottomDock"))) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("axiom-toggle-bottom-dock"));
+      } else if (matchesKeybind(e, getKeybind("view.toggleFullscreen"))) {
+        e.preventDefault();
+        toggleBrowserFullscreen();
+      } else if (matchesKeybind(e, getKeybind("view.customizeLayout"))) {
+        e.preventDefault();
+        setIsLayoutEditorOpen((prev) => !prev);
+      } else if (matchesKeybind(e, getKeybind("view.switchFloorplan"))) {
+        e.preventDefault();
+        handleSwitchVisualizerView("floorplan");
+      }
+      // 4. Tools Actions
+      else if (matchesKeybind(e, getKeybind("tools.omnibar"))) {
+        e.preventDefault();
+        setIsOmnibarOpen((prev) => !prev);
+      } else if (matchesKeybind(e, getKeybind("tools.settings"))) {
+        e.preventDefault();
+        handleOpenSettings("general");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    state.isRunning,
+    handleOpenNewProject,
+    handleOpenProjectFile,
+    handleSaveProject,
+    handleRunSimulation,
+    handleStepSimulation,
+    handleStepDeltaSimulation,
+    handleResetSimulation,
+    handleCompile,
+    handleSwitchVisualizerView,
+    handleOpenSettings
+  ]);
+
   // Context for visualizer and layout leaf renderers
   const visualizerContext: VisualizerContextProps = useMemo(() => ({
     project: project!,
@@ -1291,23 +1396,7 @@ export const App: React.FC = () => {
           isSaved={isSaved}
           onOpenNewProject={() => handleOpenNewProject()}
           onOpenNewWindow={() => openInNewWindow()}
-          onOpenProjectFile={() => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = ".json";
-            input.onchange = (e) => {
-              const file = (e.target as HTMLInputElement).files?.[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onload = (re) => {
-                  const content = re.target?.result as string;
-                  handleImportProjectJson(content);
-                };
-                reader.readAsText(file);
-              }
-            };
-            input.click();
-          }}
+          onOpenProjectFile={handleOpenProjectFile}
           onCloseProject={handleCloseProject}
           onSaveFile={handleSaveProject}
           onSaveAll={handleSaveProject}
@@ -1315,10 +1404,7 @@ export const App: React.FC = () => {
           onExportProjectJson={handleExportProjectJson}
           onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
           onToggleBottomDock={() => {
-            const dock = document.querySelector(".axiom-bottom-dock");
-            if (dock) {
-              dock.scrollIntoView({ behavior: "smooth" });
-            }
+            window.dispatchEvent(new CustomEvent("axiom-toggle-bottom-dock"));
           }}
           onSwitchVisualizer={handleSwitchVisualizerView}
           activeLayoutId={activeLayout.id}

@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { isAutoSaveEnabled, setAutoSaveEnabled, subscribeAutoSave } from "../engine/autoSaveManager";
 import { isDesktop, closeWindow, toggleBrowserFullscreen } from "../engine/platform";
+import { getKeybind, subscribeKeybinds } from "../engine/keybinds";
 import { useTranslation } from "../i18n";
 
 export interface MenuBarProps {
@@ -73,7 +74,7 @@ export interface MenuBarProps {
   onOpenOmnibar: () => void;
   onCheckForUpdates: () => void;
   onOpenAbout: () => void;
-  onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security" | "layouts") => void;
+  onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security" | "layouts" | "keybinds") => void;
   activeLayoutId?: string;
   onSelectLayoutPreset?: (presetId: string) => void;
   onSelectLayoutSlot?: (slot: 1 | 2 | 3) => void;
@@ -131,6 +132,12 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   // Sync AutoSave changes
   useEffect(() => {
     return subscribeAutoSave((val) => setAutoSave(val));
+  }, []);
+
+  // Sync Keybind changes
+  const [, setKeybindsVersion] = useState<number>(0);
+  useEffect(() => {
+    return subscribeKeybinds(() => setKeybindsVersion((v) => v + 1));
   }, []);
 
   // Click outside to close menus
@@ -250,7 +257,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <FolderPlus size={13} color="var(--accent-blue)" />
                 <span>{t("menu.newProject")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+Shift+N</span>
+              <span style={shortcutStyle}>{getKeybind("file.newProject")}</span>
             </div>
 
             {onOpenNewWindow && (
@@ -266,7 +273,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                   <AppWindow size={13} color="var(--accent-purple)" />
                   <span>{t("menu.newWindow")}</span>
                 </div>
-                <span style={shortcutStyle}>Ctrl+Shift+W</span>
+                <span style={shortcutStyle}>{getKeybind("file.newWindow")}</span>
               </div>
             )}
 
@@ -282,7 +289,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <FolderOpen size={13} color="var(--accent-cyan)" />
                 <span>{t("menu.openProject")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+O</span>
+              <span style={shortcutStyle}>{getKeybind("file.openProject")}</span>
             </div>
 
             {hasActiveProject && (
@@ -317,7 +324,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Save size={13} color="var(--accent-emerald)" />
                 <span>{t("menu.saveFile")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+S</span>
+              <span style={shortcutStyle}>{getKeybind("file.saveProject")}</span>
             </div>
 
             <div
@@ -334,7 +341,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Save size={13} color="var(--accent-emerald)" />
                 <span>{t("menu.saveAll")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+Shift+S</span>
+              <span style={shortcutStyle}>{getKeybind("file.saveAll")}</span>
             </div>
 
             {/* AUTO SAVE TOGGLE (Checked by default) */}
@@ -422,7 +429,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                     <Settings size={13} color="var(--accent-cyan)" />
                     <span>{t("menu.settings")}</span>
                   </div>
-                  <span style={shortcutStyle}>Ctrl+,</span>
+                  <span style={shortcutStyle}>{getKeybind("tools.settings")}</span>
                 </div>
               </>
             )}
@@ -555,7 +562,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Layout size={13} />
                 <span>{t("menu.toggleSidebar")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+B</span>
+              <span style={shortcutStyle}>{getKeybind("view.toggleSidebar")}</span>
             </div>
 
             <div
@@ -570,7 +577,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Layout size={13} />
                 <span>{t("menu.toggleBottomDock")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+J</span>
+              <span style={shortcutStyle}>{getKeybind("view.toggleBottomDock")}</span>
             </div>
 
             <div
@@ -585,7 +592,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Maximize size={13} />
                 <span>{t("menu.fullscreen")}</span>
               </div>
-              <span style={shortcutStyle}>F11</span>
+              <span style={shortcutStyle}>{getKeybind("view.toggleFullscreen")}</span>
             </div>
 
             <div style={dividerStyle} />
@@ -603,7 +610,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Layout size={13} color="var(--accent-cyan)" />
                 <span style={{ fontWeight: 600 }}>{t("menu.customizeLayout")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+Alt+L</span>
+              <span style={shortcutStyle}>{getKeybind("view.customizeLayout")}</span>
             </div>
 
             <div
@@ -919,7 +926,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                   <Pause size={13} color="var(--accent-rose)" />
                   <span>{t("menu.pauseSim")}</span>
                 </div>
-                <span style={shortcutStyle}>F6</span>
+                <span style={shortcutStyle}>{getKeybind("sim.runPause")}</span>
               </div>
             ) : (
               <div
@@ -934,7 +941,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                   <Play size={13} color="var(--accent-emerald)" />
                   <span>{t("menu.runSim")}</span>
                 </div>
-                <span style={shortcutStyle}>F5</span>
+                <span style={shortcutStyle}>{getKeybind("sim.runPause")}</span>
               </div>
             )}
 
@@ -950,6 +957,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <FastForward size={13} />
                 <span>{t("menu.step1ns")}</span>
               </div>
+              <span style={shortcutStyle}>{getKeybind("sim.step1ns")}</span>
             </div>
 
             <div
@@ -964,6 +972,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <FastForward size={13} />
                 <span>{t("menu.step100ps")}</span>
               </div>
+              <span style={shortcutStyle}>{getKeybind("sim.step100ps")}</span>
             </div>
 
             <div
@@ -978,6 +987,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <FastForward size={13} color="var(--accent-amber)" />
                 <span>{t("menu.stepDelta")}</span>
               </div>
+              <span style={shortcutStyle}>{getKeybind("sim.stepDelta")}</span>
             </div>
 
             <div
@@ -992,6 +1002,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <RotateCcw size={13} />
                 <span>{t("menu.resetSim")}</span>
               </div>
+              <span style={shortcutStyle}>{getKeybind("sim.reset")}</span>
             </div>
 
             <div style={dividerStyle} />
@@ -1008,7 +1019,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Cpu size={13} color="var(--accent-blue)" />
                 <span>{t("menu.compileDesign")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+Enter</span>
+              <span style={shortcutStyle}>{getKeybind("sim.compile")}</span>
             </div>
 
             <div
@@ -1130,7 +1141,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <LayoutGrid size={13} color="var(--accent-amber)" />
                 <span>{t("menu.physicalFloorplan")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+Alt+F</span>
+              <span style={shortcutStyle}>{getKeybind("view.switchFloorplan")}</span>
             </div>
 
             <div style={dividerStyle} />
@@ -1147,7 +1158,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 <Sparkles size={13} color="var(--accent-blue)" />
                 <span>{t("menu.commandPalette")}</span>
               </div>
-              <span style={shortcutStyle}>Ctrl+K</span>
+              <span style={shortcutStyle}>{getKeybind("tools.omnibar")}</span>
             </div>
           </div>
         )}

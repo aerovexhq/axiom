@@ -13,7 +13,11 @@ import {
   Sparkles,
   Layout,
   Download,
-  Upload
+  Upload,
+  Keyboard,
+  RotateCcw,
+  Search,
+  AlertCircle
 } from "lucide-react";
 import { Modal } from "./ui/Modal";
 import { DropdownSelect } from "./ui";
@@ -27,12 +31,26 @@ import {
   importLayoutFromJsonFile,
   saveProjectLayout
 } from "../engine/layoutStorage";
+import {
+  KEYBIND_DEFINITIONS,
+  KeybindActionId,
+  KeybindCategory,
+  getAllKeybinds,
+  saveKeybind,
+  resetKeybind,
+  resetAllKeybinds,
+  isKeybindCustomized,
+  findKeybindConflict,
+  parseEventToChord,
+  splitChordParts,
+  subscribeKeybinds
+} from "../engine/keybinds";
 import { getFileSystem, ProjectStorageUsage } from "../engine/fs";
 import { isAutoSaveEnabled, setAutoSaveEnabled } from "../engine/autoSaveManager";
 import { toast } from "../engine/toast";
 import { useTranslation } from "../i18n";
 
-export type SettingsCategory = "general" | "editor" | "simulation" | "security" | "layouts";
+export type SettingsCategory = "general" | "editor" | "simulation" | "security" | "layouts" | "keybinds";
 
 export interface ProjectSettingsModalProps {
   isOpen: boolean;
@@ -159,6 +177,70 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
   const [usage, setUsage] = useState<ProjectStorageUsage | null>(null);
   const [isLoadingUsage, setIsLoadingUsage] = useState<boolean>(false);
   const [isPurging, setIsPurging] = useState<boolean>(false);
+
+  // Keybinds Category State
+  const [keybindsMap, setKeybindsMap] = useState<Record<string, string>>(() => getAllKeybinds());
+  const [searchKeybindQuery, setSearchKeybindQuery] = useState("");
+  const [recordingActionId, setRecordingActionId] = useState<KeybindActionId | null>(null);
+  const [recordedChord, setRecordedChord] = useState<string>("");
+  const [conflictWarning, setConflictWarning] = useState<string | null>(null);
+
+  // Sync keybinds on mount and external updates
+  useEffect(() => {
+    return subscribeKeybinds(() => {
+      setKeybindsMap({ ...getAllKeybinds() });
+    });
+  }, []);
+
+  // Capture keyboard events when in recording mode
+  useEffect(() => {
+    if (!recordingActionId) return;
+
+    const handleKeydownCapture = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === "Escape") {
+        setRecordingActionId(null);
+        setRecordedChord("");
+        setConflictWarning(null);
+        return;
+      }
+
+      const chord = parseEventToChord(e);
+      if (!chord) return;
+
+      setRecordedChord(chord);
+      const conflict = findKeybindConflict(chord, recordingActionId);
+      if (conflict) {
+        setConflictWarning(t(conflict.nameKey as any));
+      } else {
+        setConflictWarning(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeydownCapture, true);
+    return () => window.removeEventListener("keydown", handleKeydownCapture, true);
+  }, [recordingActionId, t]);
+
+  const handleSaveRecording = () => {
+    if (!recordingActionId || !recordedChord) return;
+    saveKeybind(recordingActionId, recordedChord);
+    toast.success(t("settings.keybindSaved"));
+    setRecordingActionId(null);
+    setRecordedChord("");
+    setConflictWarning(null);
+  };
+
+  const handleResetSingleKeybind = (actionId: KeybindActionId) => {
+    resetKeybind(actionId);
+    toast.success(t("settings.resetKeybind"));
+  };
+
+  const handleResetAllKeybinds = () => {
+    resetAllKeybinds();
+    toast.success(t("settings.keybindsResetSuccess"));
+  };
 
   // Sync state whenever modal is opened
   useEffect(() => {
@@ -394,6 +476,15 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
           >
             <Layout size={14} color={activeCategory === "layouts" ? "var(--accent-cyan)" : "currentColor"} />
             <span>{t("settings.layoutsCategory")}</span>
+          </button>
+
+          <button
+            type="button"
+            style={categoryTabStyle("keybinds")}
+            onClick={() => setActiveCategory("keybinds")}
+          >
+            <Keyboard size={14} color={activeCategory === "keybinds" ? "var(--accent-cyan)" : "currentColor"} />
+            <span>{t("settings.keybindsCategory")}</span>
           </button>
         </div>
 
@@ -1321,6 +1412,325 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* CATEGORY 6: KEYBINDS */}
+          {activeCategory === "keybinds" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Header with Title, Description and Search / Reset All */}
+              <div style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <h4 style={{ margin: "0 0 4px 0", fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
+                      {t("settings.keybindsTitle")}
+                    </h4>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>
+                      {t("settings.keybindsDesc")}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetAllKeybinds}
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 9px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      color: "var(--text-muted)",
+                      flexShrink: 0
+                    }}
+                    title={t("settings.resetAllKeybinds")}
+                  >
+                    <RotateCcw size={11} />
+                    <span>{t("settings.resetAllKeybinds")}</span>
+                  </button>
+                </div>
+
+                {/* Search Bar */}
+                <div
+                  style={{
+                    marginTop: 10,
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center"
+                  }}
+                >
+                  <Search
+                    size={13}
+                    color="var(--text-muted)"
+                    style={{ position: "absolute", left: 9, pointerEvents: "none" }}
+                  />
+                  <input
+                    type="text"
+                    value={searchKeybindQuery}
+                    onChange={(e) => setSearchKeybindQuery(e.target.value)}
+                    placeholder={t("settings.searchKeybinds")}
+                    style={{
+                      width: "100%",
+                      padding: "5px 10px 5px 28px",
+                      fontSize: 11.5,
+                      backgroundColor: "var(--bg-primary)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "var(--radius-sm)",
+                      color: "var(--text-primary)",
+                      outline: "none"
+                    }}
+                  />
+                  {searchKeybindQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchKeybindQuery("")}
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        background: "none",
+                        border: "none",
+                        color: "var(--text-muted)",
+                        cursor: "pointer",
+                        fontSize: 11
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Grouped Actions */}
+              {(["file", "simulation", "view", "tools"] as KeybindCategory[]).map((cat) => {
+                const categoryDefs = KEYBIND_DEFINITIONS.filter((d) => d.category === cat).filter((d) => {
+                  if (!searchKeybindQuery.trim()) return true;
+                  const q = searchKeybindQuery.toLowerCase();
+                  const name = t(d.nameKey as any).toLowerCase();
+                  const desc = t(d.descKey as any).toLowerCase();
+                  const currentKey = (keybindsMap[d.id] ?? d.defaultKey).toLowerCase();
+                  return name.includes(q) || desc.includes(q) || currentKey.includes(q);
+                });
+
+                if (categoryDefs.length === 0) return null;
+
+                const categoryTitleKey =
+                  cat === "file"
+                    ? "keybinds.categoryFile"
+                    : cat === "simulation"
+                    ? "keybinds.categorySimulation"
+                    : cat === "view"
+                    ? "keybinds.categoryView"
+                    : "keybinds.categoryTools";
+
+                return (
+                  <div key={cat} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        color: "var(--accent-cyan)",
+                        paddingBottom: 2
+                      }}
+                    >
+                      {t(categoryTitleKey as any)}
+                    </div>
+
+                    <div
+                      style={{
+                        backgroundColor: "var(--bg-primary)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "var(--radius-md)",
+                        overflow: "hidden"
+                      }}
+                    >
+                      {categoryDefs.map((def, idx) => {
+                        const currentChord = keybindsMap[def.id] ?? def.defaultKey;
+                        const isCustom = isKeybindCustomized(def.id);
+                        const isRecording = recordingActionId === def.id;
+                        const parts = splitChordParts(currentChord);
+
+                        return (
+                          <div
+                            key={def.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "7px 12px",
+                              gap: 12,
+                              borderTop: idx > 0 ? "1px solid var(--border-subtle)" : "none",
+                              backgroundColor: isRecording ? "rgba(6, 182, 212, 0.08)" : "transparent",
+                              transition: "background-color 0.15s ease"
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
+                                {t(def.nameKey as any)}
+                              </div>
+                              <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {t(def.descKey as any)}
+                              </div>
+                            </div>
+
+                            {/* Center/Right: Badges & Actions */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                              {isRecording ? (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                      padding: "3px 8px",
+                                      backgroundColor: "rgba(6, 182, 212, 0.15)",
+                                      border: "1px solid var(--accent-cyan)",
+                                      borderRadius: "var(--radius-sm)",
+                                      fontSize: 11,
+                                      fontFamily: "JetBrains Mono, monospace",
+                                      color: "#fff"
+                                    }}
+                                  >
+                                    {recordedChord ? (
+                                      splitChordParts(recordedChord).map((p, pIdx) => (
+                                        <React.Fragment key={pIdx}>
+                                          {pIdx > 0 && <span style={{ color: "var(--text-muted)" }}>+</span>}
+                                          <span style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{p}</span>
+                                        </React.Fragment>
+                                      ))
+                                    ) : (
+                                      <span style={{ color: "var(--accent-cyan)", fontStyle: "italic", fontSize: 10.5 }}>
+                                        {t("settings.recordingPrompt")}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {recordedChord && (
+                                    <button
+                                      type="button"
+                                      onClick={handleSaveRecording}
+                                      className="btn btn-primary"
+                                      style={{
+                                        fontSize: 10.5,
+                                        padding: "3px 8px",
+                                        height: 24,
+                                        background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)",
+                                        fontWeight: 600
+                                      }}
+                                    >
+                                      {t("common.save")}
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRecordingActionId(null);
+                                      setRecordedChord("");
+                                      setConflictWarning(null);
+                                    }}
+                                    className="btn btn-ghost"
+                                    style={{ fontSize: 10.5, padding: "3px 6px", height: 24, color: "var(--text-muted)" }}
+                                  >
+                                    {t("common.cancel")}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                                  {parts.map((p, pIdx) => (
+                                    <React.Fragment key={pIdx}>
+                                      {pIdx > 0 && <span style={{ color: "var(--text-muted)", fontSize: 10 }}>+</span>}
+                                      <kbd
+                                        style={{
+                                          padding: "2px 6px",
+                                          fontSize: 10.5,
+                                          fontFamily: "JetBrains Mono, monospace",
+                                          fontWeight: 600,
+                                          backgroundColor: "var(--bg-secondary)",
+                                          border: "1px solid var(--border-subtle)",
+                                          borderRadius: 4,
+                                          color: isCustom ? "var(--accent-amber)" : "var(--accent-cyan)",
+                                          boxShadow: "0 1px 2px rgba(0,0,0,0.35)"
+                                        }}
+                                      >
+                                        {p}
+                                      </kbd>
+                                    </React.Fragment>
+                                  ))}
+                                </div>
+                              )}
+
+                              {!isRecording && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRecordingActionId(def.id);
+                                      setRecordedChord("");
+                                      setConflictWarning(null);
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{
+                                      fontSize: 10.5,
+                                      padding: "3px 7px",
+                                      height: 24,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 4
+                                    }}
+                                    title={t("settings.recordKeybind")}
+                                  >
+                                    <Keyboard size={11} />
+                                    <span>{t("settings.recordKeybind")}</span>
+                                  </button>
+
+                                  {isCustom && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleResetSingleKeybind(def.id)}
+                                      className="btn btn-ghost btn-icon"
+                                      style={{
+                                        width: 24,
+                                        height: 24,
+                                        padding: 0,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "var(--text-muted)"
+                                      }}
+                                      title={t("settings.resetKeybind")}
+                                    >
+                                      <RotateCcw size={11} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Collision Warning Banner */}
+                            {isRecording && conflictWarning && (
+                              <div
+                                style={{
+                                  width: "100%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  fontSize: 10.5,
+                                  color: "var(--accent-amber)",
+                                  marginTop: 4
+                                }}
+                              >
+                                <AlertCircle size={11} />
+                                <span>{t("settings.keybindConflict")} {conflictWarning}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
