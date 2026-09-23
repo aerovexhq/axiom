@@ -1424,6 +1424,7 @@ export const App: React.FC = () => {
     setProject,
     setHighlightLineSpan,
     onOpenSettings: handleOpenSettings,
+    onOpenLayoutEditor: () => setIsLayoutEditorOpen(true),
     handleSelectFile,
     handleCloseTab,
     onAddFileClick: () => setIsAddSourceOpen(true),

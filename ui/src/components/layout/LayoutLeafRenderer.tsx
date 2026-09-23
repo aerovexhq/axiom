@@ -19,11 +19,13 @@ import {
   Maximize2,
   Minimize2,
   Plus,
-  X
+  X,
+  Layout
 } from "lucide-react";
 import { LayoutLeaf, LayoutViewId, LAYOUT_VIEWS_META, ALL_LAYOUT_VIEW_IDS } from "../../engine/layoutModel";
 import { AxiomProject, ProjectFile } from "../../engine/projectModel";
 import { SimulationState } from "../../engine/engineBridge";
+import { useTranslation } from "../../i18n";
 import { HdlEditor } from "../HdlEditor";
 import { WaveformViewer } from "../WaveformViewer";
 import { SchematicViewer } from "../SchematicViewer";
@@ -57,6 +59,7 @@ export interface VisualizerContextProps {
   setProject: React.Dispatch<React.SetStateAction<AxiomProject | null>>;
   setHighlightLineSpan: React.Dispatch<React.SetStateAction<{ lineStart: number; lineEnd: number } | null>>;
   onOpenSettings?: (category?: "general" | "editor" | "simulation" | "security" | "layouts") => void;
+  onOpenLayoutEditor?: () => void;
   handleSelectFile?: (fileId: string) => void;
   handleCloseTab?: (fileId: string) => void;
   onAddFileClick?: () => void;
@@ -125,8 +128,49 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
   canClosePanel = false,
   onToggleMaximize
 }) => {
+  const { t } = useTranslation();
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    viewId: LayoutViewId;
+    leafId: string;
+  } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close context menu on outside click, window resize, scroll, or Escape
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handlePointerDown = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setContextMenu(null);
+      }
+    };
+
+    const handleDismiss = () => {
+      setContextMenu(null);
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleDismiss, true);
+    window.addEventListener("resize", handleDismiss);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleDismiss, true);
+      window.removeEventListener("resize", handleDismiss);
+    };
+  }, [contextMenu]);
 
   // Close add menu on outside click
   useEffect(() => {
@@ -375,6 +419,16 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
               <div
                 key={v}
                 onClick={() => onSelectView(leaf.id, v)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setContextMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    viewId: v,
+                    leafId: leaf.id
+                  });
+                }}
                 title={meta?.description || meta?.defaultLabel}
                 style={{
                   display: "flex",
@@ -382,7 +436,7 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
                   gap: 4,
                   fontSize: 11.5,
                   fontWeight: isActive ? 600 : 400,
-                  padding: "2px 7px",
+                  padding: "2px 8px",
                   borderRadius: "var(--radius-sm)",
                   backgroundColor: isActive ? "var(--bg-tertiary)" : "transparent",
                   color: isActive ? meta?.color || "var(--accent-cyan)" : "var(--text-muted)",
@@ -394,33 +448,6 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
               >
                 {getViewIcon(v, 12)}
                 <span>{meta?.defaultLabel || v}</span>
-                {leaf.views.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCloseTab(leaf.id, v);
-                    }}
-                    title="Close Tab"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 14,
-                      height: 14,
-                      marginLeft: 2,
-                      borderRadius: "50%",
-                      backgroundColor: "transparent",
-                      border: "none",
-                      color: "inherit",
-                      cursor: "pointer",
-                      opacity: 0.6
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
-                  >
-                    <X size={10} />
-                  </button>
-                )}
               </div>
             );
           })}
@@ -578,6 +605,161 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
       <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", overflow: "hidden" }}>
         {renderActiveView()}
       </div>
+
+      {/* Visualizer Tab Right-Click Context Menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: Math.min(contextMenu.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 150),
+            left: Math.min(contextMenu.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 200),
+            width: 195,
+            backgroundColor: "var(--bg-secondary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.15)",
+            padding: 4,
+            zIndex: 9999,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            fontSize: 12,
+            color: "var(--text-primary)",
+            userSelect: "none"
+          }}
+        >
+          {/* Close Tab */}
+          <div
+            onClick={() => {
+              if (leaf.views.length > 1) {
+                onCloseTab(contextMenu.leafId, contextMenu.viewId);
+              }
+              setContextMenu(null);
+            }}
+            title={leaf.views.length <= 1 ? (t("layout.cannotCloseOnlyTab") || "Cannot close the only tab in this panel") : undefined}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 8px",
+              borderRadius: "var(--radius-sm)",
+              cursor: leaf.views.length > 1 ? "pointer" : "not-allowed",
+              color: leaf.views.length > 1 ? "var(--text-primary)" : "var(--text-muted)",
+              opacity: leaf.views.length > 1 ? 1 : 0.45,
+              transition: "background-color 0.1s ease"
+            }}
+            onMouseEnter={(e) => {
+              if (leaf.views.length > 1) {
+                e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <X size={13} color={leaf.views.length > 1 ? "var(--accent-red)" : "currentColor"} />
+            <span style={{ flex: 1 }}>{t("layout.closeTab") || "Close"}</span>
+          </div>
+
+          {/* Close Other Tabs */}
+          <div
+            onClick={() => {
+              if (leaf.views.length > 1) {
+                const others = leaf.views.filter((v) => v !== contextMenu.viewId);
+                others.forEach((v) => onCloseTab(contextMenu.leafId, v));
+              }
+              setContextMenu(null);
+            }}
+            title={leaf.views.length <= 1 ? (t("layout.cannotCloseOnlyTab") || "Cannot close the only tab in this panel") : undefined}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 8px",
+              borderRadius: "var(--radius-sm)",
+              cursor: leaf.views.length > 1 ? "pointer" : "not-allowed",
+              color: leaf.views.length > 1 ? "var(--text-primary)" : "var(--text-muted)",
+              opacity: leaf.views.length > 1 ? 1 : 0.45,
+              transition: "background-color 0.1s ease"
+            }}
+            onMouseEnter={(e) => {
+              if (leaf.views.length > 1) {
+                e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <Layers size={13} color="var(--text-muted)" />
+            <span style={{ flex: 1 }}>{t("layout.closeOtherTabs") || "Close Others"}</span>
+          </div>
+
+          <div style={{ height: 1, backgroundColor: "var(--border-subtle)", margin: "3px 0" }} />
+
+          {/* Open in Layout Editor */}
+          <div
+            onClick={() => {
+              setContextMenu(null);
+              if (context.onOpenLayoutEditor) {
+                context.onOpenLayoutEditor();
+              } else if (context.onOpenSettings) {
+                context.onOpenSettings("layouts");
+              }
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 8px",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              color: "var(--text-primary)",
+              transition: "background-color 0.1s ease"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <Layout size={13} color="var(--accent-cyan)" />
+            <span style={{ flex: 1 }}>{t("layout.openLayoutEditor") || "Layout Editor..."}</span>
+          </div>
+
+          {/* Dock Another View */}
+          {availableToAdd.length > 0 && (
+            <div
+              onClick={() => {
+                setContextMenu(null);
+                setIsAddMenuOpen(true);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 8px",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                color: "var(--text-primary)",
+                transition: "background-color 0.1s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <Plus size={13} color="var(--text-muted)" />
+              <span style={{ flex: 1 }}>{t("layout.dockMoreViews") || "Dock Another View..."}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

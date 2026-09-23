@@ -903,5 +903,12 @@ export const tr: Translations = {
     descLabGrader: "Devre üzerinde otomatik test ve değerlendirme çalıştır",
     actionPackagePinout: "Paket Pin Çıkışı",
     descPackagePinout: "FPGA paket pin dağılımı ve yerleşim düzenleyicisini aç",
+  },
+  layout: {
+    closeTab: "Kapat",
+    closeOtherTabs: "Diğerlerini Kapat",
+    openLayoutEditor: "Düzen Düzenleyici...",
+    dockMoreViews: "Başka Bir Görünüm Ekle...",
+    cannotCloseOnlyTab: "Bu paneldeki tek sekme kapatılamaz"
   }
 };

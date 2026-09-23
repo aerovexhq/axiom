@@ -903,5 +903,12 @@ export const de: Translations = {
     descLabGrader: "Automatische Bewertung und Testbench-Prüfung ausführen",
     actionPackagePinout: "Gehäuse-Pinbelegung",
     descPackagePinout: "FPGA-Pinbelegungs- und Floorplan-Editor öffnen",
+  },
+  layout: {
+    closeTab: "Schließen",
+    closeOtherTabs: "Andere schließen",
+    openLayoutEditor: "Layout-Editor...",
+    dockMoreViews: "Weitere Ansicht andocken...",
+    cannotCloseOnlyTab: "Der einzige Tab in diesem Panel kann nicht geschlossen werden"
   }
 };

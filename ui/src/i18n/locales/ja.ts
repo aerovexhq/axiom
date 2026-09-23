@@ -903,5 +903,12 @@ export const ja: Translations = {
     descLabGrader: "自動採点とテストベンチアサーションを実行",
     actionPackagePinout: "パッケージピン配置",
     descPackagePinout: "FPGAパッケージピン配置およびフロアプランを開く",
+  },
+  layout: {
+    closeTab: "閉じる",
+    closeOtherTabs: "他を閉じる",
+    openLayoutEditor: "レイアウトエディタ...",
+    dockMoreViews: "別のビューをドック...",
+    cannotCloseOnlyTab: "このパネルの唯一のタブは閉じられません"
   }
 };

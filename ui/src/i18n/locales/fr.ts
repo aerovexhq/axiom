@@ -903,5 +903,12 @@ export const fr: Translations = {
     descLabGrader: "Exécuter l'évaluation automatique et les assertions de testbench",
     actionPackagePinout: "Brochage du Boîtier",
     descPackagePinout: "Ouvrir l'éditeur de brochage et plan d'implantation FPGA",
+  },
+  layout: {
+    closeTab: "Fermer",
+    closeOtherTabs: "Fermer les autres",
+    openLayoutEditor: "Éditeur de disposition...",
+    dockMoreViews: "Ancrer une autre vue...",
+    cannotCloseOnlyTab: "Impossible de fermer le seul onglet de ce panneau"
   }
 };

@@ -903,5 +903,12 @@ export const es: Translations = {
     descLabGrader: "Ejecutar calificación automática y aserciones de prueba",
     actionPackagePinout: "Distribución de Pines",
     descPackagePinout: "Abrir editor de distribución de pines y plano del FPGA",
+  },
+  layout: {
+    closeTab: "Cerrar",
+    closeOtherTabs: "Cerrar otros",
+    openLayoutEditor: "Editor de diseño...",
+    dockMoreViews: "Acoplar otra vista...",
+    cannotCloseOnlyTab: "No se puede cerrar la única pestaña de este panel"
   }
 };

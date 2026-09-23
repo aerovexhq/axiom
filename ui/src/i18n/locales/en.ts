@@ -903,5 +903,12 @@ export const en: Translations = {
     descLabGrader: "Run automated grading and testbench assertions on circuit",
     actionPackagePinout: "Package Pinout",
     descPackagePinout: "Open FPGA package ball grid array pinout editor",
+  },
+  layout: {
+    closeTab: "Close",
+    closeOtherTabs: "Close Others",
+    openLayoutEditor: "Layout Editor...",
+    dockMoreViews: "Dock Another View...",
+    cannotCloseOnlyTab: "Cannot close the only tab in this panel"
   }
 };

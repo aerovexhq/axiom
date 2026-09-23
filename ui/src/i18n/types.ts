@@ -920,4 +920,11 @@ export interface Translations {
     actionPackagePinout: string;
     descPackagePinout: string;
   };
+  layout: {
+    closeTab: string;
+    closeOtherTabs: string;
+    openLayoutEditor: string;
+    dockMoreViews: string;
+    cannotCloseOnlyTab: string;
+  };
 }

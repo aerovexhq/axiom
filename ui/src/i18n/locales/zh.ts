@@ -903,5 +903,12 @@ export const zh: Translations = {
     descLabGrader: "对硬件电路执行自动化评分与测试平台断言",
     actionPackagePinout: "芯片引脚定义",
     descPackagePinout: "打开FPGA封装引脚布局与平面规划编辑器",
+  },
+  layout: {
+    closeTab: "关闭",
+    closeOtherTabs: "关闭其他",
+    openLayoutEditor: "布局编辑器...",
+    dockMoreViews: "停靠其他视图...",
+    cannotCloseOnlyTab: "无法关闭此面板中的唯一标签页"
   }
 };
