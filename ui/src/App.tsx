@@ -37,6 +37,7 @@ import {
   splitLeaf,
   closeLeaf,
   closeTabInLeaf,
+  reorderLeafViews,
   updateSplitRatio,
   getAllLeaves,
   BUILTIN_LAYOUT_PRESETS,
@@ -1117,6 +1118,17 @@ export const App: React.FC = () => {
     });
   }, [project]);
 
+  const handleReorderLayoutViews = useCallback((leafId: string, newViews: LayoutViewId[], activeViewId?: LayoutViewId) => {
+    setActiveLayout((prev) => {
+      const nextRoot = reorderLeafViews(prev.root, leafId, newViews, activeViewId);
+      const updated: AxiomLayout = { ...prev, root: nextRoot };
+      if (project) {
+        saveProjectLayout(project, updated);
+      }
+      return updated;
+    });
+  }, [project]);
+
   const handleSplitLayoutLeaf = useCallback((leafId: string, direction: "row" | "column") => {
     setActiveLayout((prev) => {
       const nextRoot = splitLeaf(prev.root, leafId, direction);
@@ -1908,6 +1920,7 @@ export const App: React.FC = () => {
                 onClosePanel={handleClosePanel}
                 onUpdateSplitRatio={handleUpdateSplitRatio}
                 onToggleMaximize={handleToggleMaximizeLeaf}
+                onReorderViews={handleReorderLayoutViews}
               />
             )}
           </div>

@@ -265,6 +265,9 @@ export const ja: Translations = {
     clearGolden: "ゴールデン消去",
     perfectMatch: "100% 一致",
     mismatchesFound: "不一致検出",
+    boxZoomMode: "ボックスズーム: 領域をドラッグして扩大 (またはShift)",
+    boxZoomActive: "ボックスズーム: アクティブ (ドラッグして扩大)",
+    zoomWindow: "ウアンドウズーム",
   },
   timing: {
     title: "タイミング概要",
@@ -909,6 +912,8 @@ export const ja: Translations = {
     closeOtherTabs: "他を閉じる",
     openLayoutEditor: "レイアウトエディタ...",
     dockMoreViews: "別のビューをドック...",
-    cannotCloseOnlyTab: "このパネルの唯一のタブは閉じられません"
+    cannotCloseOnlyTab: "このパネルの唯一のタブは閉じられません",
+    hiddenViews: "非表示のビュー",
+    moreTabs: "その他のビュー",
   }
 };

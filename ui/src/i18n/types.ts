@@ -281,6 +281,9 @@ export interface Translations {
     clearGolden: string;
     perfectMatch: string;
     mismatchesFound: string;
+    boxZoomMode: string;
+    boxZoomActive: string;
+    zoomWindow: string;
   };
   timing: {
     title: string;
@@ -926,5 +929,7 @@ export interface Translations {
     openLayoutEditor: string;
     dockMoreViews: string;
     cannotCloseOnlyTab: string;
+    hiddenViews: string;
+    moreTabs: string;
   };
 }

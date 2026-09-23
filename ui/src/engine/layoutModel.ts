@@ -373,6 +373,25 @@ export function closeTabInLeaf(
   return simplifyLayoutTree(cloned);
 }
 
+// Reorder views in a leaf (e.g. placing a selected overflow view at the last visible tab slot)
+export function reorderLeafViews(
+  root: LayoutNode,
+  leafId: string,
+  newViews: LayoutViewId[],
+  activeViewId?: LayoutViewId
+): LayoutNode {
+  const cloned = cloneLayoutNode(root);
+  const leaf = findLeafById(cloned, leafId);
+  if (!leaf) return cloned;
+
+  leaf.views = [...newViews];
+  if (activeViewId) {
+    leaf.activeViewId = activeViewId;
+  }
+
+  return cloned;
+}
+
 // Close and remove an entire leaf panel from a split layout tree
 export function closeLeaf(root: LayoutNode, leafId: string): LayoutNode {
   if (root.type === "leaf") {

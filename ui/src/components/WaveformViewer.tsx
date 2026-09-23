@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import {
   ZoomIn, ZoomOut, Maximize2, Bug, Sliders, Lock, Unlock, Layers, AlertTriangle, X,
-  Search, History, Cpu, ShieldAlert, Bookmark, Activity, ChevronDown,
-  Plus, Trash2, Edit2, GitCompare, CheckCircle2, Zap
+  History, Cpu, ShieldAlert, Bookmark, Activity, ChevronDown,
+  Plus, Trash2, Edit2, GitCompare, CheckCircle2, Zap, BoxSelect, Scan
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
@@ -89,6 +89,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     return 0.1; // 100 pixels per 1000 ps (1 ns)
   });
   const [hoverTimePs, setHoverTimePs] = useState<number | null>(null);
+  const [isWindowZoomMode, setIsWindowZoomMode] = useState<boolean>(false);
 
   // Debounced persistence for waveform viewport
   useEffect(() => {
@@ -1796,6 +1797,17 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       if (movedPx < 4) {
         // Single click without drag: keep cursor A only
         setCursorBPrivate(null);
+      } else if ((isWindowZoomMode || e.shiftKey) && selectionAnchorPs !== null) {
+        // Box Zoom / Window Mode: auto zoom to selected time window
+        const clickedPs = Math.max(0, Math.round(timeOffsetPs + (x - gutterWidth) / pixelsPerPs));
+        const minPs = Math.min(selectionAnchorPs, clickedPs);
+        const maxPs = Math.max(selectionAnchorPs, clickedPs);
+        const deltaPs = Math.max(maxPs - minPs, 10);
+        const containerWidth = containerRef.current?.clientWidth ?? 800;
+        const plotWidth = containerWidth - gutterWidth;
+        const newPixelsPerPs = Math.min(Math.max(plotWidth / deltaPs, 0.0001), 10);
+        setPixelsPerPs(newPixelsPerPs);
+        setTimeOffsetPs(Math.max(0, minPs - (plotWidth / newPixelsPerPs) * 0.05));
       }
     }
     setIsPanning(false);
@@ -1873,6 +1885,20 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     setPixelsPerPs(newPixelsPerPs);
     setTimeOffsetPs(Math.max(0, minPs - (plotWidth / newPixelsPerPs) * 0.05));
   };
+
+  const setPresetWindow = useCallback((spanPs: number) => {
+    const containerWidth = containerRef.current?.clientWidth ?? 800;
+    const plotWidth = containerWidth - gutterWidth;
+    const newPixelsPerPs = Math.min(Math.max(plotWidth / spanPs, 0.0001), 10);
+    setPixelsPerPs(newPixelsPerPs);
+    if (cursorAPrivate !== null) {
+      const centerPs = cursorAPrivate;
+      setTimeOffsetPs(Math.max(0, centerPs - (plotWidth / newPixelsPerPs) / 2));
+    } else {
+      const currentCenterPs = timeOffsetPs + (plotWidth / pixelsPerPs) / 2;
+      setTimeOffsetPs(Math.max(0, currentCenterPs - (plotWidth / newPixelsPerPs) / 2));
+    }
+  }, [gutterWidth, cursorAPrivate, timeOffsetPs, pixelsPerPs]);
 
   // Delta Accordion Events at expanded time
   const activeDeltaEvents = useMemo(() => {
@@ -2272,6 +2298,7 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           {/* Dual-Cursor Measurement HUD with Frequency and Clock Cycles */}
           {measurementDelta && (
             <div
+              onDoubleClick={handleZoomToWindow}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -2283,8 +2310,10 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 fontSize: 11,
                 fontFamily: "JetBrains Mono, monospace",
                 whiteSpace: "nowrap",
-                flexShrink: 0
+                flexShrink: 0,
+                cursor: "pointer"
               }}
+              title="Double-click to zoom into this measurement window"
             >
               <span style={{ color: "#00f2fe" }}>A:{cursorAPrivate !== null ? formatTimeCompact(cursorAPrivate) : ""}</span>
               <span style={{ color: "#a855f7" }}>B:{cursorBPrivate !== null ? formatTimeCompact(cursorBPrivate) : ""}</span>
@@ -2301,8 +2330,8 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
                 style={{ fontSize: 10, color: "#38bdf8", padding: "1px 5px", height: "auto", minHeight: 18, borderRadius: 2, display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
                 title="Zoom into measurement window"
               >
-                <Search size={11} />
-                <span>Zoom</span>
+                <Scan size={11} />
+                <span>{t.waveforms.zoomWindow}</span>
               </button>
               <button
                 onClick={() => {
@@ -2388,6 +2417,59 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
             >
               <Maximize2 size={14} />
             </button>
+            {/* Box Zoom / Window Mode Toggle */}
+            <button
+              onClick={() => setIsWindowZoomMode((prev) => !prev)}
+              title={isWindowZoomMode ? t.waveforms.boxZoomActive : t.waveforms.boxZoomMode}
+              className={`btn ${isWindowZoomMode ? "btn-primary" : "btn-secondary"} btn-icon`}
+              style={{
+                padding: 4,
+                width: 24,
+                height: 24,
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: isWindowZoomMode ? "rgba(6, 182, 212, 0.25)" : undefined,
+                borderColor: isWindowZoomMode ? "var(--accent-cyan)" : undefined,
+                color: isWindowZoomMode ? "var(--accent-cyan)" : undefined
+              }}
+            >
+              <BoxSelect size={14} />
+            </button>
+            {/* Preset Time Windows */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                backgroundColor: "rgba(15, 23, 42, 0.6)",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid #334155",
+                overflow: "hidden",
+                height: 24
+              }}
+            >
+              {[
+                { label: "10ns", ps: 10_000 },
+                { label: "100ns", ps: 100_000 },
+                { label: "1μs", ps: 1_000_000 }
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => setPresetWindow(preset.ps)}
+                  className="btn btn-ghost"
+                  style={{
+                    padding: "0 6px",
+                    height: "100%",
+                    fontSize: 10,
+                    fontFamily: "JetBrains Mono, monospace",
+                    color: "var(--text-muted)",
+                    borderRight: "1px solid #1e293b",
+                    borderRadius: 0
+                  }}
+                  title={`Set window width to ${preset.label}`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
             {customGutterWidth !== 230 && !isMobile && (
               <button
                 onClick={() => {

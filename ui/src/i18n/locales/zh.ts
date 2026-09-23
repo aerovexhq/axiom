@@ -265,6 +265,9 @@ export const zh: Translations = {
     clearGolden: "清除黄金模型",
     perfectMatch: "100% 完全匹配",
     mismatchesFound: "发现波形差异",
+    boxZoomMode: "框选缩放：拖拽选区缩放（或按住 Shift）",
+    boxZoomActive: "框选缩放：激活（拖拽以放大）",
+    zoomWindow: "缩放至窗口",
   },
   timing: {
     title: "时序汇总",
@@ -909,6 +912,8 @@ export const zh: Translations = {
     closeOtherTabs: "关闭其他",
     openLayoutEditor: "布局编辑器...",
     dockMoreViews: "停靠其他视图...",
-    cannotCloseOnlyTab: "无法关闭此面板中的唯一标签页"
+    cannotCloseOnlyTab: "无法关闭此面板中的唯一标签页",
+    hiddenViews: "隐藏视图",
+    moreTabs: "更多视图",
   }
 };

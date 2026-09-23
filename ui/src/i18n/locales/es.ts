@@ -265,6 +265,9 @@ export const es: Translations = {
     clearGolden: "Limpiar Modelo Dorado",
     perfectMatch: "100% Coincidencia",
     mismatchesFound: "Discrepancias Encontradas",
+    boxZoomMode: "Zoom de área: arrastre para ampliar (o Shift)",
+    boxZoomActive: "Zoom de área: activo (arrastre para ampliar)",
+    zoomWindow: "Zoom a ventana",
   },
   timing: {
     title: "Resumen de Tiempos",
@@ -909,6 +912,8 @@ export const es: Translations = {
     closeOtherTabs: "Cerrar otros",
     openLayoutEditor: "Editor de diseño...",
     dockMoreViews: "Acoplar otra vista...",
-    cannotCloseOnlyTab: "No se puede cerrar la única pestaña de este panel"
+    cannotCloseOnlyTab: "No se puede cerrar la única pestaña de este panel",
+    hiddenViews: "Vistas ocultas",
+    moreTabs: "Más vistas",
   }
 };

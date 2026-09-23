@@ -265,6 +265,9 @@ export const de: Translations = {
     clearGolden: "Golden-Modell löschen",
     perfectMatch: "100% Übereinstimmung",
     mismatchesFound: "Abweichungen gefunden",
+    boxZoomMode: "Bereichs-Zoom: Ziehen für Fenster (oder Umschalt)",
+    boxZoomActive: "Bereichs-Zoom: Aktiv (Bereich zum Zoomen ziehen)",
+    zoomWindow: "Fenster vergrößern",
   },
   timing: {
     title: "Timing-Übersicht",
@@ -909,6 +912,8 @@ export const de: Translations = {
     closeOtherTabs: "Andere schließen",
     openLayoutEditor: "Layout-Editor...",
     dockMoreViews: "Weitere Ansicht andocken...",
-    cannotCloseOnlyTab: "Der einzige Tab in diesem Panel kann nicht geschlossen werden"
+    cannotCloseOnlyTab: "Der einzige Tab in diesem Panel kann nicht geschlossen werden",
+    hiddenViews: "Versteckte Ansichten",
+    moreTabs: "Weitere Ansichten",
   }
 };

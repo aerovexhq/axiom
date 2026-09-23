@@ -1,7 +1,7 @@
 // Axiom EDA — Tabbed Panel Leaf Host
 // Renders tabs header, split actions, maximize toggle, and visualizer component
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Code2,
   Cpu,
@@ -20,7 +20,8 @@ import {
   Minimize2,
   Plus,
   X,
-  Layout
+  Layout,
+  MoreVertical
 } from "lucide-react";
 import { LayoutLeaf, LayoutViewId, LAYOUT_VIEWS_META, ALL_LAYOUT_VIEW_IDS } from "../../engine/layoutModel";
 import { AxiomProject, ProjectFile } from "../../engine/projectModel";
@@ -80,6 +81,7 @@ export interface LayoutLeafRendererProps {
   onClosePanel?: (leafId: string) => void;
   canClosePanel?: boolean;
   onToggleMaximize: (leafId: string) => void;
+  onReorderViews?: (leafId: string, newViews: LayoutViewId[], activeViewId?: LayoutViewId) => void;
 }
 
 export function getViewIcon(id: LayoutViewId, size = 12) {
@@ -126,7 +128,8 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
   onAddTab,
   onClosePanel,
   canClosePanel = false,
-  onToggleMaximize
+  onToggleMaximize,
+  onReorderViews
 }) => {
   const { t } = useTranslation();
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -138,6 +141,132 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
     leafId: string;
   } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  // Tab bar overflow state & measurement
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const tabWidthsRef = useRef<Map<LayoutViewId, number>>(new Map());
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
+
+  // Visualizers cannot dock the editor as a subtab; editor is a standalone panel
+  const availableToAdd = ALL_LAYOUT_VIEW_IDS.filter((v) => v !== "editor" && !leaf.views.includes(v));
+
+  useEffect(() => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(entry.contentRect.width);
+        }
+      }
+    });
+
+    ro.observe(el);
+    setContainerWidth(el.clientWidth);
+
+    return () => ro.disconnect();
+  }, []);
+
+  // Close overflow menu on outside click or Escape
+  useEffect(() => {
+    if (!isOverflowMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (overflowMenuRef.current && !overflowMenuRef.current.contains(e.target as Node)) {
+        setIsOverflowMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOverflowMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOverflowMenuOpen]);
+
+  // Compute visible tabs vs overflow tabs based on available container width
+  const { visibleViews, overflowViews } = useMemo(() => {
+    if (!containerWidth || containerWidth <= 0 || leaf.views.length <= 1) {
+      return { visibleViews: leaf.views, overflowViews: [] as LayoutViewId[] };
+    }
+
+    const ADD_BTN_W = availableToAdd.length > 0 ? 24 : 0;
+    const MORE_BTN_W = 24;
+    const TAB_GAP = 3;
+
+    // Check if ALL tabs fit with just the add button
+    let totalAllW = ADD_BTN_W;
+    for (const v of leaf.views) {
+      const w = tabWidthsRef.current.get(v) || 105;
+      totalAllW += w + TAB_GAP;
+    }
+
+    if (totalAllW <= containerWidth) {
+      return { visibleViews: leaf.views, overflowViews: [] as LayoutViewId[] };
+    }
+
+    // Need room for MoreVertical button as well
+    const availForTabs = containerWidth - ADD_BTN_W - MORE_BTN_W;
+    let accumulated = 0;
+    let fitCount = 0;
+
+    for (const v of leaf.views) {
+      const w = (tabWidthsRef.current.get(v) || 105) + TAB_GAP;
+      if (accumulated + w <= availForTabs) {
+        accumulated += w;
+        fitCount++;
+      } else {
+        break;
+      }
+    }
+
+    fitCount = Math.max(1, fitCount);
+    return {
+      visibleViews: leaf.views.slice(0, fitCount),
+      overflowViews: leaf.views.slice(fitCount)
+    };
+  }, [containerWidth, leaf.views, availableToAdd.length]);
+
+  // Automatically elevate activeViewId to the last visible tab if it is in overflow
+  useEffect(() => {
+    if (overflowViews.includes(leaf.activeViewId) && onReorderViews && visibleViews.length > 0) {
+      const targetIdx = Math.max(0, visibleViews.length - 1);
+      const remaining = leaf.views.filter((v) => v !== leaf.activeViewId);
+      const newViews: LayoutViewId[] = [
+        ...remaining.slice(0, targetIdx),
+        leaf.activeViewId,
+        ...remaining.slice(targetIdx)
+      ];
+      onReorderViews(leaf.id, newViews, leaf.activeViewId);
+    }
+  }, [overflowViews, leaf.activeViewId, leaf.id, leaf.views, onReorderViews, visibleViews.length]);
+
+  // When an overflow tab is chosen from vertical ellipses dropdown:
+  // Move it to the last visible slot in the panel strip and activate it
+  const handleSelectOverflowTab = (selectedView: LayoutViewId) => {
+    setIsOverflowMenuOpen(false);
+    if (!onReorderViews) {
+      onSelectView(leaf.id, selectedView);
+      return;
+    }
+
+    const targetIdx = Math.max(0, visibleViews.length - 1);
+    const remaining = leaf.views.filter((v) => v !== selectedView);
+    const newViews: LayoutViewId[] = [
+      ...remaining.slice(0, targetIdx),
+      selectedView,
+      ...remaining.slice(targetIdx)
+    ];
+
+    onReorderViews(leaf.id, newViews, selectedView);
+  };
 
   // Close context menu on outside click, window resize, scroll, or Escape
   useEffect(() => {
@@ -184,9 +313,6 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isAddMenuOpen]);
-
-  // Visualizers cannot dock the editor as a subtab; editor is a standalone panel
-  const availableToAdd = ALL_LAYOUT_VIEW_IDS.filter((v) => v !== "editor" && !leaf.views.includes(v));
 
   const renderActiveView = () => {
     switch (leaf.activeViewId) {
@@ -411,13 +537,31 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
         }}
       >
         {/* Tabs Strip */}
-        <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", scrollbarWidth: "none", minWidth: 0, flex: 1 }}>
-          {leaf.views.map((v) => {
+        <div
+          ref={tabsContainerRef}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            overflow: "hidden",
+            minWidth: 0,
+            flex: 1
+          }}
+        >
+          {visibleViews.map((v) => {
             const meta = LAYOUT_VIEWS_META[v];
             const isActive = leaf.activeViewId === v;
             return (
               <div
                 key={v}
+                ref={(el) => {
+                  if (el) {
+                    const w = el.getBoundingClientRect().width;
+                    if (w > 0 && tabWidthsRef.current.get(v) !== w) {
+                      tabWidthsRef.current.set(v, w);
+                    }
+                  }
+                }}
                 onClick={() => onSelectView(leaf.id, v)}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -451,6 +595,105 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
               </div>
             );
           })}
+
+          {/* Vertical Ellipses for Overflow Tabs */}
+          {overflowViews.length > 0 && (
+            <div style={{ position: "relative" }} ref={overflowMenuRef}>
+              <button
+                onClick={() => setIsOverflowMenuOpen((prev) => !prev)}
+                title={`${overflowViews.length} ${t.layout?.moreTabs || "More Views"}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 20,
+                  height: 20,
+                  backgroundColor: isOverflowMenuOpen ? "var(--bg-tertiary)" : "transparent",
+                  border: isOverflowMenuOpen ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                  borderRadius: "var(--radius-sm)",
+                  color: isOverflowMenuOpen ? "var(--accent-cyan)" : "var(--text-muted)",
+                  cursor: "pointer",
+                  padding: 0,
+                  flexShrink: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--text-primary)";
+                  e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isOverflowMenuOpen) {
+                    e.currentTarget.style.color = "var(--text-muted)";
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }
+                }}
+              >
+                <MoreVertical size={13} />
+              </button>
+
+              {isOverflowMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    zIndex: 200,
+                    minWidth: 180,
+                    backgroundColor: "var(--bg-secondary)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: "var(--radius-md)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                    padding: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1
+                  }}
+                >
+                  <div style={{ padding: "4px 8px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    {t.layout?.hiddenViews || "Hidden Views"} ({overflowViews.length})
+                  </div>
+                  {overflowViews.map((ov) => {
+                    const meta = LAYOUT_VIEWS_META[ov];
+                    return (
+                      <button
+                        key={ov}
+                        onClick={() => handleSelectOverflowTab(ov)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsOverflowMenuOpen(false);
+                          setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            viewId: ov,
+                            leafId: leaf.id
+                          });
+                        }}
+                        title={meta?.description || meta?.defaultLabel}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 8px",
+                          fontSize: 11.5,
+                          backgroundColor: "transparent",
+                          border: "none",
+                          borderRadius: "var(--radius-sm)",
+                          color: "var(--text-primary)",
+                          cursor: "pointer",
+                          textAlign: "left"
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-tertiary)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      >
+                        <span style={{ color: meta?.color || "var(--accent-blue)" }}>{getViewIcon(ov, 12)}</span>
+                        <span style={{ flex: 1 }}>{meta?.defaultLabel || ov}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Add View Dropdown Button */}
           {availableToAdd.length > 0 && (

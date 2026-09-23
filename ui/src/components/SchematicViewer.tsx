@@ -342,8 +342,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   // Auto-focus camera on graph bounds: zooms in to comfortably fit the viewport with symmetrical centering
   const fitToScreen = useCallback(() => {
     if (!containerRef.current || !graph) return;
-    const width = containerRef.current.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 800);
-    const height = containerRef.current.clientHeight || (typeof window !== "undefined" ? window.innerHeight - 100 : 600);
+    const width = containerRef.current.clientWidth;
+    const height = containerRef.current.clientHeight;
+    // Guard against unmeasured / zero container size to prevent offscreen coordinates
+    if (!width || !height || width <= 100 || height <= 100) return;
 
     const isMobileViewport = width <= 768;
     const graphWidth = Math.max(graph.bounds.width, 10);
@@ -392,6 +394,19 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.scale === "number" && !isNaN(parsed.scale) && parsed.scale > 0) {
+          const cW = containerRef.current?.clientWidth || 0;
+          const cH = containerRef.current?.clientHeight || 0;
+          if (cW > 100 && cH > 100 && graph) {
+            const screenLeft = parsed.offsetX + graph.bounds.minX * parsed.scale;
+            const screenRight = parsed.offsetX + graph.bounds.maxX * parsed.scale;
+            const screenTop = parsed.offsetY + graph.bounds.minY * parsed.scale;
+            const screenBottom = parsed.offsetY + graph.bounds.maxY * parsed.scale;
+            // If completely outside the visible viewport, discard stale cache and refit
+            if (screenRight < 50 || screenLeft > cW - 50 || screenBottom < 50 || screenTop > cH - 50) {
+              fitToScreen();
+              return;
+            }
+          }
           setScale(parsed.scale);
           if (typeof parsed.offsetX === "number" && !isNaN(parsed.offsetX)) setOffsetX(parsed.offsetX);
           if (typeof parsed.offsetY === "number" && !isNaN(parsed.offsetY)) setOffsetY(parsed.offsetY);
@@ -400,7 +415,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       }
     } catch {}
     fitToScreen();
-  }, [activeDesignId, schematicMode, fitToScreen]);
+  }, [activeDesignId, schematicMode, fitToScreen, graph]);
 
   // When synth graph finishes loading for the first time, auto-fit if not yet cached
   useEffect(() => {
@@ -483,11 +498,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
+    try {
+      const width = canvas.width;
+      const height = canvas.height;
 
-    // Clear background
-    ctx.fillStyle = "#0c1017";
+      // Clear background
+      ctx.fillStyle = "#0c1017";
     ctx.fillRect(0, 0, width, height);
 
     // Save initial state for camera transformation
@@ -872,7 +888,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         Math.min(mapHeight - 4, camH)
       );
     }
-  }, [
+  } catch (err) {
+    console.warn("Schematic renderCanvas error:", err);
+  }
+}, [
     graph,
     offsetX,
     offsetY,

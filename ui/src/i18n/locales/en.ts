@@ -265,6 +265,9 @@ export const en: Translations = {
     clearGolden: "Clear Golden",
     perfectMatch: "100% Match",
     mismatchesFound: "Mismatches Found",
+    boxZoomMode: "Box Zoom: Drag region to window (or hold Shift)",
+    boxZoomActive: "Box Zoom: Active (drag to zoom window)",
+    zoomWindow: "Zoom Window",
   },
   timing: {
     title: "Timing Summary",
@@ -909,6 +912,8 @@ export const en: Translations = {
     closeOtherTabs: "Close Others",
     openLayoutEditor: "Layout Editor...",
     dockMoreViews: "Dock Another View...",
-    cannotCloseOnlyTab: "Cannot close the only tab in this panel"
+    cannotCloseOnlyTab: "Cannot close the only tab in this panel",
+    hiddenViews: "Hidden Views",
+    moreTabs: "More Views",
   }
 };

@@ -265,6 +265,9 @@ export const tr: Translations = {
     clearGolden: "Altın Modeli Temizle",
     perfectMatch: "%100 Eşleşme",
     mismatchesFound: "Uyumsuzluk Bulundu",
+    boxZoomMode: "Kutu Yakınlaştırma: Pencereye sürükleyin (veya Shift)",
+    boxZoomActive: "Kutu Yakınlaştırma: Aktif (yakınlaştırmak için sürükleyin)",
+    zoomWindow: "Pencereye Yakınlaştır",
   },
   timing: {
     title: "Zamanlama Özeti",
@@ -909,6 +912,8 @@ export const tr: Translations = {
     closeOtherTabs: "Diğerlerini Kapat",
     openLayoutEditor: "Düzen Düzenleyici...",
     dockMoreViews: "Başka Bir Görünüm Ekle...",
-    cannotCloseOnlyTab: "Bu paneldeki tek sekme kapatılamaz"
+    cannotCloseOnlyTab: "Bu paneldeki tek sekme kapatılamaz",
+    hiddenViews: "Gizli Görünümler",
+    moreTabs: "Daha Fazla Görünüm",
   }
 };

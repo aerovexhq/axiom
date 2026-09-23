@@ -265,6 +265,9 @@ export const fr: Translations = {
     clearGolden: "Effacer Modèle Doré",
     perfectMatch: "100% Correspondance",
     mismatchesFound: "Divergences Détectées",
+    boxZoomMode: "Zoom par zone : glisser pour fenêtrer (ou Maj)",
+    boxZoomActive: "Zoom par zone : actif (glisser pour zoomer)",
+    zoomWindow: "Zoom fenêtre",
   },
   timing: {
     title: "Résumé Temporel",
@@ -909,6 +912,8 @@ export const fr: Translations = {
     closeOtherTabs: "Fermer les autres",
     openLayoutEditor: "Éditeur de disposition...",
     dockMoreViews: "Ancrer une autre vue...",
-    cannotCloseOnlyTab: "Impossible de fermer le seul onglet de ce panneau"
+    cannotCloseOnlyTab: "Impossible de fermer le seul onglet de ce panneau",
+    hiddenViews: "Vues masquées",
+    moreTabs: "Plus de vues",
   }
 };

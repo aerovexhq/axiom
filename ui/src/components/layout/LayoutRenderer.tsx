@@ -21,6 +21,7 @@ export interface LayoutRendererProps {
   onClosePanel?: (leafId: string) => void;
   onUpdateSplitRatio: (splitId: string, newRatio: number) => void;
   onToggleMaximize: (leafId: string) => void;
+  onReorderViews?: (leafId: string, newViews: LayoutViewId[], activeViewId?: LayoutViewId) => void;
 }
 
 export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
@@ -33,7 +34,8 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
   onSplitLeaf,
   onClosePanel,
   onUpdateSplitRatio,
-  onToggleMaximize
+  onToggleMaximize,
+  onReorderViews
 }) => {
   const canClosePanel = root.type === "split";
 
@@ -54,6 +56,7 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
             onClosePanel={onClosePanel}
             canClosePanel={canClosePanel}
             onToggleMaximize={onToggleMaximize}
+            onReorderViews={onReorderViews}
           />
         </div>
       );
@@ -73,6 +76,7 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
         canClosePanel={canClosePanel}
         onUpdateSplitRatio={onUpdateSplitRatio}
         onToggleMaximize={onToggleMaximize}
+        onReorderViews={onReorderViews}
       />
     </div>
   );
@@ -89,6 +93,7 @@ interface SubtreeRendererProps {
   canClosePanel?: boolean;
   onUpdateSplitRatio: (splitId: string, newRatio: number) => void;
   onToggleMaximize: (leafId: string) => void;
+  onReorderViews?: (leafId: string, newViews: LayoutViewId[], activeViewId?: LayoutViewId) => void;
 }
 
 const SubtreeRenderer: React.FC<SubtreeRendererProps> = ({
@@ -101,7 +106,8 @@ const SubtreeRenderer: React.FC<SubtreeRendererProps> = ({
   onClosePanel,
   canClosePanel = false,
   onUpdateSplitRatio,
-  onToggleMaximize
+  onToggleMaximize,
+  onReorderViews
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +124,7 @@ const SubtreeRenderer: React.FC<SubtreeRendererProps> = ({
         onClosePanel={onClosePanel}
         canClosePanel={canClosePanel}
         onToggleMaximize={onToggleMaximize}
+        onReorderViews={onReorderViews}
       />
     );
   }
@@ -165,8 +172,11 @@ const SubtreeRenderer: React.FC<SubtreeRendererProps> = ({
           onCloseTab={onCloseTab}
           onAddTab={onAddTab}
           onSplitLeaf={onSplitLeaf}
+          onClosePanel={onClosePanel}
+          canClosePanel={canClosePanel}
           onUpdateSplitRatio={onUpdateSplitRatio}
           onToggleMaximize={onToggleMaximize}
+          onReorderViews={onReorderViews}
         />
       </div>
 
@@ -194,8 +204,11 @@ const SubtreeRenderer: React.FC<SubtreeRendererProps> = ({
           onCloseTab={onCloseTab}
           onAddTab={onAddTab}
           onSplitLeaf={onSplitLeaf}
+          onClosePanel={onClosePanel}
+          canClosePanel={canClosePanel}
           onUpdateSplitRatio={onUpdateSplitRatio}
           onToggleMaximize={onToggleMaximize}
+          onReorderViews={onReorderViews}
         />
       </div>
     </div>

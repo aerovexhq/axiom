@@ -287,18 +287,50 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
         assignPortOffsets(node);
       }
     } else {
-      // Standard vertical centering
-      let layerHeight = 0;
-      for (let i = 0; i < nodesInLayer.length; i++) {
-        layerHeight += nodesInLayer[i].height + (i > 0 ? nodeSpacingY : 0);
-      }
-      let currentY = startY + Math.max(0, (maxLayerHeight - layerHeight) / 2);
+      // Barycentric / Median Vertical Positioning with natural confluence flow
+      if (layer === 0) {
+        // Primary inputs: distributed starting cleanly from startY with ergonomic spacing
+        let currentY = startY;
+        for (const node of nodesInLayer) {
+          node.x = currentX;
+          node.y = currentY;
+          assignPortOffsets(node);
+          currentY += node.height + Math.max(nodeSpacingY, 34);
+        }
+      } else {
+        // Intermediate & Output Layers: Barycentric target based on driving sources
+        const scoredNodes: Array<{ node: SchematicNode; idealY: number }> = [];
 
-      for (const node of nodesInLayer) {
-        node.x = currentX;
-        node.y = currentY;
-        assignPortOffsets(node);
-        currentY += node.height + nodeSpacingY;
+        for (const node of nodesInLayer) {
+          node.x = currentX;
+          const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+          if (inEdges.length > 0) {
+            let totalY = 0;
+            let count = 0;
+            for (const edge of inEdges) {
+              const srcNode = graph.nodes.find((n) => n.id === edge.sourceNodeId);
+              if (srcNode && srcNode.y !== undefined) {
+                totalY += srcNode.y + srcNode.height / 2;
+                count++;
+              }
+            }
+            const avgY = count > 0 ? totalY / count : startY + 50;
+            scoredNodes.push({ node, idealY: Math.max(startY, avgY - node.height / 2) });
+          } else {
+            scoredNodes.push({ node, idealY: startY });
+          }
+        }
+
+        // Sort nodes in this layer by their ideal barycentric Y
+        scoredNodes.sort((a, b) => a.idealY - b.idealY);
+
+        // Place sequentially, guaranteeing non-overlapping clearance
+        let prevBottom = startY - nodeSpacingY;
+        for (const { node, idealY } of scoredNodes) {
+          node.y = Math.max(idealY, prevBottom + nodeSpacingY);
+          assignPortOffsets(node);
+          prevBottom = node.y + node.height;
+        }
       }
     }
 
@@ -318,6 +350,34 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   // Route edges with obstacle clearance
   const nodeMap = new Map<string, SchematicNode>();
   for (const n of graph.nodes) nodeMap.set(n.id, n);
+
+  // Commutative Logic Gate Pin Sorting:
+  // Reorder input pin connections on multi-input logic gates so that drivers with lower Y
+  // connect to upper pins, and drivers with higher Y connect to lower pins,
+  // completely eliminating inverted wire crossings immediately upstream of the gate!
+  for (const node of graph.nodes) {
+    if (node.kind === "gate" || node.kind === "operator") {
+      const incomingEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+      if (incomingEdges.length >= 2) {
+        incomingEdges.sort((a, b) => {
+          const srcA = nodeMap.get(a.sourceNodeId);
+          const srcB = nodeMap.get(b.sourceNodeId);
+          const yA = srcA ? srcA.y + srcA.height / 2 : 0;
+          const yB = srcB ? srcB.y + srcB.height / 2 : 0;
+          return yA - yB;
+        });
+
+        incomingEdges.forEach((edge, idx) => {
+          const portId = `in${idx + 1}`;
+          edge.targetPortId = portId;
+          if (node.inputs[idx]) {
+            node.inputs[idx].id = portId;
+            node.inputs[idx].name = edge.netName;
+          }
+        });
+      }
+    }
+  }
 
   let channelCounter = 0;
   for (const edge of graph.edges) {
