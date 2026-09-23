@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Background Mach Cone Ambient Radial Glow -->
+    <!-- Background Ambient Radial Glow -->
     <radialGradient id="v2BgGlow" cx="50%" cy="48%" r="55%">
       <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.10"/>
       <stop offset="35%" stop-color="#3b82f6" stop-opacity="0.05"/>
@@ -8,50 +8,17 @@
       <stop offset="100%" stop-color="#070a12" stop-opacity="0"/>
     </radialGradient>
 
-    <!-- Windward Blade Leading Face (Left): Radiant Electric Cyan to Hyper Blue -->
-    <linearGradient id="v2WindwardLeading" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Unified Aerodynamic Chevron Gradient: Electric Cyan on Left to Deep Cobalt on Right -->
+    <linearGradient id="v2ChevronBody" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="20%" stop-color="#00f2fe"/>
-      <stop offset="65%" stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#1d4ed8"/>
-    </linearGradient>
-
-    <!-- Windward Blade Keel Face (Left): Hyper Blue to Deep Cobalt -->
-    <linearGradient id="v2WindwardKeel" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="15%" stop-color="#00f2fe"/>
       <stop offset="45%" stop-color="#3b82f6"/>
-      <stop offset="85%" stop-color="#1d4ed8"/>
+      <stop offset="75%" stop-color="#1d4ed8"/>
       <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-
-    <!-- Leeward Shadow Blade Leading Face (Right): Hyper Blue to Deep Cobalt -->
-    <linearGradient id="v2LeewardLeading" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#cffafe"/>
-      <stop offset="25%" stop-color="#3b82f6"/>
-      <stop offset="70%" stop-color="#1d4ed8"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-
-    <!-- Leeward Shadow Blade Keel Face (Right): Deep Cobalt to Obsidian Midnight -->
-    <linearGradient id="v2LeewardKeel" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#3b82f6"/>
-      <stop offset="50%" stop-color="#1d4ed8"/>
-      <stop offset="85%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#070a12"/>
-    </linearGradient>
-
-    <!-- Authoritative Single Digital Pulse Crossbar: Electric Cyan to Hyper Blue -->
-    <linearGradient id="v2PulseCrossbar" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" stop-color="#1d4ed8"/>
-      <stop offset="18%" stop-color="#3b82f6"/>
-      <stop offset="38%" stop-color="#00f2fe"/>
-      <stop offset="62%" stop-color="#00f2fe"/>
-      <stop offset="82%" stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#1d4ed8"/>
     </linearGradient>
 
     <!-- Specular Glow Filter -->
-    <filter id="v2ApexGlow" x="-30%" y="-30%" width="160%" height="160%">
+    <filter id="v2ApexGlow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation="3.5" result="blur"/>
       <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
@@ -61,61 +28,60 @@
   <rect width="512" height="512" fill="#070a12"/>
   <rect width="512" height="512" fill="url(#v2BgGlow)"/>
 
-  <!-- Subtle Engineering Reticle & Mach Shock Lines -->
+  <!-- Subtle Engineering Reticle Lines (Circular and diagonal radar only, NO vertical center line) -->
   <g opacity="0.10" stroke="#00f2fe" stroke-width="0.5">
-    <line x1="256" y1="28" x2="256" y2="484"/>
     <line x1="28" y1="260" x2="484" y2="260"/>
     <line x1="256" y1="52" x2="64" y2="444" stroke-dasharray="4 4"/>
     <line x1="256" y1="52" x2="448" y2="444" stroke-dasharray="4 4"/>
     <circle cx="256" cy="260" r="200" fill="none" stroke="#3b82f6" stroke-dasharray="2 6"/>
   </g>
 
-  <!-- Champion Architecture: Cranelift JIT Chevron V2 Master Assembly -->
-  <!-- TRUE VECTOR GEOMETRY: Zero overlay polygons, genuine negative space -->
-  <g id="craneliftJitChevronV2">
-    <!-- LEFT WING: Windward Leading Face -->
-    <!-- Snapped with 0.0px divergence to outer boundary: (256,52) -> (80,432) -> (128,432) -->
-    <polygon points="256,52 80,432 128,432 256,52"
-             fill="url(#v2WindwardLeading)"/>
+  <!-- Master Assembly: Pure Aerodynamic Delta Chevron -->
+  <!-- SINGLE UNIFIED BODY: Absolutely zero vertical center seams, zero split lines, zero crossbars -->
+  <g id="pureDeltaChevronUnified">
+    <!-- Outer Wing Wingspan / Chine Body -->
+    <polygon points="256,52 80,432 140,432 172,392 256,160 340,392 372,432 432,432 256,52"
+             fill="url(#v2ChevronBody)"/>
 
-    <!-- LEFT WING: Keel & Pressure Face -->
-    <!-- 45-degree chamfer: (128,432) -> (160,400) -> (180,336) -> (256,188) -> (242,168) -> (256,128) -> (256,52) -->
-    <polygon points="256,52 128,432 160,400 180,336 256,188 242,168 256,128"
-             fill="url(#v2WindwardKeel)"/>
+    <!-- Left Wing 3D Bevel Facet (Pure Diagonal from 256,52 to 140,432) -->
+    <polygon points="256,52 80,432 140,432"
+             fill="#ffffff" opacity="0.12"/>
 
-    <!-- RIGHT WING: Keel & Shadow Face -->
-    <polygon points="256,52 256,128 270,168 256,188 332,336 352,400 384,432"
-             fill="url(#v2LeewardKeel)"/>
+    <!-- Right Wing 3D Shadow Facet (Pure Diagonal from 256,52 to 432,432) -->
+    <polygon points="256,52 372,432 432,432"
+             fill="#070a12" opacity="0.35"/>
 
-    <!-- RIGHT WING: Leeward Leading Face -->
-    <polygon points="256,52 384,432 432,432 256,52"
-             fill="url(#v2LeewardLeading)"/>
-
-    <!-- THE DIGITAL PULSE CROSSBAR (Single Authoritative Transition _П_) -->
-    <!-- Base width: 220px (from X=146 to X=366), Pulse width: 64px, Pulse height: 56px, Thickness: 20px -->
-    <polygon points="146,336 224,336 224,280 288,280 288,336 366,336 366,356 256,360 146,356"
-             fill="url(#v2PulseCrossbar)" stroke="#00f2fe" stroke-width="1.5" stroke-linejoin="miter"/>
-
-    <!-- Specular Leading Pulse Highlight (Active Logic 1 & Rising Edge) -->
-    <polyline points="146,336 224,336 224,280 288,280 288,336 366,336"
-              fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="miter" stroke-linecap="square" opacity="0.95"/>
-
-    <!-- Centerline Ridge & Seam Highlights Snapped with 0.0px Divergence -->
-    <line x1="256" y1="52" x2="256" y2="128" stroke="#ffffff" stroke-width="1.5" opacity="0.95"/>
-    <line x1="256" y1="52" x2="128" y2="432" stroke="#00f2fe" stroke-width="1" opacity="0.65"/>
-    <line x1="256" y1="52" x2="384" y2="432" stroke="#3b82f6" stroke-width="1" opacity="0.45"/>
-
-    <!-- Outer Leading Razor Edge Highlights (0.0px divergence from outer polygon) -->
-    <line x1="256" y1="52" x2="80" y2="432" stroke="#ffffff" stroke-width="1.5" opacity="0.8"/>
+    <!-- Outer Leading Edge Razor Highlights -->
+    <line x1="256" y1="52" x2="80" y2="432" stroke="#ffffff" stroke-width="1.8" opacity="0.9"/>
     <line x1="256" y1="52" x2="432" y2="432" stroke="#3b82f6" stroke-width="1.5" opacity="0.5"/>
 
-    <!-- 45-degree Base Chamfer Highlights -->
-    <line x1="128" y1="432" x2="160" y2="400" stroke="#00f2fe" stroke-width="1.5" opacity="0.7"/>
-    <line x1="384" y1="432" x2="352" y2="400" stroke="#1d4ed8" stroke-width="1.5" opacity="0.7"/>
+    <!-- Diagonal Chine Ridges (Diagonal only, NO vertical lines) -->
+    <line x1="256" y1="52" x2="140" y2="432" stroke="#00f2fe" stroke-width="1.2" opacity="0.75"/>
+    <line x1="256" y1="52" x2="372" y2="432" stroke="#1d4ed8" stroke-width="1.2" opacity="0.5"/>
 
-    <!-- Forward Apex Specular Pinnacle & Kinetic Clock Tick -->
-    <line x1="256" y1="40" x2="256" y2="64" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-    <line x1="244" y1="52" x2="268" y2="52" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <!-- Base Chamfer Highlights -->
+    <line x1="140" y1="432" x2="172" y2="392" stroke="#00f2fe" stroke-width="1.5" opacity="0.8"/>
+    <line x1="372" y1="432" x2="340" y2="392" stroke="#1d4ed8" stroke-width="1.5" opacity="0.8"/>
+
+    <!-- Inner Notch Leading Highlights -->
+    <line x1="172" y1="392" x2="256" y2="160" stroke="#00f2fe" stroke-width="1.2" opacity="0.6"/>
+    <line x1="340" y1="392" x2="256" y2="160" stroke="#3b82f6" stroke-width="1.2" opacity="0.4"/>
+
+    <!-- SHINING APEX SPECULAR FLARE (Symmetrical 4-point sparkle, absolutely NO downward line) -->
+    <!-- 4-point curved diamond sparkle star -->
+    <path d="M 256 32 Q 256 52 276 52 Q 256 52 256 72 Q 256 52 236 52 Q 256 52 256 32 Z"
+          fill="#ffffff" opacity="0.95" filter="url(#v2ApexGlow)"/>
+
+    <!-- Symmetrical cross sparkle rays (equal length: 20px in all 4 directions) -->
+    <line x1="256" y1="32" x2="256" y2="72" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <line x1="236" y1="52" x2="276" y2="52" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- 45-degree subtle micro-glint rays -->
+    <line x1="244" y1="40" x2="268" y2="64" stroke="#cffafe" stroke-width="1.2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="244" y1="64" x2="268" y2="40" stroke="#cffafe" stroke-width="1.2" stroke-linecap="round" opacity="0.8"/>
+
+    <!-- Intense Specular Core Dot with radiant bloom -->
     <circle cx="256" cy="52" r="3.5" fill="#ffffff" filter="url(#v2ApexGlow)"/>
+    <circle cx="256" cy="52" r="1.8" fill="#ffffff"/>
   </g>
 </svg>

@@ -76,6 +76,9 @@ export interface Translations {
     heroTitle: string;
     heroSubtitle: string;
     heroDescription: string;
+    downloadDesktopTitle: string;
+    downloadDesktopSubtitle: string;
+    viewAllDownloads: string;
     createCardTitle: string;
     createCardDesc: string;
     openCardTitle: string;

@@ -21,7 +21,8 @@ import {
   Box,
   GraduationCap,
   ExternalLink,
-  AppWindow
+  AppWindow,
+  Download
 } from "lucide-react";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "../engine/projectModel";
 import { ProjectMetadata } from "../engine/projectRegistry";
@@ -186,6 +187,122 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
         <p style={{ fontSize: 13.5, color: "var(--text-secondary)", margin: "0 auto", maxWidth: 620, lineHeight: 1.55 }}>
           {t("launchpad.heroDescription")}
         </p>
+      </div>
+
+      {/* Native Desktop App Download Banner */}
+      <div
+        style={{
+          maxWidth: 840,
+          width: "100%",
+          marginBottom: 24,
+          padding: "10px 16px",
+          borderRadius: "var(--radius-md)",
+          background: "linear-gradient(90deg, rgba(6, 182, 212, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%)",
+          border: "1px solid rgba(6, 182, 212, 0.25)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "rgba(6, 182, 212, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--accent-cyan)",
+              flexShrink: 0
+            }}
+          >
+            <Download size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
+              {t("launchpad.downloadDesktopTitle")}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {t("launchpad.downloadDesktopSubtitle")}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <a
+            href="https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_x64_en-US.msi"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "5px 10px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "rgba(59, 130, 246, 0.15)",
+              color: "var(--accent-blue)",
+              border: "1px solid rgba(59, 130, 246, 0.3)",
+              textDecoration: "none"
+            }}
+          >
+            Windows (.msi)
+          </a>
+          <a
+            href="https://github.com/aerovexsim/axiom/releases/latest/download/axiom_1.0.0_amd64.deb"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "5px 10px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "rgba(16, 185, 129, 0.15)",
+              color: "var(--accent-emerald)",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              textDecoration: "none"
+            }}
+          >
+            Linux (.deb)
+          </a>
+          <a
+            href="https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_aarch64.dmg"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "5px 10px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "rgba(168, 85, 247, 0.15)",
+              color: "var(--accent-purple)",
+              border: "1px solid rgba(168, 85, 247, 0.3)",
+              textDecoration: "none"
+            }}
+          >
+            macOS (.dmg)
+          </a>
+          <a
+            href="https://axiom.aerovex.net/#download-desktop-studio-msi-deb-dmg"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              textDecoration: "none",
+              marginLeft: 4
+            }}
+          >
+            <span>{t("launchpad.viewAllDownloads")}</span>
+            <ExternalLink size={11} />
+          </a>
+        </div>
       </div>
 
       {/* Main Action Cards: Create New Project vs Import */}

@@ -98,6 +98,23 @@ HDL Source Text (.v / .sv)
 
 ## Instant Install
 
+### Native Desktop App Downloads (.msi, .deb, .dmg)
+
+| Platform | Format | Architecture | Download Link |
+| :--- | :--- | :--- | :--- |
+| **Windows** | **`.msi`** | x86_64 (64-bit) | [**Download .msi**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_x64_en-US.msi) |
+| **Windows** | **`.exe`** | x86_64 (Setup) | [**Download .exe**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_x64-setup.exe) |
+| **Windows** | **`.zip`** | x86_64 (Portable) | [**Download .zip**](https://github.com/aerovexsim/axiom/releases/latest/download/axiom-x86_64-pc-windows-msvc.zip) |
+| **Linux** | **`.deb`** | amd64 (Ubuntu / Debian) | [**Download .deb**](https://github.com/aerovexsim/axiom/releases/latest/download/axiom_1.0.0_amd64.deb) |
+| **Linux** | **`.AppImage`** | x86_64 (Universal) | [**Download .AppImage**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_amd64.AppImage) |
+| **Linux** | **`.tar.gz`** | x86_64 (CLI + GUI Bundle) | [**Download .tar.gz**](https://github.com/aerovexsim/axiom/releases/latest/download/axiom-x86_64-unknown-linux-gnu.tar.gz) |
+| **macOS** | **`.dmg`** | aarch64 (Apple Silicon M1-M4) | [**Download .dmg (Apple Silicon)**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_aarch64.dmg) |
+| **macOS** | **`.dmg`** | x86_64 (Intel Mac) | [**Download .dmg (Intel)**](https://github.com/aerovexsim/axiom/releases/latest/download/Axiom_1.0.0_x64.dmg) |
+
+*All release binaries, SHA256 checksums, and notes are published on [GitHub Releases](https://github.com/aerovexsim/axiom/releases).*
+
+### Single-Line CLI Install
+
 Install the standalone Axiom EDA binary in seconds (<50 MB) without monolithic 100+ GB installers:
 
 #### Linux & macOS
