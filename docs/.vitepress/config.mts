@@ -18,9 +18,39 @@ export default defineConfig({
     ["link", { rel: "shortcut icon", href: "/favicon.ico" }],
     ["link", { rel: "apple-touch-icon", href: "/logo.png" }],
     ["meta", { name: "theme-color", content: "#0d0f12" }],
+    ["meta", { name: "color-scheme", content: "dark" }],
+    ["meta", { name: "author", content: "Aerovex Simulation & Computing" }],
+    ["meta", { name: "robots", content: "index, follow" }],
+    ["meta", { name: "keywords", content: "EDA, HDL, Verilog, SystemVerilog, VHDL, FPGA, Vivado, Rust, Cranelift, JIT, Simulation, Digital Design, Static Timing Analysis, Waveform Viewer, Basys 3, Nexys A7, Aerovex" }],
+    ["meta", { name: "application-name", content: "Axiom EDA" }],
+    ["meta", { name: "apple-mobile-web-app-title", content: "Axiom EDA" }],
+    ["meta", { name: "apple-mobile-web-app-capable", content: "yes" }],
+    ["meta", { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" }],
+    ["meta", { name: "mobile-web-app-capable", content: "yes" }],
+    ["meta", { name: "msapplication-TileColor", content: "#0d0f12" }],
+
+    // Open Graph / Facebook
     ["meta", { property: "og:type", content: "website" }],
-    ["meta", { property: "og:title", content: "Axiom EDA — High-Performance HDL Simulator" }],
-    ["meta", { property: "og:description", content: "In-RAM Cranelift JIT compilation, manual delta-cycle stepping, and physics-informed silicon telemetry." }],
+    ["meta", { property: "og:site_name", content: "Axiom EDA" }],
+    ["meta", { property: "og:url", content: "https://axiom.aerovex.net/" }],
+    ["meta", { property: "og:title", content: "Axiom EDA — Aerospace-Grade In-RAM HDL Simulator & Studio" }],
+    ["meta", { property: "og:description", content: "High-performance Rust remake of Vivado: In-RAM Cranelift JIT compilation, stratified event queue, manual delta-cycle introspection, and physics-informed silicon telemetry." }],
+    ["meta", { property: "og:image", content: "https://axiom.aerovex.net/logo.png" }],
+    ["meta", { property: "og:image:width", content: "512" }],
+    ["meta", { property: "og:image:height", content: "512" }],
+    ["meta", { property: "og:image:alt", content: "Axiom EDA - High-Performance Silicon HDL Engine" }],
+    ["meta", { property: "og:locale", content: "en_US" }],
+
+    // Twitter / X Cards
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:site", content: "@aerovex" }],
+    ["meta", { name: "twitter:creator", content: "@aerovex" }],
+    ["meta", { name: "twitter:title", content: "Axiom EDA — Aerospace-Grade In-RAM HDL Simulator & Studio" }],
+    ["meta", { name: "twitter:description", content: "High-performance Rust remake of Vivado: In-RAM Cranelift JIT compilation, stratified delta-cycle introspection, and physics-informed silicon telemetry." }],
+    ["meta", { name: "twitter:image", content: "https://axiom.aerovex.net/logo.png" }],
+    ["meta", { name: "twitter:image:alt", content: "Axiom EDA - High-Performance Silicon HDL Engine" }],
+
+    // Typography
     ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
     ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
     ["link", { href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap", rel: "stylesheet" }]

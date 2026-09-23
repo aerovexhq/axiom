@@ -85,15 +85,16 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
             onClick={() => onSelectPanel(tab.id)}
             style={{
               flex: 1,
+              minWidth: 0,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 3,
+              gap: 2,
               backgroundColor: "transparent",
               border: "none",
               cursor: "pointer",
-              padding: "4px 0",
+              padding: "4px 2px",
               color: isActive ? tab.activeColor : "var(--text-muted)",
               position: "relative",
               transition: "color 0.15s ease, transform 0.1s ease"
@@ -105,8 +106,8 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
                 style={{
                   position: "absolute",
                   top: 0,
-                  left: "25%",
-                  right: "25%",
+                  left: "20%",
+                  right: "20%",
                   height: 2.5,
                   borderRadius: "0 0 2px 2px",
                   backgroundColor: tab.activeColor
@@ -121,15 +122,15 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
                   style={{
                     position: "absolute",
                     top: -4,
-                    right: -9,
+                    right: -7,
                     backgroundColor: tab.badgeColor ?? "var(--accent-rose)",
                     color: "#fff",
-                    fontSize: 9,
+                    fontSize: 8.5,
                     fontWeight: 700,
                     borderRadius: 8,
-                    padding: "0 4px",
-                    minWidth: 14,
-                    height: 14,
+                    padding: "0 3px",
+                    minWidth: 13,
+                    height: 13,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -143,9 +144,14 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
 
             <span
               style={{
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: isActive ? 700 : 500,
-                letterSpacing: "-0.01em"
+                letterSpacing: "-0.01em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "100%",
+                padding: "0 2px"
               }}
             >
               {tab.label}

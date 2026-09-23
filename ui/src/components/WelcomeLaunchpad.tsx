@@ -419,7 +419,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
           maxWidth: 840,
           width: "100%",
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           gap: 18,
           marginBottom: 38
         }}
@@ -515,7 +515,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
 
       {/* Your Projects Section (Active vs Trash) */}
       <div style={{ maxWidth: 840, width: "100%", marginBottom: 38 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Folder size={16} color="var(--accent-blue)" />
             <h2 style={{ fontSize: 13.5, fontWeight: 600, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-primary)" }}>

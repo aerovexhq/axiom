@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Axiom
+Comment=Aerospace-Grade Hardware Description Language Engine & Studio
+Exec=axiom-desktop %U
+Icon=axiom
+Terminal=false
+Type=Application
+Categories=Development;Engineering;Electronics;
+StartupWMClass=axiom-desktop

@@ -84,6 +84,17 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
     }
   });
   const [localDiags, setLocalDiags] = useState<LspDiagnostic[]>([]);
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const [coverageEnabled, setCoverageEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("axiom_coverage_heatmap");
@@ -417,7 +428,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         }}
       >
         {/* Left: Open File Tabs */}
-        <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
           {openFiles.length > 0 ? (
             openFiles.map((file) => {
               const isActive = file.id === project?.activeFileId;
@@ -536,7 +547,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
         </div>
 
         {/* Right: Actions Strip (Linter status, JIT Ready, Elaborate button, Maximize) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 3 : 6, flexShrink: 0, marginLeft: 6 }}>
           {/* Silicon Copilot Auto-Pipeline Recommendation Pill */}
           {timingSlackPs !== undefined && timingSlackPs !== null && timingSlackPs < 0 && onOpenAutoPipeline && (
             <button
@@ -549,7 +560,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
                 gap: 4,
                 fontSize: 11,
                 fontWeight: 700,
-                padding: "2px 8px",
+                padding: isMobile ? "2px 5px" : "2px 8px",
                 borderRadius: "var(--radius-sm)",
                 backgroundColor: "rgba(244, 63, 94, 0.18)",
                 border: "1px solid rgba(244, 63, 94, 0.5)",
@@ -560,7 +571,7 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
               }}
             >
               <Zap size={11} color="#f43f5e" />
-              <span>Auto-Pipeline{predictedFmaxGainMhz ? `: +${Math.round(predictedFmaxGainMhz)} MHz` : ""}</span>
+              <span>{isMobile ? "Pipe" : `Auto-Pipeline${predictedFmaxGainMhz ? `: +${Math.round(predictedFmaxGainMhz)} MHz` : ""}`}</span>
             </button>
           )}
 
@@ -572,10 +583,10 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 3,
               fontSize: 11,
               fontWeight: 600,
-              padding: "2px 7px",
+              padding: isMobile ? "2px 5px" : "2px 7px",
               borderRadius: "var(--radius-sm)",
               backgroundColor:
                 errorCount > 0
@@ -602,23 +613,23 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             {errorCount > 0 ? (
               <>
                 <AlertCircle size={11} />
-                <span>{errorCount} {t("editor.lintErrors")}</span>
+                <span>{errorCount}{!isMobile ? ` ${t("editor.lintErrors")}` : ""}</span>
               </>
             ) : warningCount > 0 ? (
               <>
                 <AlertTriangle size={11} />
-                <span>{warningCount} {t("editor.lintWarnings")}</span>
+                <span>{warningCount}{!isMobile ? ` ${t("editor.lintWarnings")}` : ""}</span>
               </>
             ) : (
               <>
                 <CheckCircle size={11} />
-                <span>{t("editor.lintClean")}</span>
+                {!isMobile && <span>{t("editor.lintClean")}</span>}
               </>
             )}
           </button>
 
-          {/* RTL Code Coverage Heatmap Toggle */}
-          {!isXdc && (
+          {/* RTL Code Coverage Heatmap Toggle (Desktop only) */}
+          {!isXdc && !isMobile && (
             <button
               type="button"
               onClick={toggleCoverage}
@@ -651,28 +662,30 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             </button>
           )}
 
-          {/* Katana Slash Cursor Toggle */}
-          <button
-            type="button"
-            onClick={toggleKatana}
-            title={katanaEnabled ? `${t.editor.katanaSlash} (${t.common.active})` : `${t.editor.katanaSlash} (${t.common.inactive})`}
-            className="btn-icon"
-            style={{
-              padding: "3px 6px",
-              color: katanaEnabled ? "#ffffff" : "var(--text-muted)",
-              backgroundColor: katanaEnabled ? "rgba(255, 255, 255, 0.12)" : "transparent",
-              border: katanaEnabled ? "1px solid rgba(255, 255, 255, 0.28)" : "1px solid transparent",
-              borderRadius: "var(--radius-sm)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              boxShadow: katanaEnabled ? "0 0 8px rgba(255, 255, 255, 0.2)" : "none",
-              transition: "all 0.15s ease"
-            }}
-          >
-            <Swords size={13} />
-          </button>
+          {/* Katana Slash Cursor Toggle (Desktop only) */}
+          {!isMobile && (
+            <button
+              type="button"
+              onClick={toggleKatana}
+              title={katanaEnabled ? `${t.editor.katanaSlash} (${t.common.active})` : `${t.editor.katanaSlash} (${t.common.inactive})`}
+              className="btn-icon"
+              style={{
+                padding: "3px 6px",
+                color: katanaEnabled ? "#ffffff" : "var(--text-muted)",
+                backgroundColor: katanaEnabled ? "rgba(255, 255, 255, 0.12)" : "transparent",
+                border: katanaEnabled ? "1px solid rgba(255, 255, 255, 0.28)" : "1px solid transparent",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                boxShadow: katanaEnabled ? "0 0 8px rgba(255, 255, 255, 0.2)" : "none",
+                transition: "all 0.15s ease"
+              }}
+            >
+              <Swords size={13} />
+            </button>
+          )}
 
           {/* Elaborate or Check Action Button */}
           <Button
@@ -709,12 +722,26 @@ export const HdlEditor: React.FC<HdlEditorProps> = ({
             }}
             icon={<Play size={10} fill="#fff" />}
             title={isXdc ? "Validate Constraints" : isVhdl ? "Validate VHDL" : isMem ? "Validate Memory File" : t("header.compile")}
-            style={{ padding: "3px 8px", fontSize: 11 }}
+            style={{ padding: isMobile ? "2px 6px" : "3px 8px", fontSize: 11 }}
           >
-            {isXdc ? "Check XDC" : isVhdl ? "Check VHDL" : isMem ? "Validate MEM" : t("editor.elaborate")}
+            {isMobile
+              ? isXdc
+                ? "XDC"
+                : isVhdl
+                ? "VHDL"
+                : isMem
+                ? "MEM"
+                : "Elab"
+              : isXdc
+              ? "Check XDC"
+              : isVhdl
+              ? "Check VHDL"
+              : isMem
+              ? "Validate MEM"
+              : t("editor.elaborate")}
           </Button>
 
-          {onToggleMaximize && (
+          {!isMobile && onToggleMaximize && (
             <button
               type="button"
               onClick={onToggleMaximize}

@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
         }}
       >
         {/* Mobile Left: Hamburger + Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flexShrink: 1 }}>
           <button
             onClick={onToggleMobileDrawer}
             aria-label={t("mobile.menu")}
@@ -141,7 +141,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
               <span
                 className="badge badge-cyan"
-                style={{ maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis" }}
+                style={{ maxWidth: "clamp(60px, 18vw, 110px)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                 title={project.name}
               >
                 {project.name}
@@ -181,7 +181,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Mobile Right: Simulation Clock & Quick Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           {/* Custom Mobile Language Selector (Flag Only) */}
           <LanguageDropdown align="right" />
 
@@ -189,11 +189,11 @@ export const Header: React.FC<HeaderProps> = ({
             <span
               className="mono-num"
               style={{
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: 700,
                 color: "var(--accent-cyan)",
                 backgroundColor: "var(--bg-tertiary)",
-                padding: "2px 6px",
+                padding: "2px 5px",
                 borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-subtle)",
                 whiteSpace: "nowrap"

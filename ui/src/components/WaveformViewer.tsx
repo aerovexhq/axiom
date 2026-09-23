@@ -112,8 +112,20 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     return () => window.removeEventListener("axiom_sim_reset", handleSimReset);
   }, []);
 
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    return typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const headerHeight = 32;
-  const gutterWidth = 230;
+  const gutterWidth = isMobile ? 120 : 230;
 
   // Listen for waveform seek events (e.g. from bottom dock Assertions tab)
   useEffect(() => {
@@ -1271,9 +1283,9 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
     ctx.font = "11px Inter, sans-serif";
     ctx.fillStyle = "#94a3b8";
     ctx.textAlign = "left";
-    ctx.fillText("Signals / Nets", 12, headerHeight - 10);
+    ctx.fillText(isMobile ? "Signals" : "Signals / Nets", isMobile ? 8 : 12, headerHeight - 10);
     ctx.textAlign = "right";
-    ctx.fillText(cursorAPrivate !== null ? "Value (A)" : "Value", gutterWidth - 12, headerHeight - 10);
+    ctx.fillText(cursorAPrivate !== null ? (isMobile ? "Val (A)" : "Value (A)") : (isMobile ? "Val" : "Value"), gutterWidth - (isMobile ? 6 : 12), headerHeight - 10);
 
     // Gutter Protocol Track
     if (decodedTransactions.length > 0) {
@@ -1312,11 +1324,11 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         ctx.font = "9px Inter, sans-serif";
         ctx.fillStyle = expandedBuses[row.id] ? "#38bdf8" : "#64748b";
         ctx.textAlign = "left";
-        ctx.fillText(expandedBuses[row.id] ? "▼" : "▶", 8, yMid - 1);
+        ctx.fillText(expandedBuses[row.id] ? "▼" : "▶", isMobile ? 5 : 8, yMid - 1);
       }
 
-      // 2. Analog Mode Pill Badge for buses
-      if (row.isBus && !row.isBitChild) {
+      // 2. Analog Mode Pill Badge for buses (Desktop only)
+      if (!isMobile && row.isBus && !row.isBitChild) {
         const plotMode = busPlotModes[row.id] || "digital";
         const modeLabel = plotMode === "digital" ? "DIG" : plotMode === "analog_step" ? "STP" : "LIN";
         const modeBg =
@@ -1343,8 +1355,8 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         ctx.fillText(modeLabel, 35, yMid + 2);
       }
 
-      // 3. Slice Mode Pill Badge for buses >= 8 bits
-      const hasSliceSupport = row.isBus && !row.isBitChild && row.width >= 8 && row.width % 4 === 0;
+      // 3. Slice Mode Pill Badge for buses >= 8 bits (Desktop only)
+      const hasSliceSupport = !isMobile && row.isBus && !row.isBitChild && row.width >= 8 && row.width % 4 === 0;
       if (hasSliceSupport) {
         const sliceMode = busSliceModes[row.id] || "bits";
         const sliceLabel = sliceMode === "nibbles" ? "NIB" : "BIT";
@@ -1367,7 +1379,13 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       }
 
       // 4. Signal Name & Indentation
-      ctx.font = row.isBitChild ? "10px JetBrains Mono, monospace" : "11px JetBrains Mono, monospace";
+      ctx.font = row.isBitChild
+        ? isMobile
+          ? "9.5px JetBrains Mono, monospace"
+          : "10px JetBrains Mono, monospace"
+        : isMobile
+        ? "10px JetBrains Mono, monospace"
+        : "11px JetBrains Mono, monospace";
       ctx.fillStyle = isForced
         ? "#f59e0b"
         : row.isBitChild
@@ -1379,8 +1397,32 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
         : "#10b981";
       ctx.textAlign = "left";
 
-      const xOffset = row.isBitChild ? 28 : row.isBus ? (hasSliceSupport ? 76 : 52) : 12;
-      const maxChars = row.isBitChild ? 14 : row.isBus ? (hasSliceSupport ? 10 : 13) : 16;
+      const xOffset = isMobile
+        ? row.isBitChild
+          ? 16
+          : row.isBus
+          ? 18
+          : 6
+        : row.isBitChild
+        ? 28
+        : row.isBus
+        ? hasSliceSupport
+          ? 76
+          : 52
+        : 12;
+      const maxChars = isMobile
+        ? row.isBitChild
+          ? 7
+          : row.isBus
+          ? 7
+          : 8
+        : row.isBitChild
+        ? 14
+        : row.isBus
+        ? hasSliceSupport
+          ? 10
+          : 13
+        : 16;
       const displayName = row.name.length > maxChars ? row.name.substring(0, maxChars - 2) + ".." : row.name;
 
       ctx.fillText(displayName, xOffset, yMid);
@@ -1399,13 +1441,14 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
       const rawVal = sample?.value ?? "-";
       const displayVal = row.isBus ? formatValueWithRadix(rawVal, row.width, currentRadix) : rawVal;
 
-      ctx.font = "11px JetBrains Mono, monospace";
+      ctx.font = isMobile ? "9.5px JetBrains Mono, monospace" : "11px JetBrains Mono, monospace";
       ctx.fillStyle = isForced ? "#f59e0b" : "#f1f5f9";
       ctx.textAlign = "right";
-      ctx.fillText(displayVal, gutterWidth - 12, yMid);
+      ctx.fillText(displayVal, gutterWidth - (isMobile ? 6 : 12), yMid);
     });
   }, [
     state,
+    isMobile,
     rowLayouts,
     timeOffsetPs,
     pixelsPerPs,
@@ -1801,8 +1844,8 @@ export const WaveformViewer: React.FC<WaveformViewerProps> = ({ state, selectedS
           zIndex: 10
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, overflowX: "auto", scrollbarWidth: "none", minWidth: 0, flex: 1 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap", flexShrink: 0 }}>
             {t.waveforms.title} ({displayRows.length} {t.waveforms.traces})
           </span>
 

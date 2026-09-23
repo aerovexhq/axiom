@@ -77,11 +77,20 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
   targetDevice = "xc7a100t-csg324-1"
 }) => {
   const { t } = useTranslation();
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [dockHeight, setDockHeight] = useState<number>(180);
   const [activeTab, setActiveTab] = useState<"repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage" | "assertions" | "synthesis">("repl");
   const [replMode, setReplMode] = useState<"logs" | "shell">("shell");
+
+  const handleTabClick = (tab: "repl" | "problems" | "telemetry" | "glitches" | "timing" | "coverage" | "assertions" | "synthesis") => {
+    if (activeTab === tab && !isCollapsed && !isMobileFullScreen) {
+      setIsCollapsed(true);
+    } else {
+      setActiveTab(tab);
+      setIsCollapsed(false);
+    }
+  };
 
   // Synthesis Tab State
   const [synthCircuit, setSynthCircuit] = useState<SynthesizedCircuit | null>(null);
@@ -633,34 +642,20 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           userSelect: "none"
         }}
       >
-        {/* Left: Expand Button & Quick Tab Jumpers */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Left: Quick Tab Jumpers (Removed redundant 'Dock ^' button) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            overflowX: "auto",
+            scrollbarWidth: "none",
+            minWidth: 0,
+            flex: 1
+          }}
+        >
           <button
-            onClick={() => setIsCollapsed(false)}
-            title={t("dock.expandDock")}
-            className="btn btn-ghost"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              color: "var(--accent-blue)",
-              fontWeight: 600,
-              padding: "2px 6px",
-              fontSize: 11.5
-            }}
-          >
-            <ChevronUp size={13} />
-            <span>{t("dock.dockTitle")}</span>
-          </button>
-
-          <span style={{ color: "var(--border-strong)" }}>|</span>
-
-          {/* Direct Tab Switchers that Expand Dock */}
-          <button
-            onClick={() => {
-              setActiveTab("repl");
-              setIsCollapsed(false);
-            }}
+            onClick={() => handleTabClick("repl")}
             className="btn btn-ghost"
             style={{
               display: "flex",
@@ -668,7 +663,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               gap: 5,
               padding: "2px 6px",
               color: "var(--text-secondary)",
-              fontSize: 12
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <Terminal size={13} />
@@ -676,10 +673,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => {
-              setActiveTab("problems");
-              setIsCollapsed(false);
-            }}
+            onClick={() => handleTabClick("problems")}
             className="btn btn-ghost"
             style={{
               display: "flex",
@@ -687,7 +681,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               gap: 5,
               padding: "2px 6px",
               color: errorCount > 0 ? "var(--accent-rose)" : warningCount > 0 ? "var(--accent-amber)" : "var(--text-secondary)",
-              fontSize: 12
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <AlertCircle size={13} />
@@ -695,10 +691,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => {
-              setActiveTab("telemetry");
-              setIsCollapsed(false);
-            }}
+            onClick={() => handleTabClick("telemetry")}
             className="btn btn-ghost"
             style={{
               display: "flex",
@@ -706,7 +699,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               gap: 5,
               padding: "2px 6px",
               color: "var(--accent-amber)",
-              fontSize: 12
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <Zap size={13} />
@@ -715,10 +710,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
 
           {state.glitches.length > 0 && (
             <button
-              onClick={() => {
-                setActiveTab("glitches");
-                setIsCollapsed(false);
-              }}
+              onClick={() => handleTabClick("glitches")}
               className="btn btn-ghost"
               style={{
                 display: "flex",
@@ -726,7 +718,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                 gap: 5,
                 padding: "2px 6px",
                 color: "var(--accent-rose)",
-                fontSize: 12
+                fontSize: 12,
+                whiteSpace: "nowrap",
+                flexShrink: 0
               }}
             >
               <AlertTriangle size={13} />
@@ -735,10 +729,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           )}
 
           <button
-            onClick={() => {
-              setActiveTab("coverage");
-              setIsCollapsed(false);
-            }}
+            onClick={() => handleTabClick("coverage")}
             className="btn btn-ghost"
             style={{
               display: "flex",
@@ -746,7 +737,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               gap: 5,
               padding: "2px 6px",
               color: "var(--accent-emerald)",
-              fontSize: 12
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <BarChart2 size={13} />
@@ -754,10 +747,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => {
-              setActiveTab("assertions");
-              setIsCollapsed(false);
-            }}
+            onClick={() => handleTabClick("assertions")}
             className="btn btn-ghost"
             style={{
               display: "flex",
@@ -768,7 +758,9 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                 (state.assertionViolations?.length ?? 0) > 0
                   ? "var(--accent-rose)"
                   : "var(--accent-cyan)",
-              fontSize: 12
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <ShieldAlert size={13} />
@@ -782,10 +774,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => {
-              setActiveTab("synthesis");
-              setIsCollapsed(false);
-            }}
+            onClick={() => handleTabClick("synthesis")}
             className="btn btn-ghost"
             style={{
               display: "flex",
@@ -793,11 +782,31 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
               gap: 5,
               padding: "2px 6px",
               color: "var(--accent-purple, #c084fc)",
-              fontSize: 12
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              flexShrink: 0
             }}
           >
             <Layers size={13} />
             <span>Synthesis ({synthCircuit?.cells.length ?? 0} Cells)</span>
+          </button>
+
+          <button
+            onClick={() => handleTabClick("timing")}
+            className="btn btn-ghost"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "2px 6px",
+              color: "var(--accent-purple)",
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              flexShrink: 0
+            }}
+          >
+            <Clock size={13} />
+            <span>{t("dock.timingTab")}</span>
           </button>
         </div>
 
@@ -873,7 +882,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
         {/* Left: Tab Switcher Buttons */}
         <div style={{ display: "flex", alignItems: "center", gap: 3, overflowX: "auto", scrollbarWidth: "none", flex: 1, minWidth: 0 }}>
           <button
-            onClick={() => setActiveTab("repl")}
+            onClick={() => handleTabClick("repl")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -895,7 +904,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("problems")}
+            onClick={() => handleTabClick("problems")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -941,7 +950,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("telemetry")}
+            onClick={() => handleTabClick("telemetry")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -963,7 +972,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("glitches")}
+            onClick={() => handleTabClick("glitches")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1001,7 +1010,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("timing")}
+            onClick={() => handleTabClick("timing")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1023,7 +1032,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("coverage")}
+            onClick={() => handleTabClick("coverage")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1071,7 +1080,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("assertions")}
+            onClick={() => handleTabClick("assertions")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1124,7 +1133,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("synthesis")}
+            onClick={() => handleTabClick("synthesis")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1332,7 +1341,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                 }}
               >
                 <Download size={10} />
-                <span>VCD</span>
+                {!isMobileFullScreen && <span>VCD</span>}
               </button>
 
               <button
@@ -1348,7 +1357,7 @@ export const UnifiedBottomDock: React.FC<UnifiedBottomDockProps> = ({
                 }}
               >
                 <Download size={10} />
-                <span>SAIF</span>
+                {!isMobileFullScreen && <span>SAIF</span>}
               </button>
             </>
           )}

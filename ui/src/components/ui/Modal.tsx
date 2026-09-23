@@ -46,7 +46,7 @@ export const Modal: React.FC<ModalProps> = ({
         alignItems: "center",
         justifyContent: "center",
         zIndex: 9999,
-        padding: 20
+        padding: "min(20px, 3vw)"
       }}
       onClick={onClose}
     >
@@ -54,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
         style={{
           width,
           maxWidth: "100%",
-          maxHeight: "90vh",
+          maxHeight: "94vh",
           backgroundColor: "var(--bg-secondary)",
           border: "1px solid var(--border-strong)",
           borderRadius: "var(--radius-lg)",
