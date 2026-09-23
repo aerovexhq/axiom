@@ -48,8 +48,8 @@ jobs:
 
       - name: Ensure CNAME file
         run: |
-          echo "docs.axiom.aerovex.net" > CNAME
-          echo "docs.axiom.aerovex.net" > docs/public/CNAME
+          echo "axiom.aerovex.net" > CNAME
+          echo "axiom.aerovex.net" > docs/public/CNAME
 
       - name: Install docs dependencies & Build VitePress
         run: |

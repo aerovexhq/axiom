@@ -966,7 +966,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         {activeMenu === "help" && (
           <div style={dropdownContainerStyle}>
             <a
-              href="https://docs.axiom.aerovex.net"
+              href="https://axiom.aerovex.net"
               target="_blank"
               rel="noreferrer"
               style={{ ...menuItemStyle, textDecoration: "none" }}

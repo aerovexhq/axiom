@@ -116,7 +116,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
 
           <div style={{ display: "flex", gap: 10 }}>
             <a
-              href="https://docs.axiom.aerovex.net"
+              href="https://axiom.aerovex.net"
               target="_blank"
               rel="noreferrer"
               className="btn btn-secondary"

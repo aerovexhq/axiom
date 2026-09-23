@@ -11,7 +11,7 @@ hero:
   actions:
     - theme: brand
       text: Launch Web Studio
-      link: https://axiom.aerovex.net
+      link: /studio/
       target: _blank
     - theme: alt
       text: Quickstart & Install
