@@ -1,12 +1,175 @@
 import { defineConfig } from "vitepress";
+import { LOCALES_DATA, getNav, getSidebar } from "./locales";
 
 export default defineConfig({
   title: "Axiom EDA",
   description: "Next-Generation In-RAM HDL Processor, Cranelift JIT Simulator & Silicon Telemetry Engine",
-  lang: "en-US",
   cleanUrls: true,
   lastUpdated: true,
   appearance: "dark",
+
+  locales: {
+    root: {
+      label: LOCALES_DATA.en.label,
+      lang: LOCALES_DATA.en.lang,
+      description: LOCALES_DATA.en.description,
+      themeConfig: {
+        nav: getNav(""),
+        sidebar: getSidebar(""),
+        outline: {
+          label: LOCALES_DATA.en.outlineTitle
+        },
+        docFooter: {
+          prev: LOCALES_DATA.en.docFooterPrev,
+          next: LOCALES_DATA.en.docFooterNext
+        },
+        lastUpdated: {
+          text: LOCALES_DATA.en.lastUpdatedText
+        },
+        darkModeSwitchLabel: LOCALES_DATA.en.darkModeSwitchLabel,
+        sidebarMenuLabel: LOCALES_DATA.en.sidebarMenuLabel,
+        returnToTopLabel: LOCALES_DATA.en.returnToTopLabel
+      }
+    },
+    tr: {
+      label: LOCALES_DATA.tr.label,
+      lang: LOCALES_DATA.tr.lang,
+      link: "/tr/",
+      description: LOCALES_DATA.tr.description,
+      themeConfig: {
+        nav: getNav("/tr", "tr"),
+        sidebar: getSidebar("/tr", "tr"),
+        outline: {
+          label: LOCALES_DATA.tr.outlineTitle
+        },
+        docFooter: {
+          prev: LOCALES_DATA.tr.docFooterPrev,
+          next: LOCALES_DATA.tr.docFooterNext
+        },
+        lastUpdated: {
+          text: LOCALES_DATA.tr.lastUpdatedText
+        },
+        darkModeSwitchLabel: LOCALES_DATA.tr.darkModeSwitchLabel,
+        sidebarMenuLabel: LOCALES_DATA.tr.sidebarMenuLabel,
+        returnToTopLabel: LOCALES_DATA.tr.returnToTopLabel
+      }
+    },
+    de: {
+      label: LOCALES_DATA.de.label,
+      lang: LOCALES_DATA.de.lang,
+      link: "/de/",
+      description: LOCALES_DATA.de.description,
+      themeConfig: {
+        nav: getNav("/de", "de"),
+        sidebar: getSidebar("/de", "de"),
+        outline: {
+          label: LOCALES_DATA.de.outlineTitle
+        },
+        docFooter: {
+          prev: LOCALES_DATA.de.docFooterPrev,
+          next: LOCALES_DATA.de.docFooterNext
+        },
+        lastUpdated: {
+          text: LOCALES_DATA.de.lastUpdatedText
+        },
+        darkModeSwitchLabel: LOCALES_DATA.de.darkModeSwitchLabel,
+        sidebarMenuLabel: LOCALES_DATA.de.sidebarMenuLabel,
+        returnToTopLabel: LOCALES_DATA.de.returnToTopLabel
+      }
+    },
+    ja: {
+      label: LOCALES_DATA.ja.label,
+      lang: LOCALES_DATA.ja.lang,
+      link: "/ja/",
+      description: LOCALES_DATA.ja.description,
+      themeConfig: {
+        nav: getNav("/ja", "ja"),
+        sidebar: getSidebar("/ja", "ja"),
+        outline: {
+          label: LOCALES_DATA.ja.outlineTitle
+        },
+        docFooter: {
+          prev: LOCALES_DATA.ja.docFooterPrev,
+          next: LOCALES_DATA.ja.docFooterNext
+        },
+        lastUpdated: {
+          text: LOCALES_DATA.ja.lastUpdatedText
+        },
+        darkModeSwitchLabel: LOCALES_DATA.ja.darkModeSwitchLabel,
+        sidebarMenuLabel: LOCALES_DATA.ja.sidebarMenuLabel,
+        returnToTopLabel: LOCALES_DATA.ja.returnToTopLabel
+      }
+    },
+    zh: {
+      label: LOCALES_DATA.zh.label,
+      lang: LOCALES_DATA.zh.lang,
+      link: "/zh/",
+      description: LOCALES_DATA.zh.description,
+      themeConfig: {
+        nav: getNav("/zh", "zh"),
+        sidebar: getSidebar("/zh", "zh"),
+        outline: {
+          label: LOCALES_DATA.zh.outlineTitle
+        },
+        docFooter: {
+          prev: LOCALES_DATA.zh.docFooterPrev,
+          next: LOCALES_DATA.zh.docFooterNext
+        },
+        lastUpdated: {
+          text: LOCALES_DATA.zh.lastUpdatedText
+        },
+        darkModeSwitchLabel: LOCALES_DATA.zh.darkModeSwitchLabel,
+        sidebarMenuLabel: LOCALES_DATA.zh.sidebarMenuLabel,
+        returnToTopLabel: LOCALES_DATA.zh.returnToTopLabel
+      }
+    },
+    es: {
+      label: LOCALES_DATA.es.label,
+      lang: LOCALES_DATA.es.lang,
+      link: "/es/",
+      description: LOCALES_DATA.es.description,
+      themeConfig: {
+        nav: getNav("/es", "es"),
+        sidebar: getSidebar("/es", "es"),
+        outline: {
+          label: LOCALES_DATA.es.outlineTitle
+        },
+        docFooter: {
+          prev: LOCALES_DATA.es.docFooterPrev,
+          next: LOCALES_DATA.es.docFooterNext
+        },
+        lastUpdated: {
+          text: LOCALES_DATA.es.lastUpdatedText
+        },
+        darkModeSwitchLabel: LOCALES_DATA.es.darkModeSwitchLabel,
+        sidebarMenuLabel: LOCALES_DATA.es.sidebarMenuLabel,
+        returnToTopLabel: LOCALES_DATA.es.returnToTopLabel
+      }
+    },
+    fr: {
+      label: LOCALES_DATA.fr.label,
+      lang: LOCALES_DATA.fr.lang,
+      link: "/fr/",
+      description: LOCALES_DATA.fr.description,
+      themeConfig: {
+        nav: getNav("/fr", "fr"),
+        sidebar: getSidebar("/fr", "fr"),
+        outline: {
+          label: LOCALES_DATA.fr.outlineTitle
+        },
+        docFooter: {
+          prev: LOCALES_DATA.fr.docFooterPrev,
+          next: LOCALES_DATA.fr.docFooterNext
+        },
+        lastUpdated: {
+          text: LOCALES_DATA.fr.lastUpdatedText
+        },
+        darkModeSwitchLabel: LOCALES_DATA.fr.darkModeSwitchLabel,
+        sidebarMenuLabel: LOCALES_DATA.fr.sidebarMenuLabel,
+        returnToTopLabel: LOCALES_DATA.fr.returnToTopLabel
+      }
+    }
+  },
 
   markdown: {
     math: true
@@ -62,238 +225,6 @@ export default defineConfig({
       alt: "Axiom EDA Logo"
     },
     siteTitle: "Axiom EDA",
-
-    nav: [
-      { text: "Guide", link: "/guide/introduction" },
-      { text: "Studio UI", link: "/ui/overview" },
-      { text: "Verilog HDL", link: "/languages/verilog/overview" },
-      {
-        text: "Languages",
-        items: [
-          { text: "Verilog HDL (IEEE 1364)", link: "/languages/verilog/overview" },
-          { text: "SystemVerilog (IEEE 1800)", link: "/languages/systemverilog/overview" },
-          { text: "VHDL (IEEE 1076)", link: "/languages/vhdl/overview" },
-          { text: "XDC Constraints", link: "/languages/xdc/overview" },
-          { text: "Xilinx Primitives", link: "/languages/primitives/overview" }
-        ]
-      },
-      { text: "Architecture", link: "/architecture/in-ram-jit" },
-      { text: "Vivado Migration", link: "/vivado/migration" },
-      { text: "CLI Reference", link: "/reference/cli" },
-      { text: "Web Studio", link: "/studio/", target: "_blank" },
-      {
-        text: "v1.0.0",
-        items: [
-          { text: "Changelog", link: "https://github.com/aerovexsim/axiom/releases" },
-          { text: "Aerovex Platform", link: "https://aerovex.net" }
-        ]
-      }
-    ],
-
-    sidebar: {
-      "/ui/": [
-        {
-          text: "Axiom Studio Workspace",
-          items: [
-            { text: "Studio Overview & Shortcuts", link: "/ui/overview" },
-            { text: "Projects & File Sets", link: "/ui/projects-lifecycle" },
-            { text: "Security & Sandboxing", link: "/ui/security-sandbox" }
-          ]
-        },
-        {
-          text: "Core Design & Edit Views",
-          items: [
-            { text: "Monaco HDL Editor & LSP", link: "/ui/monaco-editor" },
-            { text: "Schematic DAG Visualizer", link: "/ui/schematic-viewer" },
-            { text: "Virtual Lab & Basys 3", link: "/ui/virtual-lab" }
-          ]
-        },
-        {
-          text: "Analysis & Telemetry Views",
-          items: [
-            { text: "Waveforms & Logic Analyzer", link: "/ui/waveform-viewer" },
-            { text: "Timing Radar & STA", link: "/ui/timing-radar" },
-            { text: "Silicon Telemetry & Energy", link: "/ui/telemetry-energy" }
-          ]
-        },
-        {
-          text: "Advanced Synthesis & Floorplanning",
-          items: [
-            { text: "Technology Mapping", link: "/ui/tech-mapping" },
-            { text: "Silicon Floorplanning", link: "/ui/floorplanning" },
-            { text: "Formal Verification (BMC)", link: "/ui/formal-verification" },
-            { text: "Protocol Analyzer", link: "/ui/protocol-analyzer" },
-            { text: "Microarchitecture & Multi-Die", link: "/ui/microarchitecture" }
-          ]
-        },
-        {
-          text: "Controls & Diagnostics",
-          items: [
-            { text: "Simulation Dock & Console", link: "/ui/simulation-dock" }
-          ]
-        }
-      ],
-
-      "/languages/verilog/": [
-        {
-          text: "Verilog HDL (IEEE 1364)",
-          items: [
-            { text: "Language Overview", link: "/languages/verilog/overview" },
-            { text: "Data Types & Nets", link: "/languages/verilog/data-types-nets" },
-            { text: "Operators & Expressions", link: "/languages/verilog/operators-expressions" },
-            { text: "Continuous Assignments", link: "/languages/verilog/continuous-assigns" },
-            { text: "Procedural Blocks & Timing", link: "/languages/verilog/procedural-blocks" },
-            { text: "Control Flow Statements", link: "/languages/verilog/control-flow" },
-            { text: "Modules & Hierarchy", link: "/languages/verilog/modules-hierarchy" },
-            { text: "Tasks & Functions", link: "/languages/verilog/tasks-functions" },
-            { text: "System Tasks & I/O", link: "/languages/verilog/system-tasks" },
-            { text: "Static Linter Rules", link: "/languages/verilog/linter-diagnostics" }
-          ]
-        },
-        {
-          text: "Other Languages",
-          items: [
-            { text: "SystemVerilog (IEEE 1800)", link: "/languages/systemverilog/overview" },
-            { text: "VHDL (IEEE 1076)", link: "/languages/vhdl/overview" },
-            { text: "XDC Constraints", link: "/languages/xdc/overview" },
-            { text: "Xilinx Primitives", link: "/languages/primitives/overview" }
-          ]
-        }
-      ],
-
-      "/languages/systemverilog/": [
-        {
-          text: "SystemVerilog (IEEE 1800)",
-          items: [
-            { text: "Language Overview", link: "/languages/systemverilog/overview" },
-            { text: "Data Types & Declarations", link: "/languages/systemverilog/types-declarations" },
-            { text: "Specialized Processes", link: "/languages/systemverilog/specialized-processes" },
-            { text: "Interfaces & Packages", link: "/languages/systemverilog/interfaces-packages" },
-            { text: "Assertions (SVA) & Formal", link: "/languages/systemverilog/assertions-sva" },
-            { text: "Constrained Randomization", link: "/languages/systemverilog/constrained-random" }
-          ]
-        },
-        {
-          text: "Other Languages",
-          items: [
-            { text: "Verilog HDL (IEEE 1364)", link: "/languages/verilog/overview" },
-            { text: "VHDL (IEEE 1076)", link: "/languages/vhdl/overview" },
-            { text: "XDC Constraints", link: "/languages/xdc/overview" },
-            { text: "Xilinx Primitives", link: "/languages/primitives/overview" }
-          ]
-        }
-      ],
-
-      "/languages/vhdl/": [
-        {
-          text: "VHDL (IEEE 1076)",
-          items: [
-            { text: "Language Overview", link: "/languages/vhdl/overview" },
-            { text: "Entities & Architectures", link: "/languages/vhdl/entities-architectures" },
-            { text: "Packages & Types", link: "/languages/vhdl/packages-types" },
-            { text: "Concurrent & Sequential", link: "/languages/vhdl/concurrent-sequential" },
-            { text: "VHDL Linter Diagnostics", link: "/languages/vhdl/linter-rules" }
-          ]
-        },
-        {
-          text: "Other Languages",
-          items: [
-            { text: "Verilog HDL (IEEE 1364)", link: "/languages/verilog/overview" },
-            { text: "SystemVerilog (IEEE 1800)", link: "/languages/systemverilog/overview" },
-            { text: "XDC Constraints", link: "/languages/xdc/overview" },
-            { text: "Xilinx Primitives", link: "/languages/primitives/overview" }
-          ]
-        }
-      ],
-
-      "/languages/xdc/": [
-        {
-          text: "Xilinx Design Constraints (XDC)",
-          items: [
-            { text: "Constraints Architecture", link: "/languages/xdc/overview" },
-            { text: "Physical Constraints", link: "/languages/xdc/physical-constraints" },
-            { text: "Clock Constraints", link: "/languages/xdc/clock-constraints" },
-            { text: "I/O Timing Constraints", link: "/languages/xdc/io-timing" },
-            { text: "Timing Exceptions", link: "/languages/xdc/timing-exceptions" },
-            { text: "Monaco XDC Language Server", link: "/languages/xdc/lsp-and-validation" }
-          ]
-        },
-        {
-          text: "Other Languages",
-          items: [
-            { text: "Verilog HDL (IEEE 1364)", link: "/languages/verilog/overview" },
-            { text: "SystemVerilog (IEEE 1800)", link: "/languages/systemverilog/overview" },
-            { text: "VHDL (IEEE 1076)", link: "/languages/vhdl/overview" },
-            { text: "Xilinx Primitives", link: "/languages/primitives/overview" }
-          ]
-        }
-      ],
-
-      "/languages/primitives/": [
-        {
-          text: "Xilinx Primitive Library",
-          items: [
-            { text: "In-Engine Architecture", link: "/languages/primitives/overview" },
-            { text: "CLB & Logic Cells", link: "/languages/primitives/clb-and-logic" },
-            { text: "Clocking & I/O Buffers", link: "/languages/primitives/clocking-and-io" },
-            { text: "DSP48 Arithmetic Slices", link: "/languages/primitives/dsp-slices" },
-            { text: "Block RAM (RAMB)", link: "/languages/primitives/block-ram" }
-          ]
-        },
-        {
-          text: "Other Languages",
-          items: [
-            { text: "Verilog HDL (IEEE 1364)", link: "/languages/verilog/overview" },
-            { text: "SystemVerilog (IEEE 1800)", link: "/languages/systemverilog/overview" },
-            { text: "VHDL (IEEE 1076)", link: "/languages/vhdl/overview" },
-            { text: "XDC Constraints", link: "/languages/xdc/overview" }
-          ]
-        }
-      ],
-
-      "/guide/": [
-        {
-          text: "Getting Started",
-          items: [
-            { text: "Introduction & Manifesto", link: "/guide/introduction" },
-            { text: "Quickstart (60-Second Setup)", link: "/guide/quickstart" },
-            { text: "Desktop & Web Architecture", link: "/guide/desktop-web" }
-          ]
-        }
-      ],
-
-      "/architecture/": [
-        {
-          text: "Core Architecture",
-          items: [
-            { text: "In-RAM Cranelift JIT", link: "/architecture/in-ram-jit" },
-            { text: "4-State Logic State Arena", link: "/architecture/four-state-arena" },
-            { text: "Stratified Event Scheduler", link: "/architecture/stratified-scheduler" },
-            { text: "Physics Power & PDN Telemetry", link: "/architecture/power-pdn-telemetry" }
-          ]
-        }
-      ],
-
-      "/vivado/": [
-        {
-          text: "Vivado Design Suite Parity",
-          items: [
-            { text: "Migration from Vivado", link: "/vivado/migration" },
-            { text: "SAIF & VCD Interoperability", link: "/vivado/saif-vcd-interop" },
-            { text: "Feature Comparison Matrix", link: "/vivado/feature-matrix" }
-          ]
-        }
-      ],
-
-      "/reference/": [
-        {
-          text: "Reference Manual",
-          items: [
-            { text: "CLI Commands & Options", link: "/reference/cli" }
-          ]
-        }
-      ]
-    },
 
     search: {
       provider: "local"

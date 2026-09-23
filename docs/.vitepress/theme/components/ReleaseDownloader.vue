@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { useData } from "vitepress";
 
 interface ReleaseAsset {
   name: string;
@@ -87,6 +88,95 @@ const isLoading = ref<boolean>(false);
 const isLive = ref<boolean>(false);
 const isOpen = ref<boolean>(false);
 const dropdownRef = ref<HTMLElement | null>(null);
+
+const { lang } = useData();
+
+const UI_STRINGS: Record<string, {
+  releaseVersion: string;
+  selectArchRelease: string;
+  latestGa: string;
+  release: string;
+  legacy: string;
+  releasedPrefix: string;
+  changelogNotes: string;
+  packagesBadge: string;
+}> = {
+  "en-US": {
+    releaseVersion: "Release Version:",
+    selectArchRelease: "Select Architecture Release",
+    latestGa: "Latest GA",
+    release: "Release",
+    legacy: "Legacy",
+    releasedPrefix: "Released",
+    changelogNotes: "Changelog & Notes",
+    packagesBadge: "packages"
+  },
+  "tr-TR": {
+    releaseVersion: "Sürüm Versiyonu:",
+    selectArchRelease: "Mimari Sürümünü Seçin",
+    latestGa: "En Son Kararlı",
+    release: "Sürüm",
+    legacy: "Eski",
+    releasedPrefix: "Yayınlandı:",
+    changelogNotes: "Değişiklik Günlüğü ve Notlar",
+    packagesBadge: "paket"
+  },
+  "de-DE": {
+    releaseVersion: "Release-Version:",
+    selectArchRelease: "Architektur-Release auswählen",
+    latestGa: "Neueste GA",
+    release: "Release",
+    legacy: "Legacy",
+    releasedPrefix: "Veröffentlicht am",
+    changelogNotes: "Changelog & Notizen",
+    packagesBadge: "Pakete"
+  },
+  "ja-JP": {
+    releaseVersion: "リリースバージョン:",
+    selectArchRelease: "アーキテクチャリリースを選択",
+    latestGa: "最新GA",
+    release: "リリース",
+    legacy: "レガシー",
+    releasedPrefix: "リリース日:",
+    changelogNotes: "変更履歴とリリースノート",
+    packagesBadge: "パッケージ"
+  },
+  "zh-CN": {
+    releaseVersion: "发布版本:",
+    selectArchRelease: "选择架构版本",
+    latestGa: "最新稳定版",
+    release: "版本",
+    legacy: "旧版本",
+    releasedPrefix: "发布于",
+    changelogNotes: "更新日志与说明",
+    packagesBadge: "个安装包"
+  },
+  "es-ES": {
+    releaseVersion: "Versión de lanzamiento:",
+    selectArchRelease: "Seleccionar versión de arquitectura",
+    latestGa: "Última GA",
+    release: "Versión",
+    legacy: "Heredado",
+    releasedPrefix: "Publicado:",
+    changelogNotes: "Registro de cambios y notas",
+    packagesBadge: "paquetes"
+  },
+  "fr-FR": {
+    releaseVersion: "Version de version:",
+    selectArchRelease: "Sélectionner la version d'architecture",
+    latestGa: "Dernière GA",
+    release: "Version",
+    legacy: "Ancien",
+    releasedPrefix: "Publié le",
+    changelogNotes: "Journal des modifications et notes",
+    packagesBadge: "paquets"
+  }
+};
+
+const currentStrings = computed(() => {
+  const currentLang = lang.value || "en-US";
+  return UI_STRINGS[currentLang] || UI_STRINGS["en-US"];
+});
 
 function toggleDropdown() {
   isOpen.value = !isOpen.value;
@@ -401,7 +491,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
     <!-- Version Selector Control Bar -->
     <div class="release-control-bar">
       <div class="release-meta-left">
-        <span class="release-label">Release Version:</span>
+        <span class="release-label">{{ currentStrings.releaseVersion }}</span>
         <div ref="dropdownRef" class="custom-select-container">
           <button
             type="button"
@@ -419,7 +509,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
             </svg>
             <span class="trigger-tag">{{ selectedTag }}</span>
             <span class="trigger-badge" :class="isLatest ? 'badge-primary' : 'badge-subtle'">
-              {{ isLatest ? "Latest GA" : "Release" }}
+              {{ isLatest ? currentStrings.latestGa : currentStrings.release }}
             </span>
             <svg class="trigger-chevron" :class="{ rotated: isOpen }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 9 12 15 18 9"></polyline>
@@ -430,7 +520,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
           <Transition name="dropdown-fade">
             <div v-if="isOpen" class="custom-select-menu" role="listbox">
               <div class="custom-select-menu-header">
-                <span>Select Architecture Release</span>
+                <span>{{ currentStrings.selectArchRelease }}</span>
               </div>
               <div class="custom-select-menu-list">
                 <button
@@ -449,7 +539,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
                       class="item-badge"
                       :class="idx === 0 ? 'badge-primary' : 'badge-subtle'"
                     >
-                      {{ idx === 0 ? "Latest GA" : "Legacy" }}
+                      {{ idx === 0 ? currentStrings.latestGa : currentStrings.legacy }}
                     </span>
                   </div>
                   <div class="item-right">
@@ -477,14 +567,14 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
       </div>
 
       <div class="release-meta-right">
-        <span v-if="formattedDate" class="release-date">Released {{ formattedDate }}</span>
+        <span v-if="formattedDate" class="release-date">{{ currentStrings.releasedPrefix }} {{ formattedDate }}</span>
         <a
           :href="currentRelease.html_url"
           target="_blank"
           rel="noopener noreferrer"
           class="release-notes-link"
         >
-          <span>Changelog & Notes</span>
+          <span>{{ currentStrings.changelogNotes }}</span>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
             <polyline points="15 3 21 3 21 9"></polyline>
@@ -520,7 +610,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
             </span>
             <span class="platform-name">{{ platform.name }}</span>
           </div>
-          <span class="platform-badge mono-num">{{ platform.assets.length }} packages</span>
+          <span class="platform-badge mono-num">{{ platform.assets.length }} {{ currentStrings.packagesBadge }}</span>
         </div>
 
         <div class="asset-list">
