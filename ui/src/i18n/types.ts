@@ -203,6 +203,10 @@ export interface Translations {
     synthNetlist: string;
     exportNetlist: string;
     lutInspector: string;
+    crossoverStyle: string;
+    crossoverArc: string;
+    crossoverGap: string;
+    crossoverStraight: string;
   };
   virtualLab: {
     title: string;

@@ -187,6 +187,10 @@ export const en: Translations = {
     synthNetlist: "Synthesized Netlist",
     exportNetlist: "Export Netlist",
     lutInspector: "LUT Inspector",
+    crossoverStyle: "Wire Crossings",
+    crossoverArc: "Bridge Arcs",
+    crossoverGap: "Break Gaps",
+    crossoverStraight: "Straight",
   },
   virtualLab: {
     title: "Virtual Lab Breadboard Rack",

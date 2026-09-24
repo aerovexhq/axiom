@@ -187,6 +187,10 @@ export const tr: Translations = {
     synthNetlist: "Sentezlenmiş Devre",
     exportNetlist: "Netlisti Dışa Aktar",
     lutInspector: "LUT Denetleyicisi",
+    crossoverStyle: "Hat Kesişimleri",
+    crossoverArc: "Köprü Yayları",
+    crossoverGap: "Aralık Boşluğu",
+    crossoverStraight: "Düz",
   },
   virtualLab: {
     title: "Sanal Laboratuvar Rafı",

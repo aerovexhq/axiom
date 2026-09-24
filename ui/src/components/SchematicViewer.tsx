@@ -283,6 +283,13 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       return false;
     }
   });
+  const [crossoverStyle, setCrossoverStyle] = useState<"arc" | "gap" | "straight">(() => {
+    try {
+      const saved = localStorage.getItem("axiom_schematic_crossover_style");
+      if (saved === "gap" || saved === "straight" || saved === "arc") return saved;
+    } catch {}
+    return "arc";
+  });
   const [showMinimap, setShowMinimap] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return window.innerWidth > 768;
@@ -302,6 +309,12 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       localStorage.setItem("axiom_schematic_hide_clocks", String(hideClockNets));
     } catch {}
   }, [hideClockNets]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("axiom_schematic_crossover_style", crossoverStyle);
+    } catch {}
+  }, [crossoverStyle]);
 
   // Debounced camera state persistence per design and schematic mode
   useEffect(() => {
@@ -581,9 +594,56 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
       ctx.beginPath();
       if (edge.wirePoints.length > 0) {
-        ctx.moveTo(edge.wirePoints[0].x, edge.wirePoints[0].y);
-        for (let i = 1; i < edge.wirePoints.length; i++) {
-          ctx.lineTo(edge.wirePoints[i].x, edge.wirePoints[i].y);
+        if (!edge.crossovers || edge.crossovers.length === 0 || crossoverStyle === "straight") {
+          ctx.moveTo(edge.wirePoints[0].x, edge.wirePoints[0].y);
+          for (let i = 1; i < edge.wirePoints.length; i++) {
+            ctx.lineTo(edge.wirePoints[i].x, edge.wirePoints[i].y);
+          }
+        } else {
+          ctx.moveTo(edge.wirePoints[0].x, edge.wirePoints[0].y);
+          for (let i = 0; i < edge.wirePoints.length - 1; i++) {
+            const p1 = edge.wirePoints[i];
+            const p2 = edge.wirePoints[i + 1];
+            const isH = Math.abs(p1.y - p2.y) < 1e-3;
+            if (isH) {
+              const y = p1.y;
+              const minX = Math.min(p1.x, p2.x);
+              const maxX = Math.max(p1.x, p2.x);
+              const segCrossovers = edge.crossovers.filter(
+                (c) => Math.abs(c.y - y) < 1 && c.x > minX + 2 && c.x < maxX - 2
+              );
+              if (segCrossovers.length === 0) {
+                ctx.lineTo(p2.x, p2.y);
+              } else {
+                const movingRight = p2.x >= p1.x;
+                segCrossovers.sort((a, b) => (movingRight ? a.x - b.x : b.x - a.x));
+                const r = 5;
+                for (const cross of segCrossovers) {
+                  if (crossoverStyle === "arc") {
+                    if (movingRight) {
+                      ctx.lineTo(cross.x - r, y);
+                      ctx.arc(cross.x, y, r, Math.PI, 0, true);
+                    } else {
+                      ctx.lineTo(cross.x + r, y);
+                      ctx.arc(cross.x, y, r, 0, Math.PI, true);
+                    }
+                  } else if (crossoverStyle === "gap") {
+                    const gap = 4;
+                    if (movingRight) {
+                      ctx.lineTo(cross.x - gap, y);
+                      ctx.moveTo(cross.x + gap, y);
+                    } else {
+                      ctx.lineTo(cross.x + gap, y);
+                      ctx.moveTo(cross.x - gap, y);
+                    }
+                  }
+                }
+                ctx.lineTo(p2.x, p2.y);
+              }
+            } else {
+              ctx.lineTo(p2.x, p2.y);
+            }
+          }
         }
       }
       ctx.stroke();
@@ -661,6 +721,23 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       }
 
       ctx.restore();
+    }
+
+    // 1b. Solid Electrical Fanout Junction Dots (•) at shared net branch points
+    if (graph.junctions && graph.junctions.length > 0) {
+      for (const junc of graph.junctions) {
+        const isNetSelected = selectedEdgeId ? graph.edges.some((e) => e.id === selectedEdgeId && e.netName === junc.netName) : false;
+        ctx.save();
+        ctx.fillStyle = isNetSelected ? "#00f0ff" : "#38bdf8";
+        if (isNetSelected) {
+          ctx.shadowColor = "rgba(0, 240, 255, 0.85)";
+          ctx.shadowBlur = 8;
+        }
+        ctx.beginPath();
+        ctx.arc(junc.x, junc.y, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
     // ------------------------------------------------------------------------
@@ -904,6 +981,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     liveValuesMap,
     showLiveValues,
     hideClockNets,
+    crossoverStyle,
     showMinimap,
     lodLevel
   ]);
@@ -1633,6 +1711,84 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               <span>{exportedVerilog ? "Exported!" : "Export Netlist"}</span>
             </button>
           )}
+
+          <div style={{ width: 1, height: 14, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
+
+          {/* Wire Crossover Style Selector */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              backgroundColor: "var(--bg-tertiary)",
+              borderRadius: 4,
+              border: "1px solid var(--border-subtle)",
+              padding: "1px",
+              gap: 1,
+              flexShrink: 0
+            }}
+            title={t("schematic.crossoverStyle")}
+          >
+            <button
+              onClick={() => setCrossoverStyle("arc")}
+              className="btn-icon"
+              style={{
+                padding: "2px 5px",
+                fontSize: 10,
+                fontWeight: crossoverStyle === "arc" ? 600 : 400,
+                backgroundColor: crossoverStyle === "arc" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                color: crossoverStyle === "arc" ? "var(--accent-cyan)" : "var(--text-muted)",
+                borderRadius: 3,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                lineHeight: 1
+              }}
+              title={t("schematic.crossoverArc")}
+            >
+              <span>{t("schematic.crossoverArc")}</span>
+            </button>
+            <button
+              onClick={() => setCrossoverStyle("gap")}
+              className="btn-icon"
+              style={{
+                padding: "2px 5px",
+                fontSize: 10,
+                fontWeight: crossoverStyle === "gap" ? 600 : 400,
+                backgroundColor: crossoverStyle === "gap" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                color: crossoverStyle === "gap" ? "var(--accent-cyan)" : "var(--text-muted)",
+                borderRadius: 3,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                lineHeight: 1
+              }}
+              title={t("schematic.crossoverGap")}
+            >
+              <span>{t("schematic.crossoverGap")}</span>
+            </button>
+            <button
+              onClick={() => setCrossoverStyle("straight")}
+              className="btn-icon"
+              style={{
+                padding: "2px 5px",
+                fontSize: 10,
+                fontWeight: crossoverStyle === "straight" ? 600 : 400,
+                backgroundColor: crossoverStyle === "straight" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                color: crossoverStyle === "straight" ? "var(--accent-cyan)" : "var(--text-muted)",
+                borderRadius: 3,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                lineHeight: 1
+              }}
+              title={t("schematic.crossoverStraight")}
+            >
+              <span>{t("schematic.crossoverStraight")}</span>
+            </button>
+          </div>
 
           <div style={{ width: 1, height: 14, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
 

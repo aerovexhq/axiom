@@ -187,6 +187,10 @@ export const zh: Translations = {
     synthNetlist: "综合门级网表",
     exportNetlist: "导出网表",
     lutInspector: "LUT检查器",
+    crossoverStyle: "连线交叉",
+    crossoverArc: "跨线弧",
+    crossoverGap: "断开间隙",
+    crossoverStraight: "直接交叉",
   },
   virtualLab: {
     title: "虚拟硬件实验室机架",

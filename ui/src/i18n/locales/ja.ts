@@ -187,6 +187,10 @@ export const ja: Translations = {
     synthNetlist: "合成済みネットリスト",
     exportNetlist: "ネットリストのエクスポート",
     lutInspector: "LUTインスペクタ",
+    crossoverStyle: "ワイヤ交差",
+    crossoverArc: "ブリッジ円戧",
+    crossoverGap: "ギャップ",
+    crossoverStraight: "直線",
   },
   virtualLab: {
     title: "バーチャル実験ラック",

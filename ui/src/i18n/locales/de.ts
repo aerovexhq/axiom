@@ -187,6 +187,10 @@ export const de: Translations = {
     synthNetlist: "Synthetisierte Netzliste",
     exportNetlist: "Netzliste exportieren",
     lutInspector: "LUT-Inspektor",
+    crossoverStyle: "Drahtkreuzungen",
+    crossoverArc: "Brückenbögen",
+    crossoverGap: "Lücken",
+    crossoverStraight: "Gerade",
   },
   virtualLab: {
     title: "Virtuelles Labor-Rack",

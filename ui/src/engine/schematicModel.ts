@@ -72,6 +72,7 @@ export interface SchematicEdge {
   delayPs: number; // Wire interconnect delay in ps
   signalId: string; // References SimulationState.signals
   fanout: number;
+  crossovers?: Array<{ x: number; y: number }>;
 }
 
 export interface SchematicGraph {
@@ -80,6 +81,7 @@ export interface SchematicGraph {
   nodes: SchematicNode[];
   edges: SchematicEdge[];
   bounds: { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number };
+  junctions?: Array<{ x: number; y: number; netName: string }>;
 }
 
 export interface LogicCone {
@@ -248,23 +250,11 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
 
   const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
 
-  // Determine the max layer height across all layers to vertically center each layer (when not using explicit positioning)
-  let maxLayerHeight = 0;
-  for (const layer of sortedLayers) {
-    const nodesInLayer = layerMap.get(layer)!;
-    let h = 0;
-    for (let i = 0; i < nodesInLayer.length; i++) {
-      h += nodesInLayer[i].height + (i > 0 ? nodeSpacingY : 0);
-    }
-    if (h > maxLayerHeight) maxLayerHeight = h;
-  }
-
+  // 1. Initial geometric placement (layer column positioning & explicit row alignments)
   let currentX = startX;
-
   for (const layer of sortedLayers) {
     const nodesInLayer = layerMap.get(layer)!;
 
-    // Determine max width in this layer
     let maxLayerWidth = 0;
     for (const n of nodesInLayer) {
       if (n.width > maxLayerWidth) maxLayerWidth = n.width;
@@ -275,7 +265,6 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
     );
 
     if (layerUsesExplicitLayout) {
-      // Vivado-grade datapath grid row alignment & precision pin alignment
       for (const node of nodesInLayer) {
         node.x = currentX;
         if (node.fixedY !== undefined) {
@@ -287,54 +276,109 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
         assignPortOffsets(node);
       }
     } else {
-      // Barycentric / Median Vertical Positioning with natural confluence flow
-      if (layer === 0) {
-        // Primary inputs: distributed starting cleanly from startY with ergonomic spacing
-        let currentY = startY;
-        for (const node of nodesInLayer) {
-          node.x = currentX;
-          node.y = currentY;
-          assignPortOffsets(node);
-          currentY += node.height + Math.max(nodeSpacingY, 34);
-        }
-      } else {
-        // Intermediate & Output Layers: Barycentric target based on driving sources
-        const scoredNodes: Array<{ node: SchematicNode; idealY: number }> = [];
-
-        for (const node of nodesInLayer) {
-          node.x = currentX;
-          const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
-          if (inEdges.length > 0) {
-            let totalY = 0;
-            let count = 0;
-            for (const edge of inEdges) {
-              const srcNode = graph.nodes.find((n) => n.id === edge.sourceNodeId);
-              if (srcNode && srcNode.y !== undefined) {
-                totalY += srcNode.y + srcNode.height / 2;
-                count++;
-              }
-            }
-            const avgY = count > 0 ? totalY / count : startY + 50;
-            scoredNodes.push({ node, idealY: Math.max(startY, avgY - node.height / 2) });
-          } else {
-            scoredNodes.push({ node, idealY: startY });
-          }
-        }
-
-        // Sort nodes in this layer by their ideal barycentric Y
-        scoredNodes.sort((a, b) => a.idealY - b.idealY);
-
-        // Place sequentially, guaranteeing non-overlapping clearance
-        let prevBottom = startY - nodeSpacingY;
-        for (const { node, idealY } of scoredNodes) {
-          node.y = Math.max(idealY, prevBottom + nodeSpacingY);
-          assignPortOffsets(node);
-          prevBottom = node.y + node.height;
-        }
+      let curY = startY;
+      for (const node of nodesInLayer) {
+        node.x = currentX;
+        node.y = curY;
+        assignPortOffsets(node);
+        curY += node.height + Math.max(nodeSpacingY, 34);
       }
     }
 
     currentX += maxLayerWidth + layerSpacingX;
+  }
+
+  // 2. Iterative Sugiyama Bidirectional Barycentric & Median Relaxation Sweeps (16 passes)
+  // Minimizes wire crossings and aligns nodes with their connected source and target nets
+  const nodeMap = new Map<string, SchematicNode>();
+  for (const n of graph.nodes) nodeMap.set(n.id, n);
+
+  const passes = 16;
+  for (let pass = 0; pass < passes; pass++) {
+    // Backward Sweep (from max layer down to 0): aligns nodes with their downstream sinks
+    for (let lIdx = sortedLayers.length - 1; lIdx >= 0; lIdx--) {
+      const layer = sortedLayers[lIdx];
+      const nodesInLayer = layerMap.get(layer)!;
+      if (nodesInLayer.some((n) => n.fixedY !== undefined || n.gridRow !== undefined)) continue;
+
+      for (const node of nodesInLayer) {
+        const outEdges = graph.edges.filter((e) => e.sourceNodeId === node.id);
+        const targetYs: number[] = [];
+        for (const e of outEdges) {
+          const target = nodeMap.get(e.targetNodeId);
+          if (target && target.layer > layer && target.y !== undefined) {
+            targetYs.push(target.y + target.height / 2);
+          }
+        }
+        if (targetYs.length > 0) {
+          targetYs.sort((a, b) => a - b);
+          const median = targetYs[Math.floor(targetYs.length / 2)];
+          (node as any).idealY = Math.max(startY, median - node.height / 2);
+        } else {
+          (node as any).idealY = node.y;
+        }
+      }
+
+      nodesInLayer.sort((a, b) => ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y));
+
+      let prevBottom = startY - nodeSpacingY;
+      for (const node of nodesInLayer) {
+        node.y = Math.max((node as any).idealY ?? node.y, prevBottom + nodeSpacingY);
+        assignPortOffsets(node);
+        prevBottom = node.y + node.height;
+      }
+    }
+
+    // Forward Sweep (from 0 up to max layer): aligns nodes with their upstream drivers
+    for (let lIdx = 0; lIdx < sortedLayers.length; lIdx++) {
+      const layer = sortedLayers[lIdx];
+      const nodesInLayer = layerMap.get(layer)!;
+      if (nodesInLayer.some((n) => n.fixedY !== undefined || n.gridRow !== undefined)) continue;
+
+      for (const node of nodesInLayer) {
+        const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+        const sourceYs: number[] = [];
+        for (const e of inEdges) {
+          const src = nodeMap.get(e.sourceNodeId);
+          if (src && src.layer < layer && src.y !== undefined) {
+            sourceYs.push(src.y + src.height / 2);
+          }
+        }
+        if (sourceYs.length > 0) {
+          sourceYs.sort((a, b) => a - b);
+          const median = sourceYs[Math.floor(sourceYs.length / 2)];
+          (node as any).idealY = Math.max(startY, median - node.height / 2);
+        } else {
+          (node as any).idealY = node.y;
+        }
+      }
+
+      nodesInLayer.sort((a, b) => ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y));
+
+      let prevBottom = startY - nodeSpacingY;
+      for (const node of nodesInLayer) {
+        node.y = Math.max((node as any).idealY ?? node.y, prevBottom + nodeSpacingY);
+        assignPortOffsets(node);
+        prevBottom = node.y + node.height;
+      }
+    }
+  }
+
+  // 3. Normalize vertical drift across dynamic nodes
+  let dynamicMinY = Infinity;
+  for (const node of graph.nodes) {
+    if (node.fixedY === undefined && node.gridRow === undefined) {
+      if (node.y < dynamicMinY) dynamicMinY = node.y;
+    }
+  }
+  if (dynamicMinY < Infinity && dynamicMinY > startY) {
+    const shiftY = dynamicMinY - startY;
+    for (const node of graph.nodes) {
+      if (node.fixedY === undefined && node.gridRow === undefined) {
+        node.y -= shiftY;
+        assignPortOffsets(node);
+      }
+    }
   }
 
   // Pre-calculate keep-out boxes for obstacle-aware edge routing
@@ -346,10 +390,6 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
     top: n.y - 18,
     bottom: n.y + n.height + 4
   }));
-
-  // Route edges with obstacle clearance
-  const nodeMap = new Map<string, SchematicNode>();
-  for (const n of graph.nodes) nodeMap.set(n.id, n);
 
   // Commutative Logic Gate Pin Sorting:
   // Reorder input pin connections on multi-input logic gates so that drivers with lower Y
@@ -411,7 +451,10 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
     );
   }
 
-  // Calculate tight, exact geometric bounding box across all nodes and routed wires
+  // 4. Detect Orthogonal Crossovers and Branch Junction Dots
+  detectWireCrossovers(graph);
+
+  // 5. Calculate tight, exact geometric bounding box across all nodes and routed wires
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -450,6 +493,112 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   };
 
   return graph;
+}
+
+/**
+ * Detects all orthogonal crossovers (bridges) between horizontal and vertical segments
+ * of different nets, and electrical branch junction points of shared nets.
+ */
+export function detectWireCrossovers(graph: SchematicGraph): void {
+  for (const edge of graph.edges) {
+    edge.crossovers = [];
+  }
+  const junctions: Array<{ x: number; y: number; netName: string }> = [];
+  const junctionSet = new Set<string>();
+
+  const hSegments: Array<{
+    edge: SchematicEdge;
+    x1: number;
+    x2: number;
+    y: number;
+  }> = [];
+  const vSegments: Array<{
+    edge: SchematicEdge;
+    x: number;
+    y1: number;
+    y2: number;
+  }> = [];
+
+  for (const edge of graph.edges) {
+    const pts = edge.wirePoints || [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      if (Math.abs(p1.y - p2.y) < 1e-3) {
+        hSegments.push({
+          edge,
+          x1: Math.min(p1.x, p2.x),
+          x2: Math.max(p1.x, p2.x),
+          y: p1.y
+        });
+      } else if (Math.abs(p1.x - p2.x) < 1e-3) {
+        vSegments.push({
+          edge,
+          x: p1.x,
+          y1: Math.min(p1.y, p2.y),
+          y2: Math.max(p1.y, p2.y)
+        });
+      }
+    }
+  }
+
+  // Detect orthogonal crossovers between different nets
+  for (const h of hSegments) {
+    for (const v of vSegments) {
+      if (h.edge.netName === v.edge.netName) continue;
+      // Tolerances to ignore shared corners and endpoints
+      const xInH = v.x > h.x1 + 3 && v.x < h.x2 - 3;
+      const yInV = h.y > v.y1 + 3 && h.y < v.y2 - 3;
+      if (xInH && yInV) {
+        if (!h.edge.crossovers) h.edge.crossovers = [];
+        h.edge.crossovers.push({ x: v.x, y: h.y });
+      }
+    }
+  }
+
+  // Detect electrical fanout junction points where wires branch (same net)
+  const netEdges = new Map<string, SchematicEdge[]>();
+  for (const edge of graph.edges) {
+    const list = netEdges.get(edge.netName) ?? [];
+    list.push(edge);
+    netEdges.set(edge.netName, list);
+  }
+
+  for (const [net, edgeList] of netEdges.entries()) {
+    if (edgeList.length <= 1) continue;
+    for (let i = 0; i < edgeList.length; i++) {
+      for (let j = i + 1; j < edgeList.length; j++) {
+        const ptsA = edgeList[i].wirePoints || [];
+        const ptsB = edgeList[j].wirePoints || [];
+        for (let a = 1; a < ptsA.length; a++) {
+          const pt = ptsA[a];
+          for (let b = 0; b < ptsB.length - 1; b++) {
+            const b1 = ptsB[b];
+            const b2 = ptsB[b + 1];
+            const onH =
+              Math.abs(pt.y - b1.y) < 1 &&
+              Math.abs(b1.y - b2.y) < 1 &&
+              pt.x >= Math.min(b1.x, b2.x) &&
+              pt.x <= Math.max(b1.x, b2.x);
+            const onV =
+              Math.abs(pt.x - b1.x) < 1 &&
+              Math.abs(b1.x - b2.x) < 1 &&
+              pt.y >= Math.min(b1.y, b2.y) &&
+              pt.y <= Math.max(b1.y, b2.y);
+            if (onH || onV) {
+              const key = `${Math.round(pt.x)},${Math.round(pt.y)}`;
+              if (!junctionSet.has(key)) {
+                junctionSet.add(key);
+                junctions.push({ x: pt.x, y: pt.y, netName: net });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  graph.junctions = junctions;
 }
 
 // --------------------------------------------------------------------------
@@ -961,11 +1110,53 @@ export function parseVerilogToSchematicGraph(
   }
 
   const outputLayer = maxLayer + 1;
+
+  // 7b. ALAP (As Late As Possible) Layer Balancing
+  // Computes backward layer constraints to pull long-edge nodes closer to their consumers,
+  // freeing up intermediate layer congestion (e.g. g3 placed at layer 3 directly beside g5).
+  const alapMap = new Map<string, number>();
   for (const n of nodes) {
     if (n.kind === "port_out") {
-      nodeLayerMap.set(n.id, outputLayer);
+      alapMap.set(n.id, outputLayer);
+    } else {
+      alapMap.set(n.id, outputLayer - 1);
     }
-    n.layer = nodeLayerMap.get(n.id) ?? 1;
+  }
+
+  let alapChanged = true;
+  let alapIterations = 0;
+  while (alapChanged && alapIterations < 50) {
+    alapChanged = false;
+    alapIterations++;
+    for (const edge of edges) {
+      const targetAlap = alapMap.get(edge.targetNodeId);
+      if (targetAlap === undefined) continue;
+
+      const srcNode = nodeMap.get(edge.sourceNodeId);
+      if (!srcNode || srcNode.kind === "port_in") continue;
+
+      const currentSrcAlap = alapMap.get(edge.sourceNodeId) ?? (outputLayer - 1);
+      const maxAllowed = targetAlap - 1;
+      if (maxAllowed < currentSrcAlap) {
+        alapMap.set(edge.sourceNodeId, maxAllowed);
+        alapChanged = true;
+      }
+    }
+  }
+
+  // Assign optimal balanced layer:
+  // For nodes with slack between ASAP and ALAP (alap > asap), assign to ALAP
+  // to shorten long edges and avoid blocking intermediate layers.
+  for (const n of nodes) {
+    if (n.kind === "port_in") {
+      n.layer = 0;
+    } else if (n.kind === "port_out") {
+      n.layer = outputLayer;
+    } else {
+      const asap = nodeLayerMap.get(n.id) ?? 1;
+      const alap = alapMap.get(n.id) ?? asap;
+      n.layer = alap;
+    }
   }
 
   // 8. Construct Graph and Run Layout & Routing
