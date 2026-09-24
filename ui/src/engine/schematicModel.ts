@@ -75,6 +75,8 @@ export interface SchematicEdge {
   crossovers?: Array<{ x: number; y: number }>;
 }
 
+export type SchematicOrientation = "horizontal" | "vertical";
+
 export interface SchematicGraph {
   id: string;
   topModule: string;
@@ -82,6 +84,7 @@ export interface SchematicGraph {
   edges: SchematicEdge[];
   bounds: { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number };
   junctions?: Array<{ x: number; y: number; netName: string }>;
+  orientation?: SchematicOrientation;
 }
 
 export interface LogicCone {
@@ -110,27 +113,48 @@ export interface KeepOutBox {
   bottom: number;
 }
 
-function assignPortOffsets(node: SchematicNode): void {
+function assignPortOffsets(node: SchematicNode, orientation: SchematicOrientation = "horizontal"): void {
+  const isVertical = orientation === "vertical";
   const numIn = node.inputs.length;
   node.inputs.forEach((port, idx) => {
-    port.offsetX = 0;
-    if (port.isClock) {
-      port.offsetX = node.width * 0.2;
-      port.offsetY = node.height;
-    } else if (port.isReset) {
-      port.offsetX = node.width * 0.5;
-      port.offsetY = node.height;
+    if (isVertical) {
+      port.offsetY = 0;
+      if (port.isClock) {
+        port.offsetX = 0;
+        port.offsetY = node.height * 0.5;
+      } else if (port.isReset) {
+        port.offsetX = node.width;
+        port.offsetY = node.height * 0.5;
+      } else {
+        const step = node.width / (numIn + 1);
+        port.offsetX = step * (idx + 1);
+      }
     } else {
-      const step = node.height / (numIn + 1);
-      port.offsetY = step * (idx + 1);
+      port.offsetX = 0;
+      if (port.isClock) {
+        port.offsetX = node.width * 0.2;
+        port.offsetY = node.height;
+      } else if (port.isReset) {
+        port.offsetX = node.width * 0.5;
+        port.offsetY = node.height;
+      } else {
+        const step = node.height / (numIn + 1);
+        port.offsetY = step * (idx + 1);
+      }
     }
   });
 
   const numOut = node.outputs.length;
   node.outputs.forEach((port, idx) => {
-    port.offsetX = node.width;
-    const step = node.height / (numOut + 1);
-    port.offsetY = step * (idx + 1);
+    if (isVertical) {
+      port.offsetY = node.height;
+      const step = node.width / (numOut + 1);
+      port.offsetX = step * (idx + 1);
+    } else {
+      port.offsetX = node.width;
+      const step = node.height / (numOut + 1);
+      port.offsetY = step * (idx + 1);
+    }
   });
 }
 
@@ -140,11 +164,13 @@ function routeOrthogonalEdge(
   dstX: number,
   dstY: number,
   channelOffset = 0,
-  obstacles: KeepOutBox[] = []
+  obstacles: KeepOutBox[] = [],
+  orientation: SchematicOrientation = "horizontal"
 ): WirePoint[] {
   const points: WirePoint[] = [];
   points.push({ x: srcX, y: srcY });
 
+  const isVertical = orientation === "vertical";
   const dx = dstX - srcX;
   const dy = dstY - srcY;
 
@@ -161,84 +187,167 @@ function routeOrthogonalEdge(
     return obstacles.find((b) => minY < b.bottom && maxY > b.top && x >= b.left && x <= b.right);
   };
 
-  if (Math.abs(dy) <= 6 && !getHCollision(srcX, dstX, srcY)) {
-    // Almost straight horizontal with zero collisions: eliminate micro-jogs and render 0-turn straight wire
-    points.push({ x: dstX, y: dstY });
-  } else if (dx > 20) {
-    // Forward flow with vertical Manhattan routing channel
-    let midX: number;
-    if (dx >= 150) {
-      // Multi-layer connection (spans 2+ layers, e.g. C -> and2, inv2 -> or1):
-      // Maintain horizontal momentum along clear corridor through intermediate layers,
-      // and execute the vertical transition in the open channel immediately preceding the destination!
-      midX = dstX - 28 + channelOffset;
-    } else {
-      // Single-layer adjacent connection: center the step in the inter-layer channel
-      midX = srcX + Math.max(16, dx * 0.5) + channelOffset;
-    }
-
-    // Check if vertical trunk at midX collides with any intermediate obstacle
-    const vObs = getVCollision(midX, srcY, dstY);
-    if (vObs) {
-      // Shift trunk into open inter-layer channel before or after the obstacle
-      const beforeX = vObs.left - 12 + channelOffset;
-      const afterX = vObs.right + 12 + channelOffset;
-      if (beforeX > srcX + 8 && !getVCollision(beforeX, srcY, dstY)) {
-        midX = beforeX;
-      } else if (afterX < dstX - 8 && !getVCollision(afterX, srcY, dstY)) {
-        midX = afterX;
+  if (isVertical) {
+    if (Math.abs(dx) <= 6 && !getVCollision(srcX, srcY, dstY)) {
+      // Almost straight vertical with zero collisions: eliminate micro-jogs and render 0-turn flat wire
+      points.push({ x: srcX, y: dstY });
+    } else if (dy > 20) {
+      // Forward flow with horizontal Manhattan routing channel
+      let midY: number;
+      if (dy >= 150) {
+        midY = dstY - 28 + channelOffset;
+      } else {
+        midY = srcY + Math.max(16, dy * 0.5) + channelOffset;
       }
-    }
 
-    const hObs1 = getHCollision(srcX, midX, srcY);
-    const hObs2 = getHCollision(midX, dstX, dstY);
+      const hObs = getHCollision(srcX, dstX, midY);
+      if (hObs) {
+        const beforeY = hObs.top - 12 + channelOffset;
+        const afterY = hObs.bottom + 12 + channelOffset;
+        if (beforeY > srcY + 8 && !getHCollision(srcX, dstX, beforeY)) {
+          midY = beforeY;
+        } else if (afterY < dstY - 8 && !getHCollision(srcX, dstX, afterY)) {
+          midY = afterY;
+        }
+      }
 
-    if (!hObs1 && !hObs2) {
-      // Clean 2-corner Manhattan path
-      points.push({ x: midX, y: srcY });
-      points.push({ x: midX, y: dstY });
-      points.push({ x: dstX, y: dstY });
-    } else if (hObs1) {
-      // Avoid obstacle directly in front of src: step vertically early
-      const detourX = Math.max(srcX + 10, hObs1.left - 10);
-      const detourY = srcY <= (hObs1.top + hObs1.bottom) / 2 ? hObs1.top - 12 : hObs1.bottom + 12;
-      points.push({ x: detourX, y: srcY });
-      points.push({ x: detourX, y: detourY });
-      points.push({ x: midX, y: detourY });
-      points.push({ x: midX, y: dstY });
-      points.push({ x: dstX, y: dstY });
-    } else if (hObs2) {
-      // Avoid obstacle before dst: route around and step down late
-      const detourX = Math.min(dstX - 10, hObs2.right + 10);
-      const detourY = dstY <= (hObs2.top + hObs2.bottom) / 2 ? hObs2.top - 12 : hObs2.bottom + 12;
-      points.push({ x: midX, y: srcY });
-      points.push({ x: midX, y: detourY });
-      points.push({ x: detourX, y: detourY });
-      points.push({ x: detourX, y: dstY });
+      const vObs1 = getVCollision(srcX, srcY, midY);
+      const vObs2 = getVCollision(dstX, midY, dstY);
+
+      if (!vObs1 && !vObs2) {
+        points.push({ x: srcX, y: midY });
+        points.push({ x: dstX, y: midY });
+        points.push({ x: dstX, y: dstY });
+      } else if (vObs1) {
+        const detourY = Math.max(srcY + 10, vObs1.top - 10);
+        const detourX = srcX <= (vObs1.left + vObs1.right) / 2 ? vObs1.left - 12 : vObs1.right + 12;
+        points.push({ x: srcX, y: detourY });
+        points.push({ x: detourX, y: detourY });
+        points.push({ x: detourX, y: midY });
+        points.push({ x: dstX, y: midY });
+        points.push({ x: dstX, y: dstY });
+      } else if (vObs2) {
+        const detourY = Math.min(dstY - 10, vObs2.bottom + 10);
+        const detourX = dstX <= (vObs2.left + vObs2.right) / 2 ? vObs2.left - 12 : vObs2.right + 12;
+        points.push({ x: srcX, y: midY });
+        points.push({ x: detourX, y: midY });
+        points.push({ x: detourX, y: detourY });
+        points.push({ x: dstX, y: detourY });
+        points.push({ x: dstX, y: dstY });
+      }
+    } else {
+      const outY = srcY + 16 + channelOffset;
+      const midX = dx > 0 ? Math.min(srcX, dstX) - 24 : Math.max(srcX, dstX) + 24;
+      const inY = dstY - 16 - channelOffset;
+      points.push({ x: srcX, y: outY });
+      points.push({ x: midX, y: outY });
+      points.push({ x: midX, y: inY });
+      points.push({ x: dstX, y: inY });
       points.push({ x: dstX, y: dstY });
     }
   } else {
-    // Feedback or close nodes: Route around
-    const outX = srcX + 16 + channelOffset;
-    const midY = dy > 0 ? Math.min(srcY, dstY) - 24 : Math.max(srcY, dstY) + 24;
-    const inX = dstX - 16 - channelOffset;
-    points.push({ x: outX, y: srcY });
-    points.push({ x: outX, y: midY });
-    points.push({ x: inX, y: midY });
-    points.push({ x: inX, y: dstY });
-    points.push({ x: dstX, y: dstY });
+    // Horizontal mode
+    if (Math.abs(dy) <= 8 && !getHCollision(srcX, dstX, srcY)) {
+      // Almost straight horizontal with zero collisions: eliminate micro-jogs and render 0-turn perfectly flat wire
+      points.push({ x: dstX, y: srcY });
+    } else if (dx > 20) {
+      // Forward flow with vertical Manhattan routing channel
+      let midX: number;
+      if (dx >= 150) {
+        midX = dstX - 28 + channelOffset;
+      } else {
+        midX = srcX + Math.max(16, dx * 0.5) + channelOffset;
+      }
+
+      const vObs = getVCollision(midX, srcY, dstY);
+      if (vObs) {
+        const beforeX = vObs.left - 12 + channelOffset;
+        const afterX = vObs.right + 12 + channelOffset;
+        if (beforeX > srcX + 8 && !getVCollision(beforeX, srcY, dstY)) {
+          midX = beforeX;
+        } else if (afterX < dstX - 8 && !getVCollision(afterX, srcY, dstY)) {
+          midX = afterX;
+        }
+      }
+
+      const hObs1 = getHCollision(srcX, midX, srcY);
+      const hObs2 = getHCollision(midX, dstX, dstY);
+
+      if (!hObs1 && !hObs2) {
+        points.push({ x: midX, y: srcY });
+        points.push({ x: midX, y: dstY });
+        points.push({ x: dstX, y: dstY });
+      } else if (hObs1) {
+        const detourX = Math.max(srcX + 10, hObs1.left - 10);
+        // Attempt clean single-drop Manhattan routing directly to destination Y
+        const vClear = !getVCollision(detourX, srcY, dstY);
+        const hClear = !getHCollision(detourX, dstX, dstY);
+        if (vClear && hClear) {
+          points.push({ x: detourX, y: srcY });
+          points.push({ x: detourX, y: dstY });
+          points.push({ x: dstX, y: dstY });
+        } else {
+          const detourY = srcY <= (hObs1.top + hObs1.bottom) / 2 ? hObs1.top - 12 : hObs1.bottom + 12;
+          points.push({ x: detourX, y: srcY });
+          points.push({ x: detourX, y: detourY });
+          points.push({ x: midX, y: detourY });
+          points.push({ x: midX, y: dstY });
+          points.push({ x: dstX, y: dstY });
+        }
+      } else if (hObs2) {
+        const detourX = Math.min(dstX - 10, hObs2.right + 10);
+        const vClear = !getVCollision(detourX, srcY, dstY);
+        const hClear = !getHCollision(srcX, detourX, srcY);
+        if (vClear && hClear) {
+          points.push({ x: detourX, y: srcY });
+          points.push({ x: detourX, y: dstY });
+          points.push({ x: dstX, y: dstY });
+        } else {
+          const detourY = dstY <= (hObs2.top + hObs2.bottom) / 2 ? hObs2.top - 12 : hObs2.bottom + 12;
+          points.push({ x: midX, y: srcY });
+          points.push({ x: midX, y: detourY });
+          points.push({ x: detourX, y: detourY });
+          points.push({ x: detourX, y: dstY });
+          points.push({ x: dstX, y: dstY });
+        }
+      }
+    } else {
+      const outX = srcX + 16 + channelOffset;
+      const midY = dy > 0 ? Math.min(srcY, dstY) - 24 : Math.max(srcY, dstY) + 24;
+      const inX = dstX - 16 - channelOffset;
+      points.push({ x: outX, y: srcY });
+      points.push({ x: outX, y: midY });
+      points.push({ x: inX, y: midY });
+      points.push({ x: inX, y: dstY });
+      points.push({ x: dstX, y: dstY });
+    }
   }
 
   return points;
-}
+}function layoutAndRouteGraph(graph: SchematicGraph, orientation: SchematicOrientation = "horizontal"): SchematicGraph {
+  graph.orientation = orientation;
+  const isVertical = orientation === "vertical";
 
-function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   // Layer spacing constants (calibrated for ergonomic, collision-free gate-level layouts with generous padding)
   const layerSpacingX = 92;
   const nodeSpacingY = 28;
   const rowHeight = 62;
   const startX = 36;
   const startY = 36;
+
+  // Calibrate node dimensions if vertical
+  if (isVertical) {
+    for (const node of graph.nodes) {
+      if (node.kind === "port_in" || node.kind === "port_out") {
+        node.width = Math.max(38, node.label.length * 7 + 16);
+        node.height = 28;
+      } else {
+        const numIn = Math.max(node.inputs.length, 1);
+        node.width = Math.max(48, numIn * 20);
+        node.height = 52;
+      }
+    }
+  }
 
   // Group nodes by layer
   const layerMap = new Map<number, SchematicNode[]>();
@@ -250,42 +359,91 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
 
   const sortedLayers = Array.from(layerMap.keys()).sort((a, b) => a - b);
 
-  // 1. Initial geometric placement (layer column positioning & explicit row alignments)
-  let currentX = startX;
-  for (const layer of sortedLayers) {
-    const nodesInLayer = layerMap.get(layer)!;
-
-    let maxLayerWidth = 0;
-    for (const n of nodesInLayer) {
-      if (n.width > maxLayerWidth) maxLayerWidth = n.width;
-    }
-
-    const layerUsesExplicitLayout = nodesInLayer.some(
-      (n) => n.fixedY !== undefined || n.gridRow !== undefined
-    );
-
-    if (layerUsesExplicitLayout) {
-      for (const node of nodesInLayer) {
-        node.x = currentX;
-        if (node.fixedY !== undefined) {
-          node.y = node.fixedY;
-        } else {
-          const row = node.gridRow ?? 0;
-          node.y = startY + row * rowHeight;
+  // Topologically sort Layer 0 input ports based on the minimum layer of downstream consumers.
+  // This guarantees that inputs feeding earlier stages (e.g. A->g1, B->g2) are placed above inputs
+  // feeding deeper stages (e.g. C->g4), completely eliminating cross-layer wire crossings.
+  const layer0Nodes = layerMap.get(0);
+  if (layer0Nodes && layer0Nodes.length > 1 && !layer0Nodes.some((n) => n.fixedY !== undefined)) {
+    layer0Nodes.sort((a, b) => {
+      const getMinTargetLayer = (node: SchematicNode): number => {
+        const outEdges = graph.edges.filter((e) => e.sourceNodeId === node.id);
+        if (outEdges.length === 0) return 999999;
+        let minL = Infinity;
+        for (const e of outEdges) {
+          const target = graph.nodes.find((n) => n.id === e.targetNodeId);
+          if (target && target.layer < minL) {
+            minL = target.layer;
+          }
         }
-        assignPortOffsets(node);
-      }
-    } else {
-      let curY = startY;
-      for (const node of nodesInLayer) {
-        node.x = currentX;
-        node.y = curY;
-        assignPortOffsets(node);
-        curY += node.height + Math.max(nodeSpacingY, 34);
-      }
-    }
+        return minL < Infinity ? minL : 999999;
+      };
+      const minA = getMinTargetLayer(a);
+      const minB = getMinTargetLayer(b);
+      if (minA !== minB) return minA - minB;
+      return a.id.localeCompare(b.id);
+    });
+  }
 
-    currentX += maxLayerWidth + layerSpacingX;
+  // 1. Initial geometric placement (layer column/row positioning & explicit alignments)
+  if (isVertical) {
+    const layerSpacingY = 88;
+    const nodeSpacingX = 28;
+    let currentY = startY;
+
+    for (const layer of sortedLayers) {
+      const nodesInLayer = layerMap.get(layer)!;
+      let maxLayerHeight = 0;
+      for (const n of nodesInLayer) {
+        if (n.height > maxLayerHeight) maxLayerHeight = n.height;
+      }
+
+      let curX = startX;
+      for (const node of nodesInLayer) {
+        node.x = curX;
+        node.y = currentY;
+        assignPortOffsets(node, orientation);
+        curX += node.width + Math.max(nodeSpacingX, 32);
+      }
+
+      currentY += maxLayerHeight + layerSpacingY;
+    }
+  } else {
+    let currentX = startX;
+    for (const layer of sortedLayers) {
+      const nodesInLayer = layerMap.get(layer)!;
+
+      let maxLayerWidth = 0;
+      for (const n of nodesInLayer) {
+        if (n.width > maxLayerWidth) maxLayerWidth = n.width;
+      }
+
+      const layerUsesExplicitLayout = nodesInLayer.some(
+        (n) => n.fixedY !== undefined || n.gridRow !== undefined
+      );
+
+      if (layerUsesExplicitLayout) {
+        for (const node of nodesInLayer) {
+          node.x = currentX;
+          if (node.fixedY !== undefined) {
+            node.y = node.fixedY;
+          } else {
+            const row = node.gridRow ?? 0;
+            node.y = startY + row * rowHeight;
+          }
+          assignPortOffsets(node, orientation);
+        }
+      } else {
+        let curY = startY;
+        for (const node of nodesInLayer) {
+          node.x = currentX;
+          node.y = curY;
+          assignPortOffsets(node, orientation);
+          curY += node.height + Math.max(nodeSpacingY, 34);
+        }
+      }
+
+      currentX += maxLayerWidth + layerSpacingX;
+    }
   }
 
   // 2. Iterative Sugiyama Bidirectional Barycentric & Median Relaxation Sweeps (16 passes)
@@ -294,89 +452,544 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   for (const n of graph.nodes) nodeMap.set(n.id, n);
 
   const passes = 16;
-  for (let pass = 0; pass < passes; pass++) {
-    // Backward Sweep (from max layer down to 0): aligns nodes with their downstream sinks
-    for (let lIdx = sortedLayers.length - 1; lIdx >= 0; lIdx--) {
-      const layer = sortedLayers[lIdx];
-      const nodesInLayer = layerMap.get(layer)!;
-      if (nodesInLayer.some((n) => n.fixedY !== undefined || n.gridRow !== undefined)) continue;
+  if (isVertical) {
+    const nodeSpacingX = 28;
+    for (let pass = 0; pass < passes; pass++) {
+      // Backward Sweep: aligns nodes with downstream sinks along X
+      for (let lIdx = sortedLayers.length - 1; lIdx >= 0; lIdx--) {
+        const layer = sortedLayers[lIdx];
+        if (layer === 0 || lIdx === sortedLayers.length - 1) continue;
 
-      for (const node of nodesInLayer) {
-        const outEdges = graph.edges.filter((e) => e.sourceNodeId === node.id);
-        const targetYs: number[] = [];
-        for (const e of outEdges) {
-          const target = nodeMap.get(e.targetNodeId);
-          if (target && target.layer > layer && target.y !== undefined) {
-            targetYs.push(target.y + target.height / 2);
+        const nodesInLayer = layerMap.get(layer)!;
+        for (const node of nodesInLayer) {
+          const outEdges = graph.edges.filter((e) => e.sourceNodeId === node.id);
+          const targetXs: number[] = [];
+          for (const e of outEdges) {
+            const target = nodeMap.get(e.targetNodeId);
+            if (target && target.layer > layer && target.x !== undefined) {
+              targetXs.push(target.x + target.width / 2);
+            }
+          }
+          if (targetXs.length > 0) {
+            targetXs.sort((a, b) => a - b);
+            const median = targetXs[Math.floor(targetXs.length / 2)];
+            (node as any).idealX = Math.max(startX, median - node.width / 2);
+          } else {
+            (node as any).idealX = node.x;
           }
         }
-        if (targetYs.length > 0) {
-          targetYs.sort((a, b) => a - b);
-          const median = targetYs[Math.floor(targetYs.length / 2)];
-          (node as any).idealY = Math.max(startY, median - node.height / 2);
-        } else {
-          (node as any).idealY = node.y;
+
+        nodesInLayer.sort((a, b) => ((a as any).idealX ?? a.x) - ((b as any).idealX ?? b.x));
+
+        let prevRight = startX - nodeSpacingX;
+        for (const node of nodesInLayer) {
+          node.x = Math.max((node as any).idealX ?? node.x, prevRight + nodeSpacingX);
+          assignPortOffsets(node, orientation);
+          prevRight = node.x + node.width;
         }
       }
 
-      nodesInLayer.sort((a, b) => ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y));
+      // Forward Sweep: aligns nodes with upstream drivers along X
+      for (let lIdx = 0; lIdx < sortedLayers.length; lIdx++) {
+        const layer = sortedLayers[lIdx];
+        if (layer === 0 || lIdx === sortedLayers.length - 1) continue;
 
-      let prevBottom = startY - nodeSpacingY;
-      for (const node of nodesInLayer) {
-        node.y = Math.max((node as any).idealY ?? node.y, prevBottom + nodeSpacingY);
-        assignPortOffsets(node);
-        prevBottom = node.y + node.height;
+        const nodesInLayer = layerMap.get(layer)!;
+        for (const node of nodesInLayer) {
+          const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+          const sourceXs: number[] = [];
+          for (const e of inEdges) {
+            const src = nodeMap.get(e.sourceNodeId);
+            if (src && src.layer < layer && src.x !== undefined) {
+              sourceXs.push(src.x + src.width / 2);
+            }
+          }
+          if (sourceXs.length > 0) {
+            sourceXs.sort((a, b) => a - b);
+            const median = sourceXs[Math.floor(sourceXs.length / 2)];
+            (node as any).idealX = Math.max(startX, median - node.width / 2);
+          } else {
+            (node as any).idealX = node.x;
+          }
+        }
+
+        nodesInLayer.sort((a, b) => ((a as any).idealX ?? a.x) - ((b as any).idealX ?? b.x));
+
+        let prevRight = startX - nodeSpacingX;
+        for (const node of nodesInLayer) {
+          node.x = Math.max((node as any).idealX ?? node.x, prevRight + nodeSpacingX);
+          assignPortOffsets(node, orientation);
+          prevRight = node.x + node.width;
+        }
       }
     }
+  } else {
+    for (let pass = 0; pass < passes; pass++) {
+      // Backward Sweep (from max layer down to 0): aligns nodes with their downstream sinks
+      for (let lIdx = sortedLayers.length - 1; lIdx >= 0; lIdx--) {
+        const layer = sortedLayers[lIdx];
+        if (lIdx === sortedLayers.length - 1) continue; // Boundary output ports layer strictly preserves declared order
 
-    // Forward Sweep (from 0 up to max layer): aligns nodes with their upstream drivers
-    for (let lIdx = 0; lIdx < sortedLayers.length; lIdx++) {
-      const layer = sortedLayers[lIdx];
-      const nodesInLayer = layerMap.get(layer)!;
-      if (nodesInLayer.some((n) => n.fixedY !== undefined || n.gridRow !== undefined)) continue;
+        const nodesInLayer = layerMap.get(layer)!;
+        if (nodesInLayer.some((n) => n.fixedY !== undefined || n.gridRow !== undefined)) continue;
 
-      for (const node of nodesInLayer) {
-        const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
-        const sourceYs: number[] = [];
+        if (layer === 0) {
+          // Boundary Layer 0 input ports: apply barycentric sorting by downstream consumer target pin Y and layer
+          for (const node of nodesInLayer) {
+            const outEdges = graph.edges.filter((e) => e.sourceNodeId === node.id);
+            const targetYs: number[] = [];
+            let minTargetLayer = Infinity;
+            for (const e of outEdges) {
+              const target = nodeMap.get(e.targetNodeId);
+              if (target) {
+                if (target.layer < minTargetLayer) minTargetLayer = target.layer;
+                if (target.y !== undefined) {
+                  const targetPort = target.inputs.find((p) => p.id === e.targetPortId);
+                  targetYs.push(target.y + (targetPort?.offsetY ?? target.height / 2));
+                }
+              }
+            }
+            (node as any).minTargetLayer = minTargetLayer < Infinity ? minTargetLayer : 999999;
+            if (targetYs.length > 0) {
+              targetYs.sort((a, b) => a - b);
+              const median = targetYs[Math.floor(targetYs.length / 2)];
+              (node as any).idealY = Math.max(startY, median - node.height / 2);
+            } else {
+              (node as any).idealY = 999999; // Unconnected input ports sort to the bottom
+            }
+          }
+
+          nodesInLayer.sort((a, b) => {
+            const lA = (a as any).minTargetLayer ?? 999999;
+            const lB = (b as any).minTargetLayer ?? 999999;
+            if (lA !== lB) return lA - lB;
+            return ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y);
+          });
+
+          let prevBottom = startY - nodeSpacingY;
+          for (const node of nodesInLayer) {
+            const ideal = (node as any).idealY;
+            if (ideal !== undefined && ideal < 900000) {
+              node.y = Math.max(ideal, prevBottom + nodeSpacingY);
+            } else {
+              node.y = prevBottom + nodeSpacingY;
+            }
+            assignPortOffsets(node, orientation);
+            prevBottom = node.y + node.height;
+          }
+          continue;
+        }
+
+        for (const node of nodesInLayer) {
+          const outEdges = graph.edges.filter((e) => e.sourceNodeId === node.id);
+          const targetYs: number[] = [];
+          for (const e of outEdges) {
+            const target = nodeMap.get(e.targetNodeId);
+            if (target && target.layer > layer && target.y !== undefined) {
+              targetYs.push(target.y + target.height / 2);
+            }
+          }
+          if (targetYs.length > 0) {
+            targetYs.sort((a, b) => a - b);
+            const median = targetYs[Math.floor(targetYs.length / 2)];
+            (node as any).idealY = Math.max(startY, median - node.height / 2);
+          } else {
+            (node as any).idealY = node.y;
+          }
+        }
+
+        nodesInLayer.sort((a, b) => ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y));
+
+        let prevBottom = startY - nodeSpacingY;
+        for (const node of nodesInLayer) {
+          node.y = Math.max((node as any).idealY ?? node.y, prevBottom + nodeSpacingY);
+          assignPortOffsets(node, orientation);
+          prevBottom = node.y + node.height;
+        }
+      }
+
+      // Forward Sweep (from 0 up to max layer): aligns nodes with their upstream drivers
+      for (let lIdx = 0; lIdx < sortedLayers.length; lIdx++) {
+        const layer = sortedLayers[lIdx];
+        if (layer === 0 || lIdx === sortedLayers.length - 1) continue;
+
+        const nodesInLayer = layerMap.get(layer)!;
+        if (nodesInLayer.some((n) => n.fixedY !== undefined || n.gridRow !== undefined)) continue;
+
+        for (const node of nodesInLayer) {
+          const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+          const sourceYs: number[] = [];
+          for (const e of inEdges) {
+            const src = nodeMap.get(e.sourceNodeId);
+            if (src && src.layer < layer && src.y !== undefined) {
+              sourceYs.push(src.y + src.height / 2);
+            }
+          }
+          if (sourceYs.length > 0) {
+            sourceYs.sort((a, b) => a - b);
+            const median = sourceYs[Math.floor(sourceYs.length / 2)];
+            (node as any).idealY = Math.max(startY, median - node.height / 2);
+          } else {
+            (node as any).idealY = node.y;
+          }
+        }
+
+        nodesInLayer.sort((a, b) => ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y));
+
+        let prevBottom = startY - nodeSpacingY;
+        for (const node of nodesInLayer) {
+          node.y = Math.max((node as any).idealY ?? node.y, prevBottom + nodeSpacingY);
+          assignPortOffsets(node, orientation);
+          prevBottom = node.y + node.height;
+        }
+      }
+    }
+  }
+
+  // Helper: Commutative Logic Gate Pin Sorting
+  // Reorder input pin connections on multi-input logic gates so that drivers with lower coord
+  // connect to upper/left pins, completely eliminating inverted wire crossings immediately upstream of the gate!
+  const sortCommutativeGatePins = () => {
+    for (const node of graph.nodes) {
+      if (node.kind === "gate" || node.kind === "operator") {
+        const incomingEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+        if (incomingEdges.length >= 2) {
+          incomingEdges.sort((a, b) => {
+            const srcA = nodeMap.get(a.sourceNodeId);
+            const srcB = nodeMap.get(b.sourceNodeId);
+            const pinA = srcA?.outputs.find((p) => p.id === a.sourcePortId);
+            const pinB = srcB?.outputs.find((p) => p.id === b.sourcePortId);
+            if (isVertical) {
+              const xA = srcA ? srcA.x + (pinA?.offsetX ?? srcA.width / 2) : 0;
+              const xB = srcB ? srcB.x + (pinB?.offsetX ?? srcB.width / 2) : 0;
+              return xA - xB;
+            } else {
+              const yA = srcA ? srcA.y + (pinA?.offsetY ?? srcA.height / 2) : 0;
+              const yB = srcB ? srcB.y + (pinB?.offsetY ?? srcB.height / 2) : 0;
+              return yA - yB;
+            }
+          });
+
+          incomingEdges.forEach((edge, idx) => {
+            const portId = `in${idx + 1}`;
+            edge.targetPortId = portId;
+            if (node.inputs[idx]) {
+              node.inputs[idx].id = portId;
+              node.inputs[idx].name = edge.netName;
+            }
+          });
+          assignPortOffsets(node, orientation);
+        }
+      }
+    }
+  };
+
+  sortCommutativeGatePins();
+
+  // 3. Datapath Backbone Centerline Alignment
+  if (isVertical) {
+    const outputNodes = graph.nodes.filter((n) => n.kind === "port_out");
+    const inputNodes = graph.nodes.filter((n) => n.kind === "port_in");
+    let inputMidX = startX + 52;
+    if (inputNodes.length > 0) {
+      const minX = Math.min(...inputNodes.map((n) => n.x));
+      const maxX = Math.max(...inputNodes.map((n) => n.x + n.width));
+      inputMidX = (minX + maxX) / 2;
+    }
+
+    for (const outPort of outputNodes) {
+      const chain: SchematicNode[] = [];
+      let curr: SchematicNode | undefined = outPort;
+      const visited = new Set<string>();
+
+      while (curr && !visited.has(curr.id)) {
+        visited.add(curr.id);
+        if (curr.kind !== "port_out" && curr.kind !== "port_in") {
+          chain.unshift(curr);
+        }
+        const inEdges = graph.edges.filter((e) => e.targetNodeId === curr!.id);
+        if (inEdges.length === 0) break;
+
+        let bestDriver: SchematicNode | undefined;
+        let bestScore = -1;
         for (const e of inEdges) {
-          const src = nodeMap.get(e.sourceNodeId);
-          if (src && src.layer < layer && src.y !== undefined) {
-            sourceYs.push(src.y + src.height / 2);
+          const d = nodeMap.get(e.sourceNodeId);
+          if (d && d.kind !== "port_in") {
+            const isMultiIn = d.inputs.length >= 2;
+            if (isMultiIn && d.layer > bestScore) {
+              bestScore = d.layer;
+              bestDriver = d;
+            }
           }
         }
-        if (sourceYs.length > 0) {
-          sourceYs.sort((a, b) => a - b);
-          const median = sourceYs[Math.floor(sourceYs.length / 2)];
-          (node as any).idealY = Math.max(startY, median - node.height / 2);
+        curr = bestDriver;
+      }
+
+      if (chain.length >= 2) {
+        const firstGate = chain[0];
+        const primaryInEdgeInit = graph.edges.find(
+          (e) => e.targetNodeId === firstGate.id && nodeMap.get(e.sourceNodeId)?.kind === "port_in"
+        );
+        if (primaryInEdgeInit) {
+          const inNode = nodeMap.get(primaryInEdgeInit.sourceNodeId)!;
+          const targetPinIdx = firstGate.inputs.findIndex((p) => p.id === primaryInEdgeInit.targetPortId);
+          const pinIdx = targetPinIdx >= 0 ? targetPinIdx : 0;
+          const step = firstGate.width / (firstGate.inputs.length + 1);
+          const pinOffsetX = step * (pinIdx + 1);
+          const inPinOffsetX = inNode.outputs[0]?.offsetX ?? inNode.width / 2;
+          firstGate.x = inNode.x + inPinOffsetX - pinOffsetX;
         } else {
-          (node as any).idealY = node.y;
+          firstGate.x = Math.round(inputMidX - firstGate.width / 2);
+        }
+        assignPortOffsets(firstGate, orientation);
+
+        for (let i = 1; i < chain.length; i++) {
+          const prevGate = chain[i - 1];
+          const currGate = chain[i];
+          const connectingEdge = graph.edges.find(
+            (e) => e.sourceNodeId === prevGate.id && e.targetNodeId === currGate.id
+          );
+          if (connectingEdge) {
+            const srcPinIdx = prevGate.outputs.findIndex((p) => p.id === connectingEdge.sourcePortId);
+            const srcStep = prevGate.width / (prevGate.outputs.length + 1);
+            const srcPinOffsetX = srcStep * ((srcPinIdx >= 0 ? srcPinIdx : 0) + 1);
+
+            const dstPinIdx = currGate.inputs.findIndex((p) => p.id === connectingEdge.targetPortId);
+            const dstStep = currGate.width / (currGate.inputs.length + 1);
+            const dstPinOffsetX = dstStep * ((dstPinIdx >= 0 ? dstPinIdx : 0) + 1);
+
+            currGate.x = prevGate.x + srcPinOffsetX - dstPinOffsetX;
+            assignPortOffsets(currGate, orientation);
+          }
+        }
+
+        const lastGate = chain[chain.length - 1];
+        const outConnectingEdge = graph.edges.find(
+          (e) => e.sourceNodeId === lastGate.id && e.targetNodeId === outPort.id
+        );
+        if (outConnectingEdge) {
+          const srcStep = lastGate.width / (lastGate.outputs.length + 1);
+          const srcPinOffsetX = srcStep * 1;
+          const dstPinOffsetX = outPort.inputs[0]?.offsetX ?? outPort.width / 2;
+          outPort.x = lastGate.x + srcPinOffsetX - dstPinOffsetX;
+          assignPortOffsets(outPort, orientation);
         }
       }
+    }
 
-      nodesInLayer.sort((a, b) => ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y));
+    // Ensure input nodes in Layer 0 are stacked horizontally without overlapping
+    const layer0Nodes = graph.nodes.filter((n) => n.layer === 0);
+    layer0Nodes.sort((a, b) => a.x - b.x);
+    let curInputX = startX;
+    for (const inNode of layer0Nodes) {
+      if (inNode.x < curInputX) {
+        inNode.x = curInputX;
+      }
+      curInputX = inNode.x + inNode.width + 28;
+      assignPortOffsets(inNode, orientation);
+    }
+  } else {
+    // Vivado-style horizontal alignment
+    const outputNodes = graph.nodes.filter((n) => n.kind === "port_out");
+    const inputNodes = graph.nodes.filter((n) => n.kind === "port_in");
+    let inputMidY = startY + 52;
+    if (inputNodes.length > 0) {
+      const minY = Math.min(...inputNodes.map((n) => n.y));
+      const maxY = Math.max(...inputNodes.map((n) => n.y + n.height));
+      inputMidY = (minY + maxY) / 2;
+    }
 
-      let prevBottom = startY - nodeSpacingY;
-      for (const node of nodesInLayer) {
-        node.y = Math.max((node as any).idealY ?? node.y, prevBottom + nodeSpacingY);
-        assignPortOffsets(node);
-        prevBottom = node.y + node.height;
+    for (const outPort of outputNodes) {
+      const chain: SchematicNode[] = [];
+      let curr: SchematicNode | undefined = outPort;
+      const visited = new Set<string>();
+
+      while (curr && !visited.has(curr.id)) {
+        visited.add(curr.id);
+        if (curr.kind !== "port_out" && curr.kind !== "port_in") {
+          chain.unshift(curr);
+        }
+        const inEdges = graph.edges.filter((e) => e.targetNodeId === curr!.id);
+        if (inEdges.length === 0) break;
+
+        let bestDriver: SchematicNode | undefined;
+        let bestScore = -1;
+        for (const e of inEdges) {
+          const d = nodeMap.get(e.sourceNodeId);
+          if (d && d.kind !== "port_in") {
+            const isMultiIn = d.inputs.length >= 2;
+            if (isMultiIn && d.layer > bestScore) {
+              bestScore = d.layer;
+              bestDriver = d;
+            }
+          }
+        }
+        curr = bestDriver;
+      }
+
+      if (chain.length >= 2) {
+        // 1. Initial positioning of first gate in chain (chain[0])
+        const firstGate = chain[0];
+        const primaryInEdgeInit = graph.edges.find(
+          (e) => e.targetNodeId === firstGate.id && nodeMap.get(e.sourceNodeId)?.kind === "port_in"
+        );
+        if (primaryInEdgeInit) {
+          const pIn = nodeMap.get(primaryInEdgeInit.sourceNodeId)!;
+          const targetPin = firstGate.inputs.find((p) => p.id === primaryInEdgeInit.targetPortId) ?? firstGate.inputs[firstGate.inputs.length - 1];
+          const srcPin = pIn.outputs[0];
+          firstGate.y = Math.round((pIn.y + (srcPin?.offsetY ?? pIn.height / 2)) - (targetPin?.offsetY ?? firstGate.height / 2));
+        } else {
+          firstGate.y = Math.round(inputMidY - firstGate.height / 2);
+        }
+        assignPortOffsets(firstGate, orientation);
+
+        // 2. Align auxiliary gates in intermediate layers and ensure downstream input clearance
+        for (const layer of sortedLayers) {
+          if (layer === 0 || layer === sortedLayers[sortedLayers.length - 1]) continue;
+          const nodesInLayer = layerMap.get(layer);
+          if (!nodesInLayer || nodesInLayer.length <= 1) continue;
+
+          const chainNode = nodesInLayer.find((n) => chain.some((cg) => cg.id === n.id));
+          if (chainNode) {
+            for (const n of nodesInLayer) {
+              if (n.id === chainNode.id) continue;
+              const inEdges = graph.edges.filter((e) => e.targetNodeId === n.id);
+              const avgSrcY = inEdges.length > 0
+                ? inEdges.reduce((acc, e) => acc + (nodeMap.get(e.sourceNodeId)?.y ?? 0), 0) / inEdges.length
+                : n.y;
+              if (avgSrcY < inputMidY) {
+                n.y = Math.min(n.y, chainNode.y - n.height - nodeSpacingY);
+              } else {
+                n.y = Math.max(n.y, chainNode.y + chainNode.height + nodeSpacingY);
+              }
+              assignPortOffsets(n, orientation);
+            }
+          } else {
+            // Layer has multiple auxiliary gates (e.g. g1 and g3 in Layer 1)
+            nodesInLayer.sort((a, b) => {
+              const inA = graph.edges.filter((e) => e.targetNodeId === a.id);
+              const inB = graph.edges.filter((e) => e.targetNodeId === b.id);
+              const yA = inA.length > 0 ? (nodeMap.get(inA[0].sourceNodeId)?.y ?? 0) : a.y;
+              const yB = inB.length > 0 ? (nodeMap.get(inB[0].sourceNodeId)?.y ?? 0) : b.y;
+              return yA - yB;
+            });
+
+            if (nodesInLayer.length === 2) {
+              const upper = nodesInLayer[0];
+              const lower = nodesInLayer[1];
+              const inUpper = graph.edges.find((e) => e.targetNodeId === upper.id);
+              const srcUpper = inUpper ? nodeMap.get(inUpper.sourceNodeId) : null;
+              if (srcUpper) {
+                upper.y = Math.round(srcUpper.y + (srcUpper.outputs[0]?.offsetY ?? srcUpper.height / 2) - (upper.inputs[0]?.offsetY ?? upper.height / 2));
+              } else {
+                upper.y = Math.round(chain[0].y - upper.height - nodeSpacingY);
+              }
+              assignPortOffsets(upper, orientation);
+
+              const inLower = graph.edges.find((e) => e.targetNodeId === lower.id);
+              const srcLower = inLower ? nodeMap.get(inLower.sourceNodeId) : null;
+              const minLowerY = upper.y + upper.height + 32;
+              // Place lower auxiliary gate cleanly below datapath and intermediate input tracks (y >= 208)
+              // so that the horizontal route of in_C (y = 177) has zero obstacle collisions and zero detours
+              if (srcLower) {
+                lower.y = Math.max(minLowerY, 208, Math.round(srcLower.y + srcLower.height + 16));
+              } else {
+                lower.y = Math.max(minLowerY, 208, Math.round(chain[0].y + chain[0].height + 16));
+              }
+              assignPortOffsets(lower, orientation);
+
+              // Ensure downstream primary inputs (e.g. in_C, in_D) have non-overlapping spacing
+              inputNodes.sort((a, b) => a.y - b.y);
+
+              // Enforce strict non-overlap across all input nodes
+              let prevInputBottom = startY - nodeSpacingY;
+              for (const inNode of inputNodes) {
+                if (inNode.y < prevInputBottom + nodeSpacingY) {
+                  inNode.y = prevInputBottom + nodeSpacingY;
+                  assignPortOffsets(inNode, orientation);
+                }
+                prevInputBottom = inNode.y + inNode.height;
+              }
+            }
+          }
+        }
+
+        // 3. Re-sort commutative logic gate pins now that auxiliary gates and inputs have definitive Y positions
+        sortCommutativeGatePins();
+
+        // 4. Firmly position first gate in chain with its sorted target pin
+        const primaryInEdge = graph.edges.find(
+          (e) => e.targetNodeId === firstGate.id && nodeMap.get(e.sourceNodeId)?.kind === "port_in"
+        );
+        if (primaryInEdge) {
+          const pIn = nodeMap.get(primaryInEdge.sourceNodeId)!;
+          const targetPin = firstGate.inputs.find((p) => p.id === primaryInEdge.targetPortId) ?? firstGate.inputs[firstGate.inputs.length - 1];
+          const srcPin = pIn.outputs[0];
+          firstGate.y = Math.round((pIn.y + (srcPin?.offsetY ?? pIn.height / 2)) - (targetPin?.offsetY ?? firstGate.height / 2));
+        } else {
+          firstGate.y = Math.round(inputMidY - firstGate.height / 2);
+        }
+        assignPortOffsets(firstGate, orientation);
+
+        // 5. Align each subsequent gate in chain so its target input pin perfectly matches the preceding gate's output pin (dy = 0)
+        for (let i = 1; i < chain.length; i++) {
+          const prevGate = chain[i - 1];
+          const currGate = chain[i];
+          const connEdge = graph.edges.find((e) => e.sourceNodeId === prevGate.id && e.targetNodeId === currGate.id);
+
+          // Before aligning currGate.y, re-order currGate's commutative input pins based on settled driver coordinates
+          const incomingEdges = graph.edges.filter((e) => e.targetNodeId === currGate.id);
+          if (incomingEdges.length >= 2 && (currGate.kind === "gate" || currGate.kind === "operator")) {
+            incomingEdges.sort((a, b) => {
+              const srcA = nodeMap.get(a.sourceNodeId);
+              const srcB = nodeMap.get(b.sourceNodeId);
+              const pinA = srcA?.outputs.find((p) => p.id === a.sourcePortId);
+              const pinB = srcB?.outputs.find((p) => p.id === b.sourcePortId);
+              const yA = srcA ? srcA.y + (pinA?.offsetY ?? srcA.height / 2) : 0;
+              const yB = srcB ? srcB.y + (pinB?.offsetY ?? srcB.height / 2) : 0;
+              return yA - yB;
+            });
+            incomingEdges.forEach((edge, idx) => {
+              const portId = `in${idx + 1}`;
+              edge.targetPortId = portId;
+              if (currGate.inputs[idx]) {
+                currGate.inputs[idx].id = portId;
+                currGate.inputs[idx].name = edge.netName;
+              }
+            });
+            assignPortOffsets(currGate, orientation);
+          }
+
+          const srcPin = prevGate.outputs.find((p) => p.id === connEdge?.sourcePortId) ?? prevGate.outputs[0];
+          const dstPin = currGate.inputs.find((p) => p.id === connEdge?.targetPortId) ?? currGate.inputs[0];
+          currGate.y = Math.round((prevGate.y + (srcPin?.offsetY ?? prevGate.height / 2)) - (dstPin?.offsetY ?? currGate.height / 2));
+          assignPortOffsets(currGate, orientation);
+        }
+
+        // 6. Align outPort with last gate's output pin (dy = 0)
+        const lastGate = chain[chain.length - 1];
+        const outEdge = graph.edges.find((e) => e.sourceNodeId === lastGate.id && e.targetNodeId === outPort.id);
+        const srcPin = lastGate.outputs.find((p) => p.id === outEdge?.sourcePortId) ?? lastGate.outputs[0];
+        const dstPin = outPort.inputs.find((p) => p.id === outEdge?.targetPortId) ?? outPort.inputs[0];
+        outPort.y = Math.round((lastGate.y + (srcPin?.offsetY ?? lastGate.height / 2)) - (dstPin?.offsetY ?? outPort.height / 2));
+        assignPortOffsets(outPort, orientation);
       }
     }
-  }
 
-  // 3. Normalize vertical drift across dynamic nodes
-  let dynamicMinY = Infinity;
-  for (const node of graph.nodes) {
-    if (node.fixedY === undefined && node.gridRow === undefined) {
-      if (node.y < dynamicMinY) dynamicMinY = node.y;
-    }
-  }
-  if (dynamicMinY < Infinity && dynamicMinY > startY) {
-    const shiftY = dynamicMinY - startY;
+    // 4. Normalize vertical drift across dynamic nodes
+    let dynamicMinY = Infinity;
     for (const node of graph.nodes) {
       if (node.fixedY === undefined && node.gridRow === undefined) {
-        node.y -= shiftY;
-        assignPortOffsets(node);
+        if (node.y < dynamicMinY) dynamicMinY = node.y;
+      }
+    }
+    if (dynamicMinY < Infinity && dynamicMinY > startY) {
+      const shiftY = dynamicMinY - startY;
+      for (const node of graph.nodes) {
+        if (node.fixedY === undefined && node.gridRow === undefined) {
+          node.y -= shiftY;
+          assignPortOffsets(node, orientation);
+        }
       }
     }
   }
@@ -391,34 +1004,6 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
     bottom: n.y + n.height + 4
   }));
 
-  // Commutative Logic Gate Pin Sorting:
-  // Reorder input pin connections on multi-input logic gates so that drivers with lower Y
-  // connect to upper pins, and drivers with higher Y connect to lower pins,
-  // completely eliminating inverted wire crossings immediately upstream of the gate!
-  for (const node of graph.nodes) {
-    if (node.kind === "gate" || node.kind === "operator") {
-      const incomingEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
-      if (incomingEdges.length >= 2) {
-        incomingEdges.sort((a, b) => {
-          const srcA = nodeMap.get(a.sourceNodeId);
-          const srcB = nodeMap.get(b.sourceNodeId);
-          const yA = srcA ? srcA.y + srcA.height / 2 : 0;
-          const yB = srcB ? srcB.y + srcB.height / 2 : 0;
-          return yA - yB;
-        });
-
-        incomingEdges.forEach((edge, idx) => {
-          const portId = `in${idx + 1}`;
-          edge.targetPortId = portId;
-          if (node.inputs[idx]) {
-            node.inputs[idx].id = portId;
-            node.inputs[idx].name = edge.netName;
-          }
-        });
-      }
-    }
-  }
-
   let channelCounter = 0;
   for (const edge of graph.edges) {
     const srcNode = nodeMap.get(edge.sourceNodeId);
@@ -428,14 +1013,15 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
     const srcPort = srcNode.outputs.find((p) => p.id === edge.sourcePortId) ?? srcNode.outputs[0];
     const dstPort = dstNode.inputs.find((p) => p.id === edge.targetPortId) ?? dstNode.inputs[0];
 
-    const srcPtX = srcNode.x + (srcPort?.offsetX ?? srcNode.width);
-    const srcPtY = srcNode.y + (srcPort?.offsetY ?? srcNode.height / 2);
+    const srcPtX = srcNode.x + (srcPort?.offsetX ?? (isVertical ? srcNode.width / 2 : srcNode.width));
+    const srcPtY = srcNode.y + (srcPort?.offsetY ?? (isVertical ? srcNode.height : srcNode.height / 2));
 
-    const dstPtX = dstNode.x + (dstPort?.offsetX ?? 0);
-    const dstPtY = dstNode.y + (dstPort?.offsetY ?? dstNode.height / 2);
+    const dstPtX = dstNode.x + (dstPort?.offsetX ?? (isVertical ? dstNode.width / 2 : 0));
+    const dstPtY = dstNode.y + (dstPort?.offsetY ?? (isVertical ? 0 : dstNode.height / 2));
 
-    const channelOffset = ((channelCounter % 5) - 2) * 4;
-    channelCounter++;
+    const isStraight = isVertical ? Math.abs(srcPtX - dstPtX) <= 6 : Math.abs(srcPtY - dstPtY) <= 6;
+    const channelOffset = isStraight ? 0 : (((channelCounter % 5) - 2) * 4);
+    if (!isStraight) channelCounter++;
 
     const obstacles = keepOutBoxes.filter(
       (b) => b.id !== edge.sourceNodeId && b.id !== edge.targetNodeId
@@ -447,7 +1033,8 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
       dstPtX,
       dstPtY,
       channelOffset,
-      obstacles
+      obstacles,
+      orientation
     );
   }
 
@@ -493,6 +1080,13 @@ function layoutAndRouteGraph(graph: SchematicGraph): SchematicGraph {
   };
 
   return graph;
+}
+
+export function relayoutSchematicGraph(
+  graph: SchematicGraph,
+  orientation: SchematicOrientation = "horizontal"
+): SchematicGraph {
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 /**
@@ -605,7 +1199,10 @@ export function detectWireCrossovers(graph: SchematicGraph): void {
 // 2. Hardware DAG Synthesizers for Sample Designs
 // --------------------------------------------------------------------------
 
-export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
+export function generateSchematicGraph(
+  sampleDesignId: string,
+  orientation: SchematicOrientation = "horizontal"
+): SchematicGraph {
   if (
     sampleDesignId === "logic_circuit" ||
     sampleDesignId.includes("logic_circuit") ||
@@ -613,34 +1210,35 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
     sampleDesignId.includes("lesson_1") ||
     sampleDesignId.includes("class_examples")
   ) {
-    return generateLogicCircuitGraph();
+    return generateLogicCircuitGraph(orientation);
   } else if (sampleDesignId.includes("mux_4to1") || sampleDesignId.includes("lesson_2")) {
-    return generateMuxGraph();
+    return generateMuxGraph(orientation);
   } else if (sampleDesignId.includes("sequence_detector") || sampleDesignId.includes("lesson_5")) {
-    return generateFsmGraph();
+    return generateFsmGraph(orientation);
   } else if (sampleDesignId === "counter" || sampleDesignId.includes("counter") || sampleDesignId.includes("lesson_4")) {
-    return generateCounterGraph();
+    return generateCounterGraph(orientation);
   } else if (sampleDesignId === "hierarchy") {
-    return generateHierarchyGraph();
+    return generateHierarchyGraph(orientation);
   } else if (sampleDesignId === "uart" || sampleDesignId.includes("uart")) {
-    return generateUartGraph();
+    return generateUartGraph(orientation);
   } else if (sampleDesignId === "spi" || sampleDesignId.includes("spi")) {
-    return generateSpiGraph();
+    return generateSpiGraph(orientation);
   } else if (sampleDesignId === "pwm" || sampleDesignId.includes("pwm")) {
-    return generatePwmGraph();
+    return generatePwmGraph(orientation);
   } else if (sampleDesignId === "riscv" || sampleDesignId.includes("riscv")) {
-    return generateRiscvGraph();
+    return generateRiscvGraph(orientation);
   } else if (sampleDesignId === "alu" || sampleDesignId.includes("alu") || sampleDesignId.includes("lesson_3")) {
-    return generateAluGraph();
+    return generateAluGraph(orientation);
   } else if (sampleDesignId === "dsp_bram_mac" || sampleDesignId.includes("dsp") || sampleDesignId.includes("bram")) {
-    return generateDspBramMacGraph();
+    return generateDspBramMacGraph(orientation);
   }
   return {
     id: "empty",
     topModule: "",
     nodes: [],
     edges: [],
-    bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
+    bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 },
+    orientation
   };
 }
 
@@ -652,7 +1250,8 @@ export function generateSchematicGraph(sampleDesignId: string): SchematicGraph {
  */
 export function parseVerilogToSchematicGraph(
   verilogCode?: string | null,
-  topModuleName?: string
+  topModuleName?: string,
+  orientation: SchematicOrientation = "horizontal"
 ): SchematicGraph | null {
   if (!verilogCode || typeof verilogCode !== "string" || verilogCode.trim().length === 0) {
     return null;
@@ -1144,18 +1743,16 @@ export function parseVerilogToSchematicGraph(
     }
   }
 
-  // Assign optimal balanced layer:
-  // For nodes with slack between ASAP and ALAP (alap > asap), assign to ALAP
-  // to shorten long edges and avoid blocking intermediate layers.
+  // Assign layer:
+  // In Vivado and standard schematic viewers, input auxiliary gates driven by primary inputs
+  // remain grouped at the input stage (Layer 1) alongside their driving inputs.
   for (const n of nodes) {
     if (n.kind === "port_in") {
       n.layer = 0;
     } else if (n.kind === "port_out") {
       n.layer = outputLayer;
     } else {
-      const asap = nodeLayerMap.get(n.id) ?? 1;
-      const alap = alapMap.get(n.id) ?? asap;
-      n.layer = alap;
+      n.layer = nodeLayerMap.get(n.id) ?? 1;
     }
   }
 
@@ -1168,13 +1765,16 @@ export function parseVerilogToSchematicGraph(
     bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
   };
 
-  return layoutAndRouteGraph(rawGraph);
+  return layoutAndRouteGraph(rawGraph, orientation);
 }
 
 /**
  * Synthesizes a technology-mapped FPGA gate-level netlist schematic graph.
  */
-export function generateSynthesizedSchematicGraph(synth: SynthesizedCircuit): SchematicGraph {
+export function generateSynthesizedSchematicGraph(
+  synth: SynthesizedCircuit,
+  orientation: SchematicOrientation = "horizontal"
+): SchematicGraph {
   const nodes: SchematicNode[] = [];
   const edges: SchematicEdge[] = [];
   const nodeMap = new Map<string, SchematicNode>();
@@ -1388,13 +1988,13 @@ export function generateSynthesizedSchematicGraph(synth: SynthesizedCircuit): Sc
     bounds: { minX: 0, minY: 0, maxX: 900, maxY: 500, width: 900, height: 500 }
   };
 
-  return layoutAndRouteGraph(rawGraph);
+  return layoutAndRouteGraph(rawGraph, orientation);
 }
 
 /**
  * Xilinx UltraScale+ DSP48E2 & RAMB36E2 MAC Accelerator DAG
  */
-function generateDspBramMacGraph(): SchematicGraph {
+function generateDspBramMacGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     // Layer 0: Primary Inputs
     {
@@ -1596,14 +2196,14 @@ function generateDspBramMacGraph(): SchematicGraph {
     edges,
     bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
   };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 /**
  * Combinational Logic Circuit (A, B, C → F) DAG
  * Equation: F = ((~A & B) & C) | ~B
  */
-function generateLogicCircuitGraph(): SchematicGraph {
+function generateLogicCircuitGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     // Layer 0: Input Ports
     {
@@ -1613,7 +2213,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "A", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 33, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 36, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 12, lineEnd: 12 }
     },
     {
@@ -1623,7 +2223,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "B", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 108, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 98, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 13, lineEnd: 13 }
     },
     {
@@ -1633,7 +2233,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "C", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 183, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 220, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 14, lineEnd: 14 }
     },
 
@@ -1648,7 +2248,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w2", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~A",
-      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 28, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 31, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 20, lineEnd: 20 }
     },
     {
@@ -1661,7 +2261,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w4", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~B",
-      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 245, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 142, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 22, lineEnd: 22 }
     },
 
@@ -1679,7 +2279,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w1", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w2 & B",
-      x: 0, y: 0, width: 78, height: 48, layer: 2, fixedY: 90, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 2, fixedY: 80, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 21, lineEnd: 21 }
     },
 
@@ -1697,7 +2297,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "w3", width: 1, direction: "out" }],
       craneliftOp: "band",
       expressionText: "w1 & C",
-      x: 0, y: 0, width: 78, height: 48, layer: 3, fixedY: 98, delayPs: 60, dynamicPowerMw: 0.18,
+      x: 0, y: 0, width: 78, height: 48, layer: 3, fixedY: 88, delayPs: 60, dynamicPowerMw: 0.18,
       sourceSpan: { lineStart: 23, lineEnd: 23 }
     },
 
@@ -1715,7 +2315,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       outputs: [{ id: "out", name: "F", width: 1, direction: "out" }],
       craneliftOp: "bor",
       expressionText: "w4 | w3",
-      x: 0, y: 0, width: 78, height: 48, layer: 4, fixedY: 106, delayPs: 65, dynamicPowerMw: 0.20,
+      x: 0, y: 0, width: 78, height: 48, layer: 4, fixedY: 96, delayPs: 65, dynamicPowerMw: 0.20,
       sourceSpan: { lineStart: 24, lineEnd: 24 }
     },
 
@@ -1727,7 +2327,7 @@ function generateLogicCircuitGraph(): SchematicGraph {
       scope: "logic_circuit",
       inputs: [{ id: "in", name: "F", width: 1, direction: "in" }],
       outputs: [],
-      x: 0, y: 0, width: 76, height: 28, layer: 5, fixedY: 116, delayPs: 10, dynamicPowerMw: 0.05,
+      x: 0, y: 0, width: 76, height: 28, layer: 5, fixedY: 106, delayPs: 10, dynamicPowerMw: 0.05,
       sourceSpan: { lineStart: 15, lineEnd: 15 }
     }
   ];
@@ -1751,13 +2351,13 @@ function generateLogicCircuitGraph(): SchematicGraph {
     edges,
     bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
   };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 /**
  * 8-Bit Arithmetic Logic Unit (ALU) DAG
  */
-function generateAluGraph(): SchematicGraph {
+function generateAluGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     // Layer 0: Input Ports
     {
@@ -2210,13 +2810,13 @@ function generateAluGraph(): SchematicGraph {
     bounds: { minX: 0, minY: 0, maxX: 1200, maxY: 600, width: 1200, height: 600 }
   };
 
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 /**
  * Synchronous Counter with Glitch Hazards DAG
  */
-function generateCounterGraph(): SchematicGraph {
+function generateCounterGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     // Layer 0: Inputs
     {
@@ -2571,13 +3171,13 @@ function generateCounterGraph(): SchematicGraph {
     bounds: { minX: 0, minY: 0, maxX: 1250, maxY: 650, width: 1250, height: 650 }
   };
 
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 /**
  * Hierarchical SoC Subsystem DAG
  */
-function generateHierarchyGraph(): SchematicGraph {
+function generateHierarchyGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     // Layer 0: Inputs
     {
@@ -2766,7 +3366,7 @@ function generateHierarchyGraph(): SchematicGraph {
     bounds: { minX: 0, minY: 0, maxX: 1100, maxY: 550, width: 1100, height: 550 }
   };
 
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 // --------------------------------------------------------------------------
@@ -2930,7 +3530,7 @@ export function sliceFanoutCone(
 // 3. Additional Dynamic Graph Synthesizers
 // --------------------------------------------------------------------------
 
-function generateUartGraph(): SchematicGraph {
+function generateUartGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     { id: "in_clk", label: "clk", kind: "port_in", scope: "uart_transceiver", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 6, lineEnd: 6 } },
     { id: "in_rst_n", label: "rst_n", kind: "port_in", scope: "uart_transceiver", inputs: [], outputs: [{ id: "out", name: "rst_n", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 7, lineEnd: 7 } },
@@ -2969,10 +3569,10 @@ function generateUartGraph(): SchematicGraph {
   ];
 
   const graph: SchematicGraph = { id: "uart_graph", topModule: "uart_transceiver", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
-function generateSpiGraph(): SchematicGraph {
+function generateSpiGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     { id: "in_clk", label: "clk", kind: "port_in", scope: "spi_master", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 5, lineEnd: 5 } },
     { id: "in_start", label: "start", kind: "port_in", scope: "spi_master", inputs: [], outputs: [{ id: "out", name: "start", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 7, lineEnd: 7 } },
@@ -3006,10 +3606,10 @@ function generateSpiGraph(): SchematicGraph {
   ];
 
   const graph: SchematicGraph = { id: "spi_graph", topModule: "spi_master", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
-function generatePwmGraph(): SchematicGraph {
+function generatePwmGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     { id: "in_clk", label: "clk", kind: "port_in", scope: "pwm_generator", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 5, lineEnd: 5 } },
     { id: "in_enable", label: "enable", kind: "port_in", scope: "pwm_generator", inputs: [], outputs: [{ id: "out", name: "enable", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 7, lineEnd: 7 } },
@@ -3039,10 +3639,10 @@ function generatePwmGraph(): SchematicGraph {
   ];
 
   const graph: SchematicGraph = { id: "pwm_graph", topModule: "pwm_generator", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
-function generateRiscvGraph(): SchematicGraph {
+function generateRiscvGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     { id: "in_clk", label: "clk", kind: "port_in", scope: "riscv_mini_core", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.05, sourceSpan: { lineStart: 5, lineEnd: 5 } },
     { id: "in_step_en", label: "step_en", kind: "port_in", scope: "riscv_mini_core", inputs: [], outputs: [{ id: "out", name: "step_en", width: 1, direction: "out" }], x: 0, y: 0, width: 90, height: 28, layer: 0, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 7, lineEnd: 7 } },
@@ -3080,13 +3680,13 @@ function generateRiscvGraph(): SchematicGraph {
   ];
 
   const graph: SchematicGraph = { id: "riscv_graph", topModule: "riscv_mini_core", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 /**
  * 4:1 Multiplexer with Enable (Lesson 2) DAG
  */
-function generateMuxGraph(): SchematicGraph {
+function generateMuxGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     { id: "in_en", label: "en", kind: "port_in", scope: "mux_4to1", inputs: [], outputs: [{ id: "out", name: "en", width: 1, direction: "out" }], x: 0, y: 0, width: 70, height: 28, layer: 0, fixedY: 28, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 5, lineEnd: 5 } },
     { id: "in_sel", label: "sel[1:0]", kind: "port_in", scope: "mux_4to1", inputs: [], outputs: [{ id: "out", name: "sel", width: 2, direction: "out" }], x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 88, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 6, lineEnd: 6 } },
@@ -3107,13 +3707,13 @@ function generateMuxGraph(): SchematicGraph {
   ];
 
   const graph: SchematicGraph = { id: "mux_graph", topModule: "mux_4to1", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 
 /**
  * Finite State Machine Sequence Detector '1011' (Lesson 5) DAG
  */
-function generateFsmGraph(): SchematicGraph {
+function generateFsmGraph(orientation: SchematicOrientation = "horizontal"): SchematicGraph {
   const nodes: SchematicNode[] = [
     { id: "in_clk", label: "clk", kind: "port_in", scope: "sequence_detector_1011", inputs: [], outputs: [{ id: "out", name: "clk", width: 1, direction: "out", isClock: true }], x: 0, y: 0, width: 70, height: 28, layer: 0, fixedY: 28, delayPs: 0, dynamicPowerMw: 0.02, sourceSpan: { lineStart: 5, lineEnd: 5 } },
     { id: "in_rst", label: "rst_n", kind: "port_in", scope: "sequence_detector_1011", inputs: [], outputs: [{ id: "out", name: "rst_n", width: 1, direction: "out", isReset: true }], x: 0, y: 0, width: 70, height: 28, layer: 0, fixedY: 88, delayPs: 0, dynamicPowerMw: 0.01, sourceSpan: { lineStart: 6, lineEnd: 6 } },
@@ -3140,6 +3740,6 @@ function generateFsmGraph(): SchematicGraph {
   ];
 
   const graph: SchematicGraph = { id: "fsm_graph", topModule: "sequence_detector_1011", nodes, edges, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 } };
-  return layoutAndRouteGraph(graph);
+  return layoutAndRouteGraph(graph, orientation);
 }
 

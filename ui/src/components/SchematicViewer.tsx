@@ -15,13 +15,18 @@ import {
   Download,
   Copy,
   Check,
-  Cpu
+  Cpu,
+  ArrowRightLeft,
+  ArrowUpDown,
+  MoreVertical,
+  RotateCcw
 } from "lucide-react";
 import { SimulationState, engineBridge } from "../engine/engineBridge";
 import {
   SchematicGraph,
   SchematicNode,
   SchematicEdge,
+  SchematicOrientation,
   LogicCone,
   generateSchematicGraph,
   parseVerilogToSchematicGraph,
@@ -100,6 +105,26 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     } catch {}
     return "rtl";
   });
+
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const isCompact = (containerWidth > 0 ? containerWidth : (typeof window !== "undefined" ? window.innerWidth : 1000)) <= 768;
+
+  // Schematic Layout Orientation: Horizontal (desktop default) vs Vertical (mobile/portrait optimized)
+  const [orientation, setOrientation] = useState<SchematicOrientation>(() => {
+    try {
+      const mobile = typeof window !== "undefined" && window.innerWidth <= 768;
+      const key = mobile ? "axiom_schematic_orientation_mobile" : "axiom_schematic_orientation_desktop";
+      const saved = localStorage.getItem(key);
+      if (saved === "horizontal" || saved === "vertical") return saved;
+      const legacy = localStorage.getItem("axiom_schematic_orientation");
+      if (legacy === "horizontal" || legacy === "vertical") return legacy;
+      if (mobile) {
+        return "vertical";
+      }
+    } catch {}
+    return "horizontal";
+  });
+
   const [synthCircuit, setSynthCircuit] = useState<SynthesizedCircuit | null>(null);
   const [synthLoading, setSynthLoading] = useState<boolean>(false);
   const [copiedInit, setCopiedInit] = useState<boolean>(false);
@@ -110,6 +135,41 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       localStorage.setItem("axiom_schematic_mode", schematicMode);
     } catch {}
   }, [schematicMode]);
+
+  useEffect(() => {
+    try {
+      const mobile = typeof window !== "undefined" && window.innerWidth <= 768;
+      const key = mobile ? "axiom_schematic_orientation_mobile" : "axiom_schematic_orientation_desktop";
+      localStorage.setItem(key, orientation);
+      localStorage.setItem("axiom_schematic_orientation", orientation);
+    } catch {}
+  }, [orientation]);
+
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState<boolean>(false);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close Three-Dots popover when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!isMoreMenuOpen) return;
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMoreMenuOpen]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -140,20 +200,20 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   // Synthesize Hardware DAG for active design (dynamic source netlist parser with sample fallback)
   const rtlGraph = useMemo<SchematicGraph>(() => {
     if (verilogSource && verilogSource.trim().length > 0) {
-      const dynamicGraph = parseVerilogToSchematicGraph(verilogSource, topModule || activeDesignId);
+      const dynamicGraph = parseVerilogToSchematicGraph(verilogSource, topModule || activeDesignId, orientation);
       if (dynamicGraph && dynamicGraph.nodes.length > 0) {
         return dynamicGraph;
       }
     }
-    return generateSchematicGraph(activeDesignId);
-  }, [activeDesignId, verilogSource, topModule]);
+    return generateSchematicGraph(activeDesignId, orientation);
+  }, [activeDesignId, verilogSource, topModule, orientation]);
 
   const synthGraph = useMemo<SchematicGraph | null>(() => {
     if (synthCircuit) {
-      return generateSynthesizedSchematicGraph(synthCircuit);
+      return generateSynthesizedSchematicGraph(synthCircuit, orientation);
     }
     return null;
-  }, [synthCircuit]);
+  }, [synthCircuit, orientation]);
 
   const graph = (schematicMode === "synth" && synthGraph) ? synthGraph : rtlGraph;
 
@@ -209,10 +269,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     }
   }, [activeDesignId, synthCircuit]);
 
-  // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale) with local persistence per mode
+  // Camera Viewport State: Pan (offsetX, offsetY) & Zoom (scale) with local persistence per mode & orientation
   const [scale, setScale] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}_${orientation}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.scale === "number" && !isNaN(parsed.scale) && parsed.scale > 0) {
@@ -224,7 +284,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   });
   const [offsetX, setOffsetX] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}_${orientation}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.offsetX === "number" && !isNaN(parsed.offsetX)) {
@@ -236,7 +296,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   });
   const [offsetY, setOffsetY] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}_${orientation}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.offsetY === "number" && !isNaN(parsed.offsetY)) {
@@ -316,18 +376,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     } catch {}
   }, [crossoverStyle]);
 
-  // Debounced camera state persistence per design and schematic mode
+  // Debounced camera state persistence per design, schematic mode, and orientation
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
         localStorage.setItem(
-          `axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`,
+          `axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}_${orientation}`,
           JSON.stringify({ scale, offsetX, offsetY })
         );
       } catch {}
     }, 200);
     return () => clearTimeout(timer);
-  }, [scale, offsetX, offsetY, activeDesignId, schematicMode]);
+  }, [scale, offsetX, offsetY, activeDesignId, schematicMode, orientation]);
 
   // Map signal names to live logic values
   const liveValuesMap = useMemo(() => {
@@ -352,6 +412,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     return "structural";
   }, [scale]);
 
+  const renderCanvasRef = useRef<() => void>(() => {});
+
   // Auto-focus camera on graph bounds: zooms in to comfortably fit the viewport with symmetrical centering
   const fitToScreen = useCallback(() => {
     if (!containerRef.current || !graph) return;
@@ -369,12 +431,24 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     const centerY = graph.bounds.minY + graphHeight / 2;
 
     if (isMobileViewport) {
-      // Mobile portrait: comfortable scale so gate shapes and wire probes are legible and clear
-      const targetScale = Math.min(Math.max((height - 140) / (graphHeight * 1.5), 0.72), 0.95);
-      setScale(targetScale);
-      setOffsetX(16); // Start cleanly from left with padding, never negative
-      const visibleH = height - 36;
-      setOffsetY(Math.max(16, (visibleH - graphHeight * targetScale) / 2 + 10));
+      if (graph.orientation === "vertical") {
+        const paddingX = 20;
+        const availWidth = Math.max(width - paddingX * 2, 100);
+        const availHeight = Math.max(height - 100, 100);
+        const scaleX = availWidth / graphWidth;
+        const scaleY = availHeight / graphHeight;
+        const targetScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.5), 1.15);
+        setScale(targetScale);
+        setOffsetX((width - graphWidth * targetScale) / 2 - graph.bounds.minX * targetScale);
+        setOffsetY(40 - graph.bounds.minY * targetScale);
+      } else {
+        // Mobile portrait horizontal: comfortable scale so gate shapes and wire probes are legible and clear
+        const targetScale = Math.min(Math.max((height - 140) / (graphHeight * 1.5), 0.72), 0.95);
+        setScale(targetScale);
+        setOffsetX(16); // Start cleanly from left with padding, never negative
+        const visibleH = height - 36;
+        setOffsetY(Math.max(16, (visibleH - graphHeight * targetScale) / 2 + 10));
+      }
     } else {
       // Desktop: calculate scale to fill the available canvas area cleanly with comfortable margins
       const toolbarHeight = 26;
@@ -398,12 +472,31 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       setOffsetX(screenCenterX - centerX * targetScale);
       setOffsetY(screenCenterY - centerY * targetScale);
     }
+    requestAnimationFrame(() => {
+      renderCanvasRef.current();
+    });
   }, [graph]);
 
-  // Load saved camera state per design & mode, or fit to screen if no cached camera exists
+  // Reset zoom scale to 100% (1.0x) and center current circuit in viewport
+  const handleResetZoom = useCallback(() => {
+    setScale(1.0);
+    if (containerRef.current && graph) {
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      const centerX = graph.bounds.minX + graph.bounds.width / 2;
+      const centerY = graph.bounds.minY + graph.bounds.height / 2;
+      setOffsetX(width / 2 - centerX);
+      setOffsetY(height / 2 - centerY);
+    }
+    requestAnimationFrame(() => {
+      renderCanvasRef.current();
+    });
+  }, [graph]);
+
+  // Load saved camera state per design, mode & orientation, or fit to screen if no cached camera exists
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}`);
+      const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}_${orientation}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.scale === "number" && !isNaN(parsed.scale) && parsed.scale > 0) {
@@ -428,19 +521,19 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       }
     } catch {}
     fitToScreen();
-  }, [activeDesignId, schematicMode, fitToScreen, graph]);
+  }, [activeDesignId, schematicMode, orientation, fitToScreen, graph]);
 
   // When synth graph finishes loading for the first time, auto-fit if not yet cached
   useEffect(() => {
     if (schematicMode === "synth" && synthGraph) {
-      const key = `axiom_schematic_cam_${activeDesignId || "default"}_synth`;
+      const key = `axiom_schematic_cam_${activeDesignId || "default"}_synth_${orientation}`;
       try {
         if (!localStorage.getItem(key)) {
           fitToScreen();
         }
       } catch {}
     }
-  }, [schematicMode, synthGraph, activeDesignId, fitToScreen]);
+  }, [schematicMode, synthGraph, activeDesignId, orientation, fitToScreen]);
 
   // Handle external signal selection (e.g. from Waveform or Sidebar)
   useEffect(() => {
@@ -512,17 +605,21 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     if (!ctx) return;
 
     try {
-      const width = canvas.width;
-      const height = canvas.height;
+      const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 3);
+      const width = containerRef.current?.clientWidth || Math.round(canvas.width / dpr);
+      const height = containerRef.current?.clientHeight || Math.round(canvas.height / dpr);
 
-      // Clear background
+      // Clear physical hardware canvas buffer
       ctx.fillStyle = "#0c1017";
-    ctx.fillRect(0, 0, width, height);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Save initial state for camera transformation
-    ctx.save();
-    ctx.translate(offsetX, offsetY);
-    ctx.scale(scale, scale);
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      // Save initial state for camera transformation
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
 
     // Draw grid lines
     const gridSize = 40;
@@ -769,7 +866,31 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       ctx.lineWidth = isSelected ? 2.5 : 1.5;
 
       // Draw the Authentic Vivado / IEEE Symbol Shape
-      drawNodeShape(ctx, node, visuals.gateType, node.x, node.y, node.width, node.height);
+      if (graph.orientation === "vertical") {
+        if (visuals.gateType === "port_in") {
+          drawPortInVertical(ctx, node.x, node.y, node.width, node.height);
+          ctx.fill();
+          ctx.stroke();
+        } else if (visuals.gateType === "port_out") {
+          drawPortOutVertical(ctx, node.x, node.y, node.width, node.height);
+          ctx.fill();
+          ctx.stroke();
+        } else if (visuals.gateType === "register" || visuals.gateType === "operator" || visuals.gateType === "module") {
+          ctx.beginPath();
+          ctx.roundRect(node.x, node.y, node.width, node.height, 5);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          // Standard logic gate: rotate 90 deg clockwise so inputs face UP, output faces DOWN
+          ctx.save();
+          ctx.translate(node.x + node.width / 2, node.y + node.height / 2);
+          ctx.rotate(Math.PI / 2);
+          drawNodeShape(ctx, node, visuals.gateType, -node.height / 2, -node.width / 2, node.height, node.width, true);
+          ctx.restore();
+        }
+      } else {
+        drawNodeShape(ctx, node, visuals.gateType, node.x, node.y, node.width, node.height, false);
+      }
 
       // Clock input notch for sequential registers
       if (visuals.gateType === "register") {
@@ -779,9 +900,15 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           const cy = node.y + clkPort.offsetY;
           ctx.fillStyle = visuals.accentColor;
           ctx.beginPath();
-          ctx.moveTo(cx - 5, cy);
-          ctx.lineTo(cx, cy - 8);
-          ctx.lineTo(cx + 5, cy);
+          if (graph.orientation === "vertical") {
+            ctx.moveTo(cx - 5, cy);
+            ctx.lineTo(cx, cy + 6);
+            ctx.lineTo(cx + 5, cy);
+          } else {
+            ctx.moveTo(cx, cy - 5);
+            ctx.lineTo(cx + 6, cy);
+            ctx.lineTo(cx, cy + 5);
+          }
           ctx.closePath();
           ctx.fill();
         }
@@ -791,22 +918,38 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       // Labels & Text Display (Vivado Standard)
       // ----------------------------------------------------------------------
 
-      // 1. Instance Name printed above the gate (Vivado style: inv1, and1, or1)
+      // 1. Instance Name printed above/beside the gate (Vivado style: inv1, and1, or1)
       if (visuals.gateType !== "port_in" && visuals.gateType !== "port_out") {
         ctx.font = "bold 10px JetBrains Mono, monospace";
         const textMetrics = ctx.measureText(visuals.instanceName);
         const textWidth = textMetrics.width;
-        const textX = node.x + node.width / 2;
-        const textY = node.y - 6;
 
-        // Solid background knockout plate matching canvas background (#0c1017)
-        // Completely isolates text from any background grid lines or passing wire paths
-        ctx.fillStyle = "#0c1017";
-        ctx.fillRect(textX - textWidth / 2 - 4, textY - 10, textWidth + 8, 14);
+        if (graph.orientation === "vertical") {
+          // In vertical mode, inputs enter from top and outputs exit bottom.
+          // Place instance name to the right of the gate where no wires exist.
+          const textX = node.x + node.width + 5;
+          const textY = node.y + 12;
 
-        ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
-        ctx.textAlign = "center";
-        ctx.fillText(visuals.instanceName, textX, textY);
+          ctx.fillStyle = "#0c1017";
+          ctx.fillRect(textX - 2, textY - 9, textWidth + 4, 12);
+
+          ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
+          ctx.textAlign = "left";
+          ctx.fillText(visuals.instanceName, textX, textY);
+        } else {
+          // Horizontal mode: place instance name above gate
+          const textX = node.x + node.width / 2;
+          const textY = node.y - 6;
+
+          // Solid background knockout plate matching canvas background (#0c1017)
+          // Completely isolates text from any background grid lines or passing wire paths
+          ctx.fillStyle = "#0c1017";
+          ctx.fillRect(textX - textWidth / 2 - 4, textY - 10, textWidth + 8, 14);
+
+          ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
+          ctx.textAlign = "center";
+          ctx.fillText(visuals.instanceName, textX, textY);
+        }
       }
 
       // 2. Interior Symbol / Port Name
@@ -826,16 +969,28 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         if (visuals.gateType === "mux") {
           ctx.font = "bold 8px JetBrains Mono, monospace";
           ctx.fillStyle = "#94a3b8";
-          ctx.textAlign = "left";
-          ctx.fillText("0", node.x + 8, node.y + 14);
-          ctx.fillText("1", node.x + 8, node.y + node.height - 10);
+          if (graph.orientation === "vertical") {
+            ctx.textAlign = "center";
+            ctx.fillText("0", node.x + 14, node.y + 12);
+            ctx.fillText("1", node.x + node.width - 14, node.y + 12);
+          } else {
+            ctx.textAlign = "left";
+            ctx.fillText("0", node.x + 8, node.y + 14);
+            ctx.fillText("1", node.x + 8, node.y + node.height - 10);
+          }
         } else if (visuals.gateType === "register") {
           ctx.font = "bold 8px JetBrains Mono, monospace";
           ctx.fillStyle = "#94a3b8";
-          ctx.textAlign = "left";
-          ctx.fillText("D", node.x + 7, node.y + 16);
-          ctx.textAlign = "right";
-          ctx.fillText("Q", node.x + node.width - 7, node.y + 16);
+          if (graph.orientation === "vertical") {
+            ctx.textAlign = "center";
+            ctx.fillText("D", node.x + node.width / 2, node.y + 12);
+            ctx.fillText("Q", node.x + node.width / 2, node.y + node.height - 6);
+          } else {
+            ctx.textAlign = "left";
+            ctx.fillText("D", node.x + 7, node.y + 16);
+            ctx.textAlign = "right";
+            ctx.fillText("Q", node.x + node.width - 7, node.y + 16);
+          }
         }
       } else if (visuals.gateType === "operator" || visuals.gateType === "module") {
         // General Operators / Modules
@@ -859,8 +1014,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         ctx.font = "bold 8.5px JetBrains Mono, monospace";
         const gMetrics = ctx.measureText(gateDelayText);
         const gWidth = gMetrics.width + 8;
-        const gX = node.x + node.width / 2;
-        const gY = node.y + node.height + 11;
+        const gX = graph.orientation === "vertical" ? node.x - gWidth / 2 - 4 : node.x + node.width / 2;
+        const gY = graph.orientation === "vertical" ? node.y + node.height / 2 : node.y + node.height + 11;
 
         ctx.fillStyle = "#0c1017";
         ctx.fillRect(gX - gWidth / 2, gY - 8, gWidth, 14);
@@ -879,7 +1034,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       // 3. Port Terminal Dots
       if (lodLevel !== "macro") {
         ctx.fillStyle = visuals.accentColor;
-        // Inputs (Left)
+        // Inputs (Left or Top)
         for (const pin of node.inputs) {
           if (pin.offsetX === undefined || pin.offsetY === undefined) continue;
           ctx.beginPath();
@@ -896,13 +1051,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               const py = node.y + pin.offsetY;
               ctx.font = "bold 7px JetBrains Mono, monospace";
               ctx.fillStyle = isClk ? "#f59e0b" : "#ef4444";
-              ctx.textAlign = "right";
-              ctx.fillText(isClk ? "CLK" : "RST", px - 4, py + 2.5);
+              if (graph.orientation === "vertical") {
+                ctx.textAlign = "center";
+                ctx.fillText(isClk ? "CLK" : "RST", px, py - 4);
+              } else {
+                ctx.textAlign = "right";
+                ctx.fillText(isClk ? "CLK" : "RST", px - 4, py + 2.5);
+              }
               ctx.fillStyle = visuals.accentColor;
             }
           }
         }
-        // Outputs (Right)
+        // Outputs (Right or Bottom)
         for (const pin of node.outputs) {
           if (pin.offsetX === undefined || pin.offsetY === undefined) continue;
           ctx.beginPath();
@@ -965,6 +1125,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         Math.min(mapHeight - 4, camH)
       );
     }
+
+    ctx.restore(); // Restore devicePixelRatio transformation
   } catch (err) {
     console.warn("Schematic renderCanvas error:", err);
   }
@@ -986,6 +1148,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     lodLevel
   ]);
 
+  useEffect(() => {
+    renderCanvasRef.current = renderCanvas;
+  }, [renderCanvas]);
+
   const prevContainerSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const hasFittedRef = useRef<boolean>(false);
 
@@ -993,6 +1159,26 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     hasFittedRef.current = false;
     prevContainerSizeRef.current = { width: 0, height: 0 };
   }, [activeDesignId]);
+
+  // Synchronous mount sizing and initial paint: guarantees canvas is sharp & non-blank instantly
+  useEffect(() => {
+    if (!containerRef.current || !canvasRef.current) return;
+    const cW = containerRef.current.clientWidth;
+    const cH = containerRef.current.clientHeight;
+    if (cW > 50 && cH > 50) {
+      setContainerWidth(cW);
+      const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 3);
+      const bufferW = Math.round(cW * dpr);
+      const bufferH = Math.round(cH * dpr);
+      if (canvasRef.current.width !== bufferW || canvasRef.current.height !== bufferH) {
+        canvasRef.current.width = bufferW;
+        canvasRef.current.height = bufferH;
+      }
+      canvasRef.current.style.width = `${cW}px`;
+      canvasRef.current.style.height = `${cH}px`;
+      renderCanvas();
+    }
+  }, [renderCanvas]);
 
   // Handle Resize & Trigger Render: Continuous ResizeObserver tracking splitter drag & window resize
   useEffect(() => {
@@ -1003,18 +1189,26 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         const newH = Math.round(entry.contentRect.height);
         if (newW <= 50 || newH <= 50) continue;
 
-        // Keep canvas buffer matching container CSS dimensions to eliminate bitmap stretching/squeezing
+        setContainerWidth(newW);
+
+        // Keep canvas buffer matching physical device pixels to eliminate blur on High-DPI/Retina screens
+        const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 3);
+        const bufferW = Math.round(newW * dpr);
+        const bufferH = Math.round(newH * dpr);
         if (canvasRef.current) {
-          if (canvasRef.current.width !== newW || canvasRef.current.height !== newH) {
-            canvasRef.current.width = newW;
-            canvasRef.current.height = newH;
+          if (canvasRef.current.width !== bufferW || canvasRef.current.height !== bufferH) {
+            canvasRef.current.width = bufferW;
+            canvasRef.current.height = bufferH;
           }
+          canvasRef.current.style.width = `${newW}px`;
+          canvasRef.current.style.height = `${newH}px`;
         }
 
         if (!hasFittedRef.current) {
           hasFittedRef.current = true;
           prevContainerSizeRef.current = { width: newW, height: newH };
           fitToScreen();
+          requestAnimationFrame(renderCanvas);
         } else {
           const prevW = prevContainerSizeRef.current.width;
           const prevH = prevContainerSizeRef.current.height;
@@ -1408,24 +1602,35 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     >
       {/* Top Schematic Toolbar */}
       <div
+        className="schematic-toolbar"
         style={{
-          height: 26,
-          minHeight: 26,
+          height: 28,
+          minHeight: 28,
           flexShrink: 0,
           backgroundColor: "var(--bg-secondary)",
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 8px",
-          zIndex: 10,
-          overflowX: "auto",
-          overflowY: "hidden",
-          whiteSpace: "nowrap",
-          scrollbarWidth: "none"
+          padding: "0 6px 0 8px",
+          zIndex: 25,
+          position: "relative",
+          userSelect: "none"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            overflowX: "auto",
+            overflowY: "hidden",
+            whiteSpace: "nowrap",
+            scrollbarWidth: "none",
+            marginRight: 6
+          }}
+        >
           {/* Dual-Mode Schematic Switcher: RTL vs Synthesized Netlist */}
           <div
             style={{
@@ -1456,7 +1661,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               title="Elaborated RTL Schematic View"
             >
               <Zap size={11} />
-              <span>RTL Schematic</span>
+              <span>{isCompact ? "RTL" : "RTL Schematic"}</span>
             </button>
 
             <button
@@ -1477,78 +1682,173 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               title="Synthesized Gate Netlist & FPGA Technology Mapping View"
             >
               <Layers size={11} />
-              <span>Synthesized Netlist</span>
+              <span>{isCompact ? "Synth" : "Synthesized Netlist"}</span>
               {synthLoading && <span style={{ fontSize: 9, opacity: 0.7 }}>(...)</span>}
             </button>
           </div>
 
-          <span
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              color: "var(--text-secondary)",
-              whiteSpace: "nowrap",
-              flexShrink: 0
-            }}
-          >
-            {`${graph.nodes.length} Cells • ${graph.edges.length} Nets`}
-          </span>
-
-          {schematicMode === "synth" && synthCircuit && (
-            <div
-              style={{
-                fontSize: 9.5,
-                padding: "1px 6px",
-                borderRadius: 3,
-                backgroundColor: "rgba(168, 85, 247, 0.15)",
-                color: "#c084fc",
-                border: "1px solid rgba(168, 85, 247, 0.3)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                flexShrink: 0
-              }}
-            >
-              <span>{synthCircuit.target_device.toUpperCase()}</span>
-              <span>•</span>
-              <span>{synthCircuit.stats.total_luts} LUTs</span>
-              <span>•</span>
-              <span>{synthCircuit.stats.total_ffs} FFs</span>
-              {synthCircuit.stats.carry4_count > 0 && (
-                <>
-                  <span>•</span>
-                  <span>{synthCircuit.stats.carry4_count} CARRY4</span>
-                </>
-              )}
-              {synthCircuit.stats.carry8_count > 0 && (
-                <>
-                  <span>•</span>
-                  <span>{synthCircuit.stats.carry8_count} CARRY8</span>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* LOD Badge */}
+          {/* Layout Orientation Toggle & Fit Button: Universal across mobile and desktop */}
           <div
             style={{
-              fontSize: 9.5,
-              padding: "1px 5px",
-              borderRadius: 3,
+              display: "flex",
+              alignItems: "center",
               backgroundColor: "var(--bg-tertiary)",
-              color: "var(--accent-cyan)",
+              borderRadius: 4,
               border: "1px solid var(--border-subtle)",
-              textTransform: "uppercase",
+              padding: "1px",
+              gap: 1,
+              flexShrink: 0
+            }}
+            title={t("schematic.orientation")}
+          >
+            <button
+              onClick={() => {
+                if (orientation !== "horizontal") {
+                  setOrientation("horizontal");
+                  setTimeout(fitToScreen, 10);
+                }
+              }}
+              style={{
+                width: "auto",
+                padding: "2px 5px",
+                fontSize: 10,
+                fontWeight: orientation === "horizontal" ? 600 : 400,
+                backgroundColor: orientation === "horizontal" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                color: orientation === "horizontal" ? "var(--accent-cyan)" : "var(--text-muted)",
+                borderRadius: 3,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                lineHeight: 1,
+                whiteSpace: "nowrap"
+              }}
+              title={t("schematic.horizontal")}
+            >
+              <ArrowRightLeft size={11} />
+              <span>H</span>
+            </button>
+            <button
+              onClick={() => {
+                if (orientation !== "vertical") {
+                  setOrientation("vertical");
+                  setTimeout(fitToScreen, 10);
+                }
+              }}
+              style={{
+                width: "auto",
+                padding: "2px 5px",
+                fontSize: 10,
+                fontWeight: orientation === "vertical" ? 600 : 400,
+                backgroundColor: orientation === "vertical" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                color: orientation === "vertical" ? "var(--accent-cyan)" : "var(--text-muted)",
+                borderRadius: 3,
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                lineHeight: 1,
+                whiteSpace: "nowrap"
+              }}
+              title={t("schematic.vertical")}
+            >
+              <ArrowUpDown size={11} />
+              <span>V</span>
+            </button>
+          </div>
+
+          <button
+            onClick={fitToScreen}
+            className="btn btn-secondary"
+            style={{
               display: "flex",
               alignItems: "center",
               gap: 3,
-              flexShrink: 0,
-              whiteSpace: "nowrap"
+              padding: "2px 6px",
+              color: "var(--accent-cyan)",
+              fontSize: 10.5,
+              fontWeight: 600,
+              flexShrink: 0
             }}
+            title={t("schematic.fitScreen")}
           >
-            <Layers size={9} />
-            <span>LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)</span>
-          </div>
+            <Maximize2 size={11} />
+            <span>{t("schematic.fitScreen")}</span>
+          </button>
+
+          {!isCompact && (
+            <>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: "var(--text-secondary)",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0
+                }}
+              >
+                {`${graph.nodes.length} Cells • ${graph.edges.length} Nets`}
+              </span>
+
+              {schematicMode === "synth" && synthCircuit && (
+                <div
+                  style={{
+                    fontSize: 9.5,
+                    padding: "1px 6px",
+                    borderRadius: 3,
+                    backgroundColor: "rgba(168, 85, 247, 0.15)",
+                    color: "#c084fc",
+                    border: "1px solid rgba(168, 85, 247, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    flexShrink: 0
+                  }}
+                >
+                  <span>{synthCircuit.target_device.toUpperCase()}</span>
+                  <span>•</span>
+                  <span>{synthCircuit.stats.total_luts} LUTs</span>
+                  <span>•</span>
+                  <span>{synthCircuit.stats.total_ffs} FFs</span>
+                  {synthCircuit.stats.carry4_count > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>{synthCircuit.stats.carry4_count} CARRY4</span>
+                    </>
+                  )}
+                  {synthCircuit.stats.carry8_count > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>{synthCircuit.stats.carry8_count} CARRY8</span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* LOD Badge */}
+              <div
+                style={{
+                  fontSize: 9.5,
+                  padding: "1px 5px",
+                  borderRadius: 3,
+                  backgroundColor: "var(--bg-tertiary)",
+                  color: "var(--accent-cyan)",
+                  border: "1px solid var(--border-subtle)",
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  flexShrink: 0,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                <Layers size={9} />
+                <span>LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)</span>
+              </div>
+            </>
+          )}
 
           {/* Live Values Toggle */}
           <button
@@ -1618,241 +1918,696 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           </button>
         </div>
 
-        {/* Action Controls: 1-Click Cone Slicing, Zoom, Fit */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 6, whiteSpace: "nowrap" }}>
-          {/* Slice Fanin Cone Button */}
-          {(typeof window === "undefined" || window.innerWidth > 768 || selectedNodeId || selectedEdgeId) && (
-            <button
-              onClick={handleSliceFanin}
-              disabled={!selectedNodeId && !selectedEdgeId}
-              title={t("schematic.fanin")}
-              className="btn btn-secondary"
-              style={{
-                fontSize: 10.5,
-                padding: "2px 6px",
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
-                cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer",
-                flexShrink: 0,
-                whiteSpace: "nowrap"
-              }}
-            >
-              <Filter size={10} />
-              <span>Fan-In [F]</span>
-            </button>
-          )}
+        {/* Action Controls: 1-Click Cone Slicing, Zoom, Crossover Style (Desktop wide only, collapsed into More menu on compact/mobile) */}
+        {!isCompact && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 6, whiteSpace: "nowrap" }}>
+            {/* Slice Fanin Cone Button */}
+            {(selectedNodeId || selectedEdgeId) && (
+              <button
+                onClick={handleSliceFanin}
+                title={t("schematic.fanin")}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: 10.5,
+                  padding: "2px 6px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                <Filter size={10} />
+                <span>Fan-In [F]</span>
+              </button>
+            )}
 
-          {/* Slice Fanout Cone Button */}
-          {(typeof window === "undefined" || window.innerWidth > 768 || selectedNodeId || selectedEdgeId) && (
-            <button
-              onClick={handleSliceFanout}
-              disabled={!selectedNodeId && !selectedEdgeId}
-              title="Slice Fan-Out Driven Tree (O)"
-              className="btn btn-secondary"
-              style={{
-                fontSize: 10.5,
-                padding: "2px 6px",
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
-                cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer",
-                flexShrink: 0,
-                whiteSpace: "nowrap"
-              }}
-            >
-              <Layers size={10} />
-              <span>Fan-Out [O]</span>
-            </button>
-          )}
+            {/* Slice Fanout Cone Button */}
+            {(selectedNodeId || selectedEdgeId) && (
+              <button
+                onClick={handleSliceFanout}
+                title="Slice Fan-Out Driven Tree (O)"
+                className="btn btn-secondary"
+                style={{
+                  fontSize: 10.5,
+                  padding: "2px 6px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                <Layers size={10} />
+                <span>Fan-Out [O]</span>
+              </button>
+            )}
 
-          {/* Clear Cone Slice */}
-          {activeCone && (
-            <button
-              onClick={handleClearSlice}
-              title="Clear active cone slice (Esc)"
-              className="btn btn-danger"
+            {/* Clear Cone Slice */}
+            {activeCone && (
+              <button
+                onClick={handleClearSlice}
+                title="Clear active cone slice (Esc)"
+                className="btn btn-danger"
+                style={{
+                  fontSize: 10.5,
+                  padding: "2px 5px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  cursor: "pointer",
+                  flexShrink: 0
+                }}
+              >
+                <X size={10} />
+                <span>{t("schematic.clearCone")}</span>
+              </button>
+            )}
+
+            {/* Export Synthesized Netlist */}
+            {schematicMode === "synth" && (
+              <button
+                onClick={handleExportSynthesizedVerilog}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: 10.5,
+                  padding: "2px 6px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  color: exportedVerilog ? "var(--accent-emerald)" : "#c084fc",
+                  border: "1px solid rgba(168, 85, 247, 0.3)",
+                  cursor: "pointer",
+                  flexShrink: 0
+                }}
+                title="Export Technology-Mapped Structural Verilog Netlist"
+              >
+                {exportedVerilog ? <Check size={11} /> : <Download size={11} />}
+                <span>{exportedVerilog ? "Exported!" : "Export Netlist"}</span>
+              </button>
+            )}
+
+            <div style={{ width: 1, height: 14, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
+
+            {/* Wire Crossover Style Selector */}
+            <div
               style={{
-                fontSize: 10.5,
-                padding: "2px 5px",
                 display: "flex",
                 alignItems: "center",
-                gap: 2,
-                cursor: "pointer",
+                backgroundColor: "var(--bg-tertiary)",
+                borderRadius: 4,
+                border: "1px solid var(--border-subtle)",
+                padding: "1px",
+                gap: 1,
                 flexShrink: 0
               }}
+              title={t("schematic.crossoverStyle")}
             >
-              <X size={10} />
-              <span>{t("schematic.clearCone")}</span>
-            </button>
-          )}
+              <button
+                onClick={() => setCrossoverStyle("arc")}
+                style={{
+                  width: "auto",
+                  minWidth: 26,
+                  padding: "2px 6px",
+                  fontSize: 10,
+                  fontWeight: crossoverStyle === "arc" ? 600 : 400,
+                  backgroundColor: crossoverStyle === "arc" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                  color: crossoverStyle === "arc" ? "var(--accent-cyan)" : "var(--text-muted)",
+                  borderRadius: 3,
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap"
+                }}
+                title={t("schematic.crossoverArc")}
+              >
+                <span>{t("schematic.crossoverArc")}</span>
+              </button>
+              <button
+                onClick={() => setCrossoverStyle("gap")}
+                style={{
+                  width: "auto",
+                  minWidth: 26,
+                  padding: "2px 6px",
+                  fontSize: 10,
+                  fontWeight: crossoverStyle === "gap" ? 600 : 400,
+                  backgroundColor: crossoverStyle === "gap" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                  color: crossoverStyle === "gap" ? "var(--accent-cyan)" : "var(--text-muted)",
+                  borderRadius: 3,
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap"
+                }}
+                title={t("schematic.crossoverGap")}
+              >
+                <span>{t("schematic.crossoverGap")}</span>
+              </button>
+              <button
+                onClick={() => setCrossoverStyle("straight")}
+                style={{
+                  width: "auto",
+                  minWidth: 26,
+                  padding: "2px 6px",
+                  fontSize: 10,
+                  fontWeight: crossoverStyle === "straight" ? 600 : 400,
+                  backgroundColor: crossoverStyle === "straight" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                  color: crossoverStyle === "straight" ? "var(--accent-cyan)" : "var(--text-muted)",
+                  borderRadius: 3,
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap"
+                }}
+                title={t("schematic.crossoverStraight")}
+              >
+                <span>{t("schematic.crossoverStraight")}</span>
+              </button>
+            </div>
 
-          {/* Export Synthesized Netlist */}
-          {schematicMode === "synth" && (
+            {/* Zoom Buttons */}
             <button
-              onClick={handleExportSynthesizedVerilog}
-              className="btn btn-secondary"
+              onClick={() => setScale((s) => Math.min(s * 1.25, 3.5))}
+              className="btn-icon"
               style={{
-                fontSize: 10.5,
-                padding: "2px 6px",
+                padding: "2px 5px",
+                backgroundColor: "var(--bg-tertiary)",
+                borderRadius: 3,
+                border: "1px solid var(--border-subtle)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
-                color: exportedVerilog ? "var(--accent-emerald)" : "#c084fc",
-                border: "1px solid rgba(168, 85, 247, 0.3)",
-                cursor: "pointer",
                 flexShrink: 0
               }}
-              title="Export Technology-Mapped Structural Verilog Netlist"
+              title={t("schematic.zoomIn")}
             >
-              {exportedVerilog ? <Check size={11} /> : <Download size={11} />}
-              <span>{exportedVerilog ? "Exported!" : "Export Netlist"}</span>
+              <ZoomIn size={11} />
             </button>
-          )}
-
-          <div style={{ width: 1, height: 14, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
-
-          {/* Wire Crossover Style Selector */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              backgroundColor: "var(--bg-tertiary)",
-              borderRadius: 4,
-              border: "1px solid var(--border-subtle)",
-              padding: "1px",
-              gap: 1,
-              flexShrink: 0
-            }}
-            title={t("schematic.crossoverStyle")}
-          >
             <button
-              onClick={() => setCrossoverStyle("arc")}
+              onClick={() => setScale((s) => Math.max(s / 1.25, 0.2))}
               className="btn-icon"
               style={{
                 padding: "2px 5px",
-                fontSize: 10,
-                fontWeight: crossoverStyle === "arc" ? 600 : 400,
-                backgroundColor: crossoverStyle === "arc" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                color: crossoverStyle === "arc" ? "var(--accent-cyan)" : "var(--text-muted)",
+                backgroundColor: "var(--bg-tertiary)",
                 borderRadius: 3,
-                border: "none",
+                border: "1px solid var(--border-subtle)",
+                color: "var(--text-muted)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                lineHeight: 1
+                flexShrink: 0
               }}
-              title={t("schematic.crossoverArc")}
+              title={t("schematic.zoomOut")}
             >
-              <span>{t("schematic.crossoverArc")}</span>
-            </button>
-            <button
-              onClick={() => setCrossoverStyle("gap")}
-              className="btn-icon"
-              style={{
-                padding: "2px 5px",
-                fontSize: 10,
-                fontWeight: crossoverStyle === "gap" ? 600 : 400,
-                backgroundColor: crossoverStyle === "gap" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                color: crossoverStyle === "gap" ? "var(--accent-cyan)" : "var(--text-muted)",
-                borderRadius: 3,
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                lineHeight: 1
-              }}
-              title={t("schematic.crossoverGap")}
-            >
-              <span>{t("schematic.crossoverGap")}</span>
-            </button>
-            <button
-              onClick={() => setCrossoverStyle("straight")}
-              className="btn-icon"
-              style={{
-                padding: "2px 5px",
-                fontSize: 10,
-                fontWeight: crossoverStyle === "straight" ? 600 : 400,
-                backgroundColor: crossoverStyle === "straight" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                color: crossoverStyle === "straight" ? "var(--accent-cyan)" : "var(--text-muted)",
-                borderRadius: 3,
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                lineHeight: 1
-              }}
-              title={t("schematic.crossoverStraight")}
-            >
-              <span>{t("schematic.crossoverStraight")}</span>
+              <ZoomOut size={11} />
             </button>
           </div>
+        )}
 
-          <div style={{ width: 1, height: 14, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
-
-          {/* Zoom Buttons */}
+        {/* Persistent Three-Dots More Options Button & Dropdown Context Menu Popover */}
+        <div ref={moreMenuRef} style={{ position: "relative", flexShrink: 0, display: "flex", alignItems: "center" }}>
           <button
-            onClick={() => setScale((s) => Math.min(s * 1.25, 3.5))}
+            onClick={() => setIsMoreMenuOpen((v) => !v)}
             className="btn-icon"
+            data-testid="schematic-more-button"
             style={{
-              padding: "2px 5px",
-              backgroundColor: "var(--bg-tertiary)",
+              padding: "3px 6px",
+              backgroundColor: isMoreMenuOpen ? "rgba(0, 240, 255, 0.15)" : "var(--bg-tertiary)",
+              color: isMoreMenuOpen ? "var(--accent-cyan)" : "var(--text-muted)",
               borderRadius: 3,
-              border: "1px solid var(--border-subtle)",
-              color: "var(--text-muted)",
+              border: `1px solid ${isMoreMenuOpen ? "var(--accent-cyan)" : "var(--border-subtle)"}`,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              flexShrink: 0
+              justifyContent: "center",
+              lineHeight: 1
             }}
-            title={t("schematic.zoomIn")}
+            title={t("schematic.moreOptions")}
+            aria-label={t("schematic.moreOptions")}
           >
-            <ZoomIn size={11} />
+            <MoreVertical size={13} />
           </button>
-          <button
-            onClick={() => setScale((s) => Math.max(s / 1.25, 0.2))}
-            className="btn-icon"
-            style={{
-              padding: "2px 5px",
-              backgroundColor: "var(--bg-tertiary)",
-              borderRadius: 3,
-              border: "1px solid var(--border-subtle)",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              flexShrink: 0
-            }}
-            title={t("schematic.zoomOut")}
-          >
-            <ZoomOut size={11} />
-          </button>
-          <button
-            onClick={fitToScreen}
-            className="btn btn-secondary"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              padding: "2px 6px",
-              color: "var(--accent-cyan)",
-              fontSize: 10.5,
-              fontWeight: 600,
-              flexShrink: 0
-            }}
-            title={t("schematic.fitScreen")}
-          >
-            <Maximize2 size={11} />
-            <span>{t("schematic.fitScreen")}</span>
-          </button>
+
+          {/* Context Menu Dropdown Popover */}
+          {isMoreMenuOpen && (
+            <div
+              data-testid="schematic-more-popover"
+              role="dialog"
+              aria-label={t("schematic.moreOptions")}
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                right: 0,
+                width: 280,
+                maxWidth: "calc(100vw - 24px)",
+                maxHeight: "80vh",
+                overflowY: "auto",
+                backgroundColor: "#0d131d",
+                border: "1px solid rgba(56, 189, 248, 0.25)",
+                borderRadius: 6,
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.75)",
+                padding: "8px",
+                zIndex: 100,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                fontSize: 11,
+                color: "var(--text-primary)"
+              }}
+            >
+              {/* Header */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingBottom: 6,
+                  borderBottom: "1px solid var(--border-subtle)"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: 11, color: "var(--accent-cyan)" }}>
+                  <MoreVertical size={12} />
+                  <span>{t("schematic.moreOptions")}</span>
+                </div>
+                <button
+                  onClick={() => setIsMoreMenuOpen(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    padding: 2,
+                    display: "flex",
+                    alignItems: "center"
+                  }}
+                  title="Close (Esc)"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+
+              {/* Section 1: Circuit Metrics */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.5px" }}>
+                  {t("schematic.circuitMetrics")}
+                </span>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "4px 8px",
+                    backgroundColor: "var(--bg-tertiary)",
+                    borderRadius: 4,
+                    border: "1px solid var(--border-subtle)"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Cpu size={12} style={{ color: "var(--accent-cyan)" }} />
+                    <span style={{ fontWeight: 600 }}>{`${graph.nodes.length} Cells • ${graph.edges.length} Nets`}</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                    LOD: {lodLevel.toUpperCase()}
+                  </span>
+                </div>
+
+                {schematicMode === "synth" && synthCircuit && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      padding: "6px 8px",
+                      backgroundColor: "rgba(168, 85, 247, 0.08)",
+                      borderRadius: 4,
+                      border: "1px solid rgba(168, 85, 247, 0.25)"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontWeight: 700, color: "#c084fc", fontSize: 10.5 }}>
+                        {synthCircuit.target_device.toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: 9.5, color: "var(--text-muted)" }}>
+                        {synthCircuit.stats.total_luts} LUTs • {synthCircuit.stats.total_ffs} FFs
+                      </span>
+                    </div>
+                    {(synthCircuit.stats.carry4_count > 0 || synthCircuit.stats.carry8_count > 0) && (
+                      <div style={{ fontSize: 9.5, color: "var(--text-muted)" }}>
+                        Carry logic: {synthCircuit.stats.carry4_count} CARRY4 • {synthCircuit.stats.carry8_count} CARRY8
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleExportSynthesizedVerilog();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      className="btn btn-secondary"
+                      style={{
+                        marginTop: 2,
+                        padding: "3px 6px",
+                        fontSize: 10,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 4,
+                        color: exportedVerilog ? "var(--accent-emerald)" : "#c084fc",
+                        border: "1px solid rgba(168, 85, 247, 0.3)"
+                      }}
+                    >
+                      {exportedVerilog ? <Check size={11} /> : <Download size={11} />}
+                      <span>{exportedVerilog ? "Exported!" : "Export Structural Verilog"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Layout & View Options */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.5px" }}>
+                  {t("schematic.layoutOptions")}
+                </span>
+
+                {/* Orientation Selector */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>{t("schematic.orientation")}</span>
+                  <div style={{ display: "flex", backgroundColor: "var(--bg-tertiary)", borderRadius: 4, border: "1px solid var(--border-subtle)", padding: 1, gap: 1 }}>
+                    <button
+                      onClick={() => {
+                        if (orientation !== "horizontal") {
+                          setOrientation("horizontal");
+                          setTimeout(fitToScreen, 10);
+                        }
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        fontSize: 10,
+                        fontWeight: orientation === "horizontal" ? 600 : 400,
+                        backgroundColor: orientation === "horizontal" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                        color: orientation === "horizontal" ? "var(--accent-cyan)" : "var(--text-muted)",
+                        borderRadius: 3,
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 3
+                      }}
+                    >
+                      <ArrowRightLeft size={10} />
+                      <span>{t("schematic.horizontal")}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (orientation !== "vertical") {
+                          setOrientation("vertical");
+                          setTimeout(fitToScreen, 10);
+                        }
+                      }}
+                      style={{
+                        padding: "3px 8px",
+                        fontSize: 10,
+                        fontWeight: orientation === "vertical" ? 600 : 400,
+                        backgroundColor: orientation === "vertical" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                        color: orientation === "vertical" ? "var(--accent-cyan)" : "var(--text-muted)",
+                        borderRadius: 3,
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 3
+                      }}
+                    >
+                      <ArrowUpDown size={10} />
+                      <span>{t("schematic.vertical")}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Wire Crossings */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>{t("schematic.crossoverStyle")}</span>
+                  <div style={{ display: "flex", backgroundColor: "var(--bg-tertiary)", borderRadius: 4, border: "1px solid var(--border-subtle)", padding: 1, gap: 1 }}>
+                    <button
+                      onClick={() => setCrossoverStyle("arc")}
+                      style={{
+                        padding: "3px 6px",
+                        fontSize: 9.5,
+                        fontWeight: crossoverStyle === "arc" ? 600 : 400,
+                        backgroundColor: crossoverStyle === "arc" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                        color: crossoverStyle === "arc" ? "var(--accent-cyan)" : "var(--text-muted)",
+                        borderRadius: 3,
+                        border: "none",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {t("schematic.crossoverArc")}
+                    </button>
+                    <button
+                      onClick={() => setCrossoverStyle("gap")}
+                      style={{
+                        padding: "3px 6px",
+                        fontSize: 9.5,
+                        fontWeight: crossoverStyle === "gap" ? 600 : 400,
+                        backgroundColor: crossoverStyle === "gap" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                        color: crossoverStyle === "gap" ? "var(--accent-cyan)" : "var(--text-muted)",
+                        borderRadius: 3,
+                        border: "none",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {t("schematic.crossoverGap")}
+                    </button>
+                    <button
+                      onClick={() => setCrossoverStyle("straight")}
+                      style={{
+                        padding: "3px 6px",
+                        fontSize: 9.5,
+                        fontWeight: crossoverStyle === "straight" ? 600 : 400,
+                        backgroundColor: crossoverStyle === "straight" ? "rgba(0, 240, 255, 0.15)" : "transparent",
+                        color: crossoverStyle === "straight" ? "var(--accent-cyan)" : "var(--text-muted)",
+                        borderRadius: 3,
+                        border: "none",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {t("schematic.crossoverStraight")}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Minimap Toggle */}
+                <div
+                  onClick={() => setShowMinimap(!showMinimap)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "4px 8px",
+                    backgroundColor: "var(--bg-tertiary)",
+                    borderRadius: 4,
+                    border: "1px solid var(--border-subtle)",
+                    cursor: "pointer"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <MapPin size={12} style={{ color: showMinimap ? "var(--accent-cyan)" : "var(--text-muted)" }} />
+                    <span>{t("schematic.minimap")}</span>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: showMinimap ? "var(--accent-cyan)" : "var(--text-muted)" }}>
+                    {showMinimap ? "ON" : "OFF"}
+                  </span>
+                </div>
+
+                {/* Quick Fit & Zoom Row */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4 }}>
+                  <button
+                    onClick={() => {
+                      fitToScreen();
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: "4px 6px", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}
+                    title={t("schematic.fitScreen")}
+                  >
+                    <Maximize2 size={11} />
+                    <span>{t("schematic.fitScreen")}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleResetZoom();
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: "4px 6px", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}
+                    title={t("schematic.resetZoom")}
+                  >
+                    <RotateCcw size={11} />
+                    <span>100%</span>
+                  </button>
+                  <button
+                    onClick={() => setScale((s) => Math.min(s * 1.25, 3.5))}
+                    className="btn btn-secondary"
+                    style={{ padding: "4px 6px", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}
+                    title={t("schematic.zoomIn")}
+                  >
+                    <ZoomIn size={11} />
+                    <span>+</span>
+                  </button>
+                  <button
+                    onClick={() => setScale((s) => Math.max(s / 1.25, 0.2))}
+                    className="btn btn-secondary"
+                    style={{ padding: "4px 6px", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}
+                    title={t("schematic.zoomOut")}
+                  >
+                    <ZoomOut size={11} />
+                    <span>-</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 3: Analysis & Filters */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.5px" }}>
+                  {t("schematic.analysisFilters")}
+                </span>
+
+                {/* Live Values Toggle */}
+                <div
+                  onClick={() => setShowLiveValues(!showLiveValues)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "4px 8px",
+                    backgroundColor: "var(--bg-tertiary)",
+                    borderRadius: 4,
+                    border: "1px solid var(--border-subtle)",
+                    cursor: "pointer"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Activity size={12} style={{ color: showLiveValues ? "var(--accent-emerald)" : "var(--text-muted)" }} />
+                    <span>{t("schematic.liveValues")}</span>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: showLiveValues ? "var(--accent-emerald)" : "var(--text-muted)" }}>
+                    {showLiveValues ? "ON" : "OFF"}
+                  </span>
+                </div>
+
+                {/* Clock Nets Filter */}
+                <div
+                  onClick={() => setHideClockNets(!hideClockNets)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "4px 8px",
+                    backgroundColor: "var(--bg-tertiary)",
+                    borderRadius: 4,
+                    border: "1px solid var(--border-subtle)",
+                    cursor: "pointer"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Clock size={12} style={{ color: hideClockNets ? "var(--accent-amber)" : "var(--text-muted)" }} />
+                    <span>{hideClockNets ? t("schematic.showClockNets") : t("schematic.hideClockNets")}</span>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: hideClockNets ? "var(--accent-amber)" : "var(--text-muted)" }}>
+                    {hideClockNets ? "Hidden" : "Visible"}
+                  </span>
+                </div>
+
+                {/* Logic Cone Slicing Actions */}
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    onClick={() => {
+                      handleSliceFanin();
+                      setIsMoreMenuOpen(false);
+                    }}
+                    disabled={!selectedNodeId && !selectedEdgeId}
+                    className="btn btn-secondary"
+                    style={{
+                      flex: 1,
+                      padding: "4px 6px",
+                      fontSize: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
+                      cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer"
+                    }}
+                    title={t("schematic.fanin")}
+                  >
+                    <Filter size={10} />
+                    <span>Fan-In [F]</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleSliceFanout();
+                      setIsMoreMenuOpen(false);
+                    }}
+                    disabled={!selectedNodeId && !selectedEdgeId}
+                    className="btn btn-secondary"
+                    style={{
+                      flex: 1,
+                      padding: "4px 6px",
+                      fontSize: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      opacity: !selectedNodeId && !selectedEdgeId ? 0.5 : 1,
+                      cursor: !selectedNodeId && !selectedEdgeId ? "not-allowed" : "pointer"
+                    }}
+                    title="Slice Fan-Out Driven Tree (O)"
+                  >
+                    <Layers size={10} />
+                    <span>Fan-Out [O]</span>
+                  </button>
+                </div>
+
+                {activeCone && (
+                  <button
+                    onClick={() => {
+                      handleClearSlice();
+                      setIsMoreMenuOpen(false);
+                    }}
+                    className="btn btn-danger"
+                    style={{
+                      padding: "4px 6px",
+                      fontSize: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      cursor: "pointer"
+                    }}
+                  >
+                    <X size={10} />
+                    <span>{t("schematic.clearCone")}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Canvas Area */}
       <canvas
         ref={canvasRef}
+        data-testid="schematic-canvas"
+        className="schematic-canvas"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -2655,7 +3410,8 @@ function drawNodeShape(
   x: number,
   y: number,
   w: number,
-  h: number
+  h: number,
+  isVertical: boolean = false
 ) {
   switch (gateType) {
     case "and":
@@ -2670,21 +3426,21 @@ function drawNodeShape(
       drawOrShape(ctx, x, y, w, h);
       ctx.fill();
       ctx.stroke();
-      drawOrInputLeads(ctx, node, x, y, w, h);
+      drawOrInputLeads(ctx, node, x, y, w, h, isVertical);
       break;
     case "nor":
       drawNorShape(ctx, x, y, w, h);
-      drawOrInputLeads(ctx, node, x, y, w - 8, h);
+      drawOrInputLeads(ctx, node, x, y, w - 8, h, isVertical);
       break;
     case "xor":
       drawXorShape(ctx, x, y, w, h);
       ctx.fill();
       ctx.stroke();
-      drawOrInputLeads(ctx, node, x, y, w - 6, h);
+      drawOrInputLeads(ctx, node, x, y, w - 6, h, isVertical);
       break;
     case "xnor":
       drawXnorShape(ctx, x, y, w, h);
-      drawOrInputLeads(ctx, node, x, y, w - 14, h);
+      drawOrInputLeads(ctx, node, x, y, w - 14, h, isVertical);
       break;
     case "not":
       drawNotShape(ctx, x, y, w, h);
@@ -2877,22 +3633,46 @@ function drawPortOutShape(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.closePath();
 }
 
+function drawPortInVertical(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const tipH = 7;
+  ctx.beginPath();
+  ctx.moveTo(x + 2, y);
+  ctx.lineTo(x + w - 2, y);
+  ctx.lineTo(x + w - 2, y + h - tipH);
+  ctx.lineTo(x + w / 2, y + h);
+  ctx.lineTo(x + 2, y + h - tipH);
+  ctx.closePath();
+}
+
+function drawPortOutVertical(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const tipH = 7;
+  ctx.beginPath();
+  ctx.moveTo(x + 2, y);
+  ctx.lineTo(x + w / 2, y + tipH);
+  ctx.lineTo(x + w - 2, y);
+  ctx.lineTo(x + w - 2, y + h);
+  ctx.lineTo(x + 2, y + h);
+  ctx.closePath();
+}
+
 function drawOrInputLeads(
   ctx: CanvasRenderingContext2D,
   node: SchematicNode,
   x: number,
   y: number,
   w: number,
-  h: number
+  h: number,
+  isVertical: boolean = false
 ) {
   for (const pin of node.inputs) {
-    if (pin.offsetY === undefined) continue;
-    const t = Math.max(0, Math.min(1, pin.offsetY / h));
+    const pos = isVertical ? pin.offsetX : pin.offsetY;
+    if (pos === undefined) continue;
+    const t = Math.max(0, Math.min(1, pos / h));
     const indent = w * 0.22 * (4 * t * (1 - t));
     if (indent > 1) {
       ctx.beginPath();
-      ctx.moveTo(x, y + pin.offsetY);
-      ctx.lineTo(x + indent, y + pin.offsetY);
+      ctx.moveTo(x, y + pos);
+      ctx.lineTo(x + indent, y + pos);
       ctx.stroke();
     }
   }

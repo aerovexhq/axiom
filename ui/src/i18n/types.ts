@@ -207,6 +207,15 @@ export interface Translations {
     crossoverArc: string;
     crossoverGap: string;
     crossoverStraight: string;
+    orientation: string;
+    horizontal: string;
+    vertical: string;
+    toggleOrientation: string;
+    moreOptions: string;
+    circuitMetrics: string;
+    layoutOptions: string;
+    analysisFilters: string;
+    resetZoom: string;
   };
   virtualLab: {
     title: string;
