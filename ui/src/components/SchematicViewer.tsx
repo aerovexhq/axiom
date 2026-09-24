@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import {
   ZoomIn,
   ZoomOut,
-  Maximize2,
+  Crosshair,
   Filter,
   Layers,
   Activity,
@@ -493,8 +493,41 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     });
   }, [graph]);
 
-  // Load saved camera state per design, mode & orientation, or fit to screen if no cached camera exists
+  const isFirstMountRef = useRef(true);
+  const prevModeRef = useRef(schematicMode);
+  const prevOrientationRef = useRef(orientation);
+  const pendingFitRef = useRef(false);
+
+  // When schematicMode or orientation changes after initial mount, automatically apply fit action
   useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    if (prevModeRef.current !== schematicMode || prevOrientationRef.current !== orientation) {
+      prevModeRef.current = schematicMode;
+      prevOrientationRef.current = orientation;
+      pendingFitRef.current = true;
+    }
+  }, [schematicMode, orientation]);
+
+  // Execute fitToScreen once the target graph is ready and settled
+  useEffect(() => {
+    if (pendingFitRef.current && graph) {
+      // If switching to synth mode, wait until synthGraph is ready (not still waiting for async synthesis)
+      if (schematicMode === "synth" && !synthGraph && synthLoading) {
+        return;
+      }
+      pendingFitRef.current = false;
+      requestAnimationFrame(() => {
+        fitToScreen();
+      });
+    }
+  }, [graph, schematicMode, synthGraph, synthLoading, fitToScreen]);
+
+  // Load saved camera state per design, mode & orientation on initial mount or design change
+  useEffect(() => {
+    if (pendingFitRef.current) return;
     try {
       const saved = localStorage.getItem(`axiom_schematic_cam_${activeDesignId || "default"}_${schematicMode}_${orientation}`);
       if (saved) {
@@ -521,19 +554,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       }
     } catch {}
     fitToScreen();
-  }, [activeDesignId, schematicMode, orientation, fitToScreen, graph]);
-
-  // When synth graph finishes loading for the first time, auto-fit if not yet cached
-  useEffect(() => {
-    if (schematicMode === "synth" && synthGraph) {
-      const key = `axiom_schematic_cam_${activeDesignId || "default"}_synth_${orientation}`;
-      try {
-        if (!localStorage.getItem(key)) {
-          fitToScreen();
-        }
-      } catch {}
-    }
-  }, [schematicMode, synthGraph, activeDesignId, orientation, fitToScreen]);
+  }, [activeDesignId, fitToScreen, graph]);
 
   // Handle external signal selection (e.g. from Waveform or Sidebar)
   useEffect(() => {
@@ -1660,7 +1681,6 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             onClick={() => {
               const next = orientation === "horizontal" ? "vertical" : "horizontal";
               setOrientation(next);
-              setTimeout(fitToScreen, 10);
             }}
             style={{
               padding: "2px 6px",
@@ -1697,7 +1717,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             title={t("schematic.fitScreen")}
             aria-label={t("schematic.fitScreen")}
           >
-            <Maximize2 size={11} />
+            <Crosshair size={11} />
           </button>
 
           {/* Live Values Toggle */}
@@ -2075,7 +2095,6 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                       onClick={() => {
                         if (orientation !== "horizontal") {
                           setOrientation("horizontal");
-                          setTimeout(fitToScreen, 10);
                         }
                       }}
                       style={{
@@ -2099,7 +2118,6 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                       onClick={() => {
                         if (orientation !== "vertical") {
                           setOrientation("vertical");
-                          setTimeout(fitToScreen, 10);
                         }
                       }}
                       style={{
@@ -2208,7 +2226,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
                     style={{ padding: "4px 6px", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}
                     title={t("schematic.fitScreen")}
                   >
-                    <Maximize2 size={11} />
+                    <Crosshair size={11} />
                     <span>{t("schematic.fitScreen")}</span>
                   </button>
                   <button
