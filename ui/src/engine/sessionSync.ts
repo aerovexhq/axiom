@@ -30,6 +30,15 @@ export const SESSION_ID: string = (() => {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 })();
 
+/**
+ * Truly unique in-memory identifier for the current window or tab instance.
+ * Unlike sessionStorage (which web browsers clone when a tab is duplicated),
+ * in-memory heap variables are strictly isolated per execution context.
+ */
+export const TAB_INSTANCE_ID: string = (() => {
+  return `tab_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+})();
+
 // In-memory sequential queue fallback for environments without navigator.locks
 const inMemoryQueues = new Map<string, Promise<unknown>>();
 

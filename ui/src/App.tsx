@@ -95,17 +95,19 @@ import {
   emptyTrash,
   touchProjectMetadata
 } from "./engine/projectRegistry";
-import { sessionBroadcaster } from "./engine/sessionSync";
+import { sessionBroadcaster, TAB_INSTANCE_ID } from "./engine/sessionSync";
 import {
   openInNewWindow,
   isProjectActiveInAnotherSession,
   registerActiveProjectLease,
   renewActiveProjectLease,
   releaseActiveProjectLease,
-  takeOverProjectLease
+  takeOverProjectLease,
+  subscribeToLeaseEvents
 } from "./engine/windowManager";
 import { toast } from "./engine/toast";
-import { ToastContainer, ConfirmDialogContainer, confirmDialog } from "./components/ui";
+import { ToastContainer, ConfirmDialogContainer, confirmDialog, Modal } from "./components/ui";
+import { AlertTriangle, ShieldAlert } from "lucide-react";
 import { useTranslation } from "./i18n";
 import { SampleDesign } from "./engine/sampleDesigns";
 
@@ -134,14 +136,19 @@ function getInitialProject(): AxiomProject | null {
     // If no ?project= in URL, check if there's an active saved project that isn't trashed
     const saved = loadSavedProject();
     if (saved && !registry.find((p) => p.id === saved.id)?.isTrashed) {
+      // Guard against auto-loading a project that is actively leased in another tab/window
+      if (isProjectActiveInAnotherSession(saved.id) || isProjectActiveInAnotherSession(saved.name)) {
+        return null;
+      }
       setUrlProjectSlug(saved.id);
       return saved;
     }
     return null;
   }
-  const meta = registry.find((p) => p.id === slug && !p.isTrashed);
+  const meta = registry.find((p) => (p.id === slug || p.name === slug) && !p.isTrashed);
   const friendlyName = meta?.name || slug;
-  if (isProjectActiveInAnotherSession(slug)) {
+  const targetId = meta?.id || slug;
+  if (isProjectActiveInAnotherSession(targetId) || isProjectActiveInAnotherSession(friendlyName)) {
     setTimeout(() => {
       toast.warning(`Project "${friendlyName}" is already active in another window.`);
     }, 150);
@@ -150,7 +157,7 @@ function getInitialProject(): AxiomProject | null {
   }
   if (meta) {
     try {
-      const cached = localStorage.getItem(`axiom_project_${slug}`);
+      const cached = localStorage.getItem(`axiom_project_${meta.id}`);
       if (cached) {
         const parsed = JSON.parse(cached) as AxiomProject;
         if (parsed && parsed.files && parsed.files.length > 0) {
@@ -160,7 +167,7 @@ function getInitialProject(): AxiomProject | null {
     } catch {}
   }
   const saved = loadSavedProject();
-  if (saved && (saved.name === slug || saved.id === slug) && !registry.find((p) => p.id === slug)?.isTrashed) {
+  if (saved && (saved.name === slug || saved.id === slug) && !registry.find((p) => p.id === saved.id)?.isTrashed) {
     return saved;
   }
   // Disallow temporary phantom projects: if slug is not found or is in trash, clean URL
@@ -172,6 +179,7 @@ export const App: React.FC = () => {
   const { t } = useTranslation();
   const [state, setState] = useState<SimulationState>(engineBridge.getState());
   const [project, setProject] = useState<AxiomProject | null>(() => getInitialProject());
+  const [isSuperseded, setIsSuperseded] = useState<boolean>(false);
   const [maximizedPanel, setMaximizedPanel] = useState<"editor" | "waveform" | "schematic" | "fsm" | "virtuallab" | "timing" | "microarch" | "multidie" | "ppa" | "package" | "protocol" | "techmapping" | "formal" | "floorplan" | null>(null);
 
   // Industry-Grade Hierarchical Workspace Layout & Blueprint Mode State
@@ -407,23 +415,76 @@ export const App: React.FC = () => {
 
   // Active Project Lease Heartbeat & Mutual Exclusion Concurrency Management
   useEffect(() => {
-    if (!project?.id) return;
-    registerActiveProjectLease(project.id, project.name);
+    if (!project?.id) {
+      setIsSuperseded(false);
+      return;
+    }
+
+    // Attempt initial lease registration
+    const acquired = registerActiveProjectLease(project.id, project.name);
+    if (!acquired) {
+      if (isProjectActiveInAnotherSession(project.id) || isProjectActiveInAnotherSession(project.name)) {
+        setIsSuperseded(true);
+      }
+    } else {
+      setIsSuperseded(false);
+    }
+
     const interval = setInterval(() => {
-      renewActiveProjectLease(project.id, project.name);
+      if (isSuperseded) return;
+      const renewed = renewActiveProjectLease(project.id, project.name);
+      if (!renewed) {
+        setIsSuperseded(true);
+      }
     }, 3000);
 
-    const handleBeforeUnload = () => {
-      releaseActiveProjectLease(project.id);
+    const handleQuickRenew = () => {
+      if (!isSuperseded && project?.id) {
+        const renewed = renewActiveProjectLease(project.id, project.name);
+        if (!renewed) {
+          setIsSuperseded(true);
+        }
+      }
     };
+
+    const handleBeforeUnload = () => {
+      if (!isSuperseded) {
+        releaseActiveProjectLease(project.id);
+      }
+    };
+
+    // Fast-path renewal when switching back to tab
+    window.addEventListener("focus", handleQuickRenew);
+    document.addEventListener("visibilitychange", handleQuickRenew);
+
+    // Immediate cleanup on tab close / reload / navigation
     window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handleBeforeUnload);
+
+    // Listen for cross-tab lease events (e.g. if another window takes over this project)
+    const unsubEvents = subscribeToLeaseEvents((event) => {
+      if (
+        (event.projectId === project.id || (event.projectName && event.projectName === project.name)) &&
+        event.tabId !== TAB_INSTANCE_ID
+      ) {
+        if (event.type === "LEASE_TAKEN_OVER" || event.type === "LEASE_ACQUIRED") {
+          setIsSuperseded(true);
+        }
+      }
+    });
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener("focus", handleQuickRenew);
+      document.removeEventListener("visibilitychange", handleQuickRenew);
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      releaseActiveProjectLease(project.id);
+      window.removeEventListener("pagehide", handleBeforeUnload);
+      unsubEvents();
+      if (!isSuperseded) {
+        releaseActiveProjectLease(project.id);
+      }
     };
-  }, [project?.id, project?.name]);
+  }, [project?.id, project?.name, isSuperseded]);
 
   // Global Native Context Menu Suppression (Prevent browser default context menu, preserve Monaco & editable inputs)
   useEffect(() => {
@@ -721,11 +782,23 @@ export const App: React.FC = () => {
   );
 
   const handleCloseProject = useCallback(() => {
+    if (project?.id) {
+      releaseActiveProjectLease(project.id);
+    }
+    setIsSuperseded(false);
     setUrlProjectSlug(null);
     setProject(null);
     clearSavedProject();
     engineBridge.reset();
-  }, []);
+  }, [project?.id]);
+
+  const handleTakeOverInThisWindow = useCallback(() => {
+    if (!project) return;
+    takeOverProjectLease(project.id, project.name);
+    setIsSuperseded(false);
+    saveProjectToStorage(project);
+    toast.success(t("launchpad.supersededTakeOver"));
+  }, [project, t]);
 
   const handleOpenNewProject = useCallback((templateId?: string, lessonId?: string) => {
     if (templateId) {
@@ -800,7 +873,7 @@ export const App: React.FC = () => {
       toast.warning(`Cannot open "${meta.name}" because it is in Trash. Restore it first.`);
       return;
     }
-    if (isProjectActiveInAnotherSession(id)) {
+    if (isProjectActiveInAnotherSession(id) || (meta && isProjectActiveInAnotherSession(meta.name))) {
       const takeOver = await confirmDialog({
         title: t("launchpad.takeOverTitle"),
         message: t("launchpad.takeOverMessage").replace("{name}", meta?.name || id),
@@ -812,6 +885,7 @@ export const App: React.FC = () => {
       }
       takeOverProjectLease(id, meta?.name || id);
     }
+    setIsSuperseded(false);
 
     const loaded = await loadProjectById(id);
     if (loaded) {
@@ -2057,6 +2131,59 @@ export const App: React.FC = () => {
           onClose={() => setIsLayoutEditorOpen(false)}
           onSave={handleSaveBlueprintLayout}
         />
+      )}
+
+      {/* Session Superseded in Another Window Modal */}
+      {isSuperseded && project && (
+        <Modal
+          isOpen={true}
+          onClose={() => {}}
+          title={t("launchpad.supersededTitle")}
+          width={480}
+          icon={<AlertTriangle size={18} style={{ color: "var(--accent-amber)" }} />}
+          footer={
+            <div style={{ display: "flex", gap: 10, width: "100%", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="axiom-btn axiom-btn-secondary"
+                onClick={handleCloseProject}
+                style={{ padding: "7px 14px", fontSize: 13 }}
+              >
+                {t("launchpad.supersededClose")}
+              </button>
+              <button
+                type="button"
+                className="axiom-btn axiom-btn-primary"
+                onClick={handleTakeOverInThisWindow}
+                style={{ padding: "7px 14px", fontSize: 13 }}
+              >
+                {t("launchpad.supersededTakeOver")}
+              </button>
+            </div>
+          }
+        >
+          <div style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            {t("launchpad.supersededMessage")}
+          </div>
+          <div
+            style={{
+              padding: "10px 12px",
+              backgroundColor: "rgba(245, 158, 11, 0.08)",
+              border: "1px solid rgba(245, 158, 11, 0.25)",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 12,
+              color: "var(--accent-amber)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8
+            }}
+          >
+            <ShieldAlert size={15} style={{ flexShrink: 0 }} />
+            <span>
+              {project.name} ({project.id})
+            </span>
+          </div>
+        </Modal>
       )}
 
       {/* Global Aerospace Toast & Confirmation Dialog Containers */}

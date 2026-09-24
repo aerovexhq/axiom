@@ -111,6 +111,10 @@ export interface Translations {
     takeOverMessage: string;
     takeOverConfirm: string;
     takeOverAction: string;
+    supersededTitle: string;
+    supersededMessage: string;
+    supersededTakeOver: string;
+    supersededClose: string;
     selectAll: string;
     deselectAll: string;
     selectedCount: string;

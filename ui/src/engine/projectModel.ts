@@ -2,6 +2,7 @@
 // Conforming to IEEE 1800 SystemVerilog & Xilinx Vivado project structures
 
 import type { AxiomLayout } from "./layoutModel";
+import { isProjectActiveInAnotherSession } from "./windowManager";
 
 export type FileSetType = "sources_1" | "sim_1" | "constrs_1";
 export type FileFormat = "verilog" | "systemverilog" | "vhdl" | "mem" | "xdc";
@@ -1545,6 +1546,11 @@ export async function saveProjectToFs(project: AxiomProject): Promise<void> {
 export function saveProjectToStorage(project: AxiomProject | null): void {
   try {
     if (project) {
+      // Guard against background saves overwriting a project that is actively leased in another tab/window
+      if (isProjectActiveInAnotherSession(project.id) || isProjectActiveInAnotherSession(project.name)) {
+        console.warn(`[ProjectModel] Save suppressed: Project "${project.name}" (${project.id}) is actively leased by another window.`);
+        return;
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
       if (project.id) {
         localStorage.setItem(`axiom_project_${project.id}`, JSON.stringify(project));
