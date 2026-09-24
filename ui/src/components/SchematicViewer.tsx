@@ -1631,230 +1631,80 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             marginRight: 6
           }}
         >
-          {/* Dual-Mode Schematic Switcher: RTL vs Synthesized Netlist */}
-          <div
+          {/* Dual-Mode Schematic Switcher: RTL vs Synthesized Netlist (Single Toggle Button) */}
+          <button
+            onClick={() => setSchematicMode(schematicMode === "rtl" ? "synth" : "rtl")}
             style={{
-              display: "flex",
-              alignItems: "center",
-              backgroundColor: "var(--bg-tertiary)",
-              padding: 2,
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "2px 7px",
               borderRadius: "var(--radius-sm)",
               border: "1px solid var(--border-subtle)",
-              gap: 2
-            }}
-          >
-            <button
-              onClick={() => setSchematicMode("rtl")}
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                padding: "2px 7px",
-                borderRadius: 3,
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                backgroundColor: schematicMode === "rtl" ? "rgba(56, 189, 248, 0.2)" : "transparent",
-                color: schematicMode === "rtl" ? "var(--accent-cyan)" : "var(--text-muted)"
-              }}
-              title="Elaborated RTL Schematic View"
-            >
-              <Zap size={11} />
-              <span>{isCompact ? "RTL" : "RTL Schematic"}</span>
-            </button>
-
-            <button
-              onClick={() => setSchematicMode("synth")}
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                padding: "2px 7px",
-                borderRadius: 3,
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                backgroundColor: schematicMode === "synth" ? "rgba(168, 85, 247, 0.2)" : "transparent",
-                color: schematicMode === "synth" ? "#c084fc" : "var(--text-muted)"
-              }}
-              title="Synthesized Gate Netlist & FPGA Technology Mapping View"
-            >
-              <Layers size={11} />
-              <span>{isCompact ? "Synth" : "Synthesized Netlist"}</span>
-              {synthLoading && <span style={{ fontSize: 9, opacity: 0.7 }}>(...)</span>}
-            </button>
-          </div>
-
-          {/* Layout Orientation Toggle & Fit Button: Universal across mobile and desktop */}
-          <div
-            style={{
+              cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              backgroundColor: "var(--bg-tertiary)",
-              borderRadius: 4,
-              border: "1px solid var(--border-subtle)",
-              padding: "1px",
-              gap: 1,
+              gap: 4,
+              backgroundColor: schematicMode === "synth" ? "rgba(168, 85, 247, 0.2)" : "rgba(56, 189, 248, 0.2)",
+              color: schematicMode === "synth" ? "#c084fc" : "var(--accent-cyan)",
               flexShrink: 0
             }}
-            title={t("schematic.orientation")}
+            title={schematicMode === "rtl" ? "Switch to Synthesized Netlist" : "Switch to RTL Schematic"}
           >
-            <button
-              onClick={() => {
-                if (orientation !== "horizontal") {
-                  setOrientation("horizontal");
-                  setTimeout(fitToScreen, 10);
-                }
-              }}
-              style={{
-                width: "auto",
-                padding: "2px 5px",
-                fontSize: 10,
-                fontWeight: orientation === "horizontal" ? 600 : 400,
-                backgroundColor: orientation === "horizontal" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                color: orientation === "horizontal" ? "var(--accent-cyan)" : "var(--text-muted)",
-                borderRadius: 3,
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                lineHeight: 1,
-                whiteSpace: "nowrap"
-              }}
-              title={t("schematic.horizontal")}
-            >
-              <ArrowRightLeft size={11} />
-              <span>H</span>
-            </button>
-            <button
-              onClick={() => {
-                if (orientation !== "vertical") {
-                  setOrientation("vertical");
-                  setTimeout(fitToScreen, 10);
-                }
-              }}
-              style={{
-                width: "auto",
-                padding: "2px 5px",
-                fontSize: 10,
-                fontWeight: orientation === "vertical" ? 600 : 400,
-                backgroundColor: orientation === "vertical" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                color: orientation === "vertical" ? "var(--accent-cyan)" : "var(--text-muted)",
-                borderRadius: 3,
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                lineHeight: 1,
-                whiteSpace: "nowrap"
-              }}
-              title={t("schematic.vertical")}
-            >
-              <ArrowUpDown size={11} />
-              <span>V</span>
-            </button>
-          </div>
+            {schematicMode === "rtl" ? <Zap size={11} /> : <Layers size={11} />}
+            <span>{schematicMode === "rtl" ? "RTL" : "Synth"}</span>
+            {synthLoading && <span style={{ fontSize: 9, opacity: 0.7 }}>(...)</span>}
+          </button>
 
+          {/* Layout Orientation Single Toggle Button */}
+          <button
+            onClick={() => {
+              const next = orientation === "horizontal" ? "vertical" : "horizontal";
+              setOrientation(next);
+              setTimeout(fitToScreen, 10);
+            }}
+            style={{
+              padding: "2px 6px",
+              fontSize: 10,
+              fontWeight: 600,
+              backgroundColor: "var(--bg-tertiary)",
+              color: "var(--accent-cyan)",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-subtle)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              flexShrink: 0
+            }}
+            title={orientation === "horizontal" ? `${t("schematic.horizontal")} (Click for ${t("schematic.vertical")})` : `${t("schematic.vertical")} (Click for ${t("schematic.horizontal")})`}
+            aria-label={t("schematic.orientation")}
+          >
+            {orientation === "horizontal" ? <ArrowRightLeft size={11} /> : <ArrowUpDown size={11} />}
+          </button>
+
+          {/* Fit to Screen (Single Icon-Only Button) */}
           <button
             onClick={fitToScreen}
             className="btn btn-secondary"
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 3,
+              justifyContent: "center",
               padding: "2px 6px",
               color: "var(--accent-cyan)",
-              fontSize: 10.5,
-              fontWeight: 600,
               flexShrink: 0
             }}
             title={t("schematic.fitScreen")}
+            aria-label={t("schematic.fitScreen")}
           >
             <Maximize2 size={11} />
-            <span>{t("schematic.fitScreen")}</span>
           </button>
-
-          {!isCompact && (
-            <>
-              <span
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  color: "var(--text-secondary)",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0
-                }}
-              >
-                {`${graph.nodes.length} Cells • ${graph.edges.length} Nets`}
-              </span>
-
-              {schematicMode === "synth" && synthCircuit && (
-                <div
-                  style={{
-                    fontSize: 9.5,
-                    padding: "1px 6px",
-                    borderRadius: 3,
-                    backgroundColor: "rgba(168, 85, 247, 0.15)",
-                    color: "#c084fc",
-                    border: "1px solid rgba(168, 85, 247, 0.3)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    flexShrink: 0
-                  }}
-                >
-                  <span>{synthCircuit.target_device.toUpperCase()}</span>
-                  <span>•</span>
-                  <span>{synthCircuit.stats.total_luts} LUTs</span>
-                  <span>•</span>
-                  <span>{synthCircuit.stats.total_ffs} FFs</span>
-                  {synthCircuit.stats.carry4_count > 0 && (
-                    <>
-                      <span>•</span>
-                      <span>{synthCircuit.stats.carry4_count} CARRY4</span>
-                    </>
-                  )}
-                  {synthCircuit.stats.carry8_count > 0 && (
-                    <>
-                      <span>•</span>
-                      <span>{synthCircuit.stats.carry8_count} CARRY8</span>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* LOD Badge */}
-              <div
-                style={{
-                  fontSize: 9.5,
-                  padding: "1px 5px",
-                  borderRadius: 3,
-                  backgroundColor: "var(--bg-tertiary)",
-                  color: "var(--accent-cyan)",
-                  border: "1px solid var(--border-subtle)",
-                  textTransform: "uppercase",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  flexShrink: 0,
-                  whiteSpace: "nowrap"
-                }}
-              >
-                <Layers size={9} />
-                <span>LOD: {lodLevel} ({(scale * 100).toFixed(0)}%)</span>
-              </div>
-            </>
-          )}
 
           {/* Live Values Toggle */}
           <button
             onClick={() => setShowLiveValues(!showLiveValues)}
             style={{
-              fontSize: 10.5,
+              fontSize: 10,
               padding: "2px 6px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showLiveValues ? "rgba(16, 185, 129, 0.15)" : "var(--bg-tertiary)",
@@ -1867,16 +1717,17 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               flexShrink: 0,
               whiteSpace: "nowrap"
             }}
+            title={t("schematic.liveValues")}
           >
             <Activity size={11} />
-            <span>{t("schematic.liveValues")}</span>
+            <span>Live</span>
           </button>
 
           {/* Clock Nets Toggle */}
           <button
             onClick={() => setHideClockNets(!hideClockNets)}
             style={{
-              fontSize: 10.5,
+              fontSize: 10,
               padding: "2px 6px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: hideClockNets ? "rgba(245, 158, 11, 0.15)" : "var(--bg-tertiary)",
@@ -1892,14 +1743,14 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             title={hideClockNets ? t("schematic.showClockNets") : t("schematic.hideClockNets")}
           >
             <Clock size={11} />
-            <span>{hideClockNets ? "All Nets" : "No Clks"}</span>
+            <span>{hideClockNets ? "Clks Off" : "Clks"}</span>
           </button>
 
           {/* Minimap Toggle */}
           <button
             onClick={() => setShowMinimap(!showMinimap)}
             style={{
-              fontSize: 10.5,
+              fontSize: 10,
               padding: "2px 6px",
               borderRadius: "var(--radius-sm)",
               backgroundColor: showMinimap ? "rgba(56, 189, 248, 0.15)" : "var(--bg-tertiary)",
@@ -1912,9 +1763,10 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               flexShrink: 0,
               whiteSpace: "nowrap"
             }}
+            title={t("schematic.minimap")}
           >
             <MapPin size={11} />
-            <span>{t("schematic.minimap")}</span>
+            <span>Map</span>
           </button>
         </div>
 
@@ -2010,88 +1862,6 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
             )}
 
             <div style={{ width: 1, height: 14, backgroundColor: "var(--border-subtle)", margin: "0 2px", flexShrink: 0 }} />
-
-            {/* Wire Crossover Style Selector */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                backgroundColor: "var(--bg-tertiary)",
-                borderRadius: 4,
-                border: "1px solid var(--border-subtle)",
-                padding: "1px",
-                gap: 1,
-                flexShrink: 0
-              }}
-              title={t("schematic.crossoverStyle")}
-            >
-              <button
-                onClick={() => setCrossoverStyle("arc")}
-                style={{
-                  width: "auto",
-                  minWidth: 26,
-                  padding: "2px 6px",
-                  fontSize: 10,
-                  fontWeight: crossoverStyle === "arc" ? 600 : 400,
-                  backgroundColor: crossoverStyle === "arc" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                  color: crossoverStyle === "arc" ? "var(--accent-cyan)" : "var(--text-muted)",
-                  borderRadius: 3,
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  lineHeight: 1,
-                  whiteSpace: "nowrap"
-                }}
-                title={t("schematic.crossoverArc")}
-              >
-                <span>{t("schematic.crossoverArc")}</span>
-              </button>
-              <button
-                onClick={() => setCrossoverStyle("gap")}
-                style={{
-                  width: "auto",
-                  minWidth: 26,
-                  padding: "2px 6px",
-                  fontSize: 10,
-                  fontWeight: crossoverStyle === "gap" ? 600 : 400,
-                  backgroundColor: crossoverStyle === "gap" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                  color: crossoverStyle === "gap" ? "var(--accent-cyan)" : "var(--text-muted)",
-                  borderRadius: 3,
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  lineHeight: 1,
-                  whiteSpace: "nowrap"
-                }}
-                title={t("schematic.crossoverGap")}
-              >
-                <span>{t("schematic.crossoverGap")}</span>
-              </button>
-              <button
-                onClick={() => setCrossoverStyle("straight")}
-                style={{
-                  width: "auto",
-                  minWidth: 26,
-                  padding: "2px 6px",
-                  fontSize: 10,
-                  fontWeight: crossoverStyle === "straight" ? 600 : 400,
-                  backgroundColor: crossoverStyle === "straight" ? "rgba(0, 240, 255, 0.15)" : "transparent",
-                  color: crossoverStyle === "straight" ? "var(--accent-cyan)" : "var(--text-muted)",
-                  borderRadius: 3,
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  lineHeight: 1,
-                  whiteSpace: "nowrap"
-                }}
-                title={t("schematic.crossoverStraight")}
-              >
-                <span>{t("schematic.crossoverStraight")}</span>
-              </button>
-            </div>
 
             {/* Zoom Buttons */}
             <button

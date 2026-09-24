@@ -1,5 +1,5 @@
 // Axiom EDA — Elaborated BIR Hardware Schematic DAG & Logic Cone Model
-import type { SynthesizedCircuit } from "./synthModel";
+import type { SynthesizedCircuit, SynthesizedCell } from "./synthModel";
 
 export type SchematicNodeKind =
   | "port_in"
@@ -44,6 +44,8 @@ export interface SchematicNode {
   layer: number;
   gridRow?: number; // Vivado-grade datapath alignment row (e.g. 0, 1, 2, ...)
   fixedY?: number; // Explicit Y position for zero-turn horizontal pin alignment
+  gridCol?: number; // Vivado-grade datapath alignment column for vertical orientation
+  fixedX?: number; // Explicit X position for zero-turn vertical pin alignment
   delayPs: number; // Cell propagation delay in ps
   dynamicPowerMw: number; // Static/dynamic estimated dissipation
   expressionText?: string;
@@ -324,7 +326,12 @@ function routeOrthogonalEdge(
   }
 
   return points;
-}function layoutAndRouteGraph(graph: SchematicGraph, orientation: SchematicOrientation = "horizontal"): SchematicGraph {
+}
+
+export function layoutAndRouteGraph(
+  graph: SchematicGraph,
+  orientation: SchematicOrientation = "horizontal"
+): SchematicGraph {
   graph.orientation = orientation;
   const isVertical = orientation === "vertical";
 
@@ -451,6 +458,13 @@ function routeOrthogonalEdge(
   const nodeMap = new Map<string, SchematicNode>();
   for (const n of graph.nodes) nodeMap.set(n.id, n);
 
+  const calculateMedian = (arr: number[]) => {
+    if (arr.length === 0) return 0;
+    arr.sort((a, b) => a - b);
+    const mid = Math.floor(arr.length / 2);
+    return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid];
+  };
+
   const passes = 16;
   if (isVertical) {
     const nodeSpacingX = 28;
@@ -471,11 +485,10 @@ function routeOrthogonalEdge(
             }
           }
           if (targetXs.length > 0) {
-            targetXs.sort((a, b) => a - b);
-            const median = targetXs[Math.floor(targetXs.length / 2)];
+            const median = calculateMedian(targetXs);
             (node as any).idealX = Math.max(startX, median - node.width / 2);
           } else {
-            (node as any).idealX = node.x;
+            (node as any).idealX = 999999;
           }
         }
 
@@ -492,9 +505,42 @@ function routeOrthogonalEdge(
       // Forward Sweep: aligns nodes with upstream drivers along X
       for (let lIdx = 0; lIdx < sortedLayers.length; lIdx++) {
         const layer = sortedLayers[lIdx];
-        if (layer === 0 || lIdx === sortedLayers.length - 1) continue;
+        if (layer === 0) continue;
 
         const nodesInLayer = layerMap.get(layer)!;
+
+        if (lIdx === sortedLayers.length - 1) {
+          // Boundary output ports: align with incoming driver pin X
+          for (const node of nodesInLayer) {
+            const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+            const sourceXs: number[] = [];
+            for (const e of inEdges) {
+              const src = nodeMap.get(e.sourceNodeId);
+              if (src && src.x !== undefined) {
+                const srcStep = src.width / (src.outputs.length + 1);
+                const srcPortIdx = src.outputs.findIndex((p) => p.id === e.sourcePortId);
+                const srcPinOffsetX = srcStep * ((srcPortIdx >= 0 ? srcPortIdx : 0) + 1);
+                const dstPinOffsetX = node.inputs[0]?.offsetX ?? node.width / 2;
+                sourceXs.push(src.x + srcPinOffsetX - dstPinOffsetX);
+              }
+            }
+            if (sourceXs.length > 0) {
+              (node as any).idealX = calculateMedian(sourceXs);
+            } else {
+              (node as any).idealX = node.x;
+            }
+          }
+          nodesInLayer.sort((a, b) => ((a as any).idealX ?? a.x) - ((b as any).idealX ?? b.x));
+          let prevRight = startX - nodeSpacingX;
+          for (const node of nodesInLayer) {
+            const ideal = (node as any).idealX;
+            node.x = Math.max(ideal ?? node.x, prevRight + nodeSpacingX);
+            assignPortOffsets(node, orientation);
+            prevRight = node.x + node.width;
+          }
+          continue;
+        }
+
         for (const node of nodesInLayer) {
           const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
           const sourceXs: number[] = [];
@@ -505,11 +551,10 @@ function routeOrthogonalEdge(
             }
           }
           if (sourceXs.length > 0) {
-            sourceXs.sort((a, b) => a - b);
-            const median = sourceXs[Math.floor(sourceXs.length / 2)];
+            const median = calculateMedian(sourceXs);
             (node as any).idealX = Math.max(startX, median - node.width / 2);
           } else {
-            (node as any).idealX = node.x;
+            (node as any).idealX = 999999;
           }
         }
 
@@ -520,6 +565,24 @@ function routeOrthogonalEdge(
           node.x = Math.max((node as any).idealX ?? node.x, prevRight + nodeSpacingX);
           assignPortOffsets(node, orientation);
           prevRight = node.x + node.width;
+        }
+      }
+
+      // Anchor minimum X of connected dynamic nodes to startX
+      let passMinX = Infinity;
+      for (const node of graph.nodes) {
+        if (node.fixedX === undefined && node.gridCol === undefined) {
+          const hasEdges = graph.edges.some((e) => e.sourceNodeId === node.id || e.targetNodeId === node.id);
+          if (hasEdges && node.x < passMinX) passMinX = node.x;
+        }
+      }
+      if (passMinX < Infinity && passMinX !== startX) {
+        const shiftX = passMinX - startX;
+        for (const node of graph.nodes) {
+          if (node.fixedX === undefined && node.gridCol === undefined) {
+            node.x -= shiftX;
+            assignPortOffsets(node, orientation);
+          }
         }
       }
     }
@@ -551,8 +614,7 @@ function routeOrthogonalEdge(
             }
             (node as any).minTargetLayer = minTargetLayer < Infinity ? minTargetLayer : 999999;
             if (targetYs.length > 0) {
-              targetYs.sort((a, b) => a - b);
-              const median = targetYs[Math.floor(targetYs.length / 2)];
+              const median = calculateMedian(targetYs);
               (node as any).idealY = Math.max(startY, median - node.height / 2);
             } else {
               (node as any).idealY = 999999; // Unconnected input ports sort to the bottom
@@ -590,11 +652,10 @@ function routeOrthogonalEdge(
             }
           }
           if (targetYs.length > 0) {
-            targetYs.sort((a, b) => a - b);
-            const median = targetYs[Math.floor(targetYs.length / 2)];
+            const median = calculateMedian(targetYs);
             (node as any).idealY = Math.max(startY, median - node.height / 2);
           } else {
-            (node as any).idealY = node.y;
+            (node as any).idealY = 999999;
           }
         }
 
@@ -611,10 +672,48 @@ function routeOrthogonalEdge(
       // Forward Sweep (from 0 up to max layer): aligns nodes with their upstream drivers
       for (let lIdx = 0; lIdx < sortedLayers.length; lIdx++) {
         const layer = sortedLayers[lIdx];
-        if (layer === 0 || lIdx === sortedLayers.length - 1) continue;
+        if (layer === 0) continue;
 
         const nodesInLayer = layerMap.get(layer)!;
         if (nodesInLayer.some((n) => n.fixedY !== undefined || n.gridRow !== undefined)) continue;
+
+        if (lIdx === sortedLayers.length - 1) {
+          // Boundary output ports: align with incoming driver pin Y
+          for (const node of nodesInLayer) {
+            const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
+            const sourceYs: number[] = [];
+            for (const e of inEdges) {
+              const src = nodeMap.get(e.sourceNodeId);
+              if (src && src.y !== undefined) {
+                const srcPort = src.outputs.find((p) => p.id === e.sourcePortId);
+                const dstPort = node.inputs.find((p) => p.id === e.targetPortId);
+                const srcPinY = src.y + (srcPort?.offsetY ?? src.height / 2);
+                const dstPinOffsetY = dstPort?.offsetY ?? node.height / 2;
+                sourceYs.push(srcPinY - dstPinOffsetY);
+              }
+            }
+            if (sourceYs.length > 0) {
+              (node as any).idealY = calculateMedian(sourceYs);
+            } else {
+              (node as any).idealY = node.y;
+            }
+          }
+
+          nodesInLayer.sort((a, b) => ((a as any).idealY ?? a.y) - ((b as any).idealY ?? b.y));
+
+          let prevBottom = startY - nodeSpacingY;
+          for (const node of nodesInLayer) {
+            const ideal = (node as any).idealY;
+            if (ideal !== undefined) {
+              node.y = Math.max(ideal, prevBottom + nodeSpacingY);
+            } else {
+              node.y = prevBottom + nodeSpacingY;
+            }
+            assignPortOffsets(node, orientation);
+            prevBottom = node.y + node.height;
+          }
+          continue;
+        }
 
         for (const node of nodesInLayer) {
           const inEdges = graph.edges.filter((e) => e.targetNodeId === node.id);
@@ -626,11 +725,10 @@ function routeOrthogonalEdge(
             }
           }
           if (sourceYs.length > 0) {
-            sourceYs.sort((a, b) => a - b);
-            const median = sourceYs[Math.floor(sourceYs.length / 2)];
+            const median = calculateMedian(sourceYs);
             (node as any).idealY = Math.max(startY, median - node.height / 2);
           } else {
-            (node as any).idealY = node.y;
+            (node as any).idealY = 999999;
           }
         }
 
@@ -641,6 +739,26 @@ function routeOrthogonalEdge(
           node.y = Math.max((node as any).idealY ?? node.y, prevBottom + nodeSpacingY);
           assignPortOffsets(node, orientation);
           prevBottom = node.y + node.height;
+        }
+      }
+
+      // Anchor minimum Y of connected dynamic nodes to startY to eliminate downward relaxation ratchet
+      let passMinY = Infinity;
+      for (const node of graph.nodes) {
+        if (node.fixedY === undefined && node.gridRow === undefined) {
+          const hasEdges = graph.edges.some((e) => e.sourceNodeId === node.id || e.targetNodeId === node.id);
+          if (hasEdges && node.y < passMinY) {
+            passMinY = node.y;
+          }
+        }
+      }
+      if (passMinY < Infinity && passMinY !== startY) {
+        const shiftY = passMinY - startY;
+        for (const node of graph.nodes) {
+          if (node.fixedY === undefined && node.gridRow === undefined) {
+            node.y -= shiftY;
+            assignPortOffsets(node, orientation);
+          }
         }
       }
     }
@@ -715,9 +833,9 @@ function routeOrthogonalEdge(
         for (const e of inEdges) {
           const d = nodeMap.get(e.sourceNodeId);
           if (d && d.kind !== "port_in") {
-            const isMultiIn = d.inputs.length >= 2;
-            if (isMultiIn && d.layer > bestScore) {
-              bestScore = d.layer;
+            const score = d.layer * 10 + (d.inputs.length >= 2 ? 2 : 1);
+            if (score > bestScore) {
+              bestScore = score;
               bestDriver = d;
             }
           }
@@ -777,6 +895,38 @@ function routeOrthogonalEdge(
       }
     }
 
+    // Ensure all output ports align collinearly with their driving cell's output pin along X (dx = 0)
+    for (const outPort of outputNodes) {
+      const inEdge = graph.edges.find((e) => e.targetNodeId === outPort.id);
+      if (inEdge) {
+        const srcNode = nodeMap.get(inEdge.sourceNodeId);
+        if (srcNode) {
+          const srcStep = srcNode.width / (srcNode.outputs.length + 1);
+          const srcPortIdx = srcNode.outputs.findIndex((p) => p.id === inEdge.sourcePortId);
+          const srcPinOffsetX = srcStep * ((srcPortIdx >= 0 ? srcPortIdx : 0) + 1);
+          const dstPinOffsetX = outPort.inputs[0]?.offsetX ?? outPort.width / 2;
+          outPort.x = Math.round(srcNode.x + srcPinOffsetX - dstPinOffsetX);
+          assignPortOffsets(outPort, orientation);
+        }
+      }
+    }
+
+    // Ensure single-consumer primary input ports align collinearly with their receiver input pin along X (dx = 0)
+    for (const inPort of inputNodes) {
+      const outEdges = graph.edges.filter((e) => e.sourceNodeId === inPort.id);
+      if (outEdges.length === 1) {
+        const dstNode = nodeMap.get(outEdges[0].targetNodeId);
+        if (dstNode) {
+          const dstStep = dstNode.width / (dstNode.inputs.length + 1);
+          const dstPortIdx = dstNode.inputs.findIndex((p) => p.id === outEdges[0].targetPortId);
+          const dstPinOffsetX = dstStep * ((dstPortIdx >= 0 ? dstPortIdx : 0) + 1);
+          const srcPinOffsetX = inPort.outputs[0]?.offsetX ?? inPort.width / 2;
+          inPort.x = Math.round(dstNode.x + dstPinOffsetX - srcPinOffsetX);
+          assignPortOffsets(inPort, orientation);
+        }
+      }
+    }
+
     // Ensure input nodes in Layer 0 are stacked horizontally without overlapping
     const layer0Nodes = graph.nodes.filter((n) => n.layer === 0);
     layer0Nodes.sort((a, b) => a.x - b.x);
@@ -787,6 +937,17 @@ function routeOrthogonalEdge(
       }
       curInputX = inNode.x + inNode.width + 28;
       assignPortOffsets(inNode, orientation);
+    }
+
+    // Ensure output nodes in the last layer are stacked horizontally without overlapping
+    outputNodes.sort((a, b) => a.x - b.x);
+    let curOutputX = startX;
+    for (const outNode of outputNodes) {
+      if (outNode.x < curOutputX) {
+        outNode.x = curOutputX;
+      }
+      curOutputX = outNode.x + outNode.width + 28;
+      assignPortOffsets(outNode, orientation);
     }
   } else {
     // Vivado-style horizontal alignment
@@ -817,9 +978,9 @@ function routeOrthogonalEdge(
         for (const e of inEdges) {
           const d = nodeMap.get(e.sourceNodeId);
           if (d && d.kind !== "port_in") {
-            const isMultiIn = d.inputs.length >= 2;
-            if (isMultiIn && d.layer > bestScore) {
-              bestScore = d.layer;
+            const score = d.layer * 10 + (d.inputs.length >= 2 ? 2 : 1);
+            if (score > bestScore) {
+              bestScore = score;
               bestDriver = d;
             }
           }
@@ -830,16 +991,21 @@ function routeOrthogonalEdge(
       if (chain.length >= 2) {
         // 1. Initial positioning of first gate in chain (chain[0])
         const firstGate = chain[0];
-        const primaryInEdgeInit = graph.edges.find(
-          (e) => e.targetNodeId === firstGate.id && nodeMap.get(e.sourceNodeId)?.kind === "port_in"
-        );
-        if (primaryInEdgeInit) {
-          const pIn = nodeMap.get(primaryInEdgeInit.sourceNodeId)!;
-          const targetPin = firstGate.inputs.find((p) => p.id === primaryInEdgeInit.targetPortId) ?? firstGate.inputs[firstGate.inputs.length - 1];
-          const srcPin = pIn.outputs[0];
-          firstGate.y = Math.round((pIn.y + (srcPin?.offsetY ?? pIn.height / 2)) - (targetPin?.offsetY ?? firstGate.height / 2));
-        } else {
+        if (firstGate.label === "IBUF") {
+          // If first node in chain is an IBUF, center the logic datapath at inputMidY
           firstGate.y = Math.round(inputMidY - firstGate.height / 2);
+        } else {
+          const primaryInEdgeInit = graph.edges.find(
+            (e) => e.targetNodeId === firstGate.id && nodeMap.get(e.sourceNodeId)?.kind === "port_in"
+          );
+          if (primaryInEdgeInit) {
+            const pIn = nodeMap.get(primaryInEdgeInit.sourceNodeId)!;
+            const targetPin = firstGate.inputs.find((p) => p.id === primaryInEdgeInit.targetPortId) ?? firstGate.inputs[firstGate.inputs.length - 1];
+            const srcPin = pIn.outputs[0];
+            firstGate.y = Math.round((pIn.y + (srcPin?.offsetY ?? pIn.height / 2)) - (targetPin?.offsetY ?? firstGate.height / 2));
+          } else {
+            firstGate.y = Math.round(inputMidY - firstGate.height / 2);
+          }
         }
         assignPortOffsets(firstGate, orientation);
 
@@ -863,6 +1029,16 @@ function routeOrthogonalEdge(
                 n.y = Math.max(n.y, chainNode.y + chainNode.height + nodeSpacingY);
               }
               assignPortOffsets(n, orientation);
+            }
+            // Enforce non-overlapping vertical order within the layer
+            nodesInLayer.sort((a, b) => a.y - b.y);
+            let prevNodeBottom = startY - nodeSpacingY;
+            for (const n of nodesInLayer) {
+              if (n.y < prevNodeBottom + nodeSpacingY) {
+                n.y = prevNodeBottom + nodeSpacingY;
+                assignPortOffsets(n, orientation);
+              }
+              prevNodeBottom = n.y + n.height;
             }
           } else {
             // Layer has multiple auxiliary gates (e.g. g1 and g3 in Layer 1)
@@ -918,16 +1094,20 @@ function routeOrthogonalEdge(
         sortCommutativeGatePins();
 
         // 4. Firmly position first gate in chain with its sorted target pin
-        const primaryInEdge = graph.edges.find(
-          (e) => e.targetNodeId === firstGate.id && nodeMap.get(e.sourceNodeId)?.kind === "port_in"
-        );
-        if (primaryInEdge) {
-          const pIn = nodeMap.get(primaryInEdge.sourceNodeId)!;
-          const targetPin = firstGate.inputs.find((p) => p.id === primaryInEdge.targetPortId) ?? firstGate.inputs[firstGate.inputs.length - 1];
-          const srcPin = pIn.outputs[0];
-          firstGate.y = Math.round((pIn.y + (srcPin?.offsetY ?? pIn.height / 2)) - (targetPin?.offsetY ?? firstGate.height / 2));
-        } else {
+        if (firstGate.label === "IBUF") {
           firstGate.y = Math.round(inputMidY - firstGate.height / 2);
+        } else {
+          const primaryInEdge = graph.edges.find(
+            (e) => e.targetNodeId === firstGate.id && nodeMap.get(e.sourceNodeId)?.kind === "port_in"
+          );
+          if (primaryInEdge) {
+            const pIn = nodeMap.get(primaryInEdge.sourceNodeId)!;
+            const targetPin = firstGate.inputs.find((p) => p.id === primaryInEdge.targetPortId) ?? firstGate.inputs[firstGate.inputs.length - 1];
+            const srcPin = pIn.outputs[0];
+            firstGate.y = Math.round((pIn.y + (srcPin?.offsetY ?? pIn.height / 2)) - (targetPin?.offsetY ?? firstGate.height / 2));
+          } else {
+            firstGate.y = Math.round(inputMidY - firstGate.height / 2);
+          }
         }
         assignPortOffsets(firstGate, orientation);
 
@@ -966,6 +1146,39 @@ function routeOrthogonalEdge(
           assignPortOffsets(currGate, orientation);
         }
 
+        // 5b. Now that all chain gates have settled, ensure auxiliary gates in each layer do not overlap
+        for (const layer of sortedLayers) {
+          if (layer === 0 || layer === sortedLayers[sortedLayers.length - 1]) continue;
+          const nodesInLayer = layerMap.get(layer);
+          if (!nodesInLayer || nodesInLayer.length <= 1) continue;
+          const chainNode = nodesInLayer.find((n) => chain.some((cg) => cg.id === n.id));
+          if (chainNode) {
+            for (const n of nodesInLayer) {
+              if (n.id === chainNode.id) continue;
+              if (n.y < chainNode.y) {
+                if (n.y + n.height + nodeSpacingY > chainNode.y) {
+                  n.y = chainNode.y - n.height - nodeSpacingY;
+                  assignPortOffsets(n, orientation);
+                }
+              } else {
+                if (n.y < chainNode.y + chainNode.height + nodeSpacingY) {
+                  n.y = chainNode.y + chainNode.height + nodeSpacingY;
+                  assignPortOffsets(n, orientation);
+                }
+              }
+            }
+            nodesInLayer.sort((a, b) => a.y - b.y);
+            let prevNodeBottom = startY - nodeSpacingY;
+            for (const n of nodesInLayer) {
+              if (n.y < prevNodeBottom + nodeSpacingY) {
+                n.y = prevNodeBottom + nodeSpacingY;
+                assignPortOffsets(n, orientation);
+              }
+              prevNodeBottom = n.y + n.height;
+            }
+          }
+        }
+
         // 6. Align outPort with last gate's output pin (dy = 0)
         const lastGate = chain[chain.length - 1];
         const outEdge = graph.edges.find((e) => e.sourceNodeId === lastGate.id && e.targetNodeId === outPort.id);
@@ -976,6 +1189,56 @@ function routeOrthogonalEdge(
       }
     }
 
+    // Ensure all output ports align collinearly with their driving cell's output pin (dy = 0)
+    for (const outPort of outputNodes) {
+      const inEdge = graph.edges.find((e) => e.targetNodeId === outPort.id);
+      if (inEdge) {
+        const srcNode = nodeMap.get(inEdge.sourceNodeId);
+        if (srcNode) {
+          const srcPin = srcNode.outputs.find((p) => p.id === inEdge.sourcePortId) ?? srcNode.outputs[0];
+          const dstPin = outPort.inputs.find((p) => p.id === inEdge.targetPortId) ?? outPort.inputs[0];
+          outPort.y = Math.round((srcNode.y + (srcPin?.offsetY ?? srcNode.height / 2)) - (dstPin?.offsetY ?? outPort.height / 2));
+          assignPortOffsets(outPort, orientation);
+        }
+      }
+    }
+
+    // Ensure single-consumer primary input ports align collinearly with their receiver input pin (dy = 0)
+    for (const inPort of inputNodes) {
+      const outEdges = graph.edges.filter((e) => e.sourceNodeId === inPort.id);
+      if (outEdges.length === 1) {
+        const dstNode = nodeMap.get(outEdges[0].targetNodeId);
+        if (dstNode) {
+          const dstPin = dstNode.inputs.find((p) => p.id === outEdges[0].targetPortId) ?? dstNode.inputs[0];
+          const srcPin = inPort.outputs.find((p) => p.id === outEdges[0].sourcePortId) ?? inPort.outputs[0];
+          inPort.y = Math.round((dstNode.y + (dstPin?.offsetY ?? dstNode.height / 2)) - (srcPin?.offsetY ?? inPort.height / 2));
+          assignPortOffsets(inPort, orientation);
+        }
+      }
+    }
+
+    // Ensure input nodes maintain collision-free non-overlapping spacing
+    inputNodes.sort((a, b) => a.y - b.y);
+    let prevInBottom = startY - nodeSpacingY;
+    for (const inNode of inputNodes) {
+      if (inNode.y < prevInBottom + nodeSpacingY) {
+        inNode.y = prevInBottom + nodeSpacingY;
+        assignPortOffsets(inNode, orientation);
+      }
+      prevInBottom = inNode.y + inNode.height;
+    }
+
+    // Ensure output nodes maintain collision-free non-overlapping spacing
+    outputNodes.sort((a, b) => a.y - b.y);
+    let prevOutBottom = startY - nodeSpacingY;
+    for (const outNode of outputNodes) {
+      if (outNode.y < prevOutBottom + nodeSpacingY) {
+        outNode.y = prevOutBottom + nodeSpacingY;
+        assignPortOffsets(outNode, orientation);
+      }
+      prevOutBottom = outNode.y + outNode.height;
+    }
+
     // 4. Normalize vertical drift across dynamic nodes
     let dynamicMinY = Infinity;
     for (const node of graph.nodes) {
@@ -983,7 +1246,7 @@ function routeOrthogonalEdge(
         if (node.y < dynamicMinY) dynamicMinY = node.y;
       }
     }
-    if (dynamicMinY < Infinity && dynamicMinY > startY) {
+    if (dynamicMinY < Infinity && dynamicMinY !== startY) {
       const shiftY = dynamicMinY - startY;
       for (const node of graph.nodes) {
         if (node.fixedY === undefined && node.gridRow === undefined) {
@@ -1008,7 +1271,10 @@ function routeOrthogonalEdge(
   for (const edge of graph.edges) {
     const srcNode = nodeMap.get(edge.sourceNodeId);
     const dstNode = nodeMap.get(edge.targetNodeId);
-    if (!srcNode || !dstNode) continue;
+    if (!srcNode || !dstNode) {
+      edge.wirePoints = [];
+      continue;
+    }
 
     const srcPort = srcNode.outputs.find((p) => p.id === edge.sourcePortId) ?? srcNode.outputs[0];
     const dstPort = dstNode.inputs.find((p) => p.id === edge.targetPortId) ?? dstNode.inputs[0];
@@ -1055,11 +1321,13 @@ function routeOrthogonalEdge(
   }
 
   for (const edge of graph.edges) {
-    for (const pt of edge.wirePoints) {
-      if (pt.x < minX) minX = pt.x;
-      if (pt.y < minY) minY = pt.y;
-      if (pt.x > maxX) maxX = pt.x;
-      if (pt.y > maxY) maxY = pt.y;
+    if (edge.wirePoints) {
+      for (const pt of edge.wirePoints) {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y > maxY) maxY = pt.y;
+      }
     }
   }
 
@@ -1779,30 +2047,29 @@ export function generateSynthesizedSchematicGraph(
   const edges: SchematicEdge[] = [];
   const nodeMap = new Map<string, SchematicNode>();
 
-  // Assign cell levels:
-  const cellLevel = new Map<string, number>();
+  const getCellPorts = (cell: SynthesizedCell): Record<string, string> =>
+    (cell.ports as any) instanceof Map
+      ? Object.fromEntries((cell.ports as any).entries())
+      : (cell.ports || {});
+
+  const cleanNet = (net: string): string => {
+    if (!net) return "";
+    const dot = net.lastIndexOf(".");
+    return dot >= 0 ? net.substring(dot + 1) : net;
+  };
+
+  const ibufMap = new Map<string, string>(); // portName -> cellId
+  const obufMap = new Map<string, string>(); // portName -> cellId
+
   for (const cell of synth.cells) {
-    const kind = cell.kind.toLowerCase();
-    if (kind === "ibuf" || kind === "bufg" || kind === "bufgce") {
-      cellLevel.set(cell.id, 1);
-    } else if (kind.startsWith("lut")) {
-      let maxInLvl = 1;
-      for (const [_, netName] of Object.entries(cell.ports)) {
-        if (netName.includes("w2") || netName.includes("w3") || netName.includes("stage1") || netName.includes("inc_1")) {
-          maxInLvl = Math.max(maxInLvl, 2);
-        } else if (netName.includes("inc_2") || netName.includes("inc_3")) {
-          maxInLvl = Math.max(maxInLvl, 3);
-        }
-      }
-      cellLevel.set(cell.id, maxInLvl + 1);
-    } else if (kind.startsWith("carry")) {
-      cellLevel.set(cell.id, 3);
-    } else if (kind.startsWith("fd")) {
-      cellLevel.set(cell.id, 4);
-    } else if (kind === "obuf") {
-      cellLevel.set(cell.id, 5);
-    } else {
-      cellLevel.set(cell.id, 2);
+    const ports = getCellPorts(cell);
+    const kindLower = cell.kind.toLowerCase();
+    if (kindLower === "ibuf") {
+      const inNet = cleanNet(ports.I);
+      ibufMap.set(inNet, cell.id);
+    } else if (kindLower === "obuf") {
+      const outNet = cleanNet(ports.O);
+      obufMap.set(outNet, cell.id);
     }
   }
 
@@ -1827,7 +2094,7 @@ export function generateSynthesizedSchematicGraph(
     }
   }
 
-  // 2. Physical Primitive Cells
+  // 2. Physical Primitive Cells (Gate-level components, including IBUF and OBUF)
   for (const cell of synth.cells) {
     const kindLower = cell.kind.toLowerCase();
     const isLut = kindLower.startsWith("lut");
@@ -1840,8 +2107,9 @@ export function generateSynthesizedSchematicGraph(
     const inputs: PortDef[] = [];
     const outputs: PortDef[] = [];
 
-    const sortedPortEntries = Object.entries(cell.ports).sort((a, b) => a[0].localeCompare(b[0]));
-    for (const [pin, _] of sortedPortEntries) {
+    const cellPorts = getCellPorts(cell);
+    const sortedPortEntries = Object.entries(cellPorts).sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [pin] of sortedPortEntries) {
       const isOut = pin === "O" || pin === "Q" || pin === "P" || pin === "CO" || pin.startsWith("O[") || pin.startsWith("CO[");
       if (isOut) {
         outputs.push({ id: pin, name: pin, width: 1, direction: "out" });
@@ -1852,12 +2120,9 @@ export function generateSynthesizedSchematicGraph(
       }
     }
 
-    const nodeKind: SchematicNodeKind = isLut ? "gate" : isFf ? "register" : isCarry ? "operator" : isIbuf ? "port_in" : isObuf ? "port_out" : "gate";
-
+    const nodeKind: SchematicNodeKind = isFf ? "register" : isCarry ? "operator" : "gate";
     const width = isLut ? 92 : isFf ? 84 : isCarry ? 110 : isIbuf || isObuf ? 72 : isBufg ? 80 : 100;
     const height = isLut ? 48 : isFf ? 54 : isCarry ? 76 : isIbuf || isObuf ? 32 : isBufg ? 40 : 60;
-
-    const layer = cellLevel.get(cell.id) ?? 2;
 
     const node: SchematicNode = {
       id: cell.id,
@@ -1868,7 +2133,7 @@ export function generateSynthesizedSchematicGraph(
       inputs,
       outputs,
       x: 0, y: 0, width, height,
-      layer,
+      layer: 1,
       delayPs: cell.delay_ps,
       dynamicPowerMw: 0.05,
       expressionText: cell.equation,
@@ -1878,7 +2143,7 @@ export function generateSynthesizedSchematicGraph(
     nodeMap.set(node.id, node);
   }
 
-  // 3. Primary output port nodes (Layer 6)
+  // 3. Primary output port nodes
   for (const port of synth.ports) {
     if (port.direction === "Output") {
       const node: SchematicNode = {
@@ -1889,7 +2154,7 @@ export function generateSynthesizedSchematicGraph(
         inputs: [{ id: "in", name: port.name, width: port.width, direction: "in" }],
         outputs: [],
         x: 0, y: 0, width: 70, height: 28,
-        layer: 6,
+        layer: 2,
         delayPs: 0,
         dynamicPowerMw: 0.01,
         sourceSpan: { lineStart: 1, lineEnd: 1 }
@@ -1901,19 +2166,20 @@ export function generateSynthesizedSchematicGraph(
 
   // 4. Edges: connect I/O ports and cell-to-cell nets
   let edgeIdCounter = 0;
+  const driverMap = new Map<string, { nodeId: string; portId: string }>();
 
-  // Connect Input ports to IBUFs
+  // A. Input ports connect to IBUF (or drive internal net directly if no IBUF)
   for (const port of synth.ports) {
     if (port.direction === "Input") {
       const portNodeId = `port_${port.name}`;
-      const ibufCell = synth.cells.find(c => c.ports["I"] === port.name || c.ports["I"]?.startsWith(`${port.name}[`));
-      if (ibufCell) {
+      const ibufCellId = ibufMap.get(port.name);
+      if (ibufCellId) {
         edges.push({
           id: `edge_${edgeIdCounter++}`,
           netName: port.name,
           sourceNodeId: portNodeId,
           sourcePortId: "out",
-          targetNodeId: ibufCell.id,
+          targetNodeId: ibufCellId,
           targetPortId: "I",
           width: port.width,
           isBus: port.width > 1,
@@ -1922,20 +2188,74 @@ export function generateSynthesizedSchematicGraph(
           signalId: port.name,
           fanout: 1
         });
+        driverMap.set(port.name, { nodeId: ibufCellId, portId: "O" });
+        driverMap.set(`${port.name}_ibuf`, { nodeId: ibufCellId, portId: "O" });
+      } else {
+        driverMap.set(port.name, { nodeId: portNodeId, portId: "out" });
       }
     }
   }
 
-  // Connect Output ports from OBUFs
+  // B. Register output drivers of non-IBUF/OBUF cells
+  for (const cell of synth.cells) {
+    const kindLower = cell.kind.toLowerCase();
+    if (kindLower === "ibuf" || kindLower === "obuf") continue;
+    const ports = getCellPorts(cell);
+    for (const [pin, net] of Object.entries(ports)) {
+      const isOut = pin === "O" || pin === "Q" || pin === "P" || pin === "CO" || pin.startsWith("O[") || pin.startsWith("CO[");
+      if (isOut) {
+        const cNet = cleanNet(net);
+        driverMap.set(cNet, { nodeId: cell.id, portId: pin });
+        driverMap.set(net, { nodeId: cell.id, portId: pin });
+        for (const p of synth.ports) {
+          if (p.direction === "Output" && cNet === p.name) {
+            driverMap.set(`${p.name}_obuf`, { nodeId: cell.id, portId: pin });
+          }
+        }
+      }
+    }
+  }
+
+  // C. Connect inputs of all cells (internal logic and OBUF)
+  for (const cell of synth.cells) {
+    const kindLower = cell.kind.toLowerCase();
+    if (kindLower === "ibuf") continue;
+    const ports = getCellPorts(cell);
+    for (const [pin, net] of Object.entries(ports)) {
+      const isOut = pin === "O" || pin === "Q" || pin === "P" || pin === "CO" || pin.startsWith("O[") || pin.startsWith("CO[");
+      if (!isOut) {
+        const cNet = cleanNet(net);
+        const driver = driverMap.get(cNet) || driverMap.get(net);
+        if (driver) {
+          edges.push({
+            id: `edge_${edgeIdCounter++}`,
+            netName: cNet,
+            sourceNodeId: driver.nodeId,
+            sourcePortId: driver.portId,
+            targetNodeId: cell.id,
+            targetPortId: pin,
+            width: 1,
+            isBus: false,
+            wirePoints: [],
+            delayPs: 25,
+            signalId: cNet,
+            fanout: 1
+          });
+        }
+      }
+    }
+  }
+
+  // D. Connect output ports
   for (const port of synth.ports) {
     if (port.direction === "Output") {
       const portNodeId = `port_${port.name}`;
-      const obufCell = synth.cells.find(c => c.ports["O"] === port.name || c.ports["O"]?.startsWith(`${port.name}[`));
-      if (obufCell) {
+      const obufCellId = obufMap.get(port.name);
+      if (obufCellId) {
         edges.push({
           id: `edge_${edgeIdCounter++}`,
           netName: port.name,
-          sourceNodeId: obufCell.id,
+          sourceNodeId: obufCellId,
           sourcePortId: "O",
           targetNodeId: portNodeId,
           targetPortId: "in",
@@ -1946,38 +2266,57 @@ export function generateSynthesizedSchematicGraph(
           signalId: port.name,
           fanout: 1
         });
+      } else {
+        const driver = driverMap.get(port.name);
+        if (driver) {
+          edges.push({
+            id: `edge_${edgeIdCounter++}`,
+            netName: port.name,
+            sourceNodeId: driver.nodeId,
+            sourcePortId: driver.portId,
+            targetNodeId: portNodeId,
+            targetPortId: "in",
+            width: port.width,
+            isBus: port.width > 1,
+            wirePoints: [],
+            delayPs: 15,
+            signalId: port.name,
+            fanout: 1
+          });
+        }
       }
     }
   }
 
-  // Connect internal cell pins
-  for (const srcCell of synth.cells) {
-    for (const [srcPin, srcNet] of Object.entries(srcCell.ports)) {
-      const isSrcOut = srcPin === "O" || srcPin === "Q" || srcPin === "P" || srcPin === "CO";
-      if (!isSrcOut) continue;
-
-      for (const dstCell of synth.cells) {
-        if (dstCell.id === srcCell.id) continue;
-        for (const [dstPin, dstNet] of Object.entries(dstCell.ports)) {
-          if (dstNet === srcNet && dstPin !== "O" && dstPin !== "Q" && dstPin !== "P" && dstPin !== "CO") {
-            edges.push({
-              id: `edge_${edgeIdCounter++}`,
-              netName: srcNet,
-              sourceNodeId: srcCell.id,
-              sourcePortId: srcPin,
-              targetNodeId: dstCell.id,
-              targetPortId: dstPin,
-              width: 1,
-              isBus: false,
-              wirePoints: [],
-              delayPs: 25,
-              signalId: srcNet,
-              fanout: 1
-            });
-          }
-        }
+  // 5. Dynamic Topological Layer Assignment
+  let changed = true;
+  let iterations = 0;
+  while (changed && iterations < 50) {
+    changed = false;
+    iterations++;
+    for (const edge of edges) {
+      const srcNode = nodeMap.get(edge.sourceNodeId);
+      const targetNode = nodeMap.get(edge.targetNodeId);
+      if (!srcNode || !targetNode) continue;
+      // Sequential registers break cycle on their data input
+      if (targetNode.kind === "register" && (edge.targetPortId === "D" || edge.targetPortId === "CLR" || edge.targetPortId === "CE")) {
+        continue;
+      }
+      const required = srcNode.layer + 1;
+      if (required > targetNode.layer) {
+        targetNode.layer = required;
+        changed = true;
       }
     }
+  }
+
+  let maxInternalLayer = 0;
+  for (const n of nodes) {
+    if (n.kind !== "port_out" && n.layer > maxInternalLayer) maxInternalLayer = n.layer;
+  }
+  const finalOutputLayer = maxInternalLayer + 1;
+  for (const n of nodes) {
+    if (n.kind === "port_out") n.layer = finalOutputLayer;
   }
 
   const rawGraph: SchematicGraph = {

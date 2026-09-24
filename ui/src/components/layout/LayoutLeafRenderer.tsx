@@ -126,8 +126,8 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
   onSelectView,
   onCloseTab,
   onAddTab,
-  onClosePanel,
-  canClosePanel = false,
+  onClosePanel: _onClosePanel,
+  canClosePanel: _canClosePanel = false,
   onToggleMaximize,
   onReorderViews
 }) => {
@@ -782,38 +782,8 @@ export const LayoutLeafRenderer: React.FC<LayoutLeafRendererProps> = ({
           )}
         </div>
 
-        {/* Panel Action Controls (Close Panel & Maximize) */}
+        {/* Panel Action Controls (Maximize / Restore; panel closing is strictly restricted to Blueprint Layout Editor) */}
         <div style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
-          {/* Close Panel (available in split multi-panel layouts) */}
-          {canClosePanel && onClosePanel && (
-            <button
-              onClick={() => onClosePanel(leaf.id)}
-              title="Close Panel"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 20,
-                backgroundColor: "transparent",
-                border: "none",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--text-muted)",
-                cursor: "pointer"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--accent-rose)";
-                e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--text-muted)";
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-            >
-              <X size={12} />
-            </button>
-          )}
-
           {/* Maximize / Restore */}
           <button
             onClick={() => onToggleMaximize(leaf.id)}
