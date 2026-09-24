@@ -26,6 +26,7 @@ export const es: Translations = {
     cycle: "Ciclo +1",
     active: "Activo",
     inactive: "Inactivo",
+    copy: "Copiar",
   },
   header: {
     title: "Axiom EDA",
@@ -114,6 +115,10 @@ export const es: Translations = {
     deltaSteppingDesc: "Inspección completa de la cola de eventos IEEE 1800. Expone fallos de tiempo cero y condiciones de carrera que Vivado oculta.",
     pdnTelemetryTitle: "PDN Basada en Física",
     pdnTelemetryDesc: "Modelado de potencia dinámica en tiempo real y caída inductiva del encapsulado con 100% de interoperabilidad Vivado SAIF 2.0.",
+    rustLspLinter: "Linter LSP de AST de Rust",
+    vivadoFileSets: "Conjuntos de archivos de Vivado",
+    openSourceNotice: "Axiom es software libre y de código abierto (MIT y Apache 2.0).",
+    githubContributions: "Contribuciones y PRs son bienvenidas en GitHub",
   },
   sidebar: {
     sourcesTab: "Fuentes",
@@ -519,6 +524,12 @@ export const es: Translations = {
     githubRepo: "Repositorio GitHub",
     checkForUpdates: "Buscar Actualizaciones...",
     aboutAxiom: "Acerca de Axiom EDA Studio",
+    sources: "Fuentes",
+    files: "Archivos",
+    saveProject: "Guardar proyecto",
+    exportProjectBundle: "Exportar paquete de proyecto",
+    addSourceToProject: "Agregar fuente al proyecto...",
+    projectSettingsSecurity: "Configuración de proyecto y seguridad...",
   },
   techMapping: {
     title: "Mapeo Tecnológico e Inferencia de Primitivas",
@@ -687,6 +698,9 @@ export const es: Translations = {
     closeBtn: "Cerrar",
     visitDocs: "Documentación",
     visitGithub: "Repositorio GitHub",
+    simEngine: "Motor de simulación:",
+    license: "Licencia:",
+    licenseType: "Licencia de código abierto MIT",
   },
   formal: {
     title: "Estudio de Verificación Formal de Propiedades & BMC",
@@ -763,6 +777,8 @@ export const es: Translations = {
     restrictedButton: "Abrir en Modo Restringido",
     restrictedBadge: "Modo Restringido",
     trustedBadge: "Confiable",
+    restrictedMode: "Modo restringido",
+    trustedMode: "Modo de confianza",
     projectSettingsTitle: "Configuración del Proyecto y Seguridad",
     trustStatus: "Estado de Confianza",
     trustedDesc: "El proyecto es confiable. Compilación nativa Cranelift JIT, límites de almacenamiento personalizados y funciones completas de espacio de trabajo habilitadas.",
@@ -932,5 +948,8 @@ export const es: Translations = {
     cannotCloseOnlyTab: "No se puede cerrar la única pestaña de este panel",
     hiddenViews: "Vistas ocultas",
     moreTabs: "Más vistas",
-  }
+  },
+  toast: {
+    layoutApplied: "Diseño aplicado con éxito",
+  },
 };

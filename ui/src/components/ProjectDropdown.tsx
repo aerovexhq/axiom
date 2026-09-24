@@ -207,7 +207,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <Save size={13} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
-                <span style={{ whiteSpace: "nowrap" }}>Save Project</span>
+                <span style={{ whiteSpace: "nowrap" }}>{t("menu.saveProject")}</span>
               </div>
               <span className="mono-num" style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3, marginLeft: 16, flexShrink: 0, whiteSpace: "nowrap" }}>
                 Ctrl+S
@@ -238,7 +238,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
                 <Download size={13} color="var(--accent-purple)" style={{ flexShrink: 0 }} />
-                <span style={{ whiteSpace: "nowrap" }}>Export Project Bundle</span>
+                <span style={{ whiteSpace: "nowrap" }}>{t("menu.exportProjectBundle")}</span>
               </div>
               <span className="mono-num" style={{ fontSize: 10, color: "var(--text-muted)", backgroundColor: "var(--bg-tertiary)", padding: "1px 5px", borderRadius: 3, marginLeft: 16, flexShrink: 0, whiteSpace: "nowrap" }}>
                 .json
@@ -267,7 +267,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
               }}
             >
               <FilePlus size={13} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
-              <span style={{ whiteSpace: "nowrap" }}>Add Source to Project...</span>
+              <span style={{ whiteSpace: "nowrap" }}>{t("menu.addSourceToProject")}</span>
             </button>
 
             {onOpenProjectSecurity && (
@@ -293,7 +293,7 @@ export const ProjectDropdown: React.FC<ProjectDropdownProps> = ({
                 }}
               >
                 <Shield size={13} color="var(--accent-emerald)" style={{ flexShrink: 0 }} />
-                <span style={{ whiteSpace: "nowrap" }}>Project Settings & Security...</span>
+                <span style={{ whiteSpace: "nowrap" }}>{t("menu.projectSettingsSecurity")}</span>
               </button>
             )}
 

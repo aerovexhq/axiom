@@ -26,6 +26,7 @@ export const en: Translations = {
     cycle: "Cycle +1",
     active: "Active",
     inactive: "Inactive",
+    copy: "Copy",
   },
   header: {
     title: "Axiom EDA",
@@ -114,6 +115,10 @@ export const en: Translations = {
     deltaSteppingDesc: "Full IEEE 1800 event queue inspection. Exposes zero-time glitch hazards and race conditions hidden by Vivado.",
     pdnTelemetryTitle: "Physics-Informed PDN",
     pdnTelemetryDesc: "Real-time dynamic power and package inductive droop modeling with 100% Vivado SAIF 2.0 interoperability.",
+    rustLspLinter: "Rust AST LSP Linter",
+    vivadoFileSets: "Vivado File Sets",
+    openSourceNotice: "Axiom is free, open-source software (MIT & Apache 2.0).",
+    githubContributions: "Contributions & PRs are welcome on GitHub",
   },
   sidebar: {
     sourcesTab: "Sources",
@@ -519,6 +524,12 @@ export const en: Translations = {
     githubRepo: "GitHub Repository",
     checkForUpdates: "Check for Updates...",
     aboutAxiom: "About Axiom EDA Studio",
+    sources: "Sources",
+    files: "Files",
+    saveProject: "Save Project",
+    exportProjectBundle: "Export Project Bundle",
+    addSourceToProject: "Add Source to Project...",
+    projectSettingsSecurity: "Project Settings & Security...",
   },
   techMapping: {
     title: "Technology Mapping & Primitive Inference",
@@ -687,6 +698,9 @@ export const en: Translations = {
     closeBtn: "Close",
     visitDocs: "Documentation",
     visitGithub: "GitHub Repository",
+    simEngine: "Simulation Engine:",
+    license: "License:",
+    licenseType: "MIT Open-Source License",
   },
   formal: {
     title: "Formal Property Verification & BMC Studio",
@@ -763,6 +777,8 @@ export const en: Translations = {
     restrictedButton: "Open in Restricted Mode",
     restrictedBadge: "Restricted Mode",
     trustedBadge: "Trusted",
+    restrictedMode: "Restricted Mode",
+    trustedMode: "Trusted Mode",
     projectSettingsTitle: "Project Settings & Security",
     trustStatus: "Trust Status",
     trustedDesc: "Project is trusted. Cranelift JIT native compilation, custom storage limits, and full workspace features are enabled.",
@@ -932,5 +948,8 @@ export const en: Translations = {
     cannotCloseOnlyTab: "Cannot close the only tab in this panel",
     hiddenViews: "Hidden Views",
     moreTabs: "More Views",
-  }
+  },
+  toast: {
+    layoutApplied: "Layout applied successfully",
+  },
 };

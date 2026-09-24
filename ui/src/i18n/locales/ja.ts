@@ -26,6 +26,7 @@ export const ja: Translations = {
     cycle: "サイクル +1",
     active: "アクティブ",
     inactive: "非アクティブ",
+    copy: "コピー",
   },
   header: {
     title: "Axiom EDA",
@@ -114,6 +115,10 @@ export const ja: Translations = {
     deltaSteppingDesc: "IEEE 1800完全準拠のイベントキュー検査により、Vivadoが見落とすゼロタイムハザードや競合を可視化します。",
     pdnTelemetryTitle: "物理シミュレーション連動PDN",
     pdnTelemetryDesc: "動的消費電力とパッケージインダクタンス降下（IR + L di/dt）のリアルタイムモデル。Vivado SAIF 2.0と100%互換。",
+    rustLspLinter: "Rust AST LSP リンター",
+    vivadoFileSets: "Vivado ファイルセット",
+    openSourceNotice: "Axiom は無料のオープンソース ソフトウェアです (MIT & Apache 2.0)。",
+    githubContributions: "GitHub での貢献と PR を歓迎します",
   },
   sidebar: {
     sourcesTab: "ソース",
@@ -519,6 +524,12 @@ export const ja: Translations = {
     githubRepo: "GitHubリポジトリ",
     checkForUpdates: "アップデートを確認...",
     aboutAxiom: "Axiom EDA Studioについて",
+    sources: "ソース",
+    files: "ファイル",
+    saveProject: "プロジェクトを保存",
+    exportProjectBundle: "プロジェクトバンドルをエクスポート",
+    addSourceToProject: "プロジェクトにソースを追加...",
+    projectSettingsSecurity: "プロジェクト設定とセキュリティ...",
   },
   techMapping: {
     title: "テクノロジマッピング＆プリミティブ推論",
@@ -687,6 +698,9 @@ export const ja: Translations = {
     closeBtn: "閉じる",
     visitDocs: "ドキュメント",
     visitGithub: "GitHubリポジトリ",
+    simEngine: "シミュレーション エンジン:",
+    license: "ライセンス:",
+    licenseType: "MIT オープンソース ライセンス",
   },
   formal: {
     title: "形式プロパティ検証 & BMC スタジオ",
@@ -763,6 +777,8 @@ export const ja: Translations = {
     restrictedButton: "制限モードで開く",
     restrictedBadge: "制限モード",
     trustedBadge: "信頼済み",
+    restrictedMode: "制限モード",
+    trustedMode: "信頼モード",
     projectSettingsTitle: "プロジェクト設定とセキュリティ",
     trustStatus: "信頼状態",
     trustedDesc: "プロジェクトは信頼されています。Cranelift JITネイティブコンパイル、カスタムストレージ制限、完全なワークスペース機能が有効です。",
@@ -932,5 +948,8 @@ export const ja: Translations = {
     cannotCloseOnlyTab: "このパネルの唯一のタブは閉じられません",
     hiddenViews: "非表示のビュー",
     moreTabs: "その他のビュー",
-  }
+  },
+  toast: {
+    layoutApplied: "レイアウトが正常に適用されました",
+  },
 };

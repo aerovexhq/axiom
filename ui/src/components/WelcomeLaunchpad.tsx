@@ -195,9 +195,9 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
     const count = selectedActiveProjectIds.length;
     if (count === 0) return;
     const confirmed = await confirmDialog({
-      title: t("welcome.trashSelectedTitle"),
-      message: t("welcome.confirmTrashSelected").replace("{count}", String(count)),
-      confirmText: t("welcome.trashSelected").replace("{count}", String(count)),
+      title: t("launchpad.trashSelectedTitle"),
+      message: t("launchpad.confirmTrashSelected").replace("{count}", String(count)),
+      confirmText: t("launchpad.trashSelected").replace("{count}", String(count)),
       variant: "danger"
     });
     if (confirmed) {
@@ -228,8 +228,8 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
     if (count === 0) return;
     const confirmed = await confirmDialog({
       title: t("launchpad.deletePermanently"),
-      message: t("welcome.confirmDeletePermanentlySelected").replace("{count}", String(count)),
-      confirmText: t("welcome.deletePermanentlySelected").replace("{count}", String(count)),
+      message: t("launchpad.confirmDeletePermanentlySelected").replace("{count}", String(count)),
+      confirmText: t("launchpad.deletePermanentlySelected").replace("{count}", String(count)),
       variant: "danger"
     });
     if (confirmed) {
@@ -420,7 +420,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                 color: "var(--accent-cyan)",
                 border: "1px solid var(--border-subtle)",
                 borderRadius: "var(--radius-sm)",
-                padding: "3px 6px",
+                padding: "3px 24px 3px 8px",
                 cursor: "pointer",
                 outline: "none"
               }}
@@ -735,8 +735,8 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                     )}
                     <span>
                       {selectedActiveProjectIds.length === activeProjects.length && activeProjects.length > 0
-                        ? t("welcome.deselectAll")
-                        : t("welcome.selectAll")}
+                        ? t("launchpad.deselectAll")
+                        : t("launchpad.selectAll")}
                     </span>
                   </button>
 
@@ -752,7 +752,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                         fontWeight: 600
                       }}
                     >
-                      {selectedActiveProjectIds.length} {t("welcome.selectedCount")}
+                      {selectedActiveProjectIds.length} {t("launchpad.selectedCount")}
                     </span>
                   )}
                 </div>
@@ -772,7 +772,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                     }}
                   >
                     <Trash2 size={12} />
-                    <span>{t("welcome.trashSelected").replace("{count}", String(selectedActiveProjectIds.length))}</span>
+                    <span>{t("launchpad.trashSelected").replace("{count}", String(selectedActiveProjectIds.length))}</span>
                   </button>
                 )}
               </div>
@@ -822,7 +822,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                           <button
                             type="button"
                             onClick={(e) => toggleSelectActive(p.id, e)}
-                            title={isSelected ? t("welcome.deselectAll") : t("welcome.selectAll")}
+                            title={isSelected ? t("launchpad.deselectAll") : t("launchpad.selectAll")}
                             style={{
                               background: "transparent",
                               border: "none",
@@ -1022,8 +1022,8 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                     )}
                     <span>
                       {selectedTrashProjectIds.length === trashedProjects.length && trashedProjects.length > 0
-                        ? t("welcome.deselectAll")
-                        : t("welcome.selectAll")}
+                        ? t("launchpad.deselectAll")
+                        : t("launchpad.selectAll")}
                     </span>
                   </button>
 
@@ -1039,7 +1039,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                         fontWeight: 600
                       }}
                     >
-                      {selectedTrashProjectIds.length} {t("welcome.selectedCount")}
+                      {selectedTrashProjectIds.length} {t("launchpad.selectedCount")}
                     </span>
                   )}
                 </div>
@@ -1062,7 +1062,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                         }}
                       >
                         <RotateCcw size={12} />
-                        <span>{t("welcome.restoreSelected").replace("{count}", String(selectedTrashProjectIds.length))}</span>
+                        <span>{t("launchpad.restoreSelected").replace("{count}", String(selectedTrashProjectIds.length))}</span>
                       </button>
 
                       <button
@@ -1080,7 +1080,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                         }}
                       >
                         <Trash2 size={12} />
-                        <span>{t("welcome.deletePermanentlySelected").replace("{count}", String(selectedTrashProjectIds.length))}</span>
+                        <span>{t("launchpad.deletePermanentlySelected").replace("{count}", String(selectedTrashProjectIds.length))}</span>
                       </button>
                     </>
                   )}
@@ -1141,7 +1141,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                           <button
                             type="button"
                             onClick={(e) => toggleSelectTrash(p.id, e)}
-                            title={isSelected ? t("welcome.deselectAll") : t("welcome.selectAll")}
+                            title={isSelected ? t("launchpad.deselectAll") : t("launchpad.selectAll")}
                             style={{
                               background: "transparent",
                               border: "none",
@@ -1366,11 +1366,11 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--text-muted)" }}>
           <ShieldCheck size={15} color="var(--accent-emerald)" />
-          <span>Rust AST LSP Linter</span>
+          <span>{t("launchpad.rustLspLinter")}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--text-muted)" }}>
           <Code2 size={15} color="var(--accent-blue)" />
-          <span>Vivado File Sets</span>
+          <span>{t("launchpad.vivadoFileSets")}</span>
         </div>
       </div>
 
@@ -1394,7 +1394,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <GithubIcon size={14} color="var(--text-secondary)" />
-          <span>Axiom is free, open-source software (MIT & Apache 2.0).</span>
+          <span>{t("launchpad.openSourceNotice")}</span>
         </span>
         <a
           href="https://github.com/aerovexsim/axiom"
@@ -1409,7 +1409,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
             gap: 4
           }}
         >
-          <span>Contributions & PRs are welcome on GitHub</span>
+          <span>{t("launchpad.githubContributions")}</span>
           <ChevronRight size={12} />
         </a>
       </div>

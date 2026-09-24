@@ -26,6 +26,7 @@ export const de: Translations = {
     cycle: "Zyklus +1",
     active: "Aktiv",
     inactive: "Inaktiv",
+    copy: "Kopieren",
   },
   header: {
     title: "Axiom EDA",
@@ -114,6 +115,10 @@ export const de: Translations = {
     deltaSteppingDesc: "Vollständige IEEE 1800 Ereigniswarteschlangen-Prüfung deckt Nullzeit-Glitch-Gefahren auf, die Vivado verbirgt.",
     pdnTelemetryTitle: "Physikbasierte PDN",
     pdnTelemetryDesc: "Echtzeit-Modellierung dynamischer Leistungsaufnahme und Gehäuse-Induktivität mit 100 % Vivado SAIF 2.0 Interoperabilität.",
+    rustLspLinter: "Rust AST LSP Linter",
+    vivadoFileSets: "Vivado-Dateisätze",
+    openSourceNotice: "Axiom ist freie Open-Source-Software (MIT & Apache 2.0).",
+    githubContributions: "Beiträge & PRs sind auf GitHub willkommen",
   },
   sidebar: {
     sourcesTab: "Quellen",
@@ -519,6 +524,12 @@ export const de: Translations = {
     githubRepo: "GitHub-Repository",
     checkForUpdates: "Nach Updates suchen...",
     aboutAxiom: "Über Axiom EDA Studio",
+    sources: "Quellen",
+    files: "Dateien",
+    saveProject: "Projekt speichern",
+    exportProjectBundle: "Projektpaket exportieren",
+    addSourceToProject: "Quelle zum Projekt hinzufügen...",
+    projectSettingsSecurity: "Projekteinstellungen & Sicherheit...",
   },
   techMapping: {
     title: "Technologie-Mapping & Primitiven-Inferenz",
@@ -687,6 +698,9 @@ export const de: Translations = {
     closeBtn: "Schließen",
     visitDocs: "Dokumentation",
     visitGithub: "GitHub-Repository",
+    simEngine: "Simulations-Engine:",
+    license: "Lizenz:",
+    licenseType: "MIT-Open-Source-Lizenz",
   },
   formal: {
     title: "Formale Eigenschaftsverifikation & BMC Studio",
@@ -763,6 +777,8 @@ export const de: Translations = {
     restrictedButton: "Im eingeschränkten Modus öffnen",
     restrictedBadge: "Eingeschränkter Modus",
     trustedBadge: "Vertrauenswürdig",
+    restrictedMode: "Eingeschränkter Modus",
+    trustedMode: "Vertrauenswürdiger Modus",
     projectSettingsTitle: "Projekteinstellungen & Sicherheit",
     trustStatus: "Vertrauensstatus",
     trustedDesc: "Projekt ist vertrauenswürdig. Native Cranelift JIT-Kompilierung, benutzerdefinierte Speicherlimits und alle Arbeitsbereichsfunktionen sind aktiv.",
@@ -932,5 +948,8 @@ export const de: Translations = {
     cannotCloseOnlyTab: "Der einzige Tab in diesem Panel kann nicht geschlossen werden",
     hiddenViews: "Versteckte Ansichten",
     moreTabs: "Weitere Ansichten",
-  }
+  },
+  toast: {
+    layoutApplied: "Layout erfolgreich angewendet",
+  },
 };

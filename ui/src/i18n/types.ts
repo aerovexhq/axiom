@@ -42,6 +42,7 @@ export interface Translations {
     cycle: string;
     active: string;
     inactive: string;
+    copy: string;
   };
   header: {
     title: string;
@@ -130,6 +131,10 @@ export interface Translations {
     deltaSteppingDesc: string;
     pdnTelemetryTitle: string;
     pdnTelemetryDesc: string;
+    rustLspLinter: string;
+    vivadoFileSets: string;
+    openSourceNotice: string;
+    githubContributions: string;
   };
   sidebar: {
     sourcesTab: string;
@@ -535,6 +540,12 @@ export interface Translations {
     githubRepo: string;
     checkForUpdates: string;
     aboutAxiom: string;
+    sources: string;
+    files: string;
+    saveProject: string;
+    exportProjectBundle: string;
+    addSourceToProject: string;
+    projectSettingsSecurity: string;
   };
   techMapping: {
     title: string;
@@ -703,6 +714,9 @@ export interface Translations {
     closeBtn: string;
     visitDocs: string;
     visitGithub: string;
+    simEngine: string;
+    license: string;
+    licenseType: string;
   };
   formal: {
     title: string;
@@ -779,6 +793,8 @@ export interface Translations {
     restrictedButton: string;
     restrictedBadge: string;
     trustedBadge: string;
+    restrictedMode: string;
+    trustedMode: string;
     projectSettingsTitle: string;
     trustStatus: string;
     trustedDesc: string;
@@ -948,5 +964,8 @@ export interface Translations {
     cannotCloseOnlyTab: string;
     hiddenViews: string;
     moreTabs: string;
+  };
+  toast: {
+    layoutApplied: string;
   };
 }

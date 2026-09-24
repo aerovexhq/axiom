@@ -26,6 +26,7 @@ export const zh: Translations = {
     cycle: "周期 +1",
     active: "有效",
     inactive: "无效",
+    copy: "复制",
   },
   header: {
     title: "Axiom EDA",
@@ -114,6 +115,10 @@ export const zh: Translations = {
     deltaSteppingDesc: "完整的 IEEE 1800 事件队列自省，揭示 Vivado 隐藏的零延迟毛刺危害与竞争冒险。",
     pdnTelemetryTitle: "物理规律驱动的 PDN",
     pdnTelemetryDesc: "实时动态功耗与封装电感跌落（IR + L di/dt）仿真，与 Vivado SAIF 2.0 百分之百互通。",
+    rustLspLinter: "Rust AST LSP 代码检查器",
+    vivadoFileSets: "Vivado 文件集",
+    openSourceNotice: "Axiom 是免费的开源软件 (MIT & Apache 2.0)。",
+    githubContributions: "欢迎在 GitHub 上提交贡献和 PR",
   },
   sidebar: {
     sourcesTab: "源文件",
@@ -519,6 +524,12 @@ export const zh: Translations = {
     githubRepo: "GitHub 仓库",
     checkForUpdates: "检查更新...",
     aboutAxiom: "关于 Axiom EDA Studio",
+    sources: "源文件",
+    files: "文件",
+    saveProject: "保存项目",
+    exportProjectBundle: "导出项目包",
+    addSourceToProject: "向项目添加源文件...",
+    projectSettingsSecurity: "项目设置与安全...",
   },
   techMapping: {
     title: "工艺映射与原语推断",
@@ -687,6 +698,9 @@ export const zh: Translations = {
     closeBtn: "关闭",
     visitDocs: "官方文档",
     visitGithub: "GitHub 代码仓库",
+    simEngine: "仿真引擎:",
+    license: "许可证:",
+    licenseType: "MIT 开源许可证",
   },
   formal: {
     title: "形式属性验证与有界模型检验 (BMC) 工作台",
@@ -763,6 +777,8 @@ export const zh: Translations = {
     restrictedButton: "在受限模式下打开",
     restrictedBadge: "受限模式",
     trustedBadge: "已信任",
+    restrictedMode: "受限模式",
+    trustedMode: "受信任模式",
     projectSettingsTitle: "项目设置与安全",
     trustStatus: "信任状态",
     trustedDesc: "项目受信任。Cranelift JIT 原生编译、自定义存储配额和全部工作区功能已启用。",
@@ -932,5 +948,8 @@ export const zh: Translations = {
     cannotCloseOnlyTab: "无法关闭此面板中的唯一标签页",
     hiddenViews: "隐藏视图",
     moreTabs: "更多视图",
-  }
+  },
+  toast: {
+    layoutApplied: "布局已成功应用",
+  },
 };

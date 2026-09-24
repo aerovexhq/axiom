@@ -101,17 +101,17 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               Native x86_64 / AArch64 In-RAM
             </span>
 
-            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Simulation Engine:</span>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{t("about.simEngine")}</span>
             <span style={{ color: "var(--text-secondary)" }}>
               Stratified IEEE 1800 Event Queue + Zero-Time δ Inspector
             </span>
 
-            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>License:</span>
-            <span style={{ color: "var(--text-secondary)" }}>MIT Open-Source License</span>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{t("about.license")}</span>
+            <span style={{ color: "var(--text-secondary)" }}>{t("about.licenseType")}</span>
           </div>
 
           <p style={{ color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>
-            Axiom eliminates legacy EDA installation overhead with instant in-browser WebAssembly simulation, zero-disk turnaround Cranelift compilation, live PDN inductive sag physics telemetry, and cross-platform desktop execution.
+            {t("about.description")}
           </p>
 
           <div style={{ display: "flex", gap: 10 }}>

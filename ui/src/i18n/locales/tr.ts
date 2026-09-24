@@ -26,6 +26,7 @@ export const tr: Translations = {
     cycle: "Döngü +1",
     active: "Aktif",
     inactive: "Pasif",
+    copy: "Kopyala",
   },
   header: {
     title: "Axiom EDA",
@@ -114,6 +115,10 @@ export const tr: Translations = {
     deltaSteppingDesc: "Tam IEEE 1800 olay kuyruğu incelemesi. Vivado'nun gizlediği sıfır-zamanlı tehlikeleri ve yarış durumlarını ortaya çıkarır.",
     pdnTelemetryTitle: "Fizik Tabanlı PDN",
     pdnTelemetryDesc: "Gerçek zamanlı dinamik güç ve paket endüktif çökme modellemesi; %100 Vivado SAIF 2.0 uyumluluğu.",
+    rustLspLinter: "Rust AST LSP Linter",
+    vivadoFileSets: "Vivado Dosya Kümeleri",
+    openSourceNotice: "Axiom ücretsiz ve açık kaynaklı bir yazılımdır (MIT ve Apache 2.0).",
+    githubContributions: "Katkılar ve PR'lar GitHub üzerinde memnuniyetle karşılanır",
   },
   sidebar: {
     sourcesTab: "Kaynaklar",
@@ -519,6 +524,12 @@ export const tr: Translations = {
     githubRepo: "GitHub Deposu",
     checkForUpdates: "Güncellemeleri Denetle...",
     aboutAxiom: "Axiom EDA Studio Hakkında",
+    sources: "Kaynaklar",
+    files: "Dosyalar",
+    saveProject: "Projeyi Kaydet",
+    exportProjectBundle: "Proje Paketini Dışa Aktar",
+    addSourceToProject: "Projeye Kaynak Ekle...",
+    projectSettingsSecurity: "Proje Ayarları ve Güvenlik...",
   },
   techMapping: {
     title: "Teknoloji Eşleme ve İlkel Çıkarımı",
@@ -687,6 +698,9 @@ export const tr: Translations = {
     closeBtn: "Kapat",
     visitDocs: "Belgeler",
     visitGithub: "GitHub Deposu",
+    simEngine: "Simülasyon Motoru:",
+    license: "Lisans:",
+    licenseType: "MIT Açık Kaynak Lisansı",
   },
   formal: {
     title: "Biçimsel Özellik Doğrulama ve BMC Stüdyosu",
@@ -763,6 +777,8 @@ export const tr: Translations = {
     restrictedButton: "Kısıtlı Modda Aç",
     restrictedBadge: "Kısıtlı Mod",
     trustedBadge: "Güvenilir",
+    restrictedMode: "Kısıtlı Mod",
+    trustedMode: "Güvenilen Mod",
     projectSettingsTitle: "Proje Ayarları ve Güvenlik",
     trustStatus: "Güven Durumu",
     trustedDesc: "Proje güvenilirdir. Cranelift JIT yerel derleme, özel depolama sınırları ve tam çalışma alanı özellikleri etkindir.",
@@ -932,5 +948,8 @@ export const tr: Translations = {
     cannotCloseOnlyTab: "Bu paneldeki tek sekme kapatılamaz",
     hiddenViews: "Gizli Görünümler",
     moreTabs: "Daha Fazla Görünüm",
-  }
+  },
+  toast: {
+    layoutApplied: "Düzen başarıyla uygulandı",
+  },
 };

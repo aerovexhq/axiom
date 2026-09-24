@@ -84,6 +84,9 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const t = useMemo<TFunction>(() => {
     const fn = (path: string, params?: Record<string, string | number>): string => {
       const parts = path.split(".");
+      if (parts[0] === "welcome") {
+        parts[0] = "launchpad";
+      }
       let current: any = currentTranslations;
       let fallback: any = en;
 
@@ -128,7 +131,19 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useTranslation = () => {
   const ctx = useContext(I18nContext);
   if (!ctx) {
-    const fn = ((path: string) => path) as TFunction;
+    const fn = ((path: string) => {
+      const parts = path.split(".");
+      if (parts[0] === "welcome") parts[0] = "launchpad";
+      let fallback: any = en;
+      for (const part of parts) {
+        if (fallback && typeof fallback === "object" && part in fallback) {
+          fallback = fallback[part];
+        } else {
+          fallback = undefined;
+        }
+      }
+      return typeof fallback === "string" ? fallback : path;
+    }) as TFunction;
     Object.assign(fn, en);
     return {
       language: "en" as SupportedLanguage,
