@@ -115,8 +115,8 @@ export interface KeepOutBox {
   bottom: number;
 }
 
-function assignPortOffsets(node: SchematicNode, orientation: SchematicOrientation = "horizontal"): void {
-  const isVertical = orientation === "vertical";
+function assignPortOffsets(node: SchematicNode, _orientation: SchematicOrientation = "horizontal"): void {
+  const isVertical = false;
   const numIn = node.inputs.length;
   node.inputs.forEach((port, idx) => {
     if (isVertical) {
@@ -167,12 +167,12 @@ function routeOrthogonalEdge(
   dstY: number,
   channelOffset = 0,
   obstacles: KeepOutBox[] = [],
-  orientation: SchematicOrientation = "horizontal"
+  _orientation: SchematicOrientation = "horizontal"
 ): WirePoint[] {
   const points: WirePoint[] = [];
   points.push({ x: srcX, y: srcY });
 
-  const isVertical = orientation === "vertical";
+  const isVertical = false;
   const dx = dstX - srcX;
   const dy = dstY - srcY;
 
@@ -333,7 +333,7 @@ export function layoutAndRouteGraph(
   orientation: SchematicOrientation = "horizontal"
 ): SchematicGraph {
   graph.orientation = orientation;
-  const isVertical = orientation === "vertical";
+  const isVertical = false;
   const isSynth = graph.id.startsWith("synth_");
 
   // Layer spacing constants (calibrated for ergonomic, collision-free gate-level layouts with generous padding)

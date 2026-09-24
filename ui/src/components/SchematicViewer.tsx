@@ -200,20 +200,20 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   // Synthesize Hardware DAG for active design (dynamic source netlist parser with sample fallback)
   const rtlGraph = useMemo<SchematicGraph>(() => {
     if (verilogSource && verilogSource.trim().length > 0) {
-      const dynamicGraph = parseVerilogToSchematicGraph(verilogSource, topModule || activeDesignId, orientation);
+      const dynamicGraph = parseVerilogToSchematicGraph(verilogSource, topModule || activeDesignId);
       if (dynamicGraph && dynamicGraph.nodes.length > 0) {
         return dynamicGraph;
       }
     }
-    return generateSchematicGraph(activeDesignId, orientation);
-  }, [activeDesignId, verilogSource, topModule, orientation]);
+    return generateSchematicGraph(activeDesignId);
+  }, [activeDesignId, verilogSource, topModule]);
 
   const synthGraph = useMemo<SchematicGraph | null>(() => {
     if (synthCircuit) {
-      return generateSynthesizedSchematicGraph(synthCircuit, orientation);
+      return generateSynthesizedSchematicGraph(synthCircuit);
     }
     return null;
-  }, [synthCircuit, orientation]);
+  }, [synthCircuit]);
 
   const graph = (schematicMode === "synth" && synthGraph) ? synthGraph : rtlGraph;
 
@@ -430,17 +430,23 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     const centerX = graph.bounds.minX + graphWidth / 2;
     const centerY = graph.bounds.minY + graphHeight / 2;
 
+    const isVert = orientation === "vertical";
+    const effW = isVert ? graphHeight : graphWidth;
+    const effH = isVert ? graphWidth : graphHeight;
+
     if (isMobileViewport) {
-      if (graph.orientation === "vertical") {
+      if (isVert) {
         const paddingX = 20;
         const availWidth = Math.max(width - paddingX * 2, 100);
         const availHeight = Math.max(height - 100, 100);
-        const scaleX = availWidth / graphWidth;
-        const scaleY = availHeight / graphHeight;
+        const scaleX = availWidth / effW;
+        const scaleY = availHeight / effH;
         const targetScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.5), 1.15);
         setScale(targetScale);
-        setOffsetX((width - graphWidth * targetScale) / 2 - graph.bounds.minX * targetScale);
-        setOffsetY(40 - graph.bounds.minY * targetScale);
+        const screenCenterX = width / 2;
+        const screenCenterY = (height - 36) / 2 + 10;
+        setOffsetX(screenCenterX + targetScale * centerY);
+        setOffsetY(screenCenterY - targetScale * centerX);
       } else {
         // Mobile portrait horizontal: comfortable scale so gate shapes and wire probes are legible and clear
         const targetScale = Math.min(Math.max((height - 140) / (graphHeight * 1.5), 0.72), 0.95);
@@ -458,8 +464,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       const availWidth = Math.max(width - paddingX * 2, 200);
       const availHeight = Math.max(height - toolbarHeight - paddingY * 2, 150);
 
-      const scaleX = availWidth / graphWidth;
-      const scaleY = availHeight / graphHeight;
+      const scaleX = availWidth / effW;
+      const scaleY = availHeight / effH;
 
       // Fit both dimensions, zooming in nicely up to 1.35x for compact circuits
       const targetScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.45), 1.35);
@@ -469,13 +475,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       const screenCenterY = toolbarHeight + (height - toolbarHeight) / 2;
 
       setScale(targetScale);
-      setOffsetX(screenCenterX - centerX * targetScale);
-      setOffsetY(screenCenterY - centerY * targetScale);
+      if (isVert) {
+        setOffsetX(screenCenterX + targetScale * centerY);
+        setOffsetY(screenCenterY - targetScale * centerX);
+      } else {
+        setOffsetX(screenCenterX - centerX * targetScale);
+        setOffsetY(screenCenterY - centerY * targetScale);
+      }
     }
     requestAnimationFrame(() => {
       renderCanvasRef.current();
     });
-  }, [graph]);
+  }, [graph, orientation]);
 
   // Reset zoom scale to 100% (1.0x) and center current circuit in viewport
   const handleResetZoom = useCallback(() => {
@@ -485,13 +496,18 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       const height = containerRef.current.clientHeight;
       const centerX = graph.bounds.minX + graph.bounds.width / 2;
       const centerY = graph.bounds.minY + graph.bounds.height / 2;
-      setOffsetX(width / 2 - centerX);
-      setOffsetY(height / 2 - centerY);
+      if (orientation === "vertical") {
+        setOffsetX(width / 2 + centerY);
+        setOffsetY(height / 2 - centerX);
+      } else {
+        setOffsetX(width / 2 - centerX);
+        setOffsetY(height / 2 - centerY);
+      }
     }
     requestAnimationFrame(() => {
       renderCanvasRef.current();
     });
-  }, [graph]);
+  }, [graph, orientation]);
 
   const isFirstMountRef = useRef(true);
   const prevModeRef = useRef(schematicMode);
@@ -641,17 +657,21 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
+      if (orientation === "vertical") {
+        ctx.rotate(Math.PI / 2);
+      }
 
-    // Draw grid lines
-    const gridSize = 40;
-    const minGridX = Math.floor(-offsetX / scale / gridSize) * gridSize;
-    const maxGridX = Math.ceil((width - offsetX) / scale / gridSize) * gridSize;
-    const minGridY = Math.floor(-offsetY / scale / gridSize) * gridSize;
-    const maxGridY = Math.ceil((height - offsetY) / scale / gridSize) * gridSize;
+      // Draw grid lines
+      const gridSize = 40;
+      const maxDim = Math.max(width, height) / scale + Math.hypot(offsetX, offsetY) / scale + 500;
+      const minGridX = Math.floor(-maxDim / gridSize) * gridSize;
+      const maxGridX = Math.ceil(maxDim / gridSize) * gridSize;
+      const minGridY = Math.floor(-maxDim / gridSize) * gridSize;
+      const maxGridY = Math.ceil(maxDim / gridSize) * gridSize;
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.025)";
-    ctx.lineWidth = 1 / scale;
-    ctx.beginPath();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.025)";
+      ctx.lineWidth = 1 / scale;
+      ctx.beginPath();
     for (let x = minGridX; x <= maxGridX; x += gridSize) {
       ctx.moveTo(x, minGridY);
       ctx.lineTo(x, maxGridY);
@@ -887,31 +907,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       ctx.lineWidth = isSelected ? 2.5 : 1.5;
 
       // Draw the Authentic Vivado / IEEE Symbol Shape
-      if (graph.orientation === "vertical") {
-        if (visuals.gateType === "port_in") {
-          drawPortInVertical(ctx, node.x, node.y, node.width, node.height);
-          ctx.fill();
-          ctx.stroke();
-        } else if (visuals.gateType === "port_out") {
-          drawPortOutVertical(ctx, node.x, node.y, node.width, node.height);
-          ctx.fill();
-          ctx.stroke();
-        } else if (visuals.gateType === "register" || visuals.gateType === "operator" || visuals.gateType === "module") {
-          ctx.beginPath();
-          ctx.roundRect(node.x, node.y, node.width, node.height, 5);
-          ctx.fill();
-          ctx.stroke();
-        } else {
-          // Standard logic gate: rotate 90 deg clockwise so inputs face UP, output faces DOWN
-          ctx.save();
-          ctx.translate(node.x + node.width / 2, node.y + node.height / 2);
-          ctx.rotate(Math.PI / 2);
-          drawNodeShape(ctx, node, visuals.gateType, -node.height / 2, -node.width / 2, node.height, node.width, true);
-          ctx.restore();
-        }
-      } else {
-        drawNodeShape(ctx, node, visuals.gateType, node.x, node.y, node.width, node.height, false);
-      }
+      drawNodeShape(ctx, node, visuals.gateType, node.x, node.y, node.width, node.height, false);
 
       // Clock input notch for sequential registers
       if (visuals.gateType === "register") {
@@ -921,15 +917,9 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
           const cy = node.y + clkPort.offsetY;
           ctx.fillStyle = visuals.accentColor;
           ctx.beginPath();
-          if (graph.orientation === "vertical") {
-            ctx.moveTo(cx - 5, cy);
-            ctx.lineTo(cx, cy + 6);
-            ctx.lineTo(cx + 5, cy);
-          } else {
-            ctx.moveTo(cx, cy - 5);
-            ctx.lineTo(cx + 6, cy);
-            ctx.lineTo(cx, cy + 5);
-          }
+          ctx.moveTo(cx, cy - 5);
+          ctx.lineTo(cx + 6, cy);
+          ctx.lineTo(cx, cy + 5);
           ctx.closePath();
           ctx.fill();
         }
@@ -939,38 +929,24 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       // Labels & Text Display (Vivado Standard)
       // ----------------------------------------------------------------------
 
-      // 1. Instance Name printed above/beside the gate (Vivado style: inv1, and1, or1)
+      // 1. Instance Name printed above the gate (Vivado style: inv1, and1, or1)
       if (visuals.gateType !== "port_in" && visuals.gateType !== "port_out") {
         ctx.font = "bold 10px JetBrains Mono, monospace";
         const textMetrics = ctx.measureText(visuals.instanceName);
         const textWidth = textMetrics.width;
 
-        if (graph.orientation === "vertical") {
-          // In vertical mode, inputs enter from top and outputs exit bottom.
-          // Place instance name to the right of the gate where no wires exist.
-          const textX = node.x + node.width + 5;
-          const textY = node.y + 12;
+        // Horizontal mode: place instance name above gate
+        const textX = node.x + node.width / 2;
+        const textY = node.y - 6;
 
-          ctx.fillStyle = "#0c1017";
-          ctx.fillRect(textX - 2, textY - 9, textWidth + 4, 12);
+        // Solid background knockout plate matching canvas background (#0c1017)
+        // Completely isolates text from any background grid lines or passing wire paths
+        ctx.fillStyle = "#0c1017";
+        ctx.fillRect(textX - textWidth / 2 - 4, textY - 10, textWidth + 8, 14);
 
-          ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
-          ctx.textAlign = "left";
-          ctx.fillText(visuals.instanceName, textX, textY);
-        } else {
-          // Horizontal mode: place instance name above gate
-          const textX = node.x + node.width / 2;
-          const textY = node.y - 6;
-
-          // Solid background knockout plate matching canvas background (#0c1017)
-          // Completely isolates text from any background grid lines or passing wire paths
-          ctx.fillStyle = "#0c1017";
-          ctx.fillRect(textX - textWidth / 2 - 4, textY - 10, textWidth + 8, 14);
-
-          ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
-          ctx.textAlign = "center";
-          ctx.fillText(visuals.instanceName, textX, textY);
-        }
+        ctx.fillStyle = isSelected || isHovered ? "#00f0ff" : "rgba(226, 232, 240, 0.85)";
+        ctx.textAlign = "center";
+        ctx.fillText(visuals.instanceName, textX, textY);
       }
 
       // 2. Interior Symbol / Port Name
@@ -990,28 +966,16 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         if (visuals.gateType === "mux") {
           ctx.font = "bold 8px JetBrains Mono, monospace";
           ctx.fillStyle = "#94a3b8";
-          if (graph.orientation === "vertical") {
-            ctx.textAlign = "center";
-            ctx.fillText("0", node.x + 14, node.y + 12);
-            ctx.fillText("1", node.x + node.width - 14, node.y + 12);
-          } else {
-            ctx.textAlign = "left";
-            ctx.fillText("0", node.x + 8, node.y + 14);
-            ctx.fillText("1", node.x + 8, node.y + node.height - 10);
-          }
+          ctx.textAlign = "left";
+          ctx.fillText("0", node.x + 8, node.y + 14);
+          ctx.fillText("1", node.x + 8, node.y + node.height - 10);
         } else if (visuals.gateType === "register") {
           ctx.font = "bold 8px JetBrains Mono, monospace";
           ctx.fillStyle = "#94a3b8";
-          if (graph.orientation === "vertical") {
-            ctx.textAlign = "center";
-            ctx.fillText("D", node.x + node.width / 2, node.y + 12);
-            ctx.fillText("Q", node.x + node.width / 2, node.y + node.height - 6);
-          } else {
-            ctx.textAlign = "left";
-            ctx.fillText("D", node.x + 7, node.y + 16);
-            ctx.textAlign = "right";
-            ctx.fillText("Q", node.x + node.width - 7, node.y + 16);
-          }
+          ctx.textAlign = "left";
+          ctx.fillText("D", node.x + 7, node.y + 16);
+          ctx.textAlign = "right";
+          ctx.fillText("Q", node.x + node.width - 7, node.y + 16);
         }
       } else if (visuals.gateType === "operator" || visuals.gateType === "module") {
         // General Operators / Modules
@@ -1035,8 +999,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
         ctx.font = "bold 8.5px JetBrains Mono, monospace";
         const gMetrics = ctx.measureText(gateDelayText);
         const gWidth = gMetrics.width + 8;
-        const gX = graph.orientation === "vertical" ? node.x - gWidth / 2 - 4 : node.x + node.width / 2;
-        const gY = graph.orientation === "vertical" ? node.y + node.height / 2 : node.y + node.height + 11;
+        const gX = node.x + node.width / 2;
+        const gY = node.y + node.height + 11;
 
         ctx.fillStyle = "#0c1017";
         ctx.fillRect(gX - gWidth / 2, gY - 8, gWidth, 14);
@@ -1072,13 +1036,8 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
               const py = node.y + pin.offsetY;
               ctx.font = "bold 7px JetBrains Mono, monospace";
               ctx.fillStyle = isClk ? "#f59e0b" : "#ef4444";
-              if (graph.orientation === "vertical") {
-                ctx.textAlign = "center";
-                ctx.fillText(isClk ? "CLK" : "RST", px, py - 4);
-              } else {
-                ctx.textAlign = "right";
-                ctx.fillText(isClk ? "CLK" : "RST", px - 4, py + 2.5);
-              }
+              ctx.textAlign = "right";
+              ctx.fillText(isClk ? "CLK" : "RST", px - 4, py + 2.5);
               ctx.fillStyle = visuals.accentColor;
             }
           }
@@ -1115,27 +1074,50 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       ctx.fill();
       ctx.stroke();
 
-      const graphW = Math.max(graph.bounds.width, 1);
-      const graphH = Math.max(graph.bounds.height, 1);
-      const miniScaleX = (mapWidth - 16) / graphW;
-      const miniScaleY = (mapHeight - 16) / graphH;
+      const isVert = orientation === "vertical";
+      const effGraphW = isVert ? Math.max(graph.bounds.height, 1) : Math.max(graph.bounds.width, 1);
+      const effGraphH = isVert ? Math.max(graph.bounds.width, 1) : Math.max(graph.bounds.height, 1);
+      const miniScaleX = (mapWidth - 16) / effGraphW;
+      const miniScaleY = (mapHeight - 16) / effGraphH;
       const miniScale = Math.min(miniScaleX, miniScaleY);
 
       // Draw mini nodes
       for (const node of graph.nodes) {
-        const nx = mapX + 8 + (node.x - graph.bounds.minX) * miniScale;
-        const ny = mapY + 8 + (node.y - graph.bounds.minY) * miniScale;
-        const nw = Math.max(2, node.width * miniScale);
-        const nh = Math.max(2, node.height * miniScale);
+        let nx: number;
+        let ny: number;
+        let nw: number;
+        let nh: number;
+        if (isVert) {
+          nx = mapX + 8 + (graph.bounds.maxY - (node.y + node.height)) * miniScale;
+          ny = mapY + 8 + (node.x - graph.bounds.minX) * miniScale;
+          nw = Math.max(2, node.height * miniScale);
+          nh = Math.max(2, node.width * miniScale);
+        } else {
+          nx = mapX + 8 + (node.x - graph.bounds.minX) * miniScale;
+          ny = mapY + 8 + (node.y - graph.bounds.minY) * miniScale;
+          nw = Math.max(2, node.width * miniScale);
+          nh = Math.max(2, node.height * miniScale);
+        }
         ctx.fillStyle = node.id === selectedNodeId ? "#00f0ff" : "rgba(255, 255, 255, 0.3)";
         ctx.fillRect(nx, ny, nw, nh);
       }
 
       // Draw mini camera viewport box
-      const camX = mapX + 8 + (-offsetX / scale - graph.bounds.minX) * miniScale;
-      const camY = mapY + 8 + (-offsetY / scale - graph.bounds.minY) * miniScale;
-      const camW = (width / scale) * miniScale;
-      const camH = (height / scale) * miniScale;
+      let camX: number;
+      let camY: number;
+      let camW: number;
+      let camH: number;
+      if (isVert) {
+        camX = mapX + 8 + (graph.bounds.maxY - offsetX / scale) * miniScale;
+        camY = mapY + 8 + (-offsetY / scale - graph.bounds.minX) * miniScale;
+        camW = (height / scale) * miniScale;
+        camH = (width / scale) * miniScale;
+      } else {
+        camX = mapX + 8 + (-offsetX / scale - graph.bounds.minX) * miniScale;
+        camY = mapY + 8 + (-offsetY / scale - graph.bounds.minY) * miniScale;
+        camW = (width / scale) * miniScale;
+        camH = (height / scale) * miniScale;
+      }
 
       ctx.strokeStyle = "#00f0ff";
       ctx.lineWidth = 1.2;
@@ -1156,6 +1138,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
     offsetX,
     offsetY,
     scale,
+    orientation,
     selectedNodeId,
     selectedEdgeId,
     hoveredNodeId,
@@ -1331,8 +1314,15 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
 
       // Tap to select
       if (distMoved < 8) {
-        const graphX = (endX - offsetX) / scale;
-        const graphY = (endY - offsetY) / scale;
+        let graphX: number;
+        let graphY: number;
+        if (orientation === "vertical") {
+          graphX = (endY - offsetY) / scale;
+          graphY = (offsetX - endX) / scale;
+        } else {
+          graphX = (endX - offsetX) / scale;
+          graphY = (endY - offsetY) / scale;
+        }
 
         let hitNode: SchematicNode | null = null;
         for (let i = graph.nodes.length - 1; i >= 0; i--) {
@@ -1359,9 +1349,17 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    if (orientation === "vertical") {
+      return {
+        x: (sy - offsetY) / scale,
+        y: (offsetX - sx) / scale
+      };
+    }
     return {
-      x: (e.clientX - rect.left - offsetX) / scale,
-      y: (e.clientY - rect.top - offsetY) / scale
+      x: (sx - offsetX) / scale,
+      y: (sy - offsetY) / scale
     };
   };
 
@@ -1542,10 +1540,19 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       const node = graph.nodes.find((n) => n.id === selectedNodeId);
       if (node && containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        const screenX = rect.left + node.x * scale + offsetX;
-        const screenY = rect.top + node.y * scale + offsetY;
+        let sx: number;
+        let sy: number;
+        if (orientation === "vertical") {
+          sx = offsetX - scale * (node.y + node.height / 2);
+          sy = offsetY + scale * (node.x + node.width / 2);
+        } else {
+          sx = offsetX + node.x * scale;
+          sy = offsetY + node.y * scale;
+        }
+        const screenX = rect.left + sx;
+        const screenY = rect.top + sy;
         return {
-          x: Math.min(Math.max(12, screenX + node.width * scale + 14), maxX),
+          x: Math.min(Math.max(12, screenX + (orientation === "vertical" ? node.height : node.width) * scale + 14), maxX),
           y: Math.min(Math.max(48, screenY), maxY)
         };
       }
@@ -1555,7 +1562,7 @@ export const SchematicViewer: React.FC<SchematicViewerProps> = ({
       x: mousePos.x > maxX ? Math.max(12, mousePos.x - 330) : mousePos.x + 16,
       y: mousePos.y > maxY ? Math.max(12, mousePos.y - 280) : mousePos.y + 16
     };
-  }, [mousePos, hoveredNodeId, selectedNodeId, graph.nodes, scale, offsetX, offsetY]);
+  }, [mousePos, hoveredNodeId, selectedNodeId, graph.nodes, scale, offsetX, offsetY, orientation]);
 
   // Viewport bounds calculation for floating wire / edge hover tooltip
   const edgeTooltipPos = useMemo(() => {
@@ -3418,28 +3425,6 @@ function drawPortOutShape(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.lineTo(x + w, y + h - 2);
   ctx.lineTo(x + tipW, y + h - 2);
   ctx.lineTo(x, y + h / 2);
-  ctx.closePath();
-}
-
-function drawPortInVertical(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  const tipH = 7;
-  ctx.beginPath();
-  ctx.moveTo(x + 2, y);
-  ctx.lineTo(x + w - 2, y);
-  ctx.lineTo(x + w - 2, y + h - tipH);
-  ctx.lineTo(x + w / 2, y + h);
-  ctx.lineTo(x + 2, y + h - tipH);
-  ctx.closePath();
-}
-
-function drawPortOutVertical(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  const tipH = 7;
-  ctx.beginPath();
-  ctx.moveTo(x + 2, y);
-  ctx.lineTo(x + w / 2, y + tipH);
-  ctx.lineTo(x + w - 2, y);
-  ctx.lineTo(x + w - 2, y + h);
-  ctx.lineTo(x + 2, y + h);
   ctx.closePath();
 }
 
