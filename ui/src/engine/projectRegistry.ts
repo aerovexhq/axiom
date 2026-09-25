@@ -42,6 +42,20 @@ export function sanitizeProjectName(raw: string): string {
   return sanitized;
 }
 
+export type ProjectNameValidationErrorKey =
+  | "valNameEmpty"
+  | "valNameInvalidChars"
+  | "valNameDot"
+  | "valNameTrashCollision"
+  | "valNameCollision";
+
+export interface ProjectNameValidationResult {
+  valid: boolean;
+  error?: string;
+  errorKey?: ProjectNameValidationErrorKey;
+  errorParams?: Record<string, string | number>;
+}
+
 /**
  * Validates a project name for syntax correctness and registry collision.
  */
@@ -49,19 +63,28 @@ export function validateProjectName(
   name: string,
   existingProjects: ProjectMetadata[],
   currentId?: string
-): { valid: boolean; error?: string } {
+): ProjectNameValidationResult {
   const trimmed = name.trim();
   if (!trimmed) {
-    return { valid: false, error: "Project name cannot be empty." };
+    return {
+      valid: false,
+      error: "Project name cannot be empty.",
+      errorKey: "valNameEmpty"
+    };
   }
   if (!PROJECT_NAME_REGEX.test(trimmed)) {
     return {
       valid: false,
-      error: "Project name may only contain letters (a-z, A-Z), numbers (0-9), underscores (_), hyphens (-), and dots (.)."
+      error: "Project name may only contain letters (a-z, A-Z), numbers (0-9), underscores (_), hyphens (-), and dots (.).",
+      errorKey: "valNameInvalidChars"
     };
   }
   if (trimmed === "." || trimmed === ".." || /^\.+$/.test(trimmed)) {
-    return { valid: false, error: "Project name cannot be '.' or '..'." };
+    return {
+      valid: false,
+      error: "Project name cannot be '.' or '..'.",
+      errorKey: "valNameDot"
+    };
   }
 
   const collision = existingProjects.find(
@@ -71,10 +94,17 @@ export function validateProjectName(
     if (collision.isTrashed) {
       return {
         valid: false,
-        error: `A project named "${trimmed}" is currently in Trash. Restore or permanently delete it first.`
+        error: `A project named "${trimmed}" is currently in Trash. Restore or permanently delete it first.`,
+        errorKey: "valNameTrashCollision",
+        errorParams: { name: trimmed }
       };
     }
-    return { valid: false, error: `A project named "${trimmed}" already exists.` };
+    return {
+      valid: false,
+      error: `A project named "${trimmed}" already exists.`,
+      errorKey: "valNameCollision",
+      errorParams: { name: trimmed }
+    };
   }
 
   return { valid: true };

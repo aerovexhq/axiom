@@ -1080,12 +1080,12 @@ export function layoutAndRouteGraph(
               const inLower = graph.edges.find((e) => e.targetNodeId === lower.id);
               const srcLower = inLower ? nodeMap.get(inLower.sourceNodeId) : null;
               const minLowerY = upper.y + upper.height + 32;
-              // Place lower auxiliary gate cleanly below datapath and intermediate input tracks (y >= 208)
-              // so that the horizontal route of in_C (y = 177) has zero obstacle collisions and zero detours
+              // Place lower auxiliary gate cleanly below datapath and intermediate input tracks (y >= 214)
+              // so that the horizontal route of in_C (y = 174) has zero obstacle collisions and zero detours
               if (srcLower) {
-                lower.y = Math.max(minLowerY, 208, Math.round(srcLower.y + srcLower.height + 16));
+                lower.y = Math.max(minLowerY, 214, Math.round(srcLower.y + srcLower.height + 16));
               } else {
-                lower.y = Math.max(minLowerY, 208, Math.round(chain[0].y + chain[0].height + 16));
+                lower.y = Math.max(minLowerY, 214, Math.round(chain[0].y + chain[0].height + 16));
               }
               assignPortOffsets(lower, orientation);
 
@@ -2594,7 +2594,7 @@ function generateLogicCircuitGraph(orientation: SchematicOrientation = "horizont
       scope: "logic_circuit",
       inputs: [],
       outputs: [{ id: "out", name: "C", width: 1, direction: "out" }],
-      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 220, delayPs: 0, dynamicPowerMw: 0.02,
+      x: 0, y: 0, width: 80, height: 28, layer: 0, fixedY: 160, delayPs: 0, dynamicPowerMw: 0.02,
       sourceSpan: { lineStart: 14, lineEnd: 14 }
     },
 
@@ -2622,7 +2622,7 @@ function generateLogicCircuitGraph(orientation: SchematicOrientation = "horizont
       outputs: [{ id: "out", name: "w4", width: 1, direction: "out" }],
       craneliftOp: "bnot",
       expressionText: "~B",
-      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 142, delayPs: 45, dynamicPowerMw: 0.12,
+      x: 0, y: 0, width: 68, height: 38, layer: 1, fixedY: 220, delayPs: 45, dynamicPowerMw: 0.12,
       sourceSpan: { lineStart: 22, lineEnd: 22 }
     },
 
