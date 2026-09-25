@@ -1,10 +1,10 @@
 {
-  "commit": "v1.0.0",
-  "shortCommit": "v1.0.0",
-  "tag": "v1.0.0",
-  "version": "1.0.0",
-  "releaseName": "Axiom EDA 1.0.0 General Availability",
-  "timestamp": "2026-09-22T13:30:00Z",
-  "releaseNotes": "Axiom EDA 1.0.0 GA Release: High-Performance Aerospace-Grade Rust Remake of Vivado HDL Engine, JIT Compiler, Static Timing Analysis, Formal Verification, Floorplanning, Protocol Analyzers, and Visual Hardware Studio.",
+  "commit": "v1.0.1",
+  "shortCommit": "v1.0.1",
+  "tag": "v1.0.1",
+  "version": "1.0.1",
+  "releaseName": "Axiom EDA 1.0.1 Patch Release",
+  "timestamp": "2026-09-25T14:40:00Z",
+  "releaseNotes": "Axiom EDA 1.0.1 Patch Release: Schematic layout datapath routing optimization (collinear zero-turn input C datapath), VitePress docs Linux Tux penguin icon, and complete 7-language New Project Modal localization.",
   "downloadUrl": "https://github.com/aerovexsim/axiom/releases"
 }

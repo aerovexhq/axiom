@@ -35,7 +35,7 @@ export const BottomConsole: React.FC<BottomConsoleProps> = ({ state }) => {
   const [replHistory, setReplHistory] = useState<string[]>([]);
   const [replHistoryIndex, setReplHistoryIndex] = useState<number>(-1);
   const [replEntries, setReplEntries] = useState<ReplEntry[]>([
-    { id: "0", type: "output", text: "Axiom Interactive EDA Shell v1.0.0 (Type 'help' for command list)" }
+    { id: "0", type: "output", text: "Axiom Interactive EDA Shell v1.0.1 (Type 'help' for command list)" }
   ]);
 
   const logEndRef = useRef<HTMLDivElement | null>(null);

@@ -20,6 +20,54 @@ interface GithubRelease {
 
 const FALLBACK_RELEASES: GithubRelease[] = [
   {
+    tag_name: "v1.0.1",
+    name: "Axiom EDA v1.0.1 — Patch Release",
+    published_at: "2026-09-25T14:40:00Z",
+    html_url: "https://github.com/aerovexsim/axiom/releases/tag/v1.0.1",
+    assets: [
+      {
+        name: "Axiom_1.0.1_x64_en-US.msi",
+        size: 24500000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/Axiom_1.0.1_x64_en-US.msi"
+      },
+      {
+        name: "Axiom_1.0.1_x64-setup.exe",
+        size: 26100000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/Axiom_1.0.1_x64-setup.exe"
+      },
+      {
+        name: "axiom-x86_64-pc-windows-msvc.zip",
+        size: 19800000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/axiom-x86_64-pc-windows-msvc.zip"
+      },
+      {
+        name: "axiom_1.0.1_amd64.deb",
+        size: 22800000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/axiom_1.0.1_amd64.deb"
+      },
+      {
+        name: "Axiom_1.0.1_amd64.AppImage",
+        size: 28400000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/Axiom_1.0.1_amd64.AppImage"
+      },
+      {
+        name: "axiom-v1.0.1-x86_64-linux.tar.gz",
+        size: 20100000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/axiom-v1.0.1-x86_64-linux.tar.gz"
+      },
+      {
+        name: "Axiom_1.0.1_aarch64.dmg",
+        size: 25300000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/Axiom_1.0.1_aarch64.dmg"
+      },
+      {
+        name: "Axiom_1.0.1_x64.dmg",
+        size: 26700000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/Axiom_1.0.1_x64.dmg"
+      }
+    ]
+  },
+  {
     tag_name: "v1.0.0",
     name: "Axiom EDA v1.0.0 — Production Release",
     published_at: "2026-09-22T13:41:57Z",
@@ -233,17 +281,17 @@ onMounted(async () => {
     if (res.ok) {
       const data: GithubRelease[] = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        // Merge fetched data with any known assets for v1.0.0 if github release has no attached assets yet
+        // Merge fetched data with any known assets for v1.0.1 if github release has no attached assets yet
         const enriched = data.map((rel) => {
-          if ((!rel.assets || rel.assets.length === 0) && rel.tag_name === "v1.0.0") {
+          if ((!rel.assets || rel.assets.length === 0) && rel.tag_name === "v1.0.1") {
             return { ...rel, assets: FALLBACK_RELEASES[0].assets };
           }
           return rel;
         });
 
-        // Ensure v1.0.0 is present at the top if GitHub API only has v0.1.0
-        const hasV1 = enriched.some((r) => r.tag_name === "v1.0.0");
-        if (!hasV1) {
+        // Ensure v1.0.1 is present at the top if GitHub API only has earlier releases
+        const hasLatest = enriched.some((r) => r.tag_name === "v1.0.1");
+        if (!hasLatest) {
           enriched.unshift(FALLBACK_RELEASES[0]);
         }
 
@@ -313,7 +361,8 @@ interface PlatformGroup {
 
 const categorizedAssets = computed<PlatformGroup[]>(() => {
   const assets = currentRelease.value?.assets || [];
-  const tag = currentRelease.value?.tag_name || "v1.0.0";
+  const tag = currentRelease.value?.tag_name || "v1.0.1";
+  const tagNum = tag.replace(/^v/, "");
 
   // Windows assets
   const winAssets = [];
@@ -332,7 +381,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
       format: ".msi",
       description: "Windows Installer (WiX)",
       arch: "x86_64",
-      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_1.0.0_x64_en-US.msi`,
+      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_${tagNum}_x64_en-US.msi`,
       size: "24.5 MB",
       primary: true
     });
@@ -352,7 +401,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
       format: ".exe",
       description: "Setup Installer (NSIS)",
       arch: "x86_64",
-      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_1.0.0_x64-setup.exe`,
+      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_${tagNum}_x64-setup.exe`,
       size: "26.1 MB"
     });
   }
@@ -385,7 +434,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
       format: ".deb",
       description: "Debian / Ubuntu Package",
       arch: "amd64",
-      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/axiom_1.0.0_amd64.deb`,
+      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/axiom_${tagNum}_amd64.deb`,
       size: "22.8 MB",
       primary: true
     });
@@ -405,7 +454,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
       format: ".AppImage",
       description: "Universal Linux Package",
       arch: "x86_64",
-      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_1.0.0_amd64.AppImage`,
+      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_${tagNum}_amd64.AppImage`,
       size: "28.4 MB"
     });
   }
@@ -438,7 +487,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
       format: ".dmg",
       description: "Apple Silicon Disk Image",
       arch: "aarch64 (M1-M4)",
-      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_1.0.0_aarch64.dmg`,
+      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_${tagNum}_aarch64.dmg`,
       size: "25.3 MB",
       primary: true
     });
@@ -458,7 +507,7 @@ const categorizedAssets = computed<PlatformGroup[]>(() => {
       format: ".dmg",
       description: "Intel Mac Disk Image",
       arch: "x86_64",
-      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_1.0.0_x64.dmg`,
+      url: `https://github.com/aerovexsim/axiom/releases/download/${tag}/Axiom_${tagNum}_x64.dmg`,
       size: "26.7 MB"
     });
   }

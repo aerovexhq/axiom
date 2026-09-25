@@ -4,14 +4,14 @@
 .DESCRIPTION
     Installs Axiom EDA on Windows systems with version selection.
 .PARAMETER Version
-    Specific release version tag (e.g. v1.0.0, latest). Defaults to $env:AXIOM_VERSION or latest.
+    Specific release version tag (e.g. v1.0.1, latest). Defaults to $env:AXIOM_VERSION or latest.
 .PARAMETER InstallDir
     Target directory (defaults to $env:USERPROFILE\.axiom).
 .PARAMETER ForceBuild
     Force building from source via cargo instead of downloading pre-built binaries.
 .EXAMPLE
     irm https://axiom.aerovex.net/install.ps1 | iex
-    & ([scriptblock]::Create((irm https://axiom.aerovex.net/install.ps1))) -Version v1.0.0
+    & ([scriptblock]::Create((irm https://axiom.aerovex.net/install.ps1))) -Version v1.0.1
 #>
 
 [CmdletBinding()]
@@ -24,7 +24,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Repo = "aerovexsim/axiom"
-$DefaultVersion = "v1.0.0"
+$DefaultVersion = "v1.0.1"
 $BinDir = Join-Path $InstallDir "bin"
 
 Write-Host "================================================================================" -ForegroundColor Cyan

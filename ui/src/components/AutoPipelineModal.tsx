@@ -474,7 +474,7 @@ export const AutoPipelineModal: React.FC<AutoPipelineModalProps> = ({
           }}
         >
           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-            Axiom Silicon Copilot v1.0.0 · Sub-50ms Timing Remediation
+            Axiom Silicon Copilot v1.0.1 · Sub-50ms Timing Remediation
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

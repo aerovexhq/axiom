@@ -15,7 +15,7 @@ RED="\033[0;31m"
 RESET="\033[0m"
 
 REPO="aerovexsim/axiom"
-DEFAULT_VERSION="v1.0.0"
+DEFAULT_VERSION="v1.0.1"
 VERSION="${AXIOM_VERSION:-}"
 INSTALL_DIR="${AXIOM_INSTALL_DIR:-${HOME}/.axiom}"
 BIN_DIR="${INSTALL_DIR}/bin"
@@ -29,13 +29,13 @@ ${BOLD}USAGE:${RESET}
     curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- [OPTIONS]
 
 ${BOLD}OPTIONS:${RESET}
-    -v, --version <TAG>    Specify target version (e.g., v1.0.0, latest)
+    -v, --version <TAG>    Specify target version (e.g., v1.0.1, latest)
     -d, --dir <DIR>        Installation directory (default: \$HOME/.axiom)
     -b, --build            Build from source using cargo instead of pre-built binary
     -h, --help             Show this help message
 
 ${BOLD}ENVIRONMENT VARIABLES:${RESET}
-    AXIOM_VERSION          Target version to install (e.g. v1.0.0)
+    AXIOM_VERSION          Target version to install (e.g. v1.0.1)
     AXIOM_INSTALL_DIR      Target directory path
 "
 }

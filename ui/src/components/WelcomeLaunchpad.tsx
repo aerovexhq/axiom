@@ -45,6 +45,7 @@ import {
   takeOverProjectLease,
   subscribeToProjectLeases
 } from "../engine/windowManager";
+import { CURRENT_CLIENT_VERSION } from "../engine/updateChecker";
 
 interface WelcomeLaunchpadProps {
   onOpenNewProject: (templateId?: string, lessonId?: string) => void;
@@ -76,6 +77,29 @@ interface GithubReleaseItem {
 }
 
 const FALLBACK_LAUNCHPAD_RELEASES: GithubReleaseItem[] = [
+  {
+    tag_name: "v1.0.1",
+    name: "Axiom EDA v1.0.1",
+    published_at: "2026-09-25T14:40:00Z",
+    html_url: "https://github.com/aerovexsim/axiom/releases/tag/v1.0.1",
+    assets: [
+      {
+        name: "Axiom_1.0.1_x64_en-US.msi",
+        size: 24500000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/Axiom_1.0.1_x64_en-US.msi"
+      },
+      {
+        name: "axiom_1.0.1_amd64.deb",
+        size: 22800000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/axiom_1.0.1_amd64.deb"
+      },
+      {
+        name: "Axiom_1.0.1_aarch64.dmg",
+        size: 25300000,
+        browser_download_url: "https://github.com/aerovexsim/axiom/releases/download/v1.0.1/Axiom_1.0.1_aarch64.dmg"
+      }
+    ]
+  },
   {
     tag_name: "v1.0.0",
     name: "Axiom EDA v1.0.0",
@@ -144,7 +168,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
       .then((data: GithubReleaseItem[] | null) => {
         if (Array.isArray(data) && data.length > 0) {
           const list = [...data];
-          if (!list.some((r) => r.tag_name === "v1.0.0")) {
+          if (!list.some((r) => r.tag_name === "v1.0.1")) {
             list.unshift(FALLBACK_LAUNCHPAD_RELEASES[0]);
           }
           setGithubReleases(list);
@@ -281,12 +305,13 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
   };
 
   const currentRelease = githubReleases.find((r) => r.tag_name === selectedReleaseTag) || githubReleases[0];
+  const tagNum = (selectedReleaseTag || "v1.0.1").replace(/^v/, "");
   const winMsiUrl = currentRelease.assets.find((a) => a.name.endsWith(".msi"))?.browser_download_url
-    || `https://github.com/aerovexsim/axiom/releases/download/${selectedReleaseTag}/Axiom_1.0.0_x64_en-US.msi`;
+    || `https://github.com/aerovexsim/axiom/releases/download/${selectedReleaseTag}/Axiom_${tagNum}_x64_en-US.msi`;
   const linuxDebUrl = currentRelease.assets.find((a) => a.name.endsWith(".deb"))?.browser_download_url
-    || `https://github.com/aerovexsim/axiom/releases/download/${selectedReleaseTag}/axiom_1.0.0_amd64.deb`;
+    || `https://github.com/aerovexsim/axiom/releases/download/${selectedReleaseTag}/axiom_${tagNum}_amd64.deb`;
   const macDmgUrl = currentRelease.assets.find((a) => (a.name.includes("aarch64") || a.name.includes("arm64")) && a.name.endsWith(".dmg"))?.browser_download_url
-    || `https://github.com/aerovexsim/axiom/releases/download/${selectedReleaseTag}/Axiom_1.0.0_aarch64.dmg`;
+    || `https://github.com/aerovexsim/axiom/releases/download/${selectedReleaseTag}/Axiom_${tagNum}_aarch64.dmg`;
 
   return (
     <div
@@ -346,7 +371,7 @@ export const WelcomeLaunchpad: React.FC<WelcomeLaunchpadProps> = ({
                   border: "1px solid var(--border-subtle)"
                 }}
               >
-                v1.0.0
+                {CURRENT_CLIENT_VERSION}
               </span>
             </div>
             <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>
