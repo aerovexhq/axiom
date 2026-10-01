@@ -67,7 +67,7 @@ Si vous préférez compiler depuis les sources ou modifier le moteur, Axiom incl
 Clonez le dépôt et exécutez le script automatisé :
 
 ```bash
-git clone https://github.com/aerovexsim/axiom.git
+git clone https://github.com/aerovexhq/axiom.git
 cd axiom
 ./scripts/build_from_source.sh
 ```

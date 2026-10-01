@@ -787,7 +787,7 @@ TRANSLATIONS_DE: dict[str, str] = {
     "`^`, `~^`, `^~`": "`^`, `~^`, `^~`",
     "`ante \\": "`ante \\",
     "Download native, high-performance desktop packages with direct Cranelift JIT in RAM and zero browser sandbox limits. Releases are automatically fetched from GitHub:": "Laden Sie native, hochperformante Desktop-Pakete mit direkter Cranelift-JIT im RAM und ohne Browser-Sandbox-Einschränkungen herunter. Releases werden automatisch von GitHub abgerufen:",
-    "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).": "Alle Release-Assets, SHA256-Prüfsummen und Versionshinweise sind auf der [Axiom GitHub-Releases-Seite](https://github.com/aerovexsim/axiom/releases) verfügbar.",
+    "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).": "Alle Release-Assets, SHA256-Prüfsummen und Versionshinweise sind auf der [Axiom GitHub-Releases-Seite](https://github.com/aerovexhq/axiom/releases) verfügbar.",
     "Install the standalone Axiom EDA binary in seconds without 100+ GB installer bloat:": "Installieren Sie die eigenständige Axiom EDA-Binärdatei in Sekundenschnelle ohne über 100 GB Installationsballast:",
     "To install a specific release version:": "So installieren Sie eine bestimmte Release-Version:",
     "Or build directly from source using cargo:": "Oder kompilieren Sie direkt aus dem Quellcode mit Cargo:",

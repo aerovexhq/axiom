@@ -576,7 +576,7 @@ TRANSLATIONS_ZH: dict[str, str] = {
     'Advances physical simulation time by exactly 100 picoseconds': '将物理仿真时间精确向前推进 100 皮秒',
     'Advances the simulation by exactly **one discrete delta cycle** ($\\delta \\to \\delta + 1$) without advancing physical time:': '在不推移物理时间的情况下，将仿真精确推移**一个离散的零时间 delta 周期 (δ周期)** ($\\delta \\to \\delta + 1$)：',
     'Advantage': '优势',
-    'All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).': '所有发布资产、SHA256 校验和与发行说明均可在 [Axiom GitHub Releases 页面](https://github.com/aerovexsim/axiom/releases) 获取。',
+    'All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).': '所有发布资产、SHA256 校验和与发行说明均可在 [Axiom GitHub Releases 页面](https://github.com/aerovexhq/axiom/releases) 获取。',
     'Allowed (full performance)': '允许（发挥全部性能）',
     'Allowed (strict loop bounds)': '允许（应用严格循环边界）',
     'An interface bundles related nets and signals into a single port connection:': '接口将一组相互关联的网线与信号绑定为一个统一的复合端口连接：',

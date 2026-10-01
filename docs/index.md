@@ -21,7 +21,7 @@ hero:
       link: /guide/quickstart
     - theme: alt
       text: View on GitHub
-      link: https://github.com/aerovexsim/axiom
+      link: https://github.com/aerovexhq/axiom
 
 features:
   - title: In-RAM Cranelift JIT
@@ -45,7 +45,7 @@ Download native, high-performance desktop packages with direct Cranelift JIT in 
 <ReleaseDownloader />
 
 ::: tip GitHub Releases & SHA256 Verification
-All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).
+All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).
 :::
 
 ## Single-Line Install

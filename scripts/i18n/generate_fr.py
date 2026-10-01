@@ -609,7 +609,7 @@ TRANSLATIONS_FR: dict[str, str] = {
     'Advances physical simulation time by exactly 100 picoseconds': "Fait avancer le temps physique de simulation d'exactement 100 picosecondes",
     'Advances the simulation by exactly **one discrete delta cycle** ($\\delta \\to \\delta + 1$) without advancing physical time:': "Fait avancer la simulation d'exactement **un cycle delta discret** ($\\delta \\to \\delta + 1$) sans faire avancer le temps physique :",
     'Advantage': 'Avantage',
-    'All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).': "Tous les artefacts de version, les sommes de contrôle SHA256 et les notes de version sont disponibles sur la [page des versions GitHub d'Axiom](https://github.com/aerovexsim/axiom/releases).",
+    'All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).': "Tous les artefacts de version, les sommes de contrôle SHA256 et les notes de version sont disponibles sur la [page des versions GitHub d'Axiom](https://github.com/aerovexhq/axiom/releases).",
     'All signal names, bus labels (`[7:0]`), and gate instance tags render over opaque dark-acrylic knockout plates, ensuring labels never collide with wire traces.': "Tous les noms de signaux, étiquettes de bus (`[7:0]`) et identifiants de portes sont affichés sur des plaques d'obturation acryliques sombres opaques, garantissant que les étiquettes ne se superposent jamais aux tracés de fils.",
     'Allowed (full performance)': 'Autorisée (pleine performance)',
     'Allowed (strict loop bounds)': 'Autorisée (limites strictes de boucles)',

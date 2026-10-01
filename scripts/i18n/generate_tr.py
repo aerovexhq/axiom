@@ -677,7 +677,7 @@ TRANSLATIONS_TR: dict[str, str] = {
     'Advances the simulation by exactly **one discrete delta cycle** ($\\delta \\to \\delta + 1$) without advancing physical time:': 'Fiziksel zamanı ilerletmeden simülasyonu tam olarak **bir ayrık delta döngüsü** ($\\delta \\to \\delta + 1$) ilerletir:',
     'Advantage': 'Avantaj',
     'All inputs and outputs can be mapped to 1-bit or multi-bit vector nets.': 'Tüm girişler ve çıkışlar 1-bit veya çok bitli vektör hatlarına eşlenebilir.',
-    'All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).': 'Tüm sürüm varlıkları, SHA256 sağlama toplamları ve sürüm notları [Axiom GitHub Sürümleri Sayfasında](https://github.com/aerovexsim/axiom/releases) mevcuttur.',
+    'All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).': 'Tüm sürüm varlıkları, SHA256 sağlama toplamları ve sürüm notları [Axiom GitHub Sürümleri Sayfasında](https://github.com/aerovexhq/axiom/releases) mevcuttur.',
     'Allowed (full performance)': 'İzin verilir (tam performans)',
     'Allowed (strict loop bounds)': 'İzin verilir (katı döngü sınırları)',
     'Allows engineers to dynamically adjust the horizontal balance between HDL code editing and visualizer analysis.': 'Mühendislerin HDL kod düzenleme ile görselleştirici analizi arasındaki yatay dengeyi dinamik olarak ayarlamasına olanak tanır.',

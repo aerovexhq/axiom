@@ -67,7 +67,7 @@ Wenn Sie es vorziehen, aus dem Quellcode zu kompilieren oder die Engine zu modif
 Klonen Sie das Repository und führen Sie den automatisierten Treiber aus:
 
 ```bash
-git clone https://github.com/aerovexsim/axiom.git
+git clone https://github.com/aerovexhq/axiom.git
 cd axiom
 ./scripts/build_from_source.sh
 ```

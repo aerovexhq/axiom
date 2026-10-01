@@ -765,7 +765,7 @@
 
 - [x] **Phase 55: Automated Dynamic GitHub Releases Downloader with Version Selector - [P1]**
   - [x] **VitePress Dynamic Release Downloader Component (`docs/.vitepress/theme/components/ReleaseDownloader.vue`)**:
-    - [x] Create interactive Vue 3 component fetching releases from GitHub API (`/repos/aerovexsim/axiom/releases`).
+    - [x] Create interactive Vue 3 component fetching releases from GitHub API (`/repos/aerovexhq/axiom/releases`).
     - [x] Implement reactive dropdown selector allowing users to choose any published release version, defaulting automatically to the latest release (`v1.0.0`).
     - [x] Categorize release assets by platform (Windows `.msi`, `.exe`, `.zip`; Linux `.deb`, `.AppImage`, `.tar.gz`; macOS `.dmg`) with formatted file size, publish date, and direct download links.
     - [x] Include graceful fallback handling with loading skeleton and cached release fallback if GitHub API rate limits.
@@ -1773,8 +1773,8 @@
     - Maintained accessible tooltip (`title="Omnibar (Ctrl+K / Cmd+K)"`) and keyboard shortcut handlers.
   - [x] **Open Source GitHub Integration**:
     - Created reusable `GithubIcon` SVG component in `ui/src/components/ui/GithubIcon.tsx` and exported via `ui/src/components/ui/index.ts`.
-    - Added GitHub repository icon button in `Header.tsx` (desktop and mobile) linked to `https://github.com/aerovexsim/axiom`.
-    - Added Open Source GitHub collaboration badge, repository link card (`aerovexsim/axiom`), "Star & Collaborate" action, and documentation link in the Welcome Launchpad hero section.
+    - Added GitHub repository icon button in `Header.tsx` (desktop and mobile) linked to `https://github.com/aerovexhq/axiom`.
+    - Added Open Source GitHub collaboration badge, repository link card (`aerovexhq/axiom`), "Star & Collaborate" action, and documentation link in the Welcome Launchpad hero section.
     - Added an open-source collaboration note and PR invitation in the Welcome Launchpad footer.
   - [x] **Verification**: Built UI with 0 errors (`npm run build`) and verified all 55 Rust workspace tests passing (`cargo test --workspace`).
 

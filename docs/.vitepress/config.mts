@@ -231,7 +231,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/aerovexsim/axiom" }
+      { icon: "github", link: "https://github.com/aerovexhq/axiom" }
     ],
 
     footer: {

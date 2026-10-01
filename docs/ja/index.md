@@ -20,7 +20,7 @@ hero:
     link: /ja/guide/quickstart
   - theme: alt
     text: GitHubで表示
-    link: https://github.com/aerovexsim/axiom
+    link: https://github.com/aerovexhq/axiom
 features:
 - title: インメモリCranelift JIT
   details: VerilogおよびSystemVerilogの設計をメモリ内でネイティブ機械語（x86_64、AArch64）へ数ミリ秒で直接コンパイルし、数分に及ぶC++変換やディスクスナップショットのオーバーヘッドを完全に排除します。
@@ -46,7 +46,7 @@ features:
 <ReleaseDownloader />
 
 ::: tip GitHubリリース＆SHA256検証
-すべてのリリースアセット、SHA256チェックサム、リリースノートは [Axiom GitHubリリースページ](https://github.com/aerovexsim/axiom/releases) で入手可能です。
+すべてのリリースアセット、SHA256チェックサム、リリースノートは [Axiom GitHubリリースページ](https://github.com/aerovexhq/axiom/releases) で入手可能です。
 :::
 
 ## ワンライナーインストール
