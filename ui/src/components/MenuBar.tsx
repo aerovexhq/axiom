@@ -1199,7 +1199,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             </a>
 
             <a
-              href="https://github.com/aerovexsim/axiom"
+              href="https://github.com/aerovexhq/axiom"
               target="_blank"
               rel="noreferrer"
               style={{ ...menuItemStyle, textDecoration: "none" }}

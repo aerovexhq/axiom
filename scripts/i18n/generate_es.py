@@ -697,7 +697,7 @@ TRANSLATIONS_ES: dict[str, str] = {
     "Advances the simulation by exactly **one discrete delta cycle** ($\\delta \\to \\delta + 1$) without advancing physical time:": "Avanza la simulación exactamente **un ciclo delta discreto** (ciclo delta de tiempo cero (ciclo δ): $\\delta \\to \\delta + 1$) sin avanzar el tiempo físico:",
     "Advantage": "Ventaja",
     "All 4 SPI modes (CPOL = 0/1, CPHA = 0/1).": "Los 4 modos SPI (CPOL = 0/1, CPHA = 0/1).",
-    "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).": "Todos los activos de las versiones, sumas de verificación SHA256 y notas de la versión están disponibles en la [página de versiones de Axiom en GitHub](https://github.com/aerovexsim/axiom/releases).",
+    "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).": "Todos los activos de las versiones, sumas de verificación SHA256 y notas de la versión están disponibles en la [página de versiones de Axiom en GitHub](https://github.com/aerovexhq/axiom/releases).",
     "Allowed (User confirmation)": "Permitido (con confirmación de usuario)",
     "Allowed (full performance)": "Permitido (rendimiento completo)",
     "Allowed (strict loop bounds)": "Permitido (límites estrictos de bucle)",

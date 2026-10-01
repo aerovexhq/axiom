@@ -21,7 +21,7 @@ hero:
     link: /tr/guide/quickstart
   - theme: alt
     text: GitHub'da Görüntüle
-    link: https://github.com/aerovexsim/axiom
+    link: https://github.com/aerovexhq/axiom
 features:
 - title: RAM İçi Cranelift JIT
   details: Verilog ve SystemVerilog tasarımlarını çok dakikalık C++ ve disk anlık
@@ -57,7 +57,7 @@ RAM'de doğrudan Cranelift JIT derlemesi ve sıfır tarayıcı kısıtlaması il
 <ReleaseDownloader />
 
 ::: tip GitHub Sürümleri & SHA256 Doğrulaması
-Tüm sürüm varlıkları, SHA256 sağlama toplamları ve sürüm notları [Axiom GitHub Sürümleri Sayfasında](https://github.com/aerovexsim/axiom/releases) mevcuttur.
+Tüm sürüm varlıkları, SHA256 sağlama toplamları ve sürüm notları [Axiom GitHub Sürümleri Sayfasında](https://github.com/aerovexhq/axiom/releases) mevcuttur.
 :::
 
 ## Tek Satırda Kurulum

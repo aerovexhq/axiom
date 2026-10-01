@@ -23,7 +23,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$Repo = "aerovexsim/axiom"
+$Repo = "aerovexhq/axiom"
 $DefaultVersion = "v1.0.0"
 $BinDir = Join-Path $InstallDir "bin"
 

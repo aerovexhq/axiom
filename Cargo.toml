@@ -19,7 +19,7 @@ version = "1.0.1"
 edition = "2021"
 authors = ["Axiom EDA Contributors"]
 license = "MIT"
-repository = "https://github.com/aerovexsim/axiom"
+repository = "https://github.com/aerovexhq/axiom"
 
 [workspace.dependencies]
 thiserror = "2.0"

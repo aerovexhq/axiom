@@ -67,7 +67,7 @@ Si prefiere compilar desde el código fuente o modificar el motor, Axiom incluye
 Clone el repositorio y ejecute el controlador automatizado:
 
 ```bash
-git clone https://github.com/aerovexsim/axiom.git
+git clone https://github.com/aerovexhq/axiom.git
 cd axiom
 ./scripts/build_from_source.sh
 ```

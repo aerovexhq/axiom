@@ -67,7 +67,7 @@ If you prefer compiling from source or modifying the engine, Axiom includes an a
 Clone the repository and run the automated driver:
 
 ```bash
-git clone https://github.com/aerovexsim/axiom.git
+git clone https://github.com/aerovexhq/axiom.git
 cd axiom
 ./scripts/build_from_source.sh
 ```

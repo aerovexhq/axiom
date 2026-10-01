@@ -21,7 +21,7 @@ hero:
     link: /zh/guide/quickstart
   - theme: alt
     text: 在 GitHub 上查看
-    link: https://github.com/aerovexsim/axiom
+    link: https://github.com/aerovexhq/axiom
 features:
 - title: 内存中 Cranelift JIT 编译
   details: 在数毫秒内将 Verilog 与 SystemVerilog 设计直接在内存中编译为原生机器码 (x86_64, AArch64)，彻底省去长达数分钟的
@@ -48,7 +48,7 @@ features:
 <ReleaseDownloader />
 
 ::: tip GitHub Releases 与 SHA256 校验
-所有发布资产、SHA256 校验和与发行说明均可在 [Axiom GitHub Releases 页面](https://github.com/aerovexsim/axiom/releases) 获取。
+所有发布资产、SHA256 校验和与发行说明均可在 [Axiom GitHub Releases 页面](https://github.com/aerovexhq/axiom/releases) 获取。
 :::
 
 ## 单行一键安装

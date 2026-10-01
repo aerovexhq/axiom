@@ -573,7 +573,7 @@ TRANSLATIONS_JA: dict[str, str] = {
     "Advances physical simulation time by exactly 100 picoseconds": "物理シミュレーション時間を正確に100ピコ秒進める",
     "Advances the simulation by exactly **one discrete delta cycle** ($\\delta \\to \\delta + 1$) without advancing physical time:": "物理時間を進めることなく、シミュレーションを正確に**1つの離散ゼロ時間デルタサイクル (δサイクル)**（$\\delta \\to \\delta + 1$）進めます:",
     "Advantage": "優位性",
-    "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).": "すべてのリリースアセット、SHA256チェックサム、リリースノートは [Axiom GitHubリリースページ](https://github.com/aerovexsim/axiom/releases) で入手可能です。",
+    "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).": "すべてのリリースアセット、SHA256チェックサム、リリースノートは [Axiom GitHubリリースページ](https://github.com/aerovexhq/axiom/releases) で入手可能です。",
     "Allowed (full performance)": "許可（フルパフォーマンス）",
     "Allowed (strict loop bounds)": "許可（厳格なループ制限付き）",
     "An interface bundles related nets and signals into a single port connection:": "インターフェースは、関連するネットと信号を単一のポート接続に束ねます:",

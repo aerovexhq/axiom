@@ -939,7 +939,7 @@ export function getNav(prefix: string, lang: string = "en"): DefaultTheme.NavIte
     {
       text: l.version,
       items: [
-        { text: l.changelog, link: "https://github.com/aerovexsim/axiom/releases" },
+        { text: l.changelog, link: "https://github.com/aerovexhq/axiom/releases" },
         { text: l.platform, link: "https://aerovex.net" }
       ]
     }

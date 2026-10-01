@@ -776,7 +776,7 @@
   "`^`, `~^`, `^~`",
   "`ante \\",
   "Download native, high-performance desktop packages with direct Cranelift JIT in RAM and zero browser sandbox limits. Releases are automatically fetched from GitHub:",
-  "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexsim/axiom/releases).",
+  "All release assets, SHA256 checksums, and release notes are available on the [Axiom GitHub Releases Page](https://github.com/aerovexhq/axiom/releases).",
   "Install the standalone Axiom EDA binary in seconds without 100+ GB installer bloat:",
   "To install a specific release version:",
   "Or build directly from source using cargo:",

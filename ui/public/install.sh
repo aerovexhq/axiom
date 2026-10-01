@@ -14,7 +14,7 @@ AMBER="\033[0;33m"
 RED="\033[0;31m"
 RESET="\033[0m"
 
-REPO="aerovexsim/axiom"
+REPO="aerovexhq/axiom"
 DEFAULT_VERSION="v1.0.1"
 VERSION="${AXIOM_VERSION:-}"
 INSTALL_DIR="${AXIOM_INSTALL_DIR:-${HOME}/.axiom}"

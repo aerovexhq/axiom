@@ -22,7 +22,7 @@ hero:
     link: /fr/guide/quickstart
   - theme: alt
     text: Voir sur GitHub
-    link: https://github.com/aerovexsim/axiom
+    link: https://github.com/aerovexhq/axiom
 features:
 - title: Compilation JIT en RAM avec Cranelift
   details: Compile les conceptions Verilog et SystemVerilog directement en code machine
@@ -59,7 +59,7 @@ Téléchargez des paquets de bureau natifs haute performance avec compilation JI
 <ReleaseDownloader />
 
 ::: tip Versions GitHub et vérification SHA256
-Tous les artefacts de version, les sommes de contrôle SHA256 et les notes de version sont disponibles sur la [page des versions GitHub d'Axiom](https://github.com/aerovexsim/axiom/releases).
+Tous les artefacts de version, les sommes de contrôle SHA256 et les notes de version sont disponibles sur la [page des versions GitHub d'Axiom](https://github.com/aerovexhq/axiom/releases).
 :::
 
 ## Installation en une seule ligne

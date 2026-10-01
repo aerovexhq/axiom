@@ -67,7 +67,7 @@ curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --dir /opt/axiom
 克隆代码仓库并运行自动化构建驱动：
 
 ```bash
-git clone https://github.com/aerovexsim/axiom.git
+git clone https://github.com/aerovexhq/axiom.git
 cd axiom
 ./scripts/build_from_source.sh
 ```

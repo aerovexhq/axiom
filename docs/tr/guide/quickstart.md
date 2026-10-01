@@ -67,7 +67,7 @@ Kaynaktan derlemeyi veya motoru değiştirmeyi tercih ederseniz Axiom, `scripts/
 Depoyu klonlayın ve otomatik sürücüyü çalıştırın:
 
 ```bash
-git clone https://github.com/aerovexsim/axiom.git
+git clone https://github.com/aerovexhq/axiom.git
 cd axiom
 ./scripts/build_from_source.sh
 ```

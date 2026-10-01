@@ -67,7 +67,7 @@ curl -fsSL https://axiom.aerovex.net/install.sh | bash -s -- --dir /opt/axiom
 リポジトリをクローンして自動ドライバを実行します:
 
 ```bash
-git clone https://github.com/aerovexsim/axiom.git
+git clone https://github.com/aerovexhq/axiom.git
 cd axiom
 ./scripts/build_from_source.sh
 ```
