@@ -18,3 +18,5 @@ Cargo.lock
 .wrangler/
 **/.wrangler/
 dist-release/
+__pycache__/
+*.pyc
