@@ -1,15 +1,6 @@
 name: Deploy Axiom Documentation to GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "docs/**"
-      - "ui/**"
-      - "scripts/**"
-      - ".github/workflows/deploy-docs.yml"
-      - "CNAME"
   workflow_dispatch:
 
 permissions:
