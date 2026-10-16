@@ -1,54 +1,454 @@
-:root {
-  --vp-c-brand-1: #3b82f6;
-  --vp-c-brand-2: #2563eb;
-  --vp-c-brand-3: #1d4ed8;
-  --vp-c-brand-soft: rgba(59, 130, 246, 0.15);
+/* ==========================================================================
+   Axiom EDA Design System — Aerospace-Grade In-RAM Simulation Standard
+   Linear / Software-Craft Standard // VitePress Custom Theme
+   ========================================================================== */
 
-  --vp-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
-  --vp-font-family-mono: 'JetBrains Mono', monospace, ui-monospace;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Canvas & Foundations */
+  --bg-canvas: #08090a;
+  --bg-surface-1: #0f1012;
+  --bg-surface-2: #15171a;
+  --bg-surface-3: #1c1e22;
+
+  /* Hairline Strokes & Borders */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 255, 255, 0.16);
+  --border-accent: rgba(94, 106, 210, 0.35);
+
+  /* Linear Chromatic Accents */
+  --accent-primary: #5e6ad2;
+  --accent-primary-hover: #717cf0;
+  --accent-cyan: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-purple: #a855f7;
+
+  /* Typography / Ink Tokens */
+  --text-primary: #f7f8f8;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-dim: #3f3f46;
+
+  /* VitePress Core Semantic Overrides */
+  --vp-c-brand-1: #5e6ad2;
+  --vp-c-brand-2: #717cf0;
+  --vp-c-brand-3: #4b55a8;
+  --vp-c-brand-soft: rgba(94, 106, 210, 0.14);
+
+  --vp-c-bg: #08090a;
+  --vp-c-bg-alt: #0f1012;
+  --vp-c-bg-elv: #15171a;
+  --vp-c-bg-soft: #0f1012;
+
+  --vp-c-border: rgba(255, 255, 255, 0.08);
+  --vp-c-divider: rgba(255, 255, 255, 0.08);
+  --vp-c-gutter: rgba(255, 255, 255, 0.08);
+
+  --vp-c-text-1: #f3f4f6;
+  --vp-c-text-2: #a1a1aa;
+  --vp-c-text-3: #71717a;
+
+  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --vp-code-bg: #0a0b0d;
+  --vp-code-block-bg: #0a0b0d;
+  --vp-code-inline-bg: rgba(255, 255, 255, 0.06);
+
+  --vp-nav-bg-color: rgba(8, 9, 10, 0.85);
+  --vp-nav-screen-bg-color: #08090a;
+  --vp-sidebar-bg-color: #08090a;
 }
 
 .dark {
-  --vp-c-bg: #0d0f12;
-  --vp-c-bg-alt: #13171d;
-  --vp-c-bg-elv: #1a1f26;
-  --vp-c-bg-soft: #13171d;
+  --vp-c-brand-1: #5e6ad2;
+  --vp-c-brand-2: #717cf0;
+  --vp-c-brand-3: #4b55a8;
+  --vp-c-brand-soft: rgba(94, 106, 210, 0.14);
 
-  --vp-c-border: #242c38;
-  --vp-c-divider: #242c38;
-  --vp-c-gutter: #1a1f26;
+  --vp-c-bg: #08090a;
+  --vp-c-bg-alt: #0f1012;
+  --vp-c-bg-elv: #15171a;
+  --vp-c-bg-soft: #0f1012;
 
-  --vp-c-text-1: #f1f5f9;
-  --vp-c-text-2: #94a3b8;
-  --vp-c-text-3: #64748b;
+  --vp-c-border: rgba(255, 255, 255, 0.08);
+  --vp-c-divider: rgba(255, 255, 255, 0.08);
+  --vp-c-gutter: rgba(255, 255, 255, 0.08);
 
-  --vp-code-bg: #13171d;
-  --vp-code-block-bg: #13171d;
+  --vp-c-text-1: #f3f4f6;
+  --vp-c-text-2: #a1a1aa;
+  --vp-c-text-3: #71717a;
+
+  --vp-code-bg: #0a0b0d;
+  --vp-code-block-bg: #0a0b0d;
+  --vp-code-inline-bg: rgba(255, 255, 255, 0.06);
+
+  --vp-nav-bg-color: rgba(8, 9, 10, 0.85);
+  --vp-nav-screen-bg-color: #08090a;
+  --vp-sidebar-bg-color: #08090a;
 }
 
-/* Custom hero styling */
-.VPHero .name {
-  background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 50%, #34d399 100%) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
+/* Base Body & Reset */
+html, body {
+  background-color: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-family: var(--vp-font-family-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.VPHero .tagline {
-  color: #94a3b8 !important;
+/* Headings with tight -0.035em tracking */
+h1, h2, h3, h4, h5, h6,
+.VPNavBarTitle,
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4 {
+  font-family: 'Inter', -apple-system, sans-serif !important;
+  letter-spacing: -0.035em !important;
 }
 
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
+/* Global scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 
-th, td {
-  border: 1px solid var(--vp-c-border);
-  padding: 8px 14px;
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-th {
-  background-color: var(--vp-c-bg-alt);
-  font-weight: 600;
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(94, 106, 210, 0.6);
+}
+
+/* Full Width Landing Page Resets */
+html.hide-nav .VPContent {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+html.hide-nav .VPPage {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+}
+
+html.hide-nav .VPLocalNav,
+.VPLocalNav.empty {
+  display: none !important;
+}
+
+
+/* ==========================================================================
+   Vexel-Grade Documentation Styling & Enhancements
+   ========================================================================== */
+
+/* 1. Sidebar Category Group Headers & Badges */
+.VPSidebarItem.level-0 > .item {
+  padding-top: 14px;
+  padding-bottom: 6px;
+}
+
+.VPSidebarItem.level-0 > .item .text {
+  font-family: 'Inter', -apple-system, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.9px !important;
+  text-transform: uppercase !important;
+  color: #71717a !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  transition: color 0.15s ease;
+}
+
+.VPSidebarItem.level-0 > .item:hover .text {
+  color: #a1a1aa !important;
+}
+
+/* Category Count Badges in Sidebar */
+.vp-category-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  padding: 1px 6.5px !important;
+  border-radius: 9999px !important;
+  background: rgba(94, 106, 210, 0.14) !important;
+  border: 1px solid rgba(94, 106, 210, 0.28) !important;
+  color: #717cf0 !important;
+  line-height: 1.2 !important;
+  margin-left: 8px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* 2. Active Section Glow Indicator */
+.VPSidebarItem.level-1 > .item,
+.VPSidebarItem.level-2 > .item {
+  border-radius: 8px;
+  margin-bottom: 2px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.VPSidebarItem.level-1 > .item:hover,
+.VPSidebarItem.level-2 > .item:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.VPSidebarItem.level-1.is-active > .item,
+.VPSidebarItem.level-2.is-active > .item {
+  background: rgba(94, 106, 210, 0.12) !important;
+  border: 1px solid rgba(94, 106, 210, 0.35) !important;
+  box-shadow: 0 0 16px rgba(94, 106, 210, 0.22) !important;
+}
+
+.VPSidebarItem.level-1.is-active .text,
+.VPSidebarItem.level-2.is-active .text {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.VPSidebarItem.level-1.is-active .indicator,
+.VPSidebarItem.level-2.is-active .indicator {
+  background-color: #5e6ad2 !important;
+  box-shadow: 0 0 8px #5e6ad2 !important;
+}
+
+/* 3. High-Craft Code Blocks & Copy Buttons */
+div[class*='language-'] {
+  background-color: #0a0b0d !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
+  margin: 20px 0 !important;
+  overflow: hidden !important;
+}
+
+div[class*='language-'] pre {
+  padding: 16px 20px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12.5px !important;
+  line-height: 1.65 !important;
+}
+
+/* Language Label in Code Block Header */
+div[class*='language-'] > span.lang {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #717cf0 !important;
+  background: rgba(94, 106, 210, 0.12) !important;
+  border: 1px solid rgba(94, 106, 210, 0.25) !important;
+  border-radius: 4px !important;
+  padding: 2px 7px !important;
+  top: 10px !important;
+  right: 48px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
+}
+
+/* Code Copy Button */
+div[class*='language-'] > button.copy {
+  top: 10px !important;
+  right: 12px !important;
+  width: 28px !important;
+  height: 28px !important;
+  background: #15171a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  color: #a1a1aa !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+}
+
+div[class*='language-'] > button.copy:hover {
+  background: #1c1e22 !important;
+  border-color: rgba(94, 106, 210, 0.45) !important;
+  color: #ffffff !important;
+}
+
+/* 4. Inline Code Elements */
+:not(pre) > code {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f59e0b !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.88em !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+}
+
+/* 5. Clean Documentation Typography */
+.vp-doc h1 {
+  font-size: 34px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.035em !important;
+  color: #ffffff !important;
+  margin-bottom: 16px !important;
+}
+
+.vp-doc h2 {
+  font-size: 23px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  color: #f3f4f6 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding-bottom: 10px !important;
+  margin-top: 36px !important;
+  margin-bottom: 16px !important;
+}
+
+.vp-doc h3 {
+  font-size: 17.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.025em !important;
+  color: #ffffff !important;
+  margin-top: 28px !important;
+  margin-bottom: 12px !important;
+}
+
+.vp-doc p {
+  line-height: 1.7 !important;
+  color: var(--vp-c-text-2) !important;
+  font-size: 14.5px !important;
+}
+
+/* 6. High-Craft API & Spec Tables */
+.vp-doc table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  margin: 24px 0 !important;
+  display: table !important;
+}
+
+.vp-doc th {
+  background-color: #0f1012 !important;
+  color: #717cf0 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 11px 16px !important;
+}
+
+.vp-doc td {
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  padding: 10px 16px !important;
+  font-size: 13px !important;
+  color: var(--vp-c-text-2) !important;
+}
+
+.vp-doc tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* 7. Key Concept Callout / Custom Blocks */
+.custom-block {
+  border-radius: 12px !important;
+  padding: 16px 20px !important;
+  margin: 24px 0 !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+.custom-block.tip {
+  background: rgba(94, 106, 210, 0.08) !important;
+  border-color: rgba(94, 106, 210, 0.3) !important;
+  box-shadow: 0 4px 20px rgba(94, 106, 210, 0.08) !important;
+}
+.custom-block.tip .custom-block-title {
+  color: #717cf0 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+}
+
+.custom-block.info {
+  background: rgba(56, 189, 248, 0.08) !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.08) !important;
+}
+.custom-block.info .custom-block-title {
+  color: #38bdf8 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+}
+
+.custom-block.warning {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.08) !important;
+}
+.custom-block.warning .custom-block-title {
+  color: #f59e0b !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+}
+
+.custom-block.danger {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.08) !important;
+}
+.custom-block.danger .custom-block-title {
+  color: #f87171 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+}
+
+/* 8. Doc Navigation Next / Prev Buttons */
+.VPDocFooter .pager-link {
+  background: #0f1012 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  padding: 14px 18px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.VPDocFooter .pager-link:hover {
+  background: #15171a !important;
+  border-color: rgba(94, 106, 210, 0.4) !important;
+  transform: translateY(-2px) !important;
+}
+
+.VPDocFooter .pager-link .title {
+  color: #ffffff !important;
+  font-weight: 600 !important;
 }

@@ -937,6 +937,18 @@ export function getNav(prefix: string, lang: string = "en"): DefaultTheme.NavIte
     { text: l.cliReference, link: `${p}/reference/cli` },
     { text: l.webStudio, link: "/studio/", target: "_blank" },
     {
+      text: "Aerovex Ecosystem",
+      items: [
+        { text: "Aerovex Platform", link: "https://aerovex.net", target: "_self" },
+        { text: "Axiom EDA", link: "https://axiom.aerovex.net", target: "_self" },
+        { text: "Phonon CAD", link: "https://phonon.aerovex.net", target: "_self" },
+        { text: "Atoma CAD", link: "https://atoma.aerovex.net", target: "_self" },
+        { text: "Sonon DSP", link: "https://sonon.aerovex.net", target: "_self" },
+        { text: "Vexel Lang", link: "https://vexel.aerovex.net", target: "_self" },
+        { text: "Appify", link: "https://appify.aerovex.net", target: "_self" }
+      ]
+    },
+    {
       text: l.version,
       items: [
         { text: l.changelog, link: "https://github.com/aerovexhq/axiom/releases" },
@@ -950,6 +962,13 @@ export function getSidebar(prefix: string, lang: string = "en"): DefaultTheme.Si
   const s = (LOCALES_DATA[lang] || LOCALES_DATA.en).sidebar;
   const p = prefix ? `${prefix}` : "";
 
+  function group(title: string, items: DefaultTheme.SidebarItem[]): DefaultTheme.SidebarItem {
+    return {
+      text: `${title} <span class="vp-category-badge">${items.length}</span>`,
+      items
+    };
+  }
+
   const otherLangs = [
     { text: s.verilogGroup, link: `${p}/languages/verilog/overview` },
     { text: s.svGroup, link: `${p}/languages/systemverilog/overview` },
@@ -960,181 +979,124 @@ export function getSidebar(prefix: string, lang: string = "en"): DefaultTheme.Si
 
   return {
     [`${p}/ui/`]: [
-      {
-        text: s.studioWorkspace,
-        items: [
-          { text: s.studioOverview, link: `${p}/ui/overview` },
-          { text: s.projectsLifecycle, link: `${p}/ui/projects-lifecycle` },
-          { text: s.securitySandbox, link: `${p}/ui/security-sandbox` }
-        ]
-      },
-      {
-        text: s.coreDesignViews,
-        items: [
-          { text: s.monacoEditor, link: `${p}/ui/monaco-editor` },
-          { text: s.schematicViewer, link: `${p}/ui/schematic-viewer` },
-          { text: s.virtualLab, link: `${p}/ui/virtual-lab` }
-        ]
-      },
-      {
-        text: s.analysisViews,
-        items: [
-          { text: s.waveformViewer, link: `${p}/ui/waveform-viewer` },
-          { text: s.timingRadar, link: `${p}/ui/timing-radar` },
-          { text: s.telemetryEnergy, link: `${p}/ui/telemetry-energy` }
-        ]
-      },
-      {
-        text: s.advancedSynthesis,
-        items: [
-          { text: s.techMapping, link: `${p}/ui/tech-mapping` },
-          { text: s.floorplanning, link: `${p}/ui/floorplanning` },
-          { text: s.formalVerification, link: `${p}/ui/formal-verification` },
-          { text: s.protocolAnalyzer, link: `${p}/ui/protocol-analyzer` },
-          { text: s.microarchitecture, link: `${p}/ui/microarchitecture` }
-        ]
-      },
-      {
-        text: s.controlsDiagnostics,
-        items: [
-          { text: s.simulationDock, link: `${p}/ui/simulation-dock` }
-        ]
-      }
+      group(s.studioWorkspace, [
+        { text: s.studioOverview, link: `${p}/ui/overview` },
+        { text: s.projectsLifecycle, link: `${p}/ui/projects-lifecycle` },
+        { text: s.securitySandbox, link: `${p}/ui/security-sandbox` }
+      ]),
+      group(s.coreDesignViews, [
+        { text: s.monacoEditor, link: `${p}/ui/monaco-editor` },
+        { text: s.schematicViewer, link: `${p}/ui/schematic-viewer` },
+        { text: s.virtualLab, link: `${p}/ui/virtual-lab` }
+      ]),
+      group(s.analysisViews, [
+        { text: s.waveformViewer, link: `${p}/ui/waveform-viewer` },
+        { text: s.timingRadar, link: `${p}/ui/timing-radar` },
+        { text: s.telemetryEnergy, link: `${p}/ui/telemetry-energy` }
+      ]),
+      group(s.advancedSynthesis, [
+        { text: s.techMapping, link: `${p}/ui/tech-mapping` },
+        { text: s.floorplanning, link: `${p}/ui/floorplanning` },
+        { text: s.formalVerification, link: `${p}/ui/formal-verification` },
+        { text: s.protocolAnalyzer, link: `${p}/ui/protocol-analyzer` },
+        { text: s.microarchitecture, link: `${p}/ui/microarchitecture` }
+      ]),
+      group(s.controlsDiagnostics, [
+        { text: s.simulationDock, link: `${p}/ui/simulation-dock` }
+      ])
     ],
 
     [`${p}/languages/verilog/`]: [
-      {
-        text: s.verilogGroup,
-        items: [
-          { text: s.langOverview, link: `${p}/languages/verilog/overview` },
-          { text: s.dataTypesNets, link: `${p}/languages/verilog/data-types-nets` },
-          { text: s.operatorsExprs, link: `${p}/languages/verilog/operators-expressions` },
-          { text: s.continuousAssigns, link: `${p}/languages/verilog/continuous-assigns` },
-          { text: s.proceduralBlocks, link: `${p}/languages/verilog/procedural-blocks` },
-          { text: s.controlFlow, link: `${p}/languages/verilog/control-flow` },
-          { text: s.modulesHierarchy, link: `${p}/languages/verilog/modules-hierarchy` },
-          { text: s.tasksFunctions, link: `${p}/languages/verilog/tasks-functions` },
-          { text: s.systemTasks, link: `${p}/languages/verilog/system-tasks` },
-          { text: s.linterRules, link: `${p}/languages/verilog/linter-diagnostics` }
-        ]
-      },
-      {
-        text: s.otherLanguages,
-        items: otherLangs.filter((item) => !item.link.includes("/verilog/"))
-      }
+      group(s.verilogGroup, [
+        { text: s.langOverview, link: `${p}/languages/verilog/overview` },
+        { text: s.dataTypesNets, link: `${p}/languages/verilog/data-types-nets` },
+        { text: s.operatorsExprs, link: `${p}/languages/verilog/operators-expressions` },
+        { text: s.continuousAssigns, link: `${p}/languages/verilog/continuous-assigns` },
+        { text: s.proceduralBlocks, link: `${p}/languages/verilog/procedural-blocks` },
+        { text: s.controlFlow, link: `${p}/languages/verilog/control-flow` },
+        { text: s.modulesHierarchy, link: `${p}/languages/verilog/modules-hierarchy` },
+        { text: s.tasksFunctions, link: `${p}/languages/verilog/tasks-functions` },
+        { text: s.systemTasks, link: `${p}/languages/verilog/system-tasks` },
+        { text: s.linterRules, link: `${p}/languages/verilog/linter-diagnostics` }
+      ]),
+      group(s.otherLanguages, otherLangs.filter((item) => !item.link.includes("/verilog/")))
     ],
 
     [`${p}/languages/systemverilog/`]: [
-      {
-        text: s.svGroup,
-        items: [
-          { text: s.langOverview, link: `${p}/languages/systemverilog/overview` },
-          { text: s.svTypes, link: `${p}/languages/systemverilog/types-declarations` },
-          { text: s.svProcesses, link: `${p}/languages/systemverilog/specialized-processes` },
-          { text: s.svInterfaces, link: `${p}/languages/systemverilog/interfaces-packages` },
-          { text: s.svAssertions, link: `${p}/languages/systemverilog/assertions-sva` },
-          { text: s.svConstrained, link: `${p}/languages/systemverilog/constrained-random` }
-        ]
-      },
-      {
-        text: s.otherLanguages,
-        items: otherLangs.filter((item) => !item.link.includes("/systemverilog/"))
-      }
+      group(s.svGroup, [
+        { text: s.langOverview, link: `${p}/languages/systemverilog/overview` },
+        { text: s.svTypes, link: `${p}/languages/systemverilog/types-declarations` },
+        { text: s.svProcesses, link: `${p}/languages/systemverilog/specialized-processes` },
+        { text: s.svInterfaces, link: `${p}/languages/systemverilog/interfaces-packages` },
+        { text: s.svAssertions, link: `${p}/languages/systemverilog/assertions-sva` },
+        { text: s.svConstrained, link: `${p}/languages/systemverilog/constrained-random` }
+      ]),
+      group(s.otherLanguages, otherLangs.filter((item) => !item.link.includes("/systemverilog/")))
     ],
 
     [`${p}/languages/vhdl/`]: [
-      {
-        text: s.vhdlGroup,
-        items: [
-          { text: s.langOverview, link: `${p}/languages/vhdl/overview` },
-          { text: s.vhdlEntities, link: `${p}/languages/vhdl/entities-architectures` },
-          { text: s.vhdlPackages, link: `${p}/languages/vhdl/packages-types` },
-          { text: s.vhdlConcurrent, link: `${p}/languages/vhdl/concurrent-sequential` },
-          { text: s.vhdlLinter, link: `${p}/languages/vhdl/linter-rules` }
-        ]
-      },
-      {
-        text: s.otherLanguages,
-        items: otherLangs.filter((item) => !item.link.includes("/vhdl/"))
-      }
+      group(s.vhdlGroup, [
+        { text: s.langOverview, link: `${p}/languages/vhdl/overview` },
+        { text: s.vhdlEntities, link: `${p}/languages/vhdl/entities-architectures` },
+        { text: s.vhdlPackages, link: `${p}/languages/vhdl/packages-types` },
+        { text: s.vhdlConcurrent, link: `${p}/languages/vhdl/concurrent-sequential` },
+        { text: s.vhdlLinter, link: `${p}/languages/vhdl/linter-rules` }
+      ]),
+      group(s.otherLanguages, otherLangs.filter((item) => !item.link.includes("/vhdl/")))
     ],
 
     [`${p}/languages/xdc/`]: [
-      {
-        text: s.xdcGroup,
-        items: [
-          { text: s.langOverview, link: `${p}/languages/xdc/overview` },
-          { text: s.xdcPhysical, link: `${p}/languages/xdc/physical-constraints` },
-          { text: s.xdcClock, link: `${p}/languages/xdc/clock-constraints` },
-          { text: s.xdcIo, link: `${p}/languages/xdc/io-timing` },
-          { text: s.xdcExceptions, link: `${p}/languages/xdc/timing-exceptions` },
-          { text: s.xdcLsp, link: `${p}/languages/xdc/lsp-and-validation` }
-        ]
-      },
-      {
-        text: s.otherLanguages,
-        items: otherLangs.filter((item) => !item.link.includes("/xdc/"))
-      }
+      group(s.xdcGroup, [
+        { text: s.langOverview, link: `${p}/languages/xdc/overview` },
+        { text: s.xdcPhysical, link: `${p}/languages/xdc/physical-constraints` },
+        { text: s.xdcClock, link: `${p}/languages/xdc/clock-constraints` },
+        { text: s.xdcIo, link: `${p}/languages/xdc/io-timing` },
+        { text: s.xdcExceptions, link: `${p}/languages/xdc/timing-exceptions` },
+        { text: s.xdcLsp, link: `${p}/languages/xdc/lsp-and-validation` }
+      ]),
+      group(s.otherLanguages, otherLangs.filter((item) => !item.link.includes("/xdc/")))
     ],
 
     [`${p}/languages/primitives/`]: [
-      {
-        text: s.primGroup,
-        items: [
-          { text: s.primArch, link: `${p}/languages/primitives/overview` },
-          { text: s.primClb, link: `${p}/languages/primitives/clb-and-logic` },
-          { text: s.primClock, link: `${p}/languages/primitives/clocking-and-io` },
-          { text: s.primDsp, link: `${p}/languages/primitives/dsp-slices` },
-          { text: s.primBram, link: `${p}/languages/primitives/block-ram` }
-        ]
-      },
-      {
-        text: s.otherLanguages,
-        items: otherLangs.filter((item) => !item.link.includes("/primitives/"))
-      }
+      group(s.primGroup, [
+        { text: s.primArch, link: `${p}/languages/primitives/overview` },
+        { text: s.primClb, link: `${p}/languages/primitives/clb-and-logic` },
+        { text: s.primClock, link: `${p}/languages/primitives/clocking-and-io` },
+        { text: s.primDsp, link: `${p}/languages/primitives/dsp-slices` },
+        { text: s.primBram, link: `${p}/languages/primitives/block-ram` }
+      ]),
+      group(s.otherLanguages, otherLangs.filter((item) => !item.link.includes("/primitives/")))
     ],
 
     [`${p}/guide/`]: [
-      {
-        text: s.gettingStarted,
-        items: [
-          { text: s.guideIntro, link: `${p}/guide/introduction` },
-          { text: s.guideQuickstart, link: `${p}/guide/quickstart` },
-          { text: s.guideDesktopWeb, link: `${p}/guide/desktop-web` }
-        ]
-      }
+      group(s.gettingStarted, [
+        { text: s.guideIntro, link: `${p}/guide/introduction` },
+        { text: s.guideQuickstart, link: `${p}/guide/quickstart` },
+        { text: s.guideDesktopWeb, link: `${p}/guide/desktop-web` }
+      ])
     ],
 
     [`${p}/architecture/`]: [
-      {
-        text: s.coreArch,
-        items: [
-          { text: s.archJit, link: `${p}/architecture/in-ram-jit` },
-          { text: s.archArena, link: `${p}/architecture/four-state-arena` },
-          { text: s.archScheduler, link: `${p}/architecture/stratified-scheduler` },
-          { text: s.archPower, link: `${p}/architecture/power-pdn-telemetry` }
-        ]
-      }
+      group(s.coreArch, [
+        { text: s.archJit, link: `${p}/architecture/in-ram-jit` },
+        { text: s.archArena, link: `${p}/architecture/four-state-arena` },
+        { text: s.archScheduler, link: `${p}/architecture/stratified-scheduler` },
+        { text: s.archPower, link: `${p}/architecture/power-pdn-telemetry` }
+      ])
     ],
 
     [`${p}/vivado/`]: [
-      {
-        text: s.vivadoGroup,
-        items: [
-          { text: s.vivadoMigration, link: `${p}/vivado/migration` },
-          { text: s.vivadoSaifVcd, link: `${p}/vivado/saif-vcd-interop` },
-          { text: s.vivadoMatrix, link: `${p}/vivado/feature-matrix` }
-        ]
-      }
+      group(s.vivadoGroup, [
+        { text: s.vivadoMigration, link: `${p}/vivado/migration` },
+        { text: s.vivadoSaifVcd, link: `${p}/vivado/saif-vcd-interop` },
+        { text: s.vivadoMatrix, link: `${p}/vivado/feature-matrix` }
+      ])
     ],
 
     [`${p}/reference/`]: [
-      {
-        text: s.refGroup,
-        items: [
-          { text: s.refCli, link: `${p}/reference/cli` }
-        ]
-      }
+      group(s.refGroup, [
+        { text: s.refCli, link: `${p}/reference/cli` }
+      ])
     ]
   };
 }

@@ -180,7 +180,7 @@ export default defineConfig({
     ["link", { rel: "icon", type: "image/png", href: "/favicon.png" }],
     ["link", { rel: "shortcut icon", href: "/favicon.ico" }],
     ["link", { rel: "apple-touch-icon", href: "/logo.png" }],
-    ["meta", { name: "theme-color", content: "#0d0f12" }],
+    ["meta", { name: "theme-color", content: "#08090a" }],
     ["meta", { name: "color-scheme", content: "dark" }],
     ["meta", { name: "author", content: "Aerovex Simulation & Computing" }],
     ["meta", { name: "robots", content: "index, follow" }],
@@ -190,7 +190,7 @@ export default defineConfig({
     ["meta", { name: "apple-mobile-web-app-capable", content: "yes" }],
     ["meta", { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" }],
     ["meta", { name: "mobile-web-app-capable", content: "yes" }],
-    ["meta", { name: "msapplication-TileColor", content: "#0d0f12" }],
+    ["meta", { name: "msapplication-TileColor", content: "#08090a" }],
 
     // Open Graph / Facebook
     ["meta", { property: "og:type", content: "website" }],
